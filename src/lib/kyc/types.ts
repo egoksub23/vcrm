@@ -25,6 +25,24 @@ export interface KycField {
   masked: boolean;
 }
 
+/** One of the two people a check names: the parent (who submitted it) and the child (whose ID it is). Masked on the server like every other field. */
+export interface KycPerson {
+  role: "parent" | "child";
+  /** In a fixed order: name, nickname, ID, e-mail, phone, wallet, client type. Only the ones the back end sent. */
+  fields: KycField[];
+}
+
+/** What a reviewer decided, as the back end recorded it. null on a validation nobody has reviewed. */
+export interface KycReview {
+  /** The back end's word ("APPROVED", "REJECTED"). */
+  raw: string;
+  tone: StatusTone;
+  /** The reviewer's note, cleaned, or null. */
+  note: string | null;
+  /** ISO 8601 (UTC), or null. */
+  at: string | null;
+}
+
 export interface KycValidation {
   /** The vendor's id for the validation, as a string. Empty when the response had none (then no image can be opened). */
   id: string;
@@ -52,6 +70,10 @@ export interface KycValidation {
   fallback: boolean;
   /** At least one field is masked in this view (so Reveal would show more). */
   hasMasked: boolean;
+  /** The parent and the child the check names (those the back end sent). */
+  people: KycPerson[];
+  /** The decision already recorded, or null: only a validation with no review can be decided. */
+  review: KycReview | null;
 }
 
 export interface KycValidationList {
@@ -79,7 +101,9 @@ export type KycErrorCode =
   | "rate_limited"
   | "forbidden"
   /** The access log could not be written, so nothing was shown (the log is never skipped). */
-  | "audit_failed";
+  | "audit_failed"
+  /** Somebody already approved or rejected this check; nothing was sent. */
+  | "already_decided";
 
 export interface KycStatus {
   configured: boolean;
@@ -89,6 +113,8 @@ export interface KycStatus {
   missing: string[];
   canView: boolean;
   canReveal: boolean;
+  /** May approve or reject an ID check (kyc.decide). */
+  canDecide: boolean;
   /** An admin or owner: sees the access log tab and the setup hints. */
   isAdmin: boolean;
 }
@@ -98,14 +124,38 @@ export interface KycAccessRow {
   createdAt: string;
   userId: string | null;
   userName: string | null;
-  action: "lookup" | "list" | "view_image" | "reveal" | "config_error";
+  action: "lookup" | "list" | "view_image" | "reveal" | "config_error" | "decision";
   friendId: string | null;
   validationId: string | null;
-  outcome: "ok" | "not_found" | "forbidden" | "error";
+  /** 'attempt' is the row a decision writes before the back end is called; its result is the row after it. */
+  outcome: "ok" | "not_found" | "forbidden" | "error" | "attempt";
+  /** Only on a 'decision' row. */
+  decision: KycDecision | null;
 }
 
-export const KYC_ACTIONS = ["lookup", "list", "view_image", "reveal", "config_error"] as const;
-export const KYC_OUTCOMES = ["ok", "not_found", "forbidden", "error"] as const;
+export const KYC_ACTIONS = ["lookup", "list", "view_image", "reveal", "config_error", "decision"] as const;
+export const KYC_OUTCOMES = ["ok", "not_found", "forbidden", "error", "attempt"] as const;
+
+export const KYC_DECISIONS = ["approve", "reject"] as const;
+export type KycDecision = (typeof KYC_DECISIONS)[number];
+/** The longest note a reviewer can leave (the back end keeps it, and may e-mail it to the parent). */
+export const DECISION_NOTE_MAX = 500;
+
+/** What the screen is told after a decision. Only booleans and the back end's status word: nothing else the back end said. */
+export interface KycDecisionResult {
+  decision: KycDecision;
+  /** "APPROVED" / "REJECTED". */
+  reviewStatus: string;
+  reviewTone: StatusTone;
+  /** ISO 8601 (UTC), or null. */
+  reviewedAt: string | null;
+  /** The note as it was sent (cleaned), or null. */
+  note: string | null;
+  /** The back end said it could not save the decision in every place it keeps it: tell engineering. */
+  partial: boolean;
+  /** After a rejection: true = the e-mail to the parent went, false = it did not, null = the back end did not say. Always null after an approval. */
+  emailSent: boolean | null;
+}
 
 /** Characters a friend id may hold, and its length. The same rule is applied by the route and the screen. */
 export const FRIEND_ID_RE = /^[A-Za-z0-9._@:+-]{1,100}$/;

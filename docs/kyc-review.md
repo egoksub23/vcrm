@@ -1,8 +1,8 @@
 # KYC review
 
-Phase 1, read-only. A staff screen under **Incidents** (menu **KYC review**, route `/kyc`) over the ID verification back end ("doc-processor"), which holds ID images and validation records of **children**. This is the most sensitive data Halo touches, and every choice below follows from that. The plan, the phases and the questions for compliance are in `docs/kyc-review-plan.md`.
+Phase 2, read and decide. A staff screen under **Incidents** (menu **KYC review**, route `/kyc`) over the ID verification back end ("doc-processor"), which holds ID images and validation records of **children**. This is the most sensitive data Halo touches, and every choice below follows from that. The plan, the phases and the questions for compliance are in `docs/kyc-review-plan.md`.
 
-What a reviewer can do today: look a **friend ID** up, read the validations on file (newest first), open the stored **ID image**, and (with a separate permission) **reveal** the masked values for two minutes. Nothing can be approved or rejected yet, and the screen says so.
+What a reviewer can do today: look a **friend ID** up, read the validations on file (newest first), open the stored **ID image**, and (with a separate permission) **reveal** the masked values for two minutes. With a fourth permission (`kyc.decide`) a reviewer can also **approve or reject** a check (section 2.1). Without it the screen says so.
 
 What Halo stores: **nothing of the child's**. The image is fetched from the back end each time it is shown and streamed to the reviewer; it is not saved. The only thing Halo keeps is the **access log**: who looked at which friend ID, when, and what happened (section 6).
 
@@ -34,13 +34,14 @@ To turn it on for **one** workspace (the owner will do this for the Vircle works
 
 ### 1.3 Permissions
 
-Defaults below; an admin changes them per role in **Settings > Roles & permissions** (group **KYC review**). All three are app-tier (server routes; there is no table a browser reads with them) and can be granted down to **Agent**, never to Viewer.
+Defaults below; an admin changes them per role in **Settings > Roles & permissions** (group **KYC review**). All four are app-tier (server routes; there is no table a browser reads with them) and can be granted down to **Agent**, never to Viewer.
 
 | Permission | What it allows | Default |
 |---|---|---|
 | `menu.kyc` | See the menu item, open the screen, look a friend ID up, read the **masked** validations. Required for all the others. | Owner, Admin |
 | `kyc.view` | Open the stored ID image. | Owner, Admin |
 | `kyc.reveal` | Reveal the masked values (ID number, date of birth, address ...) of one validation for two minutes. | Owner, Admin |
+| `kyc.decide` | Approve or reject an ID check (migration 188). Separate on purpose: a person can read and look without being able to decide. | Owner, Admin |
 
 Every other role, and every custom role built on one, has none of them until an admin grants it. The **Access log** tab is for **admins and owners only**, whatever permissions a custom role has.
 
@@ -50,9 +51,21 @@ Every other role, and every custom role built on one, has none of them until an 
 - **Search**: a friend ID (1 to 100 characters of `A-Z a-z 0-9 . _ @ : + -`). Enter searches; paste is fine; the clear button empties it. The last eight ids searched are remembered **per person in this browser** (ids only, never data), with a "Clear recent" link.
 - **Results (left)**: one row per validation, newest first: type chip (NRIC ...), status chip (an icon and the word the back end sent, green / amber / red / grey by its meaning; never colour alone), time (relative; the exact time in the browser's time zone in the tooltip), a short id, a score if there is one. Empty: "No validations for this ID".
 - **Detail (right)**: the image viewer (zoom, rotate, fit or actual size, keys `+ - 0 R F`, loading skeleton, "Could not load the image" with Retry), then the data card: known fields as labelled rows with the sensitive ones masked, the other fields in a generic list, and a collapsed **Technical details** (validation id, status as sent).
+- **People**: the data card also lists the **child** and the **parent** the check names (name and nickname shown; ID number and wallet id partly hidden; e-mail and phone hidden; all revealed by Reveal, which is logged).
 - **Phone width**: the list takes the screen; opening a validation shows the detail with a back arrow.
 - **Footer**: "Every view of this page is recorded."
 - **Access log tab** (admins and owners): section 6.
+
+### 2.1 Approve and reject (migration 188, `kyc.decide`)
+
+Under the data card, a **Decision** box. A check that already carries a review (`review_status` APPROVED or REJECTED, with its note and time) shows that instead, to everybody who can open the screen, and offers no buttons.
+
+- **Approve** sets the child's eKYC status to Verified. **Reject** sets it to Rejected and the verification service **e-mails the parent**. Both are the back end's own doing (`POST /validations/{id}/review`, body `{"decision": "approve" | "reject", "note": "..."}`, `x-api-key`); Halo stores nothing of the decision except the access-log rows.
+- A **note** is required to reject, optional to approve, one clean line of at most 500 characters. Both buttons open a confirmation that says what will happen and that Halo cannot undo it. While the call is out everything is disabled.
+- **Order on the server** (`decideValidation` in `src/lib/kyc/service.ts`): `kyc.decide` or a 403 (logged `forbidden`); the check is read again and one that already carries a review is a 409 `already_decided` and nothing is sent (a rejection e-mails a parent, so it is never sent twice); an **`attempt` row is written before the back end is called** and when it cannot be written nothing is sent (`audit_failed`); the one POST, 25 s deadline, **never retried**; then a result row (`ok`, `error` or `not_found`). If only the result row cannot be written the decision still shows as done (the attempt row exists).
+- The answer holds only the status word, the time, the note as sent, `partial` (the back end said it could not save the decision in both of its stores) and `emailSent` (after a rejection: true, false or unknown). The screen words each; nothing else the back end said is passed on.
+- When the outcome is unclear (no answer, unreadable answer, 409) the screen reloads that check and tells the reviewer to look at its status before trying again.
+- Twenty decisions a minute per person. Only a JSON body is accepted.
 
 ## 3. Masking and Reveal
 
@@ -97,19 +110,20 @@ In the browser the bytes become a blob URL that is revoked when the viewer close
 
 Error codes the routes use (the screen words each in four languages; the back end's own words are never passed on): `not_configured` (503), `upstream_unreachable` (502: network, timeout, 5xx, 429), `upstream_unauthorized` (502: the key was rejected; admins are told to check `KYC_DOC_API_KEY`), `not_found` (404), `bad_response` (502), `image_too_large`, `image_type_unsupported`, `image_host_blocked` (502), `invalid_request` (400), `rate_limited` (429), `forbidden` (403), `audit_failed` (503). An unknown friend id is **not** an error: the back end's 404, or an empty list, shows "No validations for this ID".
 
-Routes (all `GET`, all `Cache-Control: no-store`):
+Routes (all `GET` except the review, all `Cache-Control: no-store`):
 
 | Route | Guards |
 |---|---|
 | `/api/kyc/status[?check=1]` | `menu.kyc`; `check=1` (back end `/health`, no key) admins only, 6 a minute |
 | `/api/kyc/validations?friend_id=&limit=&reload=&reveal=1&validation_id=` | `menu.kyc`; `reveal=1` also `kyc.reveal` and the shared reveal limiter |
 | `/api/kyc/validations/{id}/image?friend_id=` | `menu.kyc` and `kyc.view` |
+| `POST /api/kyc/validations/{id}/review` body `{friend_id, decision, note}` | `menu.kyc` and `kyc.decide`; JSON only; 20 a minute; section 2.1 |
 | `/api/kyc/access-log?user_id=&friend_id=&action=&from=&to=&before=&limit=` | `menu.kyc` and admin or owner |
 | `/api/kyc/access-log/export?...` | the same, CSV, at most 5,000 rows |
 
 ## 6. Privacy and the access log
 
-**Table `kyc_access_log`** (migration 182). Each row: workspace, person, **action** (`lookup`, `list`, `view_image`, `reveal`, `config_error`), **friend ID** (as typed, trimmed, only if it passes the check above), **validation ID**, **outcome** (`ok`, `not_found`, `forbidden`, `error`) and the time. A row is written for every search (`lookup`), every reload of a list (`list`), every image shown (`view_image`), every reveal (`reveal`) and every set-up or rejected-key error (`config_error`); a refused attempt is a row with outcome `forbidden`; a search that finds nothing has outcome `not_found`.
+**Table `kyc_access_log`** (migration 182). Each row: workspace, person, **action** (`lookup`, `list`, `view_image`, `reveal`, `config_error`, `decision`), **friend ID** (as typed, trimmed, only if it passes the check above), **validation ID**, **outcome** (`ok`, `not_found`, `forbidden`, `error`, and `attempt` for the row a decision writes before the back end is called), the **decision** (`approve` or `reject`, only on a `decision` row) and the time. A row is written for every search (`lookup`), every reload of a list (`list`), every image shown (`view_image`), every reveal (`reveal`) and every set-up or rejected-key error (`config_error`); a refused attempt is a row with outcome `forbidden`; a search that finds nothing has outcome `not_found`.
 
 **What is NOT stored**: the API key, the base URL, any image or image address, any field value (no name, no ID number, no date of birth), anything the back end answered, the search results. The writer builds the row from named arguments, so nothing else can reach it; tests check every audit row of every route.
 
@@ -171,12 +185,15 @@ Nested objects are flattened to dotted paths (three levels, 20 array entries); a
 
 To fix a guess: edit the table in `adapter.ts`, add the real sample to `adapter.test.ts`, run `npx vitest run src/lib/kyc`. The test `adapter.test.ts > the guesses are listed in one place` also checks that every key above appears in this document.
 
+**The engineers' collection of 19 Oct 2026** (UAT base `https://apis-uat.vircle.com/verify_doc`; the review call is described there and was **not called on production by Halo's developers**, because it changes real children's records): the list now also carries `parent` and `child` objects (`id`, `name`, `nickname`, `identification`, `client_type`, `email`, `wallet_id`, `phone_number`) and accepts `doc_type=selfie|nric|passport`; the signed-URL answer adds `expires_in`; `POST /validations/{id}/review` answers `{id, friend_id, decision, review_status, ekyc_status, postgres: {ok}, dynamodb: {ok}, reviewed_at, note, email: {ok}}`. The adapter takes `parent` and `child` out of the record before it is flattened (so a parent's name is never the check's "Name") and reads them with their own masking rules (`PERSON_FIELDS`), and reads `review_status`, `review_note`, `reviewed_at` as the check's review. Still unanswered by the engineers: whether a decision can be changed afterwards, whether `validation_status` changes, and a way to list only the checks still waiting for review (filters other than `friend_id` and `doc_type` are ignored).
+
 ## 9. Tests, and what they do not cover
 
 - `src/lib/kyc/*.test.ts`: the adapter (arrays, objects, odd shapes, missing fields, masking, link withholding, URL extraction), the SSRF guard (private addresses in every notation, look-alike hosts, shared domains, schemes, ports), the configuration, the upstream client with an injected `fetch` (timeouts that hold even for a fetch that ignores the abort signal, size caps for declared and streamed bodies, wrong types, lying types, redirects).
 - `src/app/api/kyc/kyc-routes.test.ts`: every route with an injected back end: not set up, rejected key, timeouts-as-failures, masking on the server, reveal permission and limiter, an audit row for every action and no key or value in any row, header, answer or log line, input validation, per-person rate limits, the log-first rule, the admin-only log and CSV.
 - `src/lib/auth/*.test.ts`, `src/lib/platform/features.test.ts`: the three permissions (catalogue, defaults, parity with migration 182) and the default-off flag; `src/components/layout/nav-items.test.ts`: the menu row.
 - `src/components/kyc/*.test.*`: the pure helpers (idle cover, reveal timer, watermark, zoom state and keys, recent searches) and the markup of every state in all four languages.
+- `supabase/ci/verify-188-kyc-decisions.sql` (run it rolled back against production): `kyc.decide`, the log's new action, outcome and column, and that it is still append-only and closed to browsers; `src/lib/kyc/migration-188.test.ts` guards the text of the migration.
 - `supabase/ci/verify-182-kyc-review.sql` (run it rolled back against production): the permissions, the flag, the log's privileges and append-only rule, the workspace export and deletion.
 
 **Not covered by a test** (there is no DOM renderer in this repo): clicking, typing and focus movement, the 5 second idle check and the visibility listener that cover the image, the two-minute reveal timer, blob URL creation and revocation, the browser's real right-click and drag handling, the phone layout and dark mode appearance, and any call to the **real** back end. The list and `/url` shapes were checked against the **production** API on 18 Oct 2026 (section 8). Not yet seen: the status words other than `NO_ID_ON_CLIENT` and `UNREADABLE`, a record whose `extracted_id` or `client_id_number` is filled, and anything about approving or rejecting (the records carry `review_status`, `review_note` and `reviewed_at`, so the back end has somewhere to keep a decision, but Halo has no call for it).

@@ -18,7 +18,7 @@
 // Never throws on odd input: a value it cannot read is left out or shown as text.
 // ============================================================
 
-import type { KycField, KycValidation, StatusTone } from "./types";
+import type { KycField, KycPerson, KycReview, KycValidation, StatusTone } from "./types";
 import { VALIDATION_ID_RE } from "./types";
 
 // ------------------------------------------------------------
@@ -34,7 +34,7 @@ export const FRIEND_ID_KEYS = ["friendid", "userid", "customerid", "memberid"];
 export const TYPE_KEYS = ["type", "documenttype", "doctype", "idtype", "kind", "validationtype"];
 export const STATUS_KEYS = ["status", "validationstatus", "verificationstatus", "state", "decision", "result", "outcome", "verdict"];
 export const CREATED_KEYS = ["createdat", "created", "timestamp", "submittedat", "checkedat", "createdon", "date", "time"];
-export const UPDATED_KEYS = ["updatedat", "modifiedat", "updated", "lastupdated", "processedat", "reviewedat"];
+export const UPDATED_KEYS = ["updatedat", "modifiedat", "updated", "lastupdated", "processedat"];
 export const REASON_KEYS = ["capturemessage", "reason", "message", "failurereason", "errormessage", "error", "detail", "remarks", "comment", "note"];
 export const SCORE_KEYS = ["confidence", "score", "confidencescore", "matchscore", "similarity", "probability"];
 
@@ -52,6 +52,29 @@ export const KNOWN_FIELDS: KnownDef[] = [
   { name: "dob", label: "Date of birth", keys: ["dateofbirth", "dob", "birthdate", "birthday", "dateofbirthiso"], mode: "hidden" },
   { name: "address", label: "Address", keys: ["address", "fulladdress", "residentialaddress", "addressline1", "homeaddress"], mode: "hidden" },
 ];
+
+/**
+ * The two people a check names, as `parent` and `child` objects (production, confirmed in the engineers' collection of 19 Oct 2026). They are taken out of the
+ * record BEFORE it is flattened, so a parent's name can never be mistaken for the "Name" of the check, and each field is masked on its own rule:
+ * names are shown, an ID number and a wallet id keep their first and last two characters, an e-mail address and a phone number are hidden.
+ * Anything else inside the object is not sent to the browser (counted in `withheld`).
+ */
+export const PEOPLE_ROLES = ["child", "parent"] as const;
+export const PERSON_FIELDS: KnownDef[] = [
+  { name: "name", label: "Name", keys: ["name", "fullname"], mode: null },
+  { name: "nickname", label: "Nickname", keys: ["nickname"], mode: null },
+  { name: "identification", label: "ID number", keys: ["identification", "identificationnumber", "idnumber", "nric"], mode: "partial" },
+  { name: "email", label: "E-mail", keys: ["email", "emailaddress"], mode: "hidden" },
+  { name: "phone", label: "Phone", keys: ["phonenumber", "phone", "mobile"], mode: "hidden" },
+  { name: "wallet", label: "Wallet", keys: ["walletid", "wallet"], mode: "partial" },
+  { name: "clientType", label: "Client type", keys: ["clienttype"], mode: null },
+];
+
+/** The back end's own record of a decision, top level: review_status (APPROVED / REJECTED), review_note, reviewed_at. All null until somebody decides. */
+export const REVIEW_STATUS_KEYS = ["reviewstatus"];
+export const REVIEW_NOTE_KEYS = ["reviewnote"];
+export const REVIEW_AT_KEYS = ["reviewedat"];
+const MAX_NOTE_CHARS = 500;
 
 /** Keys (normalised, searched as a substring of the whole path) whose value is masked until revealed, unless a KnownDef above says otherwise. */
 export const SENSITIVE_PARTIAL = /(nric|icnum|icno|idnum|idno|identity|passport|mykad|mykid|nationalid|nationalno|documentnum|documentno|docnum|docno|ssn|taxid|licen[cs]e)/;
@@ -315,7 +338,15 @@ function isWithheld(e: Entry): boolean {
   return false;
 }
 
-export function buildValidation(raw: Record<string, Json>, opts: BuildOptions = {}): KycValidation {
+export function buildValidation(source: Record<string, Json>, opts: BuildOptions = {}): KycValidation {
+  // `parent` and `child` are read on their own (below); the rest of the record is what gets flattened.
+  const raw: Record<string, Json> = {};
+  const peopleRaw = new Map<string, Record<string, Json>>();
+  for (const [k, v] of Object.entries(source)) {
+    const role = norm(k);
+    if ((role === "parent" || role === "child") && isObject(v) && !peopleRaw.has(role)) peopleRaw.set(role, v);
+    else raw[k] = v;
+  }
   const entries = flatten(raw);
   const used = new Set<string>();
   let withheld = 0;
@@ -339,6 +370,9 @@ export function buildValidation(raw: Record<string, Json>, opts: BuildOptions = 
   const updatedE = take(pick(entries, UPDATED_KEYS));
   const reasonE = take(pick(entries, REASON_KEYS));
   const scoreE = take(pick(entries, SCORE_KEYS, { scalar: "number" }));
+  const reviewE = take(pick(entries, REVIEW_STATUS_KEYS, { maxDepth: 0 }));
+  const reviewNoteE = take(pick(entries, REVIEW_NOTE_KEYS, { maxDepth: 0 }));
+  const reviewAtE = take(pick(entries, REVIEW_AT_KEYS, { maxDepth: 0 }));
 
   const rawStatus = statusE ? (typeof statusE.value === "boolean" ? String(statusE.value) : text(statusE.value, 60)) : null;
 
@@ -359,6 +393,28 @@ export function buildValidation(raw: Record<string, Json>, opts: BuildOptions = 
     known.push(makeField(def.name, def.label, text(e.value), def.mode));
   }
 
+  const people: KycPerson[] = [];
+  for (const role of PEOPLE_ROLES) {
+    const obj = peopleRaw.get(role);
+    if (!obj) continue;
+    const own = flatten(obj);
+    const taken = new Set<string>();
+    const fields: KycField[] = [];
+    for (const def of PERSON_FIELDS) {
+      const e = pick(own.filter((x) => !taken.has(x.path)), def.keys, { maxDepth: 0 });
+      if (!e) continue;
+      taken.add(e.path);
+      if (isWithheld(e)) {
+        withheld += 1;
+        continue;
+      }
+      fields.push(makeField(def.name, def.label, text(e.value), def.mode));
+    }
+    // whatever else the object holds (its id repeats the friend id) is not sent
+    withheld += own.filter((x) => !taken.has(x.path) && x.leaf !== "id").length;
+    if (fields.length > 0) people.push({ role, fields });
+  }
+
   const extra: KycField[] = [];
   for (const e of entries) {
     if (used.has(e.path)) continue;
@@ -373,6 +429,19 @@ export function buildValidation(raw: Record<string, Json>, opts: BuildOptions = 
   const id = idRaw;
 
   const fallback = !(typeE || statusE || createdE || scoreE || reasonE || known.length > 0);
+
+  let review: KycReview | null = null;
+  if (reviewE) {
+    const word = typeof reviewE.value === "boolean" ? String(reviewE.value) : text(reviewE.value, 60);
+    if (word !== "") {
+      review = {
+        raw: word,
+        tone: statusTone(word),
+        note: reviewNoteE ? text(reviewNoteE.value, MAX_NOTE_CHARS) || null : null,
+        at: reviewAtE ? toIso(reviewAtE.value) : null,
+      };
+    }
+  }
 
   return {
     id: id || "",
@@ -390,6 +459,8 @@ export function buildValidation(raw: Record<string, Json>, opts: BuildOptions = 
     withheld,
     fallback,
     hasMasked,
+    people,
+    review,
   };
 }
 

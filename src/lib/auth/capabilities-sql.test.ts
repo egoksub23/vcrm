@@ -31,6 +31,7 @@ const migrationFiles = [
   "182_kyc_review.sql",
   "183_compliance_requests.sql",
   "184_compliance_intake.sql",
+  "188_kyc_decisions.sql",
 ];
 
 const migrationTexts = migrationFiles.map((f) => readMigration(f));

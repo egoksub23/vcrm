@@ -476,6 +476,8 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   "menu.kyc",
   "kyc.view",
   "kyc.reveal",
+  // Migration 188: approve or reject an ID check; brand new, server route only, so no earlier floor either.
+  "kyc.decide",
   // Migration 183: Compliance requests is brand new, server routes only (the database re-checks the actor inside its functions): no earlier floor.
   "menu.compliance",
   "compliance.review",

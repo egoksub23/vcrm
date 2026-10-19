@@ -285,6 +285,9 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // view: open the stored ID image. reveal: read the masked values (ID number, date of birth, address ...) in full. Default: Owner and Admin.
   def("kyc.view", "kyc", ADMIN_UP, "agent"),
   def("kyc.reveal", "kyc", ADMIN_UP, "agent"),
+  // Migration 188: approve or reject an ID check (the ID verification back end records it, and emails the parent on a rejection). Its own switch,
+  // so a person can read and look without being able to decide. Server route only, so app tier. Default: Owner and Admin.
+  def("kyc.decide", "kyc", ADMIN_UP, "agent"),
 
   // ---- Compliance requests (migration 183) ----
   // menu.compliance (above, in Menus) opens the area and lists the cases; each route then checks its own capability. All server routes (the service role
@@ -371,6 +374,7 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "sign.reveal-sensitive"
   | "kyc.view"
   | "kyc.reveal"
+  | "kyc.decide"
   | "compliance.review"
   | "compliance.approve"
   | "compliance.reveal"

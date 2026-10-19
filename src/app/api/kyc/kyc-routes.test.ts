@@ -45,8 +45,9 @@ import { GET as getAccessLogExport } from "./access-log/export/route";
 import { GET as getStatus } from "./status/route";
 import { GET as getValidations } from "./validations/route";
 import { GET as getImage } from "./validations/[id]/image/route";
+import { POST as postReview } from "./validations/[id]/review/route";
 
-const ALL_CAPS = ["menu.kyc", "kyc.view", "kyc.reveal"];
+const ALL_CAPS = ["menu.kyc", "kyc.view", "kyc.reveal", "kyc.decide"];
 const SECRETS = ["150304101234", "160405105678", "2015-03-04", "2016-04-05", "Jalan Mawar", "Lorong Kenanga", API_KEY, BASE_URL, "apis-uat.vircle.com"];
 
 let db: FakeDb;
@@ -192,7 +193,7 @@ describe("GET /api/kyc/validations", () => {
       ["lookup", "child-77", null, "ok", "u-reviewer", "acct-1"],
       ["list", "child-77", null, "ok", "u-reviewer", "acct-1"],
     ]);
-    expect(Object.keys(logRows()[0]).sort()).toEqual(["account_id", "action", "created_at", "friend_id", "id", "outcome", "updated_at", "user_id", "validation_id"]);
+    expect(Object.keys(logRows()[0]).sort()).toEqual(["account_id", "action", "created_at", "decision", "friend_id", "id", "outcome", "updated_at", "user_id", "validation_id"]);
     const dump = JSON.stringify(logRows());
     for (const s of SECRETS) expect(dump, s).not.toContain(s);
     expect(dump).not.toContain("Aisyah");
@@ -622,10 +623,10 @@ describe("GET /api/kyc/access-log and its CSV", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(res.headers.get("x-row-count")).toBe("1");
     const lines = csv.replace(/^﻿/, "").trim().split("\r\n");
-    expect(lines[0]).toBe("Time (UTC),Person,Person ID,Action,Friend ID,Validation ID,Outcome");
+    expect(lines[0]).toBe("Time (UTC),Person,Person ID,Action,Friend ID,Validation ID,Outcome,Decision");
     expect(lines).toHaveLength(2);
     // "+evil" starts with a formula character: guarded with a leading apostrophe
-    expect(lines[1]).toBe("2026-10-01T00:03:00.000Z,Reviewer One,u-reviewer,reveal,'+evil,,forbidden");
+    expect(lines[1]).toBe("2026-10-01T00:03:00.000Z,Reviewer One,u-reviewer,reveal,'+evil,,forbidden,");
   });
 
   it("caps the export at 5,000 rows and says it was cut", async () => {
@@ -666,5 +667,278 @@ describe("the server log", () => {
     const logged = JSON.stringify([...warn.mock.calls, ...error.mock.calls]);
     expect(logged.length).toBeGreaterThan(10);
     for (const s of [API_KEY, BASE_URL, "child-77", "SIGSECRET", "SECRET-UPSTREAM", "vircle.com/verify_doc"]) expect(logged, s).not.toContain(s);
+  });
+});
+
+// ---- decisions (migration 188) ----
+// A check as the production back end sends it once it names its people (the engineers' collection of 19 Oct 2026), and the answer a review gets.
+const PEOPLE_RECORD = {
+  id: 42,
+  friend_id: "child-77",
+  doc_type: "nric",
+  s3_key: "Prod/child-77/nric_20261018T065853Z.jpg",
+  job_status: "complete",
+  capture_ok: true,
+  capture_code: "ok",
+  capture_message: "NRIC looks readable.",
+  extracted_id: "901010145678",
+  client_id_number: "901010145678",
+  validation_status: "MATCH",
+  parent: { id: "parent-uuid", name: "Parent Name", nickname: "parent", identification: "A1234567", client_type: "APP", email: "parent@example.com", wallet_id: "8001000000001", phone_number: "60123456789" },
+  child: { id: "child-77", name: "Child Name", nickname: "child", identification: "901010145678", client_type: "CARD", email: null, wallet_id: "8001000000002", phone_number: null },
+  review_status: null,
+  review_note: null,
+  reviewed_at: null,
+  created_at: "2026-10-18T06:58:53+00:00",
+};
+const REVIEW_REPLY = { id: 42, friend_id: "child-77", decision: "approve", review_status: "APPROVED", ekyc_status: "VERIFIED", postgres: { ok: true, where: "METADATA.duitnow.ekyc_status", table: "SECRET_TABLE" }, dynamodb: { ok: true }, reviewed_at: "2026-10-19T04:00:00+00:00", note: "ok" };
+const PEOPLE_SECRETS = ["parent@example.com", "60123456789", "A1234567", "8001000000001", "8001000000002", "901010145678", "SECRET_TABLE"];
+
+describe("people on a check: masked on the server", () => {
+  it("lists the child and the parent with names shown, ID numbers and wallets partly hidden, e-mail and phone hidden, and never takes the parent's name for the check's own", async () => {
+    setup({ apiHandler: () => json({ items: [PEOPLE_RECORD] }) });
+    const { status, body } = await read(await get(getValidations, "/api/kyc/validations?friend_id=child-77"));
+    expect(status).toBe(200);
+    const item = body.items[0];
+    expect(item.people.map((p: any) => p.role)).toEqual(["child", "parent"]);
+    const child = Object.fromEntries(item.people[0].fields.map((f: any) => [f.key, f]));
+    const parent = Object.fromEntries(item.people[1].fields.map((f: any) => [f.key, f]));
+    expect(child.name).toMatchObject({ value: "Child Name", masked: false });
+    expect(child.identification).toMatchObject({ value: "90••••••78", masked: true });
+    expect(child.wallet).toMatchObject({ value: "80••••••02", masked: true });
+    expect(parent.name).toMatchObject({ value: "Parent Name", masked: false });
+    expect(parent.email).toMatchObject({ value: null, masked: true });
+    expect(parent.phone).toMatchObject({ value: null, masked: true });
+    expect(parent.identification).toMatchObject({ value: null, masked: true });
+    expect(item.known.find((f: any) => f.key === "name")).toBeUndefined();
+    expect(item.extra.some((f: any) => /parent|child/i.test(f.key))).toBe(false);
+    const dump = JSON.stringify(body);
+    for (const s of PEOPLE_SECRETS) expect(dump, s).not.toContain(s);
+    expect(dump).not.toContain("Prod/child-77");
+  });
+
+  it("shows the people in full for the ONE revealed validation, to a caller with kyc.reveal", async () => {
+    setup({ apiHandler: () => json({ items: [PEOPLE_RECORD] }) });
+    const { body } = await read(await get(getValidations, "/api/kyc/validations?friend_id=child-77&reveal=1&validation_id=42"));
+    const parent = Object.fromEntries(body.items[0].people[1].fields.map((f: any) => [f.key, f.value]));
+    expect(parent).toMatchObject({ email: "parent@example.com", phone: "60123456789", identification: "A1234567" });
+  });
+
+  it("reads a recorded decision (status, note, time) and nothing is left over in the other fields", async () => {
+    const reviewed = { ...PEOPLE_RECORD, review_status: "REJECTED", review_note: "Photo does not match", reviewed_at: "2026-10-19T04:00:00+00:00" };
+    setup({ apiHandler: () => json({ items: [reviewed] }) });
+    const { body } = await read(await get(getValidations, "/api/kyc/validations?friend_id=child-77"));
+    expect(body.items[0].review).toEqual({ raw: "REJECTED", tone: "negative", note: "Photo does not match", at: "2026-10-19T04:00:00.000Z" });
+    expect(body.items[0].extra.some((f: any) => /review/i.test(f.key))).toBe(false);
+  });
+});
+
+describe("POST /api/kyc/validations/[id]/review", () => {
+  const post = (id: string, payload: unknown, headers: Record<string, string> = { "content-type": "application/json" }) =>
+    postReview(new Request(`https://halo.test/api/kyc/validations/${encodeURIComponent(id)}/review`, { method: "POST", headers, body: typeof payload === "string" ? payload : JSON.stringify(payload) }), { params: Promise.resolve({ id: encodeURIComponent(id) }) });
+  const decide = (decision: string, extra: Record<string, unknown> = {}, id = "42") => post(id, { friend_id: "child-77", decision, ...extra });
+  const review = (over: Record<string, unknown> = {}, record: Record<string, unknown> = PEOPLE_RECORD) =>
+    setup({ apiHandler: (c) => (c.init.method === "POST" ? json({ ...REVIEW_REPLY, ...over }) : json({ items: [record] })) });
+  const posts = () => api.calls.api.filter((c) => c.init.method === "POST");
+
+  it("approves: asks the back end once after reading the check again, logs the attempt BEFORE and the result AFTER, and answers with only what the screen needs", async () => {
+    review();
+    const { status, body, headers } = await read(await decide("approve"));
+    expect(status).toBe(200);
+    expect(headers.get("cache-control")).toBe("no-store");
+    expect(body).toEqual({ decision: "approve", reviewStatus: "APPROVED", reviewTone: "positive", reviewedAt: "2026-10-19T04:00:00.000Z", note: null, partial: false, emailSent: null });
+    expect(api.calls.api.map((c) => `${c.init.method} ${c.url}`)).toEqual([`GET ${BASE_URL}/validations?friend_id=child-77&limit=100`, `POST ${BASE_URL}/validations/42/review`]);
+    expect(posts()[0].headers["x-api-key"]).toBe(API_KEY);
+    expect(posts()[0].headers["content-type"]).toBe("application/json");
+    expect(JSON.parse(String(posts()[0].init.body))).toEqual({ decision: "approve" });
+    expect(logRows().map((r) => [r.action, r.outcome, r.decision, r.friend_id, r.validation_id, r.user_id])).toEqual([
+      ["decision", "attempt", "approve", "child-77", "42", "u-reviewer"],
+      ["decision", "ok", "approve", "child-77", "42", "u-reviewer"],
+    ]);
+    const dump = JSON.stringify([body, logRows()]);
+    for (const s of [...PEOPLE_SECRETS, API_KEY, BASE_URL]) expect(dump, s).not.toContain(s);
+  });
+
+  it("rejects only with a note, sends the note cleaned (one line, no control or bidi characters), and says whether the parent's e-mail went", async () => {
+    review();
+    for (const note of [undefined, "", "   \n\t "]) {
+      const refused = await read(await decide("reject", note === undefined ? {} : { note }));
+      expect(refused.status).toBe(400);
+      expect(refused.body.code).toBe("invalid_request");
+    }
+    expect(api.calls.api).toHaveLength(0);
+    expect(logRows()).toHaveLength(0);
+
+    review({ decision: "reject", review_status: "REJECTED", email: { ok: true, to: "parent@example.com" } });
+    const sent = await read(await decide("reject", { note: "  Photo‮ does\n not\u0007  match  " }));
+    expect(sent.status).toBe(200);
+    expect(sent.body).toMatchObject({ decision: "reject", reviewStatus: "REJECTED", reviewTone: "negative", note: "Photo does not match", emailSent: true, partial: false });
+    expect(JSON.parse(String(posts()[0].init.body))).toEqual({ decision: "reject", note: "Photo does not match" });
+    expect(JSON.stringify(sent.body)).not.toContain("parent@example.com");
+    expect(JSON.stringify(logRows())).not.toContain("Photo");
+
+    review({ decision: "reject", review_status: "REJECTED", email: { ok: false, to: "parent@example.com" } });
+    expect((await read(await decide("reject", { note: "Blurry" }))).body.emailSent).toBe(false);
+    review({ decision: "reject", review_status: "REJECTED" });
+    expect((await read(await decide("reject", { note: "Blurry" }))).body.emailSent).toBeNull();
+  });
+
+  it("tells the screen when the back end could not save the decision everywhere", async () => {
+    review({ dynamodb: { ok: false, where: "SECRET_TABLE" } });
+    const { status, body } = await read(await decide("approve"));
+    expect(status).toBe(200);
+    expect(body.partial).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("SECRET_TABLE");
+  });
+
+  it("is a 403 without kyc.decide, recorded as 'forbidden' with the decision asked for, and the back end is not even asked", async () => {
+    setup({ caps: ["menu.kyc", "kyc.view", "kyc.reveal"], apiHandler: () => json({ items: [PEOPLE_RECORD] }) });
+    const { status, body } = await read(await decide("approve"));
+    expect(status).toBe(403);
+    expect(body.code).toBe("forbidden");
+    expect(api.calls.api).toHaveLength(0);
+    expect(logRows()).toMatchObject([{ action: "decision", outcome: "forbidden", decision: "approve", validation_id: "42" }]);
+  });
+
+  it("is refused without menu.kyc, whatever else the caller holds", async () => {
+    setup({ caps: ["kyc.decide"] });
+    expect((await decide("approve")).status).toBe(403);
+    expect(api.calls.api).toHaveLength(0);
+    expect(logRows()).toHaveLength(0);
+  });
+
+  it("refuses a request that is not well formed, before anything is read, sent or logged", async () => {
+    review();
+    const bad: [string, () => Promise<Response>][] = [
+      ["not JSON", () => post("42", { friend_id: "child-77", decision: "approve" }, { "content-type": "text/plain" })],
+      ["a form", () => post("42", "friend_id=child-77&decision=approve", { "content-type": "application/x-www-form-urlencoded" })],
+      ["no content type", () => post("42", { friend_id: "child-77", decision: "approve" }, {})],
+      ["broken JSON", () => post("42", "{not json")],
+      ["an array", () => post("42", [1, 2])],
+      ["no friend id", () => post("42", { decision: "approve" })],
+      ["a friend id with a slash", () => post("42", { friend_id: "a/b", decision: "approve" })],
+      ["an unknown decision", () => decide("delete")],
+      ["a missing decision", () => post("42", { friend_id: "child-77" })],
+      ["a note that is not text", () => decide("approve", { note: 5 })],
+      ["a note over 500 characters", () => decide("approve", { note: "x".repeat(501) })],
+      ["a body over 4000 characters", () => decide("approve", { note: "x".repeat(4100) })],
+      ["a validation id of '..'", () => decide("approve", {}, "..")],
+    ];
+    for (const [what, run] of bad) {
+      const { status, body } = await read(await run());
+      expect([what, status, body.code]).toEqual([what, 400, "invalid_request"]);
+    }
+    expect(api.calls.api).toHaveLength(0);
+    expect(logRows()).toHaveLength(0);
+    // 500 characters is the limit and is let through
+    expect((await decide("approve", { note: "x".repeat(500) })).status).toBe(200);
+  });
+
+  it("does not decide a check that already carries a review: a 409, nothing sent, and a trace", async () => {
+    review({}, { ...PEOPLE_RECORD, review_status: "APPROVED", reviewed_at: "2026-10-19T01:00:00+00:00" });
+    const { status, body } = await read(await decide("reject", { note: "Changed my mind" }));
+    expect(status).toBe(409);
+    expect(body.code).toBe("already_decided");
+    expect(posts()).toHaveLength(0);
+    expect(logRows().map((r) => [r.action, r.outcome, r.decision])).toEqual([["decision", "error", "reject"]]);
+  });
+
+  it("asks the back end even when the check is not among the child's first hundred (the back end answers 409 for one it refuses)", async () => {
+    review({}, { ...PEOPLE_RECORD, id: 7 });
+    expect((await decide("approve")).status).toBe(200);
+    expect(posts()).toHaveLength(1);
+  });
+
+  it("sends NOTHING when the attempt cannot be written to the log", async () => {
+    review();
+    db.failNext.kyc_access_log = "disk full";
+    const { status, body } = await read(await decide("approve"));
+    expect(status).toBe(503);
+    expect(body.code).toBe("audit_failed");
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("still answers 'done' when only the RESULT row cannot be written (the attempt row is there)", async () => {
+    setup({
+      apiHandler: (c) => {
+        if (c.init.method !== "POST") return json({ items: [PEOPLE_RECORD] });
+        db.failNext.kyc_access_log = "disk full";
+        return json(REVIEW_REPLY);
+      },
+    });
+    const { status, body } = await read(await decide("approve"));
+    expect(status).toBe(200);
+    expect(body.reviewStatus).toBe("APPROVED");
+    expect(logRows().map((r) => r.outcome)).toEqual(["attempt"]);
+  });
+
+  it("never retries: a failure of the back end is one POST, an 'error' row after the attempt, and a code with none of the back end's words", async () => {
+    // a rejected key is logged as a set-up problem (config_error, no decision), like everywhere else in this module
+    const cases: { reply: () => Response | Promise<Response>; code: string; statusCode: number; outcome: string; second: string; secondDecision: string | null }[] = [
+      { reply: () => text("SECRET-UPSTREAM " + API_KEY, 500), code: "upstream_unreachable", statusCode: 502, outcome: "error", second: "decision", secondDecision: "approve" },
+      { reply: () => text("", 503), code: "upstream_unreachable", statusCode: 502, outcome: "error", second: "decision", secondDecision: "approve" },
+      { reply: () => text("", 401), code: "upstream_unauthorized", statusCode: 502, outcome: "error", second: "config_error", secondDecision: null },
+      { reply: () => text("", 409), code: "already_decided", statusCode: 409, outcome: "error", second: "decision", secondDecision: "approve" },
+      { reply: () => text("bad decision SECRET-UPSTREAM", 422), code: "invalid_request", statusCode: 400, outcome: "error", second: "decision", secondDecision: "approve" },
+      { reply: () => text("", 404), code: "not_found", statusCode: 404, outcome: "not_found", second: "decision", secondDecision: "approve" },
+      { reply: () => Promise.reject(new Error(`ECONNREFUSED ${BASE_URL} ${API_KEY}`)), code: "upstream_unreachable", statusCode: 502, outcome: "error", second: "decision", secondDecision: "approve" },
+    ];
+    for (const { reply, code, statusCode, outcome, second, secondDecision } of cases) {
+      db = new FakeDb();
+      h.db = db;
+      setup({ apiHandler: (c) => (c.init.method === "POST" ? reply() : json({ items: [PEOPLE_RECORD] })) });
+      const { status, body } = await read(await decide("approve"));
+      expect([body.code, status]).toEqual([code, statusCode]);
+      expect(posts()).toHaveLength(1);
+      expect(logRows().map((r) => [r.action, r.outcome, r.decision])).toEqual([["decision", "attempt", "approve"], [second, outcome, secondDecision]]);
+      const dump = JSON.stringify(body);
+      for (const s of [API_KEY, "SECRET-UPSTREAM", BASE_URL]) expect(dump, s).not.toContain(s);
+    }
+  });
+
+  it("treats any 2xx as taken, even when the answer cannot be read", async () => {
+    setup({ apiHandler: (c) => (c.init.method === "POST" ? text("<html>ok</html>", 200) : json({ items: [PEOPLE_RECORD] })) });
+    const { status, body } = await read(await decide("approve"));
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ decision: "approve", reviewStatus: "APPROVED", partial: false, emailSent: null });
+  });
+
+  it("when the check cannot be read again, nothing is sent", async () => {
+    setup({ apiHandler: () => text("", 503) });
+    expect((await decide("approve")).status).toBe(502);
+    expect(posts()).toHaveLength(0);
+    expect(logRows().map((r) => [r.outcome])).toEqual([["error"]]);
+  });
+
+  it("is 'not set up' with a 503 when the server has no key, and sends nothing", async () => {
+    setup({ env: {} });
+    expect((await decide("approve")).status).toBe(503);
+    expect(api.calls.api).toHaveLength(0);
+    expect(logRows()).toMatchObject([{ action: "config_error", outcome: "error", decision: null }]);
+  });
+
+  it("allows twenty decisions a minute per person", async () => {
+    review();
+    for (let i = 0; i < 20; i++) expect((await decide("approve")).status).toBe(200);
+    const limited = await read(await decide("approve"));
+    expect(limited.status).toBe(429);
+    expect(limited.body.code).toBe("rate_limited");
+    expect(posts()).toHaveLength(20);
+  });
+
+  it("is reported to the screen as canDecide, true only for a caller who holds kyc.decide", async () => {
+    expect((await read(await get(getStatus, "/api/kyc/status"))).body.canDecide).toBe(true);
+    setup({ caps: ["menu.kyc", "kyc.view", "kyc.reveal"] });
+    expect((await read(await get(getStatus, "/api/kyc/status"))).body.canDecide).toBe(false);
+  });
+
+  it("is in the access log's CSV and filters as a 'decision' with the decision named", async () => {
+    review();
+    await decide("approve");
+    const csv = await (await get(getAccessLogExport, "/api/kyc/access-log/export?action=decision")).text();
+    const lines = csv.replace(/^﻿/, "").trim().split("\r\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[1]).toContain(",decision,child-77,42,");
+    expect(lines.slice(1).map((l) => l.split(",").slice(-2)).sort((a, b) => a[0].localeCompare(b[0]))).toEqual([["attempt", "approve"], ["ok", "approve"]]);
   });
 });

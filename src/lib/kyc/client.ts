@@ -4,6 +4,8 @@
 //   GET {base}/health                         no key; tells "service down" from "key rejected"
 //   GET {base}/validations?friend_id=&limit=&before_id=  x-api-key; friend_id is optional (without it: the latest of everybody); before_id pages back
 //   GET {base}/validations/{id}/url           x-api-key; a signed URL for the stored image (JSON, plain text or a redirect)
+//   POST {base}/validations/{id}/review       x-api-key; {decision: "approve"|"reject", note}: records the decision, sets the child's eKYC status and, on a
+//                                             rejection, e-mails the parent. The ONLY call that changes anything.
 //   (POST /check belongs to the mobile app and is never called from Halo.)
 //
 // Rules this module keeps:
@@ -17,10 +19,10 @@
 
 import { readBodyCapped } from "@/lib/net/read-capped";
 
-import { extractSignedUrl } from "./adapter";
+import { extractSignedUrl, isObject, toIso } from "./adapter";
 import { type KycConfig } from "./config";
 import { checkImageUrl } from "./ssrf";
-import type { KycErrorCode } from "./types";
+import type { KycDecision, KycErrorCode } from "./types";
 
 export type KycFetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -32,6 +34,8 @@ export interface KycTransport {
 
 export const API_TIMEOUT_MS = 10_000;
 export const IMAGE_TIMEOUT_MS = 10_000;
+/** A review writes in two databases and may send an e-mail: it gets longer than a read. */
+export const REVIEW_TIMEOUT_MS = 25_000;
 export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
 const MAX_URL_BODY_BYTES = 64 * 1024;
@@ -176,6 +180,56 @@ export async function fetchSignedImageUrl(config: KycConfig, transport: KycTrans
     throw new KycError("image_host_blocked", `${checked.reason}:${host}`);
   }
   return checked.url;
+}
+
+/** What the back end said about a decision, reduced to what the screen may be told. */
+export interface ReviewReply {
+  /** "APPROVED" / "REJECTED" as the back end wrote it, or null when it did not say. */
+  reviewStatus: string | null;
+  reviewedAt: string | null;
+  /** The back end reported that it could not save the decision in one of the places it keeps it. */
+  partial: boolean;
+  /** The e-mail to the parent: sent, not sent, or not mentioned. */
+  emailSent: boolean | null;
+}
+
+/**
+ * POST /validations/{id}/review. The id must already match VALIDATION_ID_RE (the route checks); it is percent-encoded here as well. Any 2xx means the
+ * decision was taken, even when the answer cannot be read. Never retried: a retry could e-mail a parent twice.
+ */
+export async function postReview(config: KycConfig, transport: KycTransport, validationId: string, decision: KycDecision, note: string, opts: CallOptions = {}): Promise<ReviewReply> {
+  const url = `${config.baseUrl}/validations/${encodeURIComponent(validationId)}/review`;
+  const body = JSON.stringify(note ? { decision, note } : { decision });
+  try {
+    return await withDeadline(opts.timeoutMs ?? REVIEW_TIMEOUT_MS, async (signal) => {
+      const res = await transport.api(url, { method: "POST", redirect: "manual", signal, headers: { ...apiHeaders(config), "Content-Type": "application/json" }, body });
+      if (res.status < 200 || res.status >= 300) {
+        await res.body?.cancel().catch(() => undefined);
+        // 409: somebody decided first. 400 and 422: the back end did not accept what we sent (a programming error here, never the reviewer's).
+        if (res.status === 409) throw new KycError("already_decided");
+        if (res.status === 400 || res.status === 422) throw new KycError("invalid_request");
+        throw statusToError(res.status);
+      }
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(await readText(res, MAX_JSON_BYTES)) as unknown;
+      } catch {
+        // taken, but unreadable: the reply is all unknowns
+      }
+      return readReviewReply(parsed);
+    });
+  } catch (err) {
+    throw asKycError(err);
+  }
+}
+
+function readReviewReply(body: unknown): ReviewReply {
+  if (!isObject(body)) return { reviewStatus: null, reviewedAt: null, partial: false, emailSent: null };
+  const status = typeof body.review_status === "string" ? body.review_status.replace(/[^A-Za-z0-9_ -]/g, "").trim().slice(0, 30) : "";
+  const at = typeof body.reviewed_at === "string" || typeof body.reviewed_at === "number" ? toIso(body.reviewed_at) : null;
+  const stored = [body.postgres, body.dynamodb].some((p) => isObject(p) && p.ok === false);
+  const email = isObject(body.email) && typeof body.email.ok === "boolean" ? body.email.ok : null;
+  return { reviewStatus: status || null, reviewedAt: at, partial: stored, emailSent: email };
 }
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;

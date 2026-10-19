@@ -47,11 +47,14 @@ export function AccessLogTable({ rows }: { rows: readonly KycAccessRow[] }) {
                 <time dateTime={r.createdAt}>{exactTime(r.createdAt, locale)}</time>
               </td>
               <td className="px-3 py-2">{r.userName ?? <span className="text-muted-foreground">{t("formerMember")}</span>}</td>
-              <td className="px-3 py-2">{t(`actions.${r.action}`)}</td>
+              <td className="px-3 py-2">
+                {t(`actions.${r.action}`)}
+                {r.decision ? <span className="font-medium">: {t(`decisions.${r.decision}`)}</span> : null}
+              </td>
               <td className="px-3 py-2 font-mono text-xs break-all">{r.friendId ?? "—"}</td>
               <td className="px-3 py-2 font-mono text-xs break-all">{r.validationId ?? "—"}</td>
               <td className="px-3 py-2">
-                <span className={cn("font-medium", r.outcome === "ok" ? "text-foreground" : "text-destructive")}>{t(`outcomes.${r.outcome}`)}</span>
+                <span className={cn("font-medium", r.outcome === "ok" || r.outcome === "attempt" ? "text-foreground" : "text-destructive")}>{t(`outcomes.${r.outcome}`)}</span>
               </td>
             </tr>
           ))}

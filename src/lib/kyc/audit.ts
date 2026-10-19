@@ -1,9 +1,9 @@
 // ============================================================
 // KYC review: the access log (migration 182, kyc_access_log). Server only; the service role writes, nothing else does.
 //
-// What a row holds: the workspace, the person, WHAT they did (lookup, list, view_image, reveal, config_error), the friend id as typed (trimmed, only
-// if it passes the same check the route applies), the validation id, and the outcome. It never holds an API key, an image, a field value, a vendor
-// URL or anything the back end said. The writer builds the row from named arguments, so nothing else can slip in.
+// What a row holds: the workspace, the person, WHAT they did (lookup, list, view_image, reveal, config_error, decision), the friend id as typed (trimmed,
+// only if it passes the same check the route applies), the validation id, the outcome and, for a decision, approve or reject. It never holds an API key,
+// an image, a field value, a reviewer's note, a vendor URL or anything the back end said. The writer builds the row from named arguments, so nothing else can slip in.
 //
 // The log is append-only in the database (a trigger), is not trimmed by any job, and is read by workspace admins and owners only.
 // ============================================================
@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { toCsv } from "@/lib/csv";
 
-import { FRIEND_ID_RE, KYC_ACTIONS, KYC_OUTCOMES, VALIDATION_ID_RE, type KycAccessRow } from "./types";
+import { FRIEND_ID_RE, KYC_ACTIONS, KYC_OUTCOMES, VALIDATION_ID_RE, type KycAccessRow, type KycDecision } from "./types";
 
 export type KycAction = (typeof KYC_ACTIONS)[number];
 export type KycOutcome = (typeof KYC_OUTCOMES)[number];
@@ -24,6 +24,8 @@ export interface AccessLogInput {
   friendId?: string | null;
   validationId?: string | null;
   outcome: KycOutcome;
+  /** Only on a 'decision' row: which decision (never the note). */
+  decision?: KycDecision | null;
 }
 
 /** The friend id for the log: trimmed, and only when it is one the route would accept (so the log never holds free text). */
@@ -47,6 +49,7 @@ export async function writeAccessLog(admin: SupabaseClient, input: AccessLogInpu
       friend_id: logFriendId(input.friendId),
       validation_id: logValidationId(input.validationId),
       outcome: input.outcome,
+      decision: input.decision ?? null,
     });
     if (error) {
       console.error("[kyc] access log write failed");
@@ -107,6 +110,7 @@ interface LogDbRow {
   friend_id: string | null;
   validation_id: string | null;
   outcome: KycAccessRow["outcome"];
+  decision: KycAccessRow["decision"];
 }
 
 export interface AccessLogPerson {
@@ -141,7 +145,7 @@ export async function listAccessLog(
 async function selectRows(admin: SupabaseClient, accountId: string, f: AccessLogFilters, max: number): Promise<LogDbRow[] | null> {
   let q = admin
     .from("kyc_access_log")
-    .select("id, created_at, user_id, action, friend_id, validation_id, outcome")
+    .select("id, created_at, user_id, action, friend_id, validation_id, outcome, decision")
     .eq("account_id", accountId);
   if (f.userId) q = q.eq("user_id", f.userId);
   if (f.friendId) q = q.eq("friend_id", f.friendId);
@@ -164,10 +168,11 @@ function toRow(r: LogDbRow, names: Map<string, string>): KycAccessRow {
     friendId: r.friend_id,
     validationId: r.validation_id,
     outcome: r.outcome,
+    decision: r.decision ?? null,
   };
 }
 
-export const CSV_HEADER = ["Time (UTC)", "Person", "Person ID", "Action", "Friend ID", "Validation ID", "Outcome"] as const;
+export const CSV_HEADER = ["Time (UTC)", "Person", "Person ID", "Action", "Friend ID", "Validation ID", "Outcome", "Decision"] as const;
 
 /** The CSV of the log under the same filters, newest first, at most EXPORT_MAX_ROWS rows. Cells that start with = + - @ are guarded by toCsv. */
 export async function exportAccessLogCsv(admin: SupabaseClient, accountId: string, filters: AccessLogFilters): Promise<{ csv: string; rows: number; truncated: boolean } | null> {
@@ -178,7 +183,7 @@ export async function exportAccessLogCsv(admin: SupabaseClient, accountId: strin
   const kept = rows.slice(0, EXPORT_MAX_ROWS);
   const lines = [
     [...CSV_HEADER],
-    ...kept.map((r) => [r.created_at, (r.user_id && names.get(r.user_id)) || "", r.user_id ?? "", r.action, r.friend_id ?? "", r.validation_id ?? "", r.outcome]),
+    ...kept.map((r) => [r.created_at, (r.user_id && names.get(r.user_id)) || "", r.user_id ?? "", r.action, r.friend_id ?? "", r.validation_id ?? "", r.outcome, r.decision ?? ""]),
   ];
   return { csv: toCsv(lines), rows: kept.length, truncated: rows.length > EXPORT_MAX_ROWS };
 }

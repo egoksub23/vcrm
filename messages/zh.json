@@ -6356,6 +6356,10 @@
       "compliance_raise": {
         "label": "发起合规请求",
         "description": "从收件箱对话或工单发起合规请求。不需要“合规”菜单：发起人只能看到所发起请求的编号和状态，看不到客户的详细资料。默认：所有者和管理员。"
+      },
+      "kyc_decide": {
+        "label": "批准或拒绝身份证件检查",
+        "description": "在 KYC 审核中批准或拒绝身份证件检查。批准会将孩子的 eKYC 状态设为“已验证”；拒绝会设为“已拒绝”并向家长发送电子邮件。每项决定都会记录您的姓名。与查看图片、显示数值的权限相互独立。需要拥有 KYC 审核菜单。默认：所有者和管理员。"
       }
     },
     "group": {
@@ -11630,7 +11634,7 @@
   },
   "Kyc": {
     "title": "KYC 审核",
-    "readOnlyNotice": "只读。暂不提供审批决定。",
+    "readOnlyNotice": "您可以在此查看身份证件检查，但无法批准或拒绝。这需要“批准或拒绝身份证件检查”权限。",
     "uatBanner": "测试环境（UAT）。您看到的内容来自 UAT 后端，而非正式环境。",
     "provisionalNote": "字段名称为暂定：此响应中没有任何字段与屏幕预期的名称相符，因此全部显示在通用列表中。工程师只需在一处修正：src/lib/kyc/adapter.ts。",
     "recordedFooter": "对此页面的每次查看都会被记录。",
@@ -11712,7 +11716,21 @@
         "validationId": "验证编号",
         "rawStatus": "原始状态",
         "friendId": "好友 ID",
-        "createdIso": "时间（UTC）"
+        "createdIso": "时间（UTC）",
+        "clientIdNumber": "Vircle 记录中的证件号码"
+      },
+      "people": {
+        "child": "孩子",
+        "parent": "家长",
+        "fields": {
+          "name": "姓名",
+          "nickname": "昵称",
+          "identification": "证件号码",
+          "email": "电子邮件",
+          "phone": "电话",
+          "wallet": "钱包",
+          "clientType": "客户类型"
+        }
       }
     },
     "image": {
@@ -11751,7 +11769,8 @@
       "network": "与 Halo 的连接失败。请检查网络后重试。",
       "generic": "出现问题。请重试。",
       "unauthorizedAdmin": "密钥被拒绝。请检查服务器上的 KYC_DOC_API_KEY。",
-      "imageHostAdmin": "请在服务器上把图片主机添加到 KYC_DOC_ALLOWED_IMAGE_HOSTS（服务器日志会写明该主机）。"
+      "imageHostAdmin": "请在服务器上把图片主机添加到 KYC_DOC_ALLOWED_IMAGE_HOSTS（服务器日志会写明该主机）。",
+      "already_decided": "已有人批准或拒绝了此检查，因此未发送任何内容。"
     },
     "log": {
       "title": "访问日志",
@@ -11785,19 +11804,52 @@
         "list": "重新加载列表",
         "view_image": "打开图片",
         "reveal": "显示数值",
-        "config_error": "设置错误"
+        "config_error": "设置错误",
+        "decision": "审批决定"
       },
       "outcomes": {
         "ok": "成功",
         "not_found": "未找到",
         "forbidden": "不允许",
-        "error": "错误"
+        "error": "错误",
+        "attempt": "已发起"
+      },
+      "decisions": {
+        "approve": "已批准",
+        "reject": "已拒绝"
       }
+    },
+    "decision": {
+      "title": "审批决定",
+      "intro": "批准会将孩子的 eKYC 状态设为“已验证”。拒绝会将其设为“已拒绝”，并由验证服务向家长发送电子邮件。",
+      "noteLabel": "备注（拒绝时必填）",
+      "notePlaceholder": "例如：照片与档案中的证件不符",
+      "noteHint": "{count} / {max} 个字符",
+      "noteRequired": "拒绝前请先填写备注。",
+      "approve": "批准",
+      "reject": "拒绝",
+      "cancel": "取消",
+      "sending": "正在发送…",
+      "confirmApproveTitle": "批准此身份证件检查？",
+      "confirmApproveBody": "孩子的 eKYC 状态将变为“已验证”。Halo 无法撤销此操作。",
+      "confirmRejectTitle": "拒绝此身份证件检查？",
+      "confirmRejectBody": "孩子的 eKYC 状态将变为“已拒绝”，并向家长发送电子邮件。Halo 无法撤销此操作。",
+      "confirmApprove": "是，批准",
+      "confirmReject": "是，拒绝",
+      "noteShown": "备注",
+      "reviewed": "已审核",
+      "cannot": "无法在此对该检查做出决定：缺少好友 ID 或验证编号。",
+      "doneApproved": "已批准。孩子的 eKYC 状态现为“已验证”。",
+      "doneRejectedEmailed": "已拒绝。已向家长发送电子邮件。",
+      "doneRejectedNoEmail": "已拒绝，但未能向家长发送电子邮件。请告知工程团队。",
+      "doneRejectedEmailUnknown": "已拒绝。验证服务未说明是否已向家长发送电子邮件。",
+      "partial": "验证服务未能在所有位置保存此决定。请连同此验证编号告知工程团队。",
+      "uncertain": "Halo 无法确认该决定是否已生效。已重新加载此检查：再次尝试前请先查看其状态。"
     }
   },
   "Platform": {
     "feature_kyc": "KYC 审核",
-    "feature_kyc_desc": "面向员工的身份验证后端界面（儿童的证件图片和验证记录），只读，并带有访问日志。在运营方开启之前，所有工作区均为关闭。需要服务器上设置 KYC_DOC_API_BASE_URL 和 KYC_DOC_API_KEY。",
+    "feature_kyc_desc": "面向员工的身份验证后端界面（儿童的证件图片和验证记录），审核人员可在此批准或拒绝身份证件检查，并带有访问日志。在运营方开启之前，所有工作区均为关闭。需要服务器上设置 KYC_DOC_API_BASE_URL 和 KYC_DOC_API_KEY。",
     "feature_compliance": "合规请求",
     "feature_compliance_desc": "账户关闭、提款和手机号码变更，包含身份核实、合规负责人签批、监管时限、加密的银行信息和七年审计记录。在运营方开启之前，所有工作区均为关闭。"
   },

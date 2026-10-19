@@ -6356,6 +6356,10 @@
       "compliance_raise": {
         "label": "Bangkitkan permintaan pematuhan",
         "description": "Bangkitkan permintaan pematuhan daripada perbualan Peti Masuk atau tiket. Tidak memerlukan menu Pematuhan: orang itu hanya melihat rujukan dan status permintaan yang dibangkitkannya, bukan butiran pelanggan. Lalai: Pemilik dan Pentadbir."
+      },
+      "kyc_decide": {
+        "label": "Luluskan atau tolak semakan ID",
+        "description": "Luluskan atau tolak semakan ID dalam Semakan KYC. Kelulusan menetapkan status eKYC kanak-kanak kepada Disahkan; penolakan menetapkannya kepada Ditolak dan e-mel dihantar kepada ibu bapa. Setiap keputusan direkodkan dengan nama anda. Berasingan daripada melihat imej dan menunjukkan nilai. Memerlukan menu Semakan KYC. Lalai: Pemilik dan Pentadbir."
       }
     },
     "group": {
@@ -11630,7 +11634,7 @@
   },
   "Kyc": {
     "title": "Semakan KYC",
-    "readOnlyNotice": "Baca sahaja. Keputusan belum tersedia.",
+    "readOnlyNotice": "Anda boleh membaca semakan ID di sini, tetapi tidak boleh meluluskan atau menolaknya. Itu memerlukan kebenaran “Luluskan atau tolak semakan ID”.",
     "uatBanner": "Persekitaran ujian (UAT). Apa yang anda lihat datang daripada bahagian belakang UAT, bukan pengeluaran.",
     "provisionalNote": "Nama medan adalah sementara: tiada medan dalam respons ini sepadan dengan nama yang dijangka oleh skrin, jadi semuanya dipaparkan dalam senarai umum. Jurutera membetulkannya di satu tempat, src/lib/kyc/adapter.ts.",
     "recordedFooter": "Setiap paparan halaman ini direkodkan.",
@@ -11712,7 +11716,21 @@
         "validationId": "Id pengesahan",
         "rawStatus": "Status seperti dihantar",
         "friendId": "ID rakan",
-        "createdIso": "Masa (UTC)"
+        "createdIso": "Masa (UTC)",
+        "clientIdNumber": "ID pada rekod Vircle"
+      },
+      "people": {
+        "child": "Kanak-kanak",
+        "parent": "Ibu bapa",
+        "fields": {
+          "name": "Nama",
+          "nickname": "Nama panggilan",
+          "identification": "Nombor ID",
+          "email": "E-mel",
+          "phone": "Telefon",
+          "wallet": "Dompet",
+          "clientType": "Jenis pelanggan"
+        }
       }
     },
     "image": {
@@ -11751,7 +11769,8 @@
       "network": "Sambungan ke Halo gagal. Semak sambungan anda dan cuba lagi.",
       "generic": "Sesuatu telah berlaku. Cuba lagi.",
       "unauthorizedAdmin": "Kunci ditolak. Semak KYC_DOC_API_KEY pada pelayan.",
-      "imageHostAdmin": "Tambah hos imej ke KYC_DOC_ALLOWED_IMAGE_HOSTS pada pelayan (log pelayan menamakan hos tersebut)."
+      "imageHostAdmin": "Tambah hos imej ke KYC_DOC_ALLOWED_IMAGE_HOSTS pada pelayan (log pelayan menamakan hos tersebut).",
+      "already_decided": "Seseorang sudah meluluskan atau menolak semakan ini, jadi tiada apa-apa dihantar."
     },
     "log": {
       "title": "Log akses",
@@ -11785,19 +11804,52 @@
         "list": "Senarai dimuat semula",
         "view_image": "Imej dibuka",
         "reveal": "Nilai ditunjukkan",
-        "config_error": "Ralat penyediaan"
+        "config_error": "Ralat penyediaan",
+        "decision": "Keputusan"
       },
       "outcomes": {
         "ok": "OK",
         "not_found": "Tiada ditemui",
         "forbidden": "Tidak dibenarkan",
-        "error": "Ralat"
+        "error": "Ralat",
+        "attempt": "Dimulakan"
+      },
+      "decisions": {
+        "approve": "Diluluskan",
+        "reject": "Ditolak"
       }
+    },
+    "decision": {
+      "title": "Keputusan",
+      "intro": "Meluluskan menetapkan status eKYC kanak-kanak kepada Disahkan. Menolak menetapkannya kepada Ditolak, dan perkhidmatan pengesahan menghantar e-mel kepada ibu bapa.",
+      "noteLabel": "Nota (wajib untuk menolak)",
+      "notePlaceholder": "Contohnya: gambar tidak sepadan dengan ID dalam rekod",
+      "noteHint": "{count} daripada {max} aksara",
+      "noteRequired": "Tulis nota sebelum menolak.",
+      "approve": "Luluskan",
+      "reject": "Tolak",
+      "cancel": "Batal",
+      "sending": "Menghantar…",
+      "confirmApproveTitle": "Luluskan semakan ID ini?",
+      "confirmApproveBody": "Status eKYC kanak-kanak menjadi Disahkan. Halo tidak boleh membatalkannya.",
+      "confirmRejectTitle": "Tolak semakan ID ini?",
+      "confirmRejectBody": "Status eKYC kanak-kanak menjadi Ditolak dan e-mel dihantar kepada ibu bapa. Halo tidak boleh membatalkannya.",
+      "confirmApprove": "Ya, luluskan",
+      "confirmReject": "Ya, tolak",
+      "noteShown": "Nota",
+      "reviewed": "Disemak",
+      "cannot": "Semakan ini tidak boleh diputuskan di sini: ia tiada ID rakan atau id pengesahan.",
+      "doneApproved": "Diluluskan. Status eKYC kanak-kanak kini Disahkan.",
+      "doneRejectedEmailed": "Ditolak. E-mel telah dihantar kepada ibu bapa.",
+      "doneRejectedNoEmail": "Ditolak, tetapi e-mel kepada ibu bapa tidak dihantar. Beritahu pasukan kejuruteraan.",
+      "doneRejectedEmailUnknown": "Ditolak. Perkhidmatan pengesahan tidak memberitahu sama ada e-mel kepada ibu bapa dihantar.",
+      "partial": "Perkhidmatan pengesahan tidak dapat menyimpan keputusan ini di semua tempat. Beritahu pasukan kejuruteraan, bersama id pengesahan ini.",
+      "uncertain": "Halo tidak dapat mengesahkan sama ada keputusan itu diambil. Semakan telah dimuat semula: lihat statusnya sebelum mencuba lagi."
     }
   },
   "Platform": {
     "feature_kyc": "Semakan KYC",
-    "feature_kyc_desc": "Skrin kakitangan untuk bahagian belakang pengesahan ID (imej ID dan rekod pengesahan kanak-kanak), baca sahaja, dengan log akses. Dimatikan untuk setiap ruang kerja sehingga pengendali menghidupkannya. Memerlukan KYC_DOC_API_BASE_URL dan KYC_DOC_API_KEY pada pelayan.",
+    "feature_kyc_desc": "Skrin kakitangan untuk bahagian belakang pengesahan ID (imej ID dan rekod pengesahan kanak-kanak) tempat penyemak meluluskan atau menolak semakan ID, dengan log akses. Dimatikan untuk setiap ruang kerja sehingga pengendali menghidupkannya. Memerlukan KYC_DOC_API_BASE_URL dan KYC_DOC_API_KEY pada pelayan.",
     "feature_compliance": "Permintaan pematuhan",
     "feature_compliance_desc": "Penutupan akaun, pengeluaran dan pertukaran nombor telefon dengan semakan identiti, kelulusan Ketua Pematuhan, jam peraturan, butiran bank yang disulitkan dan jejak audit tujuh tahun. Dimatikan untuk setiap ruang kerja sehingga pengendali menghidupkannya."
   },

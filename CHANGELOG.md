@@ -9,6 +9,20 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.96.0] — 2026-10-19
+
+**Migration required: `188_kyc_decisions.sql`.** Apply it before the new code is deployed.
+
+### Added
+
+- **KYC review: Approve and Reject.** A **Decision** box under each ID check, for people with the new permission **Approve or reject ID checks** (`kyc.decide`, Owner and Admin by default, grantable down to Agent). A rejection needs a note; both ask for confirmation first. The verification service records the decision, sets the child's eKYC status, and e-mails the parent on a rejection. A check that already has a decision shows it (word, note, time) and cannot be decided again; the list shows an Approved or Rejected chip.
+- **The child and the parent on every check** (name, nickname, ID number, e-mail, phone, wallet, client type), masked on the server like every other sensitive value and shown in full by Reveal.
+- The access log records each decision twice, an **attempt before** the verification service is called (nothing is sent when it cannot be written) and the **result** after, with approve or reject named. No note is ever written to the log.
+
+### Changed
+
+- The "read-only" notice now shows only to people who cannot decide. The label "ID on Vircle record" is translated.
+
 ## [0.95.2] — 2026-10-18
 
 No migration. To use KYC review in production the server needs three settings (see `docs/kyc-review.md` section 1): `KYC_DOC_API_BASE_URL=https://apis.vircle.com/verify_doc`, `KYC_DOC_API_KEY` (the production key) and `KYC_DOC_ALLOWED_IMAGE_HOSTS=vircle-id-docs.s3.amazonaws.com`; then restart and switch the `kyc` feature on for the workspace.

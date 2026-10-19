@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { KycError, checkHealth, fetchImage, fetchSignedImageUrl, fetchValidations, sniffImageType, type KycTransport } from "./client";
+import { KycError, checkHealth, fetchImage, fetchSignedImageUrl, fetchValidations, postReview, sniffImageType, type KycTransport } from "./client";
 import { readKycConfig } from "./config";
 import { API_KEY, BASE_URL, ENV, HTML, JPEG, PDF, PNG, WEBP, bytes, json, makeTransport, streamOf, text } from "./test-support";
 
@@ -280,5 +280,70 @@ describe("sniffImageType", () => {
     expect(sniffImageType(HTML)).toBeNull();
     expect(sniffImageType(new Uint8Array([0xff, 0xd8]))).toBeNull();
     expect(sniffImageType(new Uint8Array(0))).toBeNull();
+  });
+});
+
+// ---- postReview ----
+describe("postReview", () => {
+  const okReply = { id: 42, decision: "approve", review_status: "APPROVED", ekyc_status: "VERIFIED", postgres: { ok: true }, dynamodb: { ok: true }, reviewed_at: "2026-10-12T14:04:00+00:00" };
+
+  it("POSTs {decision, note} as JSON to /validations/{id}/review with the key in a header, follows no redirect, and reads the answer down to what the screen may be told", async () => {
+    const { transport, calls } = makeTransport({ api: () => json(okReply) });
+    const reply = await postReview(cfg, transport, "42", "approve", "NRIC matches");
+    expect(reply).toEqual({ reviewStatus: "APPROVED", reviewedAt: "2026-10-12T14:04:00.000Z", partial: false, emailSent: null });
+    expect(calls.api).toHaveLength(1);
+    expect(calls.api[0].url).toBe(`${BASE_URL}/validations/42/review`);
+    expect(calls.api[0].init.method).toBe("POST");
+    expect(calls.api[0].init.redirect).toBe("manual");
+    expect(calls.api[0].headers["x-api-key"]).toBe(API_KEY);
+    expect(calls.api[0].headers["content-type"]).toBe("application/json");
+    expect(JSON.parse(String(calls.api[0].init.body))).toEqual({ decision: "approve", note: "NRIC matches" });
+    expect(calls.api[0].url).not.toContain(API_KEY);
+  });
+
+  it("leaves the note out when there is none, and encodes the id", async () => {
+    const { transport, calls } = makeTransport({ api: () => json(okReply) });
+    await postReview(cfg, transport, "a b/c", "reject", "");
+    expect(calls.api[0].url).toBe(`${BASE_URL}/validations/a%20b%2Fc/review`);
+    expect(JSON.parse(String(calls.api[0].init.body))).toEqual({ decision: "reject" });
+  });
+
+  it("reports a half-saved decision and the parent's e-mail, as booleans only", async () => {
+    const { transport } = makeTransport({ api: () => json({ ...okReply, review_status: "REJECTED", postgres: { ok: true }, dynamodb: { ok: false, table: "SECRET" }, email: { ok: false, to: "parent@example.com" } }) });
+    const reply = await postReview(cfg, transport, "42", "reject", "Blurry");
+    expect(reply).toMatchObject({ reviewStatus: "REJECTED", partial: true, emailSent: false });
+    expect(JSON.stringify(reply)).not.toContain("SECRET");
+    expect(JSON.stringify(reply)).not.toContain("parent@example.com");
+    const sent = await postReview(cfg, makeTransport({ api: () => json({ ...okReply, email: { ok: true } }) }).transport, "42", "reject", "Blurry");
+    expect(sent.emailSent).toBe(true);
+  });
+
+  it("takes any 2xx as done, even an answer that is empty, not JSON or the wrong shape", async () => {
+    for (const body of [text("", 200), text("<html>", 200), json("fine"), json([1]), json({ review_status: 5 })]) {
+      const reply = await postReview(cfg, makeTransport({ api: () => body.clone() }).transport, "42", "approve", "");
+      expect(reply).toEqual({ reviewStatus: null, reviewedAt: null, partial: false, emailSent: null });
+    }
+  });
+
+  it("makes a code of every refusal, never retries, and carries nothing the back end said", async () => {
+    const cases: [number, string][] = [[401, "upstream_unauthorized"], [403, "upstream_unauthorized"], [404, "not_found"], [409, "already_decided"], [400, "invalid_request"], [422, "invalid_request"], [429, "upstream_unreachable"], [500, "upstream_unreachable"], [302, "bad_response"]];
+    for (const [status, code] of cases) {
+      const { transport, calls } = makeTransport({ api: () => text(`SECRET-UPSTREAM ${API_KEY}`, status) });
+      expect(await codeOf(postReview(cfg, transport, "42", "approve", ""))).toBe(code);
+      expect(calls.api).toHaveLength(1);
+    }
+    const { transport } = makeTransport({ api: () => Promise.reject(new Error(`ECONNREFUSED ${API_KEY}`)) });
+    let message = "";
+    try {
+      await postReview(cfg, transport, "42", "approve", "");
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toBe("upstream_unreachable");
+  });
+
+  it("gives up at its deadline", async () => {
+    const { transport } = makeTransport({ api: () => new Promise<Response>(() => undefined) });
+    expect(await codeOf(postReview(cfg, transport, "42", "approve", "", { timeoutMs: 20 }))).toBe("upstream_unreachable");
   });
 });

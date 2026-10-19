@@ -1,8 +1,8 @@
 "use client";
 
 // ============================================================
-// KYC review (phase 1, read-only): search a friend id, read the validations the ID verification back end holds for it, open an ID image, and (with
-// kyc.reveal) reveal the masked values for two minutes. Administrators and owners also get the Access log tab.
+// KYC review: the latest ID checks of everybody (or one friend id), the ID image, the masked details (revealed for two minutes with kyc.reveal) and,
+// with kyc.decide, Approve or Reject. Administrators and owners also get the Access log tab.
 //
 // What the browser holds: the MASKED list the server sent, and, for at most two minutes, the one validation the reviewer revealed. Nothing is stored
 // except the friend ids of recent searches (per person, in this browser, no data). The revealed copy is dropped when the reviewer opens another
@@ -19,10 +19,11 @@ import { Input } from "@/components/ui/input";
 import { useAuth, useCapability } from "@/hooks/use-auth";
 import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
-import { FRIEND_ID_RE, normaliseFriendId, type KycStatus, type KycValidation } from "@/lib/kyc/types";
+import { FRIEND_ID_RE, normaliseFriendId, type KycDecision, type KycDecisionResult, type KycStatus, type KycValidation } from "@/lib/kyc/types";
 
 import { AccessLogPanel } from "./access-log";
-import { getStatus, getValidations } from "./api";
+import { getStatus, getValidations, postDecision } from "./api";
+import { DecisionPanel } from "./decision";
 import { REVEAL_MS, addRecent, loadRecent, revealExpired, saveRecent } from "./helpers";
 import { ImageViewer } from "./image-viewer";
 import { DataCard, ErrorPanel, ProvisionalNote, ReadOnlyNotice, SetupNotice, StatusChip, TypeChip, UatBanner, ValidationList, rowKey } from "./parts";
@@ -272,12 +273,29 @@ export function KycScreen() {
     };
   }, [revealed]);
 
+  // ---- decisions ----
+  // A decision taken: the check in the list now carries the review (the answer has what the back end recorded); nothing revealed stays open.
+  const decided = (validationId: string, r: KycDecisionResult) => {
+    setItems((cur) => cur.map((v) => (v.id === validationId ? { ...v, review: { raw: r.reviewStatus, tone: r.reviewTone, note: r.note, at: r.reviewedAt } } : v)));
+    setRevealed(null);
+  };
+
+  // A decision whose outcome is unclear: read the child's list again and swap in the check as the back end holds it now.
+  const refreshOne = async (validationId: string, owner: string) => {
+    if (!validationId || !owner) return;
+    const res = await getValidations(owner, { reload: true });
+    if (!res.ok) return;
+    const fresh = res.data.items.find((v) => v.id === validationId);
+    if (fresh) setItems((cur) => cur.map((v) => (v.id === validationId ? fresh : v)));
+  };
+
   // ---- render ----
   if (!canMenu) return <NoAccess />;
 
   const isAdmin = status?.isAdmin ?? false;
   const canView = status?.canView ?? false;
   const canReveal = status?.canReveal ?? false;
+  const canDecide = status?.canDecide ?? false;
   const configured = status?.configured ?? false;
 
   const shown: KycValidation | null = selected && revealed && revealed.key === selectedKey && !revealExpired(revealed.until, now) ? revealed.item : selected;
@@ -291,7 +309,7 @@ export function KycScreen() {
         {status?.uat ? <span className="rounded-full bg-[color:light-dark(#fef3c7,#78350f66)] px-2 py-0.5 text-xs font-medium text-[light-dark(#92400e,#fcd34d)]">UAT</span> : null}
       </div>
 
-      <ReadOnlyNotice />
+      {status && !canDecide ? <ReadOnlyNotice /> : null}
       {status?.uat ? <UatBanner /> : null}
 
       {isAdmin ? (
@@ -449,6 +467,16 @@ export function KycScreen() {
                   )}
                   {revealError ? <ErrorPanel code={revealError} isAdmin={isAdmin} compact onRetry={() => void reveal()} /> : null}
                   <DataCard v={shown} canReveal={canReveal} revealed={isRevealed} revealing={revealing} onReveal={() => void reveal()} onHide={() => setRevealed(null)} now={now} />
+                  <DecisionPanel
+                    key={shown.id || selectedKey || "none"}
+                    v={shown}
+                    canDecide={canDecide}
+                    friendId={shown.friendId || friendId}
+                    isAdmin={isAdmin}
+                    decide={(decision: KycDecision, note: string) => postDecision(shown.id, shown.friendId || friendId, decision, note)}
+                    onDone={decided}
+                    onUncertain={() => void refreshOne(shown.id, shown.friendId || friendId)}
+                  />
                 </>
               )}
             </section>

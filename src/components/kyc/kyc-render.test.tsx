@@ -17,9 +17,10 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => React.createElement("a", { href, ...rest }, children) }));
 
-import type { KycAccessRow, KycValidation } from "@/lib/kyc/types";
+import type { KycAccessRow, KycDecisionResult, KycValidation } from "@/lib/kyc/types";
 
 import { AccessLogPanel, AccessLogTable } from "./access-log";
+import { DecisionPanel, DoneNotice } from "./decision";
 import { INITIAL_VIEW, watermarkBackground, watermarkText } from "./helpers";
 import { ImageViewerView, type Phase } from "./image-viewer";
 import { KycScreen } from "./kyc-screen";
@@ -83,6 +84,8 @@ const v = (over: Partial<KycValidation> = {}): KycValidation => ({
   withheld: 2,
   fallback: false,
   hasMasked: true,
+  people: [],
+  review: null,
   ...over,
 });
 const REVEALED = v({
@@ -246,9 +249,9 @@ describe.each(LOCALES)("KYC review in %s", (locale) => {
 
   it("lists the access log with names, words for the actions and outcomes, and a former member", () => {
     const rows: KycAccessRow[] = [
-      { id: "1", createdAt: "2026-10-12T11:00:00.000Z", userId: "u1", userName: "Reviewer One", action: "view_image", friendId: "child-77", validationId: "val_123", outcome: "ok" },
-      { id: "2", createdAt: "2026-10-12T10:00:00.000Z", userId: "gone", userName: null, action: "reveal", friendId: "child-77", validationId: "val_123", outcome: "forbidden" },
-      { id: "3", createdAt: "2026-10-12T09:00:00.000Z", userId: "u1", userName: "Reviewer One", action: "config_error", friendId: null, validationId: null, outcome: "error" },
+      { id: "1", createdAt: "2026-10-12T11:00:00.000Z", userId: "u1", userName: "Reviewer One", action: "view_image", friendId: "child-77", validationId: "val_123", outcome: "ok", decision: null },
+      { id: "2", createdAt: "2026-10-12T10:00:00.000Z", userId: "gone", userName: null, action: "reveal", friendId: "child-77", validationId: "val_123", outcome: "forbidden", decision: null },
+      { id: "3", createdAt: "2026-10-12T09:00:00.000Z", userId: "u1", userName: "Reviewer One", action: "config_error", friendId: null, validationId: null, outcome: "error", decision: null },
     ];
     const html = page(locale, <AccessLogTable rows={rows} />);
     const t = text(html);
@@ -273,16 +276,140 @@ describe.each(LOCALES)("KYC review in %s", (locale) => {
     expect(html.match(/<label/g)?.length).toBeGreaterThanOrEqual(5);
   });
 
-  it("paints the screen's first render: heading, the read-only notice and the 'recorded' footer, nothing else before the status arrives", () => {
+  it("paints the screen's first render: heading and the 'recorded' footer, nothing else before the status arrives (the read-only notice waits for it)", () => {
     const html = page(locale, <KycScreen />);
     const t = text(html);
     expect(t).toContain(m.title);
-    expect(t).toContain(m.readOnlyNotice);
+    expect(t).not.toContain(m.readOnlyNotice);
     expect(t).toContain(m.recordedFooter);
     expect(html).toContain("<h1");
     expect(html).not.toContain("role=\"tablist\"");
     expect(html).not.toContain("<form");
     expect(errors).toEqual([]);
+  });
+});
+
+describe.each(LOCALES)("KYC decisions in %s", (locale) => {
+  const m = kyc(locale);
+  const d = (m as unknown as { decision: Record<string, string> }).decision;
+  const people = (m.detail as unknown as { people: { child: string; parent: string; fields: Record<string, string> } }).people;
+  const logExtra = m.log as unknown as { actions: Record<string, string>; outcomes: Record<string, string>; decisions: Record<string, string> };
+  const none = async () => ({ ok: false as const, code: "network", status: 0 });
+  const panel = (item: KycValidation, over: Partial<React.ComponentProps<typeof DecisionPanel>> = {}) =>
+    page(locale, <DecisionPanel v={item} canDecide friendId="child-77" isAdmin={false} decide={none} onDone={() => undefined} onUncertain={() => undefined} {...over} />);
+  const REVIEWED = (raw: string, tone: "positive" | "negative", note: string | null = "NRIC matches client record") => v({ review: { raw, tone, note, at: "2026-10-12T11:00:00.000Z" } });
+
+  it("offers Approve and Reject, a note box with its help, and says what each does; nothing is asked until a button is pressed", () => {
+    const html = panel(v());
+    const t = text(html);
+    for (const k of ["title", "intro", "noteLabel", "approve", "reject"]) expect(t, k).toContain(d[k]);
+    expect(html).toContain("<textarea");
+    expect(html).toContain(`placeholder="${d.notePlaceholder.replace(/'/g, "&#x27;")}"`);
+    expect(html).toContain('maxLength="500"');
+    expect(html.match(/<button/g)?.length).toBe(2);
+    expect(html).toContain('for="kyc-decision-note"');
+    expect(html).not.toContain('role="alert"');
+    expect(t).not.toContain(d.confirmApproveTitle);
+    expect(t).not.toContain(d.confirmRejectTitle);
+    expect(errors).toEqual([]);
+  });
+
+  it("paints nothing for a person who may not decide, on a check nobody has decided", () => {
+    expect(panel(v(), { canDecide: false })).toBe("");
+  });
+
+  it("shows the decision already taken, in words and an icon, with the note and the time, and no buttons", () => {
+    for (const [raw, tone, word] of [["APPROVED", "positive", "Approved"], ["REJECTED", "negative", "Rejected"]] as const) {
+      const html = panel(REVIEWED(raw, tone));
+      const t = text(html);
+      expect(t, raw).toContain(word);
+      expect(t).toContain(d.reviewed);
+      expect(t).toContain(d.noteShown);
+      expect(t).toContain("NRIC matches client record");
+      expect(html).toContain(`data-tone="${tone}"`);
+      expect(html).toContain("<time");
+      expect(html).not.toContain("<button");
+      expect(html).not.toContain("<textarea");
+    }
+    // a person without the permission still sees what was decided
+    expect(text(panel(REVIEWED("APPROVED", "positive"), { canDecide: false }))).toContain("Approved");
+  });
+
+  it("says why a check cannot be decided here when it has no friend id or no usable validation id", () => {
+    for (const html of [panel(v(), { friendId: "" }), panel(v({ idUsable: false }))]) {
+      expect(text(html)).toContain(d.cannot);
+      expect(html).not.toContain("<button");
+      expect(html).not.toContain("<textarea");
+    }
+  });
+
+  it("words what happened after a decision, including a half-saved one and a rejection whose e-mail did not go", () => {
+    const base: KycDecisionResult = { decision: "approve", reviewStatus: "APPROVED", reviewTone: "positive", reviewedAt: null, note: null, partial: false, emailSent: null };
+    const say = (r: Partial<KycDecisionResult>) => text(page(locale, <DoneNotice result={{ ...base, ...r }} />));
+    expect(say({})).toContain(d.doneApproved);
+    expect(say({ decision: "reject", emailSent: true })).toContain(d.doneRejectedEmailed);
+    expect(say({ decision: "reject", emailSent: false })).toContain(d.doneRejectedNoEmail);
+    expect(say({ decision: "reject", emailSent: null })).toContain(d.doneRejectedEmailUnknown);
+    expect(say({ partial: true })).toContain(d.partial);
+    expect(say({})).not.toContain(d.partial);
+    expect(page(locale, <DoneNotice result={{ ...base }} />)).toContain('role="status"');
+  });
+
+  it("words 'somebody decided first' as an error", () => {
+    const html = page(locale, <ErrorPanel code="already_decided" isAdmin={false} compact />);
+    expect(text(html)).toContain((m.errors as Record<string, string>).already_decided);
+    expect(html).toContain('role="alert"');
+  });
+
+  it("lists the child and the parent in the data card, with the words for each field, and 'Hidden' for what is masked", () => {
+    const html = page(
+      locale,
+      <DataCard
+        v={v({
+          people: [
+            { role: "child", fields: [{ key: "name", label: "Name", value: "Child Name", sensitive: false, masked: false }, { key: "identification", label: "ID number", value: "90••••••78", sensitive: true, masked: true }] },
+            { role: "parent", fields: [{ key: "name", label: "Name", value: "Parent Name", sensitive: false, masked: false }, { key: "email", label: "E-mail", value: null, sensitive: true, masked: true }, { key: "clientType", label: "Client type", value: "APP", sensitive: false, masked: false }] },
+          ],
+        })}
+        canReveal
+        revealed={false}
+        revealing={false}
+        onReveal={() => undefined}
+        onHide={() => undefined}
+        now={NOW}
+      />,
+    );
+    const t = text(html);
+    for (const s of [people.child, people.parent, people.fields.name, people.fields.identification, people.fields.email, people.fields.clientType, "Child Name", "Parent Name", "90••••••78"]) expect(t, s).toContain(s);
+    expect(html).toContain('data-person="child"');
+    expect(html).toContain('data-person="parent"');
+    expect(t).toContain((m.detail as Record<string, string>).hidden);
+    // the labels of the check's own ID numbers are words in every language too
+    expect(page(locale, <DataCard v={v({ known: [{ key: "clientIdNumber", label: "ID on Vircle record", value: "15••••••34", sensitive: true, masked: true }] })} canReveal revealed={false} revealing={false} onReveal={() => undefined} onHide={() => undefined} now={NOW} />)).toContain(m.detail.fields.clientIdNumber);
+    expect(errors).toEqual([]);
+  });
+
+  it("marks a decided check in the list with its word, next to the status", () => {
+    const html = page(locale, <ValidationList items={[REVIEWED("REJECTED", "negative"), v({ id: "val_124" })]} selectedKey={null} onSelect={() => undefined} now={NOW} />);
+    expect(html.match(/data-review="true"/g)).toHaveLength(1);
+    expect(text(html)).toContain("Rejected");
+    expect(html).toContain('data-tone="negative"');
+  });
+
+  it("names a decision, and the started row, in the access log", () => {
+    const rows: KycAccessRow[] = [
+      { id: "1", createdAt: "2026-10-12T11:00:00.000Z", userId: "u1", userName: "Reviewer One", action: "decision", friendId: "child-77", validationId: "42", outcome: "attempt", decision: "reject" },
+      { id: "2", createdAt: "2026-10-12T11:00:01.000Z", userId: "u1", userName: "Reviewer One", action: "decision", friendId: "child-77", validationId: "42", outcome: "ok", decision: "reject" },
+    ];
+    const t = text(page(locale, <AccessLogTable rows={rows} />));
+    expect(t).toContain(logExtra.actions.decision);
+    expect(t).toContain(logExtra.decisions.reject);
+    expect(t).toContain(logExtra.outcomes.attempt);
+    expect(t).toContain(logExtra.outcomes.ok);
+  });
+
+  it("explains, to somebody who cannot decide, what they need", () => {
+    expect(text(page(locale, <ReadOnlyNotice />))).toContain(m.readOnlyNotice);
   });
 });
 
@@ -299,7 +426,7 @@ describe("the wording is complete and consistent across languages", () => {
   it("names the capabilities, the group, the sidebar row and the operator switch in every language", () => {
     for (const l of LOCALES) {
       const c = CATALOGUES[l] as Tree & { Permissions: { cap: Record<string, { label: string; description: string }>; group: Record<string, string> }; Sidebar: Record<string, string>; Header: Record<string, string>; Platform: Record<string, string> };
-      for (const id of ["menu_kyc", "kyc_view", "kyc_reveal"]) {
+      for (const id of ["menu_kyc", "kyc_view", "kyc_reveal", "kyc_decide"]) {
         expect(c.Permissions.cap[id].label.length, `${l} ${id}`).toBeGreaterThan(0);
         expect(c.Permissions.cap[id].description.length, `${l} ${id}`).toBeGreaterThan(20);
       }

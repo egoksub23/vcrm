@@ -423,3 +423,104 @@ describe("the engineers' documentation lists exactly what the adapter guesses", 
     for (const s of ["KYC_DOC_API_BASE_URL", "KYC_DOC_API_KEY", "KYC_DOC_ALLOWED_IMAGE_HOSTS", "182", "`kyc`", "menu.kyc", "kyc.view", "kyc.reveal", "kyc_access_log"]) expect(doc, s).toContain(s);
   });
 });
+
+// ---- people and review (19 Oct 2026) ----
+// The engineers' updated collection: every check names its `parent` and `child`, and carries review_status / review_note / reviewed_at once decided.
+const WITH_PEOPLE = {
+  id: 1842,
+  friend_id: "41cc103a-5ffc-4949-b89d-f609ce392a29",
+  doc_type: "nric",
+  s3_key: "UAT/41cc103a/nric_20261009T012530Z.jpg",
+  capture_ok: true,
+  capture_code: "ok",
+  capture_message: "NRIC looks readable.",
+  extracted_id: "901010145678",
+  client_id_number: "901010145678",
+  validation_status: "MATCH",
+  parent: { id: "parent-uuid", name: "Parent Name", nickname: "parent", identification: "A1234567", client_type: "APP", email: "parent@example.com", wallet_id: "8001000000001", phone_number: "60123456789" },
+  child: { id: "41cc103a", name: "Child Name", nickname: "child", identification: "901010145678", client_type: "CARD", email: null, wallet_id: "8001000000002", phone_number: null },
+  review_status: null,
+  review_note: null,
+  reviewed_at: null,
+  created_at: "2026-10-09T01:25:31+00:00",
+};
+
+describe("the people a check names", () => {
+  const fieldsOf = (v: ReturnType<typeof buildValidation>, role: string) => Object.fromEntries((v.people.find((p) => p.role === role)?.fields ?? []).map((f) => [f.key, f]));
+
+  it("lists the child first, then the parent, each field masked by its own rule", () => {
+    const v = buildValidation(WITH_PEOPLE);
+    expect(v.people.map((p) => p.role)).toEqual(["child", "parent"]);
+    const child = fieldsOf(v, "child");
+    expect(Object.keys(child)).toEqual(["name", "nickname", "identification", "wallet", "clientType"]);
+    expect(child.name).toMatchObject({ value: "Child Name", sensitive: false, masked: false });
+    expect(child.identification).toMatchObject({ value: "90••••••78", sensitive: true, masked: true });
+    expect(child.wallet).toMatchObject({ value: "80••••••02", masked: true });
+    expect(child.clientType).toMatchObject({ value: "CARD", masked: false });
+    const parent = fieldsOf(v, "parent");
+    expect(Object.keys(parent)).toEqual(["name", "nickname", "identification", "email", "phone", "wallet", "clientType"]);
+    expect(parent.email).toMatchObject({ value: null, masked: true });
+    expect(parent.phone).toMatchObject({ value: null, masked: true });
+    // an ID number shorter than ten characters is not shown even in part
+    expect(parent.identification).toMatchObject({ value: null, masked: true });
+    expect(v.hasMasked).toBe(true);
+    const dump = JSON.stringify(v);
+    for (const s of ["parent@example.com", "60123456789", "A1234567", "8001000000001", "8001000000002", "901010145678"]) expect(dump, s).not.toContain(s);
+  });
+
+  it("never takes the parent's (or the child's) name for the check's own, and leaves nothing of them in the other fields", () => {
+    const v = buildValidation(WITH_PEOPLE);
+    expect(v.known.map((f) => f.key)).toEqual(["idNumber", "clientIdNumber"]);
+    expect(v.extra.map((f) => f.key).filter((k) => /parent|child|name|email|phone|wallet/i.test(k))).toEqual([]);
+  });
+
+  it("shows every field in full when the caller reveals this validation", () => {
+    const v = buildValidation(WITH_PEOPLE, { reveal: true });
+    expect(fieldsOf(v, "parent")).toMatchObject({ email: { value: "parent@example.com", masked: false }, phone: { value: "60123456789" }, identification: { value: "A1234567" }, wallet: { value: "8001000000001" } });
+    expect(fieldsOf(v, "child").identification).toMatchObject({ value: "901010145678", masked: false });
+  });
+
+  it("counts, and does not send, anything else the object holds; a link in it is never sent either", () => {
+    const v = buildValidation({ ...WITH_PEOPLE, child: { ...WITH_PEOPLE.child, photo_url: "https://cdn.example/x.jpg", favourite_colour: "blue" } });
+    expect(JSON.stringify(v)).not.toContain("cdn.example");
+    expect(JSON.stringify(v)).not.toContain("blue");
+    expect(v.withheld).toBeGreaterThanOrEqual(buildValidation(WITH_PEOPLE).withheld + 2);
+  });
+
+  it("copes with a record that has no people, a null one, or one that is not an object", () => {
+    expect(buildValidation({ ...WITH_PEOPLE, parent: undefined, child: undefined }).people).toEqual([]);
+    expect(buildValidation({ ...WITH_PEOPLE, parent: null, child: "somebody" as unknown as object }).people).toEqual([]);
+    expect(buildValidation({ ...WITH_PEOPLE, parent: {}, child: { id: "only-an-id" } }).people).toEqual([]);
+  });
+
+  it("is also found under another spelling of the key (Parent, CHILD)", () => {
+    const v = buildValidation({ ...WITH_PEOPLE, parent: undefined, child: undefined, Parent: WITH_PEOPLE.parent, CHILD: WITH_PEOPLE.child });
+    expect(v.people.map((p) => p.role)).toEqual(["child", "parent"]);
+  });
+});
+
+describe("the decision a check carries", () => {
+  it("is null until somebody has decided", () => {
+    expect(buildValidation(WITH_PEOPLE).review).toBeNull();
+    expect(buildValidation({ ...WITH_PEOPLE, review_status: "", review_note: "x" }).review).toBeNull();
+  });
+
+  it("reads status, note and time, and the status word decides the tone", () => {
+    const approved = buildValidation({ ...WITH_PEOPLE, review_status: "APPROVED", review_note: "NRIC matches client record", reviewed_at: "2026-10-12T14:04:00+00:00" });
+    expect(approved.review).toEqual({ raw: "APPROVED", tone: "positive", note: "NRIC matches client record", at: "2026-10-12T14:04:00.000Z" });
+    const rejected = buildValidation({ ...WITH_PEOPLE, review_status: "REJECTED", review_note: "  Photo‮   does not\nmatch ", reviewed_at: null });
+    expect(rejected.review).toEqual({ raw: "REJECTED", tone: "negative", note: "Photo does not match", at: null });
+    expect(buildValidation({ ...WITH_PEOPLE, review_status: "APPROVED" }).review).toMatchObject({ note: null, at: null });
+  });
+
+  it("does not list the review fields again among the others, nor take reviewed_at for 'updated'", () => {
+    const v = buildValidation({ ...WITH_PEOPLE, review_status: "APPROVED", review_note: "ok", reviewed_at: "2026-10-12T14:04:00+00:00" });
+    expect(v.extra.map((f) => f.key).filter((k) => /review/i.test(k))).toEqual([]);
+    expect(v.updatedAt).toBeNull();
+  });
+
+  it("reaches the list parser too", () => {
+    const parsed = parseValidations({ items: [{ ...WITH_PEOPLE, review_status: "REJECTED" }, { ...WITH_PEOPLE, id: 1841 }] });
+    expect(parsed?.items.map((v) => [v.id, v.review?.raw ?? null])).toEqual([["1842", "REJECTED"], ["1841", null]]);
+  });
+});

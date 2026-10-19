@@ -7085,6 +7085,10 @@
       "compliance_raise": {
         "label": "컴플라이언스 요청 등록",
         "description": "받은 편지함 대화나 티켓에서 컴플라이언스 요청을 등록합니다. 컴플라이언스 메뉴가 필요하지 않으며, 등록한 사람은 자신이 등록한 요청의 참조 번호와 상태만 볼 수 있고 고객 정보는 볼 수 없습니다. 기본값: 소유자와 관리자."
+      },
+      "kyc_decide": {
+        "label": "신분증 확인 승인 또는 거부",
+        "description": "KYC 검토에서 신분증 확인을 승인하거나 거부합니다. 승인하면 아이의 eKYC 상태가 ‘인증됨’으로, 거부하면 ‘거부됨’으로 바뀌고 부모에게 이메일이 전송됩니다. 모든 결정은 내 이름과 함께 기록됩니다. 이미지 보기, 값 표시 권한과는 별개입니다. KYC 검토 메뉴가 필요합니다. 기본값: 소유자와 관리자."
       }
     },
     "group": {
@@ -8570,7 +8574,7 @@
     "meter_sign_documents_per_month": "월간 서명 문서",
     "job_sign-jobs": "Secure Sign 작업 (봉인, 만료, 알림)",
     "feature_kyc": "KYC 검토",
-    "feature_kyc_desc": "신분 확인 백엔드(아동의 신분증 이미지와 검증 기록)를 위한 직원용 화면으로, 읽기 전용이며 접근 기록이 있습니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다. 서버에 KYC_DOC_API_BASE_URL과 KYC_DOC_API_KEY가 필요합니다.",
+    "feature_kyc_desc": "신분 확인 백엔드(아동의 신분증 이미지와 검증 기록)를 위한 직원용 화면으로, 검토 담당자가 신분증 확인을 승인하거나 거부하며 접근 기록이 남습니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다. 서버에 KYC_DOC_API_BASE_URL과 KYC_DOC_API_KEY가 필요합니다.",
     "feature_compliance": "컴플라이언스 요청",
     "feature_compliance_desc": "신원 확인, 컴플라이언스 책임자 승인, 규제 기한, 암호화된 은행 정보, 7년간의 감사 기록이 있는 계정 해지·출금·전화번호 변경 요청입니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다."
   },
@@ -12990,7 +12994,7 @@
   },
   "Kyc": {
     "title": "KYC 검토",
-    "readOnlyNotice": "읽기 전용입니다. 아직 승인 결정은 할 수 없습니다.",
+    "readOnlyNotice": "여기서 신분증 확인을 읽을 수는 있지만 승인하거나 거부할 수는 없습니다. ‘신분증 확인 승인 또는 거부’ 권한이 필요합니다.",
     "uatBanner": "테스트 환경(UAT)입니다. 보이는 내용은 운영이 아닌 UAT 백엔드에서 가져온 것입니다.",
     "provisionalNote": "필드 이름은 임시입니다. 이 응답의 어떤 필드도 화면이 기대하는 이름과 일치하지 않아 모든 항목을 일반 목록으로 표시합니다. 엔지니어는 src/lib/kyc/adapter.ts 한 곳에서 수정합니다.",
     "recordedFooter": "이 페이지를 볼 때마다 기록됩니다.",
@@ -13072,7 +13076,21 @@
         "validationId": "검증 ID",
         "rawStatus": "원본 상태",
         "friendId": "친구 ID",
-        "createdIso": "시각(UTC)"
+        "createdIso": "시각(UTC)",
+        "clientIdNumber": "Vircle 기록의 신분증 번호"
+      },
+      "people": {
+        "child": "아이",
+        "parent": "부모",
+        "fields": {
+          "name": "이름",
+          "nickname": "별명",
+          "identification": "신분증 번호",
+          "email": "이메일",
+          "phone": "전화번호",
+          "wallet": "지갑",
+          "clientType": "고객 유형"
+        }
       }
     },
     "image": {
@@ -13111,7 +13129,8 @@
       "network": "Halo에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
       "generic": "문제가 발생했습니다. 다시 시도하세요.",
       "unauthorizedAdmin": "키가 거부되었습니다. 서버의 KYC_DOC_API_KEY를 확인하세요.",
-      "imageHostAdmin": "서버의 KYC_DOC_ALLOWED_IMAGE_HOSTS에 이미지 호스트를 추가하세요(서버 로그에 호스트 이름이 표시됩니다)."
+      "imageHostAdmin": "서버의 KYC_DOC_ALLOWED_IMAGE_HOSTS에 이미지 호스트를 추가하세요(서버 로그에 호스트 이름이 표시됩니다).",
+      "already_decided": "다른 사람이 이미 이 확인을 승인하거나 거부했으므로 아무것도 전송되지 않았습니다."
     },
     "log": {
       "title": "접근 기록",
@@ -13145,14 +13164,47 @@
         "list": "목록 다시 불러오기",
         "view_image": "이미지 열기",
         "reveal": "값 표시",
-        "config_error": "설정 오류"
+        "config_error": "설정 오류",
+        "decision": "결정"
       },
       "outcomes": {
         "ok": "성공",
         "not_found": "찾을 수 없음",
         "forbidden": "허용되지 않음",
-        "error": "오류"
+        "error": "오류",
+        "attempt": "시작됨"
+      },
+      "decisions": {
+        "approve": "승인됨",
+        "reject": "거부됨"
       }
+    },
+    "decision": {
+      "title": "결정",
+      "intro": "승인하면 아이의 eKYC 상태가 ‘인증됨’으로 바뀝니다. 거부하면 ‘거부됨’으로 바뀌고 인증 서비스가 부모에게 이메일을 보냅니다.",
+      "noteLabel": "메모(거부 시 필수)",
+      "notePlaceholder": "예: 사진이 등록된 신분증과 일치하지 않음",
+      "noteHint": "{count} / {max}자",
+      "noteRequired": "거부하기 전에 메모를 작성하세요.",
+      "approve": "승인",
+      "reject": "거부",
+      "cancel": "취소",
+      "sending": "보내는 중…",
+      "confirmApproveTitle": "이 신분증 확인을 승인할까요?",
+      "confirmApproveBody": "아이의 eKYC 상태가 ‘인증됨’으로 바뀝니다. Halo에서는 되돌릴 수 없습니다.",
+      "confirmRejectTitle": "이 신분증 확인을 거부할까요?",
+      "confirmRejectBody": "아이의 eKYC 상태가 ‘거부됨’으로 바뀌고 부모에게 이메일이 전송됩니다. Halo에서는 되돌릴 수 없습니다.",
+      "confirmApprove": "예, 승인",
+      "confirmReject": "예, 거부",
+      "noteShown": "메모",
+      "reviewed": "검토됨",
+      "cannot": "이 확인은 여기서 결정할 수 없습니다. 친구 ID 또는 검증 ID가 없습니다.",
+      "doneApproved": "승인되었습니다. 아이의 eKYC 상태가 이제 ‘인증됨’입니다.",
+      "doneRejectedEmailed": "거부되었습니다. 부모에게 이메일을 보냈습니다.",
+      "doneRejectedNoEmail": "거부되었지만 부모에게 보내는 이메일이 전송되지 않았습니다. 엔지니어링 팀에 알려 주세요.",
+      "doneRejectedEmailUnknown": "거부되었습니다. 부모에게 이메일이 전송되었는지 인증 서비스가 알려 주지 않았습니다.",
+      "partial": "인증 서비스가 이 결정을 모든 위치에 저장하지 못했습니다. 이 검증 ID와 함께 엔지니어링 팀에 알려 주세요.",
+      "uncertain": "Halo가 결정이 처리되었는지 확인하지 못했습니다. 확인 내역을 다시 불러왔으니, 다시 시도하기 전에 상태를 확인하세요."
     }
   },
   "Compliance": {

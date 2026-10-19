@@ -2,7 +2,7 @@
 // KYC review: what each route does, apart from the HTTP. Server only.
 //
 // Every function here follows the same order, and the order is the security model:
-//   1. the caller's permission (kyc.view for an image, kyc.reveal for a reveal) -> refused and LOGGED as 'forbidden'
+//   1. the caller's permission (kyc.view for an image, kyc.reveal for a reveal, kyc.decide for a decision) -> refused and LOGGED as 'forbidden'
 //   2. the configuration -> 'not_configured' is logged as 'config_error'
 //   3. the call to the back end (with deadline) -> a code, never the back end's words
 //   4. the adapter: masking happens HERE, so the browser only ever receives what it is allowed to show
@@ -11,7 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { parseValidations } from "./adapter";
+import { buildValidation, extractItems, parseValidations, statusTone } from "./adapter";
 import { writeAccessLog, type AccessLogInput, type KycAction } from "./audit";
 import {
   KycError,
@@ -19,17 +19,19 @@ import {
   fetchImage,
   fetchSignedImageUrl,
   fetchValidations,
+  postReview,
   type FetchedImage,
 } from "./client";
 import { describeConfig, readKycConfig } from "./config";
 import type { KycRuntime } from "./runtime";
-import { FRIEND_ID_RE, VALIDATION_ID_RE, type KycErrorCode, type KycStatus, type KycValidationList } from "./types";
+import { DECISION_NOTE_MAX, FRIEND_ID_RE, VALIDATION_ID_RE, type KycDecision, type KycDecisionResult, type KycErrorCode, type KycStatus, type KycValidationList } from "./types";
 
 export interface KycCaller {
   accountId: string;
   userId: string;
   canView: boolean;
   canReveal: boolean;
+  canDecide: boolean;
   /** An admin or owner of the workspace. */
   isAdmin: boolean;
 }
@@ -53,6 +55,7 @@ export const STATUS_OF: Record<KycErrorCode, number> = {
   rate_limited: 429,
   forbidden: 403,
   audit_failed: 503,
+  already_decided: 409,
 };
 
 function logCode(code: string, hint?: string): void {
@@ -70,6 +73,7 @@ export async function kycStatus(caller: KycCaller, rt: KycRuntime, opts: { check
     missing: caller.isAdmin ? d.missing : [],
     canView: caller.canView,
     canReveal: caller.canReveal,
+    canDecide: caller.canDecide,
     isAdmin: caller.isAdmin,
   };
   // The health check is for administrators who ask for it (the "Check connection" button): it sends no key and shows no data.
@@ -153,6 +157,98 @@ export function nextPage(items: readonly { id: string }[], limit: number): strin
     if (min === null || n < min) min = n;
   }
   return min === null ? null : String(min);
+}
+
+export interface DecisionInput {
+  validationId: string;
+  /** The child's friend id: needed to look the validation up again before deciding (the back end has no read-one call). */
+  friendId: string;
+  decision: KycDecision;
+  /** Already cleaned by normaliseNote and within DECISION_NOTE_MAX; required by the route for a rejection. */
+  note: string;
+}
+
+/** A note as a single clean line: no control or bidi characters, runs of white space made one, trimmed. */
+export function normaliseNote(raw: string): string {
+  return raw
+    .replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ")
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Approve or reject one ID check. See the order in the header of this file; the extra rules for a write are in the numbered comments. */
+export async function decideValidation(admin: SupabaseClient, caller: KycCaller, rt: KycRuntime, input: DecisionInput): Promise<ServiceResult<KycDecisionResult>> {
+  const record = (outcome: AccessLogInput["outcome"], as: KycAction = "decision") =>
+    writeAccessLog(admin, {
+      accountId: caller.accountId,
+      userId: caller.userId,
+      action: as,
+      friendId: input.friendId,
+      validationId: input.validationId,
+      outcome,
+      decision: as === "decision" ? input.decision : null,
+    });
+
+  if (!caller.canDecide) {
+    await record("forbidden");
+    return fail("forbidden");
+  }
+  if (input.note.length > DECISION_NOTE_MAX || (input.decision === "reject" && input.note === "")) return fail("invalid_request");
+  const cfg = readKycConfig(rt.env);
+  if (!cfg.ok) {
+    await record("error", "config_error");
+    return fail("not_configured");
+  }
+
+  // 1. Is it still undecided? The back end has no "read one" call, so the child's list is read again and the record found in it. Somebody else may
+  //    have decided since this person opened it (and a rejection e-mails the parent), so a record that already carries a review is not decided twice.
+  //    A record not found in the first 100 is let through: the back end answers 409 for one it refuses.
+  try {
+    const records = extractItems(await fetchValidations(cfg.config, rt.transport, input.friendId, 100));
+    const found = records?.map((r) => buildValidation(r)).find((v) => v.id === input.validationId);
+    if (found?.review) {
+      await record("error");
+      return fail("already_decided");
+    }
+  } catch (err) {
+    const code: KycErrorCode = err instanceof KycError ? err.code : "upstream_unreachable";
+    if (code === "not_found") {
+      await record("not_found");
+      return fail("not_found");
+    }
+    logCode(code);
+    await record("error", code === "upstream_unauthorized" ? "config_error" : "decision");
+    return fail(code);
+  }
+
+  // 2. The log first: the attempt is written BEFORE the back end is called, and when it cannot be written nothing is sent.
+  if (!(await record("attempt"))) return fail("audit_failed");
+
+  // 3. The one call that changes something. Never retried.
+  let reply: Awaited<ReturnType<typeof postReview>>;
+  try {
+    reply = await postReview(cfg.config, rt.transport, input.validationId, input.decision, input.note);
+  } catch (err) {
+    const code: KycErrorCode = err instanceof KycError ? err.code : "upstream_unreachable";
+    logCode(code);
+    if (code === "not_found") await record("not_found");
+    else await record("error", code === "upstream_unauthorized" ? "config_error" : "decision");
+    return fail(code);
+  }
+
+  // 4. The decision is taken; a failure to write the result row is logged but does not hide it (the attempt row is already there).
+  await record("ok");
+  const reviewStatus = reply.reviewStatus ?? (input.decision === "approve" ? "APPROVED" : "REJECTED");
+  return ok({
+    decision: input.decision,
+    reviewStatus,
+    reviewTone: statusTone(reviewStatus),
+    reviewedAt: reply.reviewedAt ?? new Date().toISOString(),
+    note: input.note === "" ? null : input.note,
+    partial: reply.partial,
+    emailSent: input.decision === "reject" ? reply.emailSent : null,
+  });
 }
 
 export interface ImageInput {

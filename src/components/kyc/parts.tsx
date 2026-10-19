@@ -41,6 +41,19 @@ export function StatusChip({ status }: { status: KycValidation["status"] }) {
   );
 }
 
+/** The decision a reviewer took: a word and an icon ("Approved", "Rejected"), never colour alone. */
+export function ReviewChip({ review }: { review: NonNullable<KycValidation["review"]> }) {
+  const t = useTranslations("Kyc.decision");
+  const Icon = TONE_ICON[review.tone];
+  return (
+    <span className={cn(chip, "gap-1", TONE_CLASS[review.tone])} data-tone={review.tone} data-review="true">
+      <Icon className="size-3" aria-hidden />
+      <span className="sr-only">{t("reviewed")}: </span>
+      <span>{humanStatus(review.raw)}</span>
+    </span>
+  );
+}
+
 /** NO_ID_ON_CLIENT -> "No id on client", UNREADABLE -> "Unreadable". A status the back end already wrote in words is shown as sent. */
 export function humanStatus(raw: string): string {
   if (!/_/.test(raw) && raw !== raw.toUpperCase()) return raw;
@@ -166,6 +179,7 @@ export function ValidationList({
               <span className="flex flex-wrap items-center gap-1.5">
                 <TypeChip type={v.type} />
                 <StatusChip status={v.status} />
+                {v.review ? <ReviewChip review={v.review} /> : null}
               </span>
               <span className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-muted-foreground">
                 {v.createdAt ? (
@@ -213,7 +227,8 @@ function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   );
 }
 
-const KNOWN_LABEL_KEYS = ["name", "idNumber", "dob", "address"] as const;
+const KNOWN_LABEL_KEYS = ["name", "idNumber", "clientIdNumber", "dob", "address"] as const;
+const PERSON_LABEL_KEYS = ["name", "nickname", "identification", "email", "phone", "wallet", "clientType"] as const;
 
 export function DataCard({
   v,
@@ -235,7 +250,7 @@ export function DataCard({
 }) {
   const t = useTranslations("Kyc.detail");
   const locale = useLocale();
-  const all = [...v.known, ...v.extra];
+  const all = [...v.known, ...v.extra, ...v.people.flatMap((p) => p.fields)];
   const anySensitive = all.some((f) => f.sensitive);
   return (
     <section aria-labelledby="kyc-data-title" className="rounded-xl border border-border bg-card p-4">
@@ -283,6 +298,19 @@ export function DataCard({
           </Row>
         ))}
       </dl>
+
+      {v.people.map((p) => (
+        <div key={p.role} data-person={p.role}>
+          <h4 className="mt-4 text-sm font-medium text-foreground">{t(`people.${p.role}`)}</h4>
+          <dl className="mt-1 divide-y divide-border">
+            {p.fields.map((f) => (
+              <Row key={f.key} label={(PERSON_LABEL_KEYS as readonly string[]).includes(f.key) ? t(`people.fields.${f.key as (typeof PERSON_LABEL_KEYS)[number]}`) : (f.label ?? f.key)}>
+                <FieldValue field={f} />
+              </Row>
+            ))}
+          </dl>
+        </div>
+      ))}
 
       <h4 className="mt-4 text-sm font-medium text-foreground">{t("otherFields")}</h4>
       {v.extra.length === 0 ? (

@@ -156,6 +156,7 @@ describe("catalogue", () => {
         "menu.kyc",
         "kyc.view",
         "kyc.reveal",
+        "kyc.decide",
         // Compliance requests (migration 183): server routes only; the database re-checks the actor inside its functions
         "menu.compliance",
         "compliance.review",
@@ -467,12 +468,13 @@ describe("legacy useCan actions", () => {
 });
 
 describe("KYC review capabilities (migration 182)", () => {
-  const KYC = ["menu.kyc", "kyc.view", "kyc.reveal"] as const;
+  const KYC = ["menu.kyc", "kyc.view", "kyc.reveal", "kyc.decide"] as const;
 
   it("exist, in the menus and kyc groups, app tier, read-only is not claimed", () => {
     expect(getCapability("menu.kyc")).toMatchObject({ group: "menus", enforcedBy: "app", minGrantRole: "agent" });
     expect(getCapability("kyc.view")).toMatchObject({ group: "kyc", enforcedBy: "app", minGrantRole: "agent" });
     expect(getCapability("kyc.reveal")).toMatchObject({ group: "kyc", enforcedBy: "app", minGrantRole: "agent" });
+    expect(getCapability("kyc.decide")).toMatchObject({ group: "kyc", enforcedBy: "app", minGrantRole: "agent" });
     expect(CAPABILITY_GROUPS).toContain("kyc");
   });
 
@@ -499,6 +501,7 @@ describe("KYC review capabilities (migration 182)", () => {
     expect(capabilityI18nId("menu.kyc")).toBe("menu_kyc");
     expect(capabilityI18nId("kyc.view")).toBe("kyc_view");
     expect(capabilityI18nId("kyc.reveal")).toBe("kyc_reveal");
+    expect(capabilityI18nId("kyc.decide")).toBe("kyc_decide");
   });
 });
 

@@ -170,7 +170,7 @@ export type ClientErrorCode = KycErrorCode | "network";
 export function errorKey(code: ClientErrorCode | string): string {
   const known = [
     "not_configured", "upstream_unreachable", "upstream_unauthorized", "not_found", "bad_response", "image_too_large", "image_type_unsupported",
-    "image_host_blocked", "invalid_request", "rate_limited", "forbidden", "audit_failed", "network",
+    "image_host_blocked", "invalid_request", "rate_limited", "forbidden", "audit_failed", "already_decided", "network",
   ];
   return known.includes(code) ? code : "generic";
 }

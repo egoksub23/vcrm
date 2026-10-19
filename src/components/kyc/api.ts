@@ -3,7 +3,7 @@
 // The browser never sees the back end, its key or its address: only these routes. Every call is `no-store`.
 // ============================================================
 
-import type { KycAccessRow, KycStatus, KycValidationList } from "@/lib/kyc/types";
+import type { KycAccessRow, KycDecision, KycDecisionResult, KycStatus, KycValidationList } from "@/lib/kyc/types";
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; code: string; status: number };
 
@@ -50,6 +50,30 @@ export function getValidations(friendId: string, opts: { reload?: boolean; revea
     q.set("validation_id", opts.revealValidationId);
   }
   return call<KycValidationList>(`/api/kyc/validations?${q.toString()}`);
+}
+
+/** Approve or reject one check. A POST that is never retried here: a second one could e-mail a parent twice. */
+export async function postDecision(validationId: string, friendId: string, decision: KycDecision, note: string): Promise<ApiResult<KycDecisionResult>> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/kyc/validations/${encodeURIComponent(validationId)}/review`, {
+      method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ friend_id: friendId, decision, note }),
+    });
+  } catch {
+    return { ok: false, code: "network", status: 0 };
+  }
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    // not JSON: the status decides
+  }
+  if (!res.ok) return { ok: false, code: codeOf(res.status, body), status: res.status };
+  return { ok: true, data: body as KycDecisionResult };
 }
 
 /** The image as a Blob (the caller makes an object URL from it and revokes the URL when done). */

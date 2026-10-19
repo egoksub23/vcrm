@@ -64,6 +64,7 @@ export async function kycStaff(opts: StaffOptions, handler: (call: KycCall) => P
       userId: auth.userId,
       canView: auth.capabilities.has("kyc.view"),
       canReveal: auth.capabilities.has("kyc.reveal"),
+      canDecide: auth.capabilities.has("kyc.decide"),
       isAdmin,
     };
     return await handler({ admin: supabaseAdmin(), caller, runtime: kycRuntime() });
