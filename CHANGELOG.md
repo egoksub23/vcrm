@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.97.2] — 2026-10-20
+
+**Migration required: `189_compliance_edit_fix.sql`.** Apply it before the new code is deployed (it changes one database function and nothing else; the app code is unchanged by this fix).
+
+### Fixed
+
+- **Compliance: saving an edit to a request's customer details or answers always failed** with "That could not be done. Check what you entered and try again." Editing the name, e-mail, phone or channel, or an answer, was refused for every request since Compliance shipped; changing the assignee, the links or the request date was unaffected. Cause: the database function that applies an edit built its list of changed fields by appending an untyped word to a text list, which Postgres reads as an array literal and rejects (`22P02 malformed array literal`), and no test had ever saved a customer detail. The function now appends with `array_append`. Its body is otherwise unchanged, and a test pins that it stays line for line the same as the original apart from those six lines.
+
 ## [0.97.1] — 2026-10-19
 
 ### Fixed
