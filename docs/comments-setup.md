@@ -52,6 +52,12 @@ Notes:
   commenter becomes (or is matched to) a contact, your message is filed in
   their chat, and their answer arrives there.
 
+### Post pictures
+
+The picture beside a post (the thumbnail in the list and in the thread) comes from Meta as a signed link that **expires in about a week**. Halo keeps its own copy instead: when a post is first seen the picture is downloaded (from Meta's picture hosts only, an image of at most 5 MB) into the `public-assets` bucket under `account-<id>/comment-posts/`, and the post stores that link. A copy is named after a hash of the post, so the same post always overwrites its own file.
+
+A post saved before this (or one whose copy failed) still holds Meta's link. When its thumbnail fails to load, the screen calls `POST /api/comments/posts/<id>/refresh-media` once: the server asks Meta again with the workspace's page token, keeps a copy and points the post at it. A post Meta no longer returns, or a page that is no longer connected, shows the plain tile. Any member of the workspace can trigger it (it only rewrites the picture of a post in their own workspace), at most 60 a minute each. TikTok thumbnails are renewed by every TikTok sync and need none of this.
+
 ## TikTok
 
 Needs an approved TikTok developer app with access to the **Accounts API**

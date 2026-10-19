@@ -24,6 +24,7 @@ import { AuthorBlock } from "./author-block";
 import { BulkBar } from "./bulk-bar";
 import { chip, TONE } from "./chips";
 import { PROVIDER_ICONS, PROVIDER_NAMES } from "./provider-icons";
+import { PostThumb } from "./post-thumb";
 import { ReplyComposer } from "./reply-composer";
 import { ThreadCommentItem, type CommentItemHandlers } from "./thread-comment";
 
@@ -169,14 +170,16 @@ export const PostThreadView = forwardRef<HTMLDivElement, PostThreadViewProps>(fu
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4" data-thread-scroll>
         <div className="flex gap-3 rounded-xl border border-border bg-card p-3" data-post-card>
-          {post.media_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={post.media_url} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
-          ) : (
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-muted">
-              {post.source === "ad" ? <Megaphone className="h-5 w-5 text-muted-foreground" /> : <Icon className="h-6 w-6" />}
-            </div>
-          )}
+          <PostThumb
+            postId={post.id}
+            mediaUrl={post.media_url}
+            className="h-16 w-16 shrink-0 rounded-lg object-cover"
+            fallback={
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-muted">
+                {post.source === "ad" ? <Megaphone className="h-5 w-5 text-muted-foreground" /> : <Icon className="h-6 w-6" />}
+              </div>
+            }
+          />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("onThisPost")}</p>
             <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap break-words text-sm text-foreground">{post.message || t("noCaption")}</p>

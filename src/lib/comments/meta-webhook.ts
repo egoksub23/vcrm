@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { claimWebhookEvent, ingestComment, setCommentStatusByExternalId, type IncomingPost } from './ingest'
 import { getFacebookPost, getInstagramMedia } from './meta-comments'
+import { keepPostMedia } from './mirror-post-media'
 
 // ============================================================
 // Comment events from Meta's webhooks:
@@ -114,7 +115,8 @@ async function processFacebook(db: SupabaseClient, entry: MetaEntryWithChanges) 
         if (info) {
           post.message = info.message ?? null
           post.permalinkUrl = info.permalink_url ?? null
-          post.mediaUrl = info.full_picture ?? null
+          // Meta's picture links expire in about a week: keep a copy of our own (the link as sent is only the fallback).
+          post.mediaUrl = await keepPostMedia({ db, accountId, provider: 'facebook', externalPostId: postId, sourceUrl: info.full_picture })
           post.postedAt = info.created_time ? new Date(info.created_time) : null
           if (info.is_published === false) post.source = 'ad'
         }
@@ -175,7 +177,7 @@ async function processInstagram(db: SupabaseClient, entry: MetaEntryWithChanges)
         if (info) {
           post.message = info.caption ?? null
           post.permalinkUrl = info.permalink ?? null
-          post.mediaUrl = info.thumbnail_url ?? info.media_url ?? null
+          post.mediaUrl = await keepPostMedia({ db, accountId, provider: 'instagram', externalPostId: mediaId, sourceUrl: info.thumbnail_url ?? info.media_url })
           post.postedAt = info.timestamp ? new Date(info.timestamp) : null
         }
       } catch (err) {

@@ -9,6 +9,12 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.97.1] — 2026-10-19
+
+### Fixed
+
+- **Comments: every post thumbnail was broken a week after its first comment.** The picture link Facebook and Instagram hand out is signed and expires in about seven days, and Halo stored it as it came and never asked again, so all 16 stored posts showed a broken image. New posts now get a copy of their picture in Halo's own storage (the public-assets bucket, under the workspace's folder), which does not expire. A post that already has a dead link is repaired when it is shown: the thumbnail asks the server, which fetches a fresh picture from Meta with the workspace's own page token, keeps a copy, and updates the post. A post Meta no longer has (deleted, or the page was disconnected) shows the plain tile instead of a broken image. No migration.
+
 ## [0.97.0] — 2026-10-19
 
 ### Added

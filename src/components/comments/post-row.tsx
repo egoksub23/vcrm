@@ -9,6 +9,7 @@ import { authorLabel, snippet, type InboxPost } from "@/lib/comments/threads";
 
 import { chip, TONE } from "./chips";
 import { PROVIDER_ICONS, PROVIDER_NAMES } from "./provider-icons";
+import { PostThumb } from "./post-thumb";
 
 /**
  * One row of the Comments list: a POST, not a comment. Platform icon on the post's picture, the caption, how many comments still
@@ -44,14 +45,17 @@ export function CommentPostRow({
       )}
     >
       <div className="relative h-11 w-11 shrink-0">
-        {post.media_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.media_url} alt="" className="h-11 w-11 rounded-md object-cover" loading="lazy" />
-        ) : (
-          <div className="flex h-11 w-11 items-center justify-center rounded-md bg-muted">
-            {post.source === "ad" ? <Megaphone className="h-4 w-4 text-muted-foreground" /> : <Icon className="h-5 w-5" />}
-          </div>
-        )}
+        <PostThumb
+          postId={post.post_id}
+          mediaUrl={post.media_url}
+          className="h-11 w-11 rounded-md object-cover"
+          lazy
+          fallback={
+            <div className="flex h-11 w-11 items-center justify-center rounded-md bg-muted">
+              {post.source === "ad" ? <Megaphone className="h-4 w-4 text-muted-foreground" /> : <Icon className="h-5 w-5" />}
+            </div>
+          }
+        />
         <Icon
           className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full ring-2 ring-card"
           aria-label={PROVIDER_NAMES[post.provider]}

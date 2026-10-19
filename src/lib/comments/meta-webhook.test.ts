@@ -158,4 +158,56 @@ describe('Instagram comments', () => {
     await processMetaCommentChanges(f.db, 'instagram', igEntry({ id: 'IC3', text: 'thanks', parent_id: 'IC1', from: { id: 'IG', username: 'us' }, media: { id: 'M1' } }))
     expect(f.tables.comments[0]).toMatchObject({ parent_external_id: 'IC1', direction: 'outbound' })
   })
+
+  // Meta's picture links expire in about a week; the post keeps a copy of its own instead.
+  describe('the post picture', () => {
+    const META_LINK = 'https://scontent-kul2-1.cdninstagram.com/v/pic.jpg?oe=68F0A1B2'
+    const withStorage = (f: ReturnType<typeof seed>, uploadError: { message: string } | null = null) => {
+      const uploads: string[] = []
+      ;(f.db as unknown as { storage: unknown }).storage = {
+        from: (bucket: string) => ({
+          upload: async (path: string) => (uploads.push(`${bucket}/${path}`), { error: uploadError }),
+          getPublicUrl: (path: string) => ({ data: { publicUrl: `https://halo.test/storage/v1/object/public/${bucket}/${path}` } }),
+        }),
+      }
+      return uploads
+    }
+    const comment = () => igEntry({ id: 'IC9', text: 'hi', from: { id: 'x', username: 'u' }, media: { id: 'M9' } })
+
+    it('keeps a copy in our storage and stores that link, not Meta\'s', async () => {
+      h.getInstagramMedia.mockResolvedValue({ thumbnail_url: META_LINK })
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array([0xff, 0xd8, 1, 2]), { status: 200, headers: { 'content-type': 'image/jpeg' } })))
+      const f = seed()
+      const uploads = withStorage(f)
+      await processMetaCommentChanges(f.db, 'instagram', comment())
+      expect(uploads).toHaveLength(1)
+      expect(uploads[0]).toMatch(/^public-assets\/account-acct-1\/comment-posts\/instagram-[0-9a-f]{24}\.jpg$/)
+      expect(f.tables.comment_posts[0].media_url).toBe(`https://halo.test/storage/v1/object/public/${uploads[0]}`)
+      expect(f.tables.comment_posts[0].media_url).not.toContain('cdninstagram')
+      vi.unstubAllGlobals()
+    })
+
+    it('still stores the comment, with Meta\'s link as the fallback, when the copy fails', async () => {
+      h.getInstagramMedia.mockResolvedValue({ thumbnail_url: META_LINK })
+      vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('cdn down') }))
+      const f = seed()
+      withStorage(f)
+      await processMetaCommentChanges(f.db, 'instagram', comment())
+      expect(f.tables.comments).toHaveLength(1)
+      expect(f.tables.comment_posts[0].media_url).toBe(META_LINK)
+      vi.unstubAllGlobals()
+    })
+
+    it('does not copy again for a post it already has', async () => {
+      h.getInstagramMedia.mockResolvedValue({ thumbnail_url: META_LINK })
+      const fetchSpy = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/jpeg' } }))
+      vi.stubGlobal('fetch', fetchSpy)
+      const f = seed()
+      withStorage(f)
+      await processMetaCommentChanges(f.db, 'instagram', comment())
+      await processMetaCommentChanges(f.db, 'instagram', igEntry({ id: 'IC10', text: 'again', from: { id: 'y', username: 'v' }, media: { id: 'M9' } }, 'comments'))
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      vi.unstubAllGlobals()
+    })
+  })
 })
