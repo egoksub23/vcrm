@@ -13195,7 +13195,8 @@
       "generic": "Something went wrong. Try again.",
       "unauthorizedAdmin": "The key was rejected. Check KYC_DOC_API_KEY on the server.",
       "imageHostAdmin": "Add the image host to KYC_DOC_ALLOWED_IMAGE_HOSTS on the server (the server log names the host).",
-      "already_decided": "Somebody already approved or rejected this check, so nothing was sent."
+      "already_decided": "Somebody already approved or rejected this check, so nothing was sent.",
+      "amend_refused": "The verification service did not accept the change, so nothing was changed. It may not allow a decision to be changed once it is made: ask the engineers."
     },
     "log": {
       "title": "Access log",
@@ -13230,7 +13231,8 @@
         "view_image": "Opened image",
         "reveal": "Revealed values",
         "config_error": "Set-up error",
-        "decision": "Decision"
+        "decision": "Decision",
+        "amend": "Amended a rejection"
       },
       "outcomes": {
         "ok": "OK",
@@ -13269,7 +13271,17 @@
       "doneRejectedNoEmail": "Rejected, but the email to the parent was not sent. Tell engineering.",
       "doneRejectedEmailUnknown": "Rejected. The verification service did not say whether the parent's email was sent.",
       "partial": "The verification service could not save this decision everywhere. Tell engineering, with this validation id.",
-      "uncertain": "Halo could not confirm whether the decision was taken. The check has been reloaded: look at its status before you try again."
+      "uncertain": "Halo could not confirm whether the decision was taken. The check has been reloaded: look at its status before you try again.",
+      "amendTitle": "Amend this decision",
+      "amendIntro": "This check was rejected and the parent was told. If the document has since been put right, you can change the decision to Approved. Say why below.",
+      "amendNoteLabel": "Why is it being changed? (required)",
+      "amendNotePlaceholder": "e.g. The parent sent a clear photo of the same document",
+      "amendNoteRequired": "Say why the decision is being changed.",
+      "amendButton": "Amend and approve",
+      "confirmAmendTitle": "Change this rejection to Approved?",
+      "confirmAmendBody": "The child's eKYC status becomes Verified. The parent was already e-mailed about the rejection and Halo does not send them another message. Halo cannot undo this.",
+      "confirmAmend": "Yes, amend and approve",
+      "doneAmended": "Amended. The check is now Approved and the child's eKYC status is Verified."
     },
     "readOnlyShort": "Read only",
     "resizePanel": "Resize panel",

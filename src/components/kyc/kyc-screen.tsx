@@ -663,7 +663,7 @@ export function KycScreen() {
                       canDecide={canDecide}
                       friendId={decideFriendId}
                       isAdmin={isAdmin}
-                      decide={(decision: KycDecision, note: string) => postDecision(shown.id, decideFriendId, decision, note)}
+                      decide={(decision: KycDecision, note: string, amend: boolean) => postDecision(shown.id, decideFriendId, decision, note, amend)}
                       onDone={decided}
                       onUncertain={() => void refreshOne(shown.id, decideFriendId)}
                     />

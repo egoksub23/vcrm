@@ -9,6 +9,15 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.99.0] — 2026-10-20
+
+**Migration required: `192_kyc_amend.sql`.** Apply it **before** the new code is deployed (it only widens the access log; the code writes the new `amend` action).
+
+### Added
+
+- **KYC review: a rejected check can be amended and approved.** On a rejected check the Decision box now offers **Amend this decision**: a required reason and **Amend and approve**, with a confirmation that says the parent was already e-mailed about the rejection and that Halo cannot undo it. Only rejected -> approved; an approved check cannot be changed from Halo. It is logged as an **amendment** in the access log, apart from a first decision, and the reason is never logged. **The verification service has not confirmed that it accepts a second decision on a check**: when it refuses, the screen says so and nothing is changed. Try the first one on a test record.
+- **The child's data is highlighted in pastel green** in the data card (the parent's stays plain), so a reviewer sees which data set belongs to the child. The block keeps its "Child" heading, so the colour is never the only signal.
+
 ## [0.98.0] — 2026-10-20
 
 **Migration required: `191_addon_roles.sql`.** Apply it **before** the new code is deployed (the app reads its tables).

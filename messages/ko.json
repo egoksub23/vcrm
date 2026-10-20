@@ -13195,7 +13195,8 @@
       "generic": "문제가 발생했습니다. 다시 시도하세요.",
       "unauthorizedAdmin": "키가 거부되었습니다. 서버의 KYC_DOC_API_KEY를 확인하세요.",
       "imageHostAdmin": "서버의 KYC_DOC_ALLOWED_IMAGE_HOSTS에 이미지 호스트를 추가하세요(서버 로그에 호스트 이름이 표시됩니다).",
-      "already_decided": "다른 사람이 이미 이 확인을 승인하거나 거부했으므로 아무것도 전송되지 않았습니다."
+      "already_decided": "다른 사람이 이미 이 확인을 승인하거나 거부했으므로 아무것도 전송되지 않았습니다.",
+      "amend_refused": "인증 서비스가 변경을 받아들이지 않아 아무것도 바뀌지 않았습니다. 한 번 내린 결정은 변경할 수 없을 수 있습니다. 엔지니어에게 문의하세요."
     },
     "log": {
       "title": "접근 기록",
@@ -13230,7 +13231,8 @@
         "view_image": "이미지 열기",
         "reveal": "값 표시",
         "config_error": "설정 오류",
-        "decision": "결정"
+        "decision": "결정",
+        "amend": "거부 결정 수정"
       },
       "outcomes": {
         "ok": "성공",
@@ -13269,7 +13271,17 @@
       "doneRejectedNoEmail": "거부되었지만 부모에게 보내는 이메일이 전송되지 않았습니다. 엔지니어링 팀에 알려 주세요.",
       "doneRejectedEmailUnknown": "거부되었습니다. 부모에게 이메일이 전송되었는지 인증 서비스가 알려 주지 않았습니다.",
       "partial": "인증 서비스가 이 결정을 모든 위치에 저장하지 못했습니다. 이 검증 ID와 함께 엔지니어링 팀에 알려 주세요.",
-      "uncertain": "Halo가 결정이 처리되었는지 확인하지 못했습니다. 확인 내역을 다시 불러왔으니, 다시 시도하기 전에 상태를 확인하세요."
+      "uncertain": "Halo가 결정이 처리되었는지 확인하지 못했습니다. 확인 내역을 다시 불러왔으니, 다시 시도하기 전에 상태를 확인하세요.",
+      "amendTitle": "이 결정 수정",
+      "amendIntro": "이 확인은 거부되었고 부모에게도 알려졌습니다. 이후 서류가 바로잡혔다면 결정을 ‘승인됨’으로 바꿀 수 있습니다. 아래에 이유를 적어 주세요.",
+      "amendNoteLabel": "변경하는 이유는 무엇인가요? (필수)",
+      "amendNotePlaceholder": "예: 부모가 같은 서류의 선명한 사진을 다시 보냄",
+      "amendNoteRequired": "결정을 바꾸는 이유를 적어 주세요.",
+      "amendButton": "수정 후 승인",
+      "confirmAmendTitle": "이 거부를 ‘승인됨’으로 바꿀까요?",
+      "confirmAmendBody": "아이의 eKYC 상태가 ‘인증됨’으로 바뀝니다. 부모에게는 이미 거부 이메일이 전송되었으며 Halo는 다른 메시지를 보내지 않습니다. Halo에서는 되돌릴 수 없습니다.",
+      "confirmAmend": "예, 수정 후 승인",
+      "doneAmended": "수정되었습니다. 이 확인은 이제 ‘승인됨’이며 아이의 eKYC 상태는 ‘인증됨’입니다."
     },
     "readOnlyShort": "읽기 전용",
     "resizePanel": "패널 크기 조절",

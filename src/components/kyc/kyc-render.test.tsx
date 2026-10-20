@@ -319,7 +319,7 @@ describe.each(LOCALES)("KYC decisions in %s", (locale) => {
     expect(panel(v(), { canDecide: false })).toBe("");
   });
 
-  it("shows the decision already taken, in words and an icon, with the note and the time, and no buttons", () => {
+  it("shows the decision already taken, in words and an icon, with the note and the time; an approved check has no buttons at all", () => {
     for (const [raw, tone, word] of [["APPROVED", "positive", "Approved"], ["REJECTED", "negative", "Rejected"]] as const) {
       const html = panel(REVIEWED(raw, tone));
       const t = text(html);
@@ -329,11 +329,85 @@ describe.each(LOCALES)("KYC decisions in %s", (locale) => {
       expect(t).toContain("NRIC matches client record");
       expect(html).toContain(`data-tone="${tone}"`);
       expect(html).toContain("<time");
+    }
+    const approved = panel(REVIEWED("APPROVED", "positive"));
+    expect(approved).not.toContain("<button");
+    expect(approved).not.toContain("<textarea");
+    // a person without the permission still sees what was decided, and nothing to press on either
+    for (const [raw, tone] of [["APPROVED", "positive"], ["REJECTED", "negative"]] as const) {
+      const html = panel(REVIEWED(raw, tone), { canDecide: false });
+      expect(text(html)).toContain(raw === "APPROVED" ? "Approved" : "Rejected");
       expect(html).not.toContain("<button");
       expect(html).not.toContain("<textarea");
     }
-    // a person without the permission still sees what was decided
-    expect(text(panel(REVIEWED("APPROVED", "positive"), { canDecide: false }))).toContain("Approved");
+  });
+
+  it("offers a REJECTED check, and only that, an Amend and approve: its own box, a required reason, and no Reject button", () => {
+    const html = panel(REVIEWED("REJECTED", "negative"));
+    const t = text(html);
+    for (const k of ["amendTitle", "amendIntro", "amendNoteLabel", "amendButton"]) expect(t, k).toContain(d[k]);
+    expect(html).toContain('data-section="amend"');
+    expect(html).toContain('data-action="amend"');
+    expect(html).toContain('for="kyc-amend-note"');
+    expect(html).toContain('placeholder="' + d.amendNotePlaceholder.replace(/'/g, "&#x27;") + '"');
+    expect(html).toContain('maxLength="500"');
+    // exactly one button, and it is the amendment: a rejected check is not rejected again, and nothing is asked until it is pressed
+    expect(html.match(/<button/g)).toHaveLength(1);
+    expect(t).not.toContain(d.confirmAmendTitle);
+    expect(html).not.toContain('role="alert"');
+    // an approved check is never amended, and neither is one with no friend id or no usable id
+    expect(panel(REVIEWED("APPROVED", "positive"))).not.toContain('data-section="amend"');
+    expect(panel(REVIEWED("REJECTED", "negative"), { friendId: "" })).not.toContain('data-section="amend"');
+  });
+
+  it("words an amendment's result, and the service refusing to change a decision", () => {
+    const base: KycDecisionResult = { decision: "approve", reviewStatus: "APPROVED", reviewTone: "positive", reviewedAt: null, note: "fixed", partial: false, emailSent: null, amended: true };
+    expect(text(page(locale, <DoneNotice result={base} />))).toContain(d.doneAmended);
+    expect(text(page(locale, <DoneNotice result={{ ...base, amended: false }} />))).toContain(d.doneApproved);
+    const html = page(locale, <ErrorPanel code="amend_refused" isAdmin={false} compact />);
+    expect(text(html)).toContain((m.errors as Record<string, string>).amend_refused);
+    expect(html).toContain('role="alert"');
+  });
+
+  it("names an amendment in the access log, apart from a decision", () => {
+    const rows: KycAccessRow[] = [
+      { id: "1", createdAt: "2026-10-12T11:00:00.000Z", userId: "u1", userName: "Reviewer One", action: "amend", friendId: "child-77", validationId: "42", outcome: "attempt", decision: "approve" },
+      { id: "2", createdAt: "2026-10-12T11:00:01.000Z", userId: "u1", userName: "Reviewer One", action: "amend", friendId: "child-77", validationId: "42", outcome: "ok", decision: "approve" },
+    ];
+    const t = text(page(locale, <AccessLogTable rows={rows} />));
+    expect(t).toContain(logExtra.actions.amend);
+    expect(t).not.toContain(logExtra.actions.decision + ":");
+  });
+
+  it("highlights the CHILD's data in pastel green, in words and a block, and leaves the parent's plain", () => {
+    const html = page(
+      locale,
+      <DataCard
+        v={v({
+          people: [
+            { role: "child", fields: [{ key: "name", label: "Name", value: "Child Name", sensitive: false, masked: false }] },
+            { role: "parent", fields: [{ key: "name", label: "Name", value: "Parent Name", sensitive: false, masked: false }] },
+          ],
+        })}
+        canReveal
+        revealed={false}
+        revealing={false}
+        onReveal={() => undefined}
+        onHide={() => undefined}
+        now={NOW}
+      />,
+    );
+    const child = html.match(/<div[^>]*data-person="child"[^>]*>/)![0];
+    const parent = html.match(/<div[^>]*data-person="parent"[^>]*>/)![0];
+    expect(child).toContain('data-highlight="true"');
+    expect(child).toMatch(/#ecfdf5/);
+    expect(parent).not.toContain("data-highlight");
+    expect(parent).not.toMatch(/#ecfdf5/);
+    // the colour is never the only signal: the block carries the child's own heading
+    expect(text(html)).toContain(people.child);
+    // and it works in both themes without a Tailwind dark: variant
+    expect(child).toMatch(/light-dark\(#ecfdf5,/);
+    expect(child).not.toMatch(/(^|[\s"'`])dark:/);
   });
 
   it("says why a check cannot be decided here when it has no friend id or no usable validation id", () => {

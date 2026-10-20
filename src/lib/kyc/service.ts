@@ -24,6 +24,7 @@ import {
 } from "./client";
 import { describeConfig, readKycConfig } from "./config";
 import type { KycRuntime } from "./runtime";
+import { reviewKind } from "./review";
 import { DECISION_NOTE_MAX, FRIEND_ID_RE, VALIDATION_ID_RE, type KycDecision, type KycDecisionResult, type KycErrorCode, type KycStatus, type KycValidationList } from "./types";
 
 export interface KycCaller {
@@ -56,6 +57,7 @@ export const STATUS_OF: Record<KycErrorCode, number> = {
   forbidden: 403,
   audit_failed: 503,
   already_decided: 409,
+  amend_refused: 409,
 };
 
 function logCode(code: string, hint?: string): void {
@@ -166,8 +168,13 @@ export interface DecisionInput {
   /** The child's friend id: needed to look the validation up again before deciding (the back end has no read-one call). */
   friendId: string;
   decision: KycDecision;
-  /** Already cleaned by normaliseNote and within DECISION_NOTE_MAX; required by the route for a rejection. */
+  /** Already cleaned by normaliseNote and within DECISION_NOTE_MAX; required by the route for a rejection and for an amendment. */
   note: string;
+  /**
+   * Amend a check that is already REJECTED and approve it. Only rejected -> approved: the check must carry a rejection, the decision must be approve and a
+   * note (the reason it changed) is required. Without it a check that already carries a review is never decided again.
+   */
+  amend?: boolean;
 }
 
 /** A note as a single clean line: no control or bidi characters, runs of white space made one, trimmed. */
@@ -181,7 +188,9 @@ export function normaliseNote(raw: string): string {
 
 /** Approve or reject one ID check. See the order in the header of this file; the extra rules for a write are in the numbered comments. */
 export async function decideValidation(admin: SupabaseClient, caller: KycCaller, rt: KycRuntime, input: DecisionInput): Promise<ServiceResult<KycDecisionResult>> {
-  const record = (outcome: AccessLogInput["outcome"], as: KycAction = "decision") =>
+  // An amendment is logged as an 'amend', never as a 'decision', so an audit can tell it from a first decision without reading the order of two rows.
+  const act: KycAction = input.amend ? "amend" : "decision";
+  const record = (outcome: AccessLogInput["outcome"], as: KycAction = act) =>
     writeAccessLog(admin, {
       accountId: caller.accountId,
       userId: caller.userId,
@@ -189,7 +198,7 @@ export async function decideValidation(admin: SupabaseClient, caller: KycCaller,
       friendId: input.friendId,
       validationId: input.validationId,
       outcome,
-      decision: as === "decision" ? input.decision : null,
+      decision: as === "decision" || as === "amend" ? input.decision : null,
     });
 
   if (!caller.canDecide) {
@@ -197,6 +206,8 @@ export async function decideValidation(admin: SupabaseClient, caller: KycCaller,
     return fail("forbidden");
   }
   if (input.note.length > DECISION_NOTE_MAX || (input.decision === "reject" && input.note === "")) return fail("invalid_request");
+  // An amendment is rejected -> approved and says why; anything else is not an amendment.
+  if (input.amend && (input.decision !== "approve" || input.note === "")) return fail("invalid_request");
   const cfg = readKycConfig(rt.env);
   if (!cfg.ok) {
     await record("error", "config_error");
@@ -209,7 +220,22 @@ export async function decideValidation(admin: SupabaseClient, caller: KycCaller,
   try {
     const records = extractItems(await fetchValidations(cfg.config, rt.transport, input.friendId, 100));
     const found = records?.map((r) => buildValidation(r)).find((v) => v.id === input.validationId);
-    if (found?.review) {
+    if (input.amend) {
+      // The check must be seen, and must carry a REJECTION: that is the only thing that is amended. (Unlike a first decision, a check that cannot be
+      // found is not let through: there would be no way to know what is being changed.)
+      if (!found) {
+        await record("not_found");
+        return fail("not_found");
+      }
+      if (!found.review) {
+        await record("error");
+        return fail("invalid_request");
+      }
+      if (reviewKind(found.review.raw) !== "rejected") {
+        await record("error");
+        return fail("already_decided");
+      }
+    } else if (found?.review) {
       await record("error");
       return fail("already_decided");
     }
@@ -220,7 +246,7 @@ export async function decideValidation(admin: SupabaseClient, caller: KycCaller,
       return fail("not_found");
     }
     logCode(code);
-    await record("error", code === "upstream_unauthorized" ? "config_error" : "decision");
+    await record("error", code === "upstream_unauthorized" ? "config_error" : act);
     return fail(code);
   }
 
@@ -230,12 +256,12 @@ export async function decideValidation(admin: SupabaseClient, caller: KycCaller,
   // 3. The one call that changes something. Never retried.
   let reply: Awaited<ReturnType<typeof postReview>>;
   try {
-    reply = await postReview(cfg.config, rt.transport, input.validationId, input.decision, input.note);
+    reply = await postReview(cfg.config, rt.transport, input.validationId, input.decision, input.note, { amend: input.amend === true });
   } catch (err) {
     const code: KycErrorCode = err instanceof KycError ? err.code : "upstream_unreachable";
     logCode(code);
     if (code === "not_found") await record("not_found");
-    else await record("error", code === "upstream_unauthorized" ? "config_error" : "decision");
+    else await record("error", code === "upstream_unauthorized" ? "config_error" : act);
     return fail(code);
   }
 
@@ -250,6 +276,7 @@ export async function decideValidation(admin: SupabaseClient, caller: KycCaller,
     note: input.note === "" ? null : input.note,
     partial: reply.partial,
     emailSent: input.decision === "reject" ? reply.emailSent : null,
+    amended: input.amend === true,
   });
 }
 

@@ -9,6 +9,8 @@
 //   4. the one call, with a 25 s deadline and no retry
 //   5. a result row ('ok', 'error' or 'not_found')
 // `note` is required for a rejection, optional for an approval, at most 500 characters, one clean line. 20 decisions a minute per person.
+// `"amend": true` (migration 192) changes a check that was REJECTED to approved: decision must be "approve" and a note (why) is required. The check must carry a
+// rejection (read again first), the log row is an 'amend', and when the back end will not change a decision the answer is 409 `amend_refused`.
 // Only a JSON body is accepted (a form or a cross-site request cannot send one). The answer is never cached and holds only the status word, the time,
 // the note as sent, whether the back end could save it everywhere and whether the parent's e-mail went: nothing else the back end said.
 // ============================================================
@@ -39,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return failure("invalid_request");
     }
     if (typeof body !== "object" || body === null || Array.isArray(body)) return failure("invalid_request");
-    const { friend_id, decision, note } = body as { friend_id?: unknown; decision?: unknown; note?: unknown };
+    const { friend_id, decision, note, amend } = body as { friend_id?: unknown; decision?: unknown; note?: unknown; amend?: unknown };
 
     const friendId = typeof friend_id === "string" ? normaliseFriendId(friend_id) : "";
     if (friendId === "" || !validFriendId(friendId)) return failure("invalid_request");
@@ -48,8 +50,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const clean = normaliseNote(typeof note === "string" ? note : "");
     if (clean.length > DECISION_NOTE_MAX) return failure("invalid_request");
     if (decision === "reject" && clean === "") return failure("invalid_request");
+    // `amend: true` changes a check that was REJECTED to approved: only that, and it needs the reason. Anything but a real boolean is refused.
+    if (amend !== undefined && typeof amend !== "boolean") return failure("invalid_request");
+    if (amend === true && (decision !== "approve" || clean === "")) return failure("invalid_request");
 
-    const result = await decideValidation(admin, caller, runtime, { validationId: id, friendId, decision: decision as KycDecision, note: clean });
+    const result = await decideValidation(admin, caller, runtime, { validationId: id, friendId, decision: decision as KycDecision, note: clean, amend: amend === true });
     return result.ok ? json(result.body) : failure(result.code);
   });
 }

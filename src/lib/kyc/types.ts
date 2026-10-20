@@ -103,7 +103,9 @@ export type KycErrorCode =
   /** The access log could not be written, so nothing was shown (the log is never skipped). */
   | "audit_failed"
   /** Somebody already approved or rejected this check; nothing was sent. */
-  | "already_decided";
+  | "already_decided"
+  /** The back end would not take the change of a rejected check to approved (it may not allow a decision to be changed). */
+  | "amend_refused";
 
 export interface KycStatus {
   configured: boolean;
@@ -124,7 +126,7 @@ export interface KycAccessRow {
   createdAt: string;
   userId: string | null;
   userName: string | null;
-  action: "lookup" | "list" | "view_image" | "reveal" | "config_error" | "decision";
+  action: "lookup" | "list" | "view_image" | "reveal" | "config_error" | "decision" | "amend";
   friendId: string | null;
   validationId: string | null;
   /** 'attempt' is the row a decision writes before the back end is called; its result is the row after it. */
@@ -133,7 +135,7 @@ export interface KycAccessRow {
   decision: KycDecision | null;
 }
 
-export const KYC_ACTIONS = ["lookup", "list", "view_image", "reveal", "config_error", "decision"] as const;
+export const KYC_ACTIONS = ["lookup", "list", "view_image", "reveal", "config_error", "decision", "amend"] as const;
 export const KYC_OUTCOMES = ["ok", "not_found", "forbidden", "error", "attempt"] as const;
 
 export const KYC_DECISIONS = ["approve", "reject"] as const;
@@ -155,6 +157,8 @@ export interface KycDecisionResult {
   partial: boolean;
   /** After a rejection: true = the e-mail to the parent went, false = it did not, null = the back end did not say. Always null after an approval. */
   emailSent: boolean | null;
+  /** This was the amendment of a rejected check (rejected -> approved), not a first decision. */
+  amended?: boolean;
 }
 
 /** The document kinds the back end itself can filter a list by (`doc_type`). Anything else is never sent upstream. */

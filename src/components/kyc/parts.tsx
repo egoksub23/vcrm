@@ -311,9 +311,19 @@ export function DataCard({
       </dl>
 
       {v.people.map((p) => (
-        <div key={p.role} data-person={p.role}>
-          <h4 className="mt-4 text-sm font-medium text-foreground">{t(`people.${p.role}`)}</h4>
-          <dl className="mt-1 divide-y divide-border">
+        // The CHILD's data sits in a pastel green block, so a reviewer sees at a glance which data set belongs to the child whose ID they are looking at
+        // (the parent's is plain). The heading still names it, so the colour is never the only signal. light-dark() pairs, because this app does not use the Tailwind dark variant.
+        <div
+          key={p.role}
+          data-person={p.role}
+          data-highlight={p.role === "child" ? "true" : undefined}
+          className={cn(
+            "mt-4",
+            p.role === "child" && "rounded-lg border border-[color:light-dark(#a7f3d0,#047857)] bg-[color:light-dark(#ecfdf5,#064e3b59)] p-3",
+          )}
+        >
+          <h4 className="text-sm font-medium text-foreground">{t(`people.${p.role}`)}</h4>
+          <dl className={cn("mt-1 divide-y", p.role === "child" ? "divide-[color:light-dark(#a7f3d0,#047857)]" : "divide-border")}>
             {p.fields.map((f) => (
               <Row key={f.key} label={(PERSON_LABEL_KEYS as readonly string[]).includes(f.key) ? t(`people.fields.${f.key as (typeof PERSON_LABEL_KEYS)[number]}`) : (f.label ?? f.key)}>
                 <FieldValue field={f} />

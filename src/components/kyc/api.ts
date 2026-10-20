@@ -54,7 +54,7 @@ export function getValidations(friendId: string, opts: { reload?: boolean; revea
 }
 
 /** Approve or reject one check. A POST that is never retried here: a second one could e-mail a parent twice. */
-export async function postDecision(validationId: string, friendId: string, decision: KycDecision, note: string): Promise<ApiResult<KycDecisionResult>> {
+export async function postDecision(validationId: string, friendId: string, decision: KycDecision, note: string, amend = false): Promise<ApiResult<KycDecisionResult>> {
   let res: Response;
   try {
     res = await fetch(`/api/kyc/validations/${encodeURIComponent(validationId)}/review`, {
@@ -62,7 +62,7 @@ export async function postDecision(validationId: string, friendId: string, decis
       cache: "no-store",
       credentials: "same-origin",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({ friend_id: friendId, decision, note }),
+      body: JSON.stringify({ friend_id: friendId, decision, note, ...(amend ? { amend: true } : {}) }),
     });
   } catch {
     return { ok: false, code: "network", status: 0 };

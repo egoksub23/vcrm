@@ -11835,7 +11835,8 @@
       "generic": "出现问题。请重试。",
       "unauthorizedAdmin": "密钥被拒绝。请检查服务器上的 KYC_DOC_API_KEY。",
       "imageHostAdmin": "请在服务器上把图片主机添加到 KYC_DOC_ALLOWED_IMAGE_HOSTS（服务器日志会写明该主机）。",
-      "already_decided": "已有人批准或拒绝了此检查，因此未发送任何内容。"
+      "already_decided": "已有人批准或拒绝了此检查，因此未发送任何内容。",
+      "amend_refused": "验证服务未接受此更改，因此未做任何修改。它可能不允许在决定作出后再更改：请询问工程师。"
     },
     "log": {
       "title": "访问日志",
@@ -11870,7 +11871,8 @@
         "view_image": "打开图片",
         "reveal": "显示数值",
         "config_error": "设置错误",
-        "decision": "审批决定"
+        "decision": "审批决定",
+        "amend": "修改拒绝决定"
       },
       "outcomes": {
         "ok": "成功",
@@ -11909,7 +11911,17 @@
       "doneRejectedNoEmail": "已拒绝，但未能向家长发送电子邮件。请告知工程团队。",
       "doneRejectedEmailUnknown": "已拒绝。验证服务未说明是否已向家长发送电子邮件。",
       "partial": "验证服务未能在所有位置保存此决定。请连同此验证编号告知工程团队。",
-      "uncertain": "Halo 无法确认该决定是否已生效。已重新加载此检查：再次尝试前请先查看其状态。"
+      "uncertain": "Halo 无法确认该决定是否已生效。已重新加载此检查：再次尝试前请先查看其状态。",
+      "amendTitle": "修改此决定",
+      "amendIntro": "此检查已被拒绝，家长也已收到通知。如果证件已经补正，您可以将决定改为“已批准”。请在下方说明原因。",
+      "amendNoteLabel": "为什么要修改？（必填）",
+      "amendNotePlaceholder": "例如：家长已重新发送同一证件的清晰照片",
+      "amendNoteRequired": "请说明为何修改决定。",
+      "amendButton": "修改并批准",
+      "confirmAmendTitle": "将此次拒绝改为“已批准”？",
+      "confirmAmendBody": "孩子的 eKYC 状态将变为“已验证”。家长已就此次拒绝收到电子邮件，Halo 不会再向其发送其他消息。Halo 无法撤销此操作。",
+      "confirmAmend": "是，修改并批准",
+      "doneAmended": "已修改。该检查现为“已批准”，孩子的 eKYC 状态为“已验证”。"
     },
     "readOnlyShort": "只读",
     "resizePanel": "调整面板宽度",

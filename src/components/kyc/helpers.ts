@@ -3,6 +3,7 @@
 // (There is no DOM renderer in this repo's tests; what is NOT covered by a test is listed in docs/kyc-review.md.)
 // ============================================================
 
+import { reviewKind } from "@/lib/kyc/review";
 import type { KycDocType, KycErrorCode, KycValidation, StatusTone } from "@/lib/kyc/types";
 
 /** The ID image is covered after this long without any interaction with it. */
@@ -170,7 +171,7 @@ export type ClientErrorCode = KycErrorCode | "network";
 export function errorKey(code: ClientErrorCode | string): string {
   const known = [
     "not_configured", "upstream_unreachable", "upstream_unauthorized", "not_found", "bad_response", "image_too_large", "image_type_unsupported",
-    "image_host_blocked", "invalid_request", "rate_limited", "forbidden", "audit_failed", "already_decided", "network",
+    "image_host_blocked", "invalid_request", "rate_limited", "forbidden", "audit_failed", "already_decided", "amend_refused", "network",
   ];
   return known.includes(code) ? code : "generic";
 }
@@ -230,11 +231,7 @@ export const NO_FILTERS: KycFilters = { review: "all", result: "", docType: "" }
 
 /** "APPROVED" -> approved, "REJECTED" -> rejected, another word the back end may send -> other; null when nobody has decided this check. */
 export function reviewWord(v: Pick<KycValidation, "review">): "approved" | "rejected" | "other" | null {
-  if (!v.review) return null;
-  const raw = v.review.raw.trim().toUpperCase();
-  if (raw.startsWith("APPROV")) return "approved";
-  if (raw.startsWith("REJECT")) return "rejected";
-  return "other";
+  return v.review ? reviewKind(v.review.raw) : null;
 }
 
 /** Does this check belong in the list that was asked for? The document kind is checked here too, so the filter holds even if the back end ignored it. */

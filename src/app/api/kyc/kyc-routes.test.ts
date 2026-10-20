@@ -757,7 +757,7 @@ describe("POST /api/kyc/validations/[id]/review", () => {
     const { status, body, headers } = await read(await decide("approve"));
     expect(status).toBe(200);
     expect(headers.get("cache-control")).toBe("no-store");
-    expect(body).toEqual({ decision: "approve", reviewStatus: "APPROVED", reviewTone: "positive", reviewedAt: "2026-10-19T04:00:00.000Z", note: null, partial: false, emailSent: null });
+    expect(body).toEqual({ decision: "approve", reviewStatus: "APPROVED", reviewTone: "positive", reviewedAt: "2026-10-19T04:00:00.000Z", note: null, partial: false, emailSent: null, amended: false });
     expect(api.calls.api.map((c) => `${c.init.method} ${c.url}`)).toEqual([`GET ${BASE_URL}/validations?friend_id=child-77&limit=100`, `POST ${BASE_URL}/validations/42/review`]);
     expect(posts()[0].headers["x-api-key"]).toBe(API_KEY);
     expect(posts()[0].headers["content-type"]).toBe("application/json");
@@ -768,6 +768,78 @@ describe("POST /api/kyc/validations/[id]/review", () => {
     ]);
     const dump = JSON.stringify([body, logRows()]);
     for (const s of [...PEOPLE_SECRETS, API_KEY, BASE_URL]) expect(dump, s).not.toContain(s);
+  });
+
+  // ---- amending a rejection (migration 192): rejected -> approved, and nothing else ----
+  const REJECTED_RECORD = { ...PEOPLE_RECORD, review_status: "REJECTED", review_note: "Photo does not match", reviewed_at: "2026-10-19T01:00:00+00:00" };
+  const amend = (extra: Record<string, unknown> = {}) => decide("approve", { note: "The parent sent a clear photo", amend: true, ...extra });
+
+  it("amends a rejected check: the check is read again and must carry a REJECTION, the same one POST goes out, the log says 'amend' (not 'decision'), and nothing is e-mailed", async () => {
+    review({}, REJECTED_RECORD);
+    const { status, body } = await read(await amend());
+    expect(status).toBe(200);
+    expect(body).toEqual({ decision: "approve", reviewStatus: "APPROVED", reviewTone: "positive", reviewedAt: "2026-10-19T04:00:00.000Z", note: "The parent sent a clear photo", partial: false, emailSent: null, amended: true });
+    expect(api.calls.api.map((c) => `${c.init.method} ${c.url}`)).toEqual([`GET ${BASE_URL}/validations?friend_id=child-77&limit=100`, `POST ${BASE_URL}/validations/42/review`]);
+    // what the back end is sent is exactly an approval with the reason: Halo adds no field of its own
+    expect(JSON.parse(String(posts()[0].init.body))).toEqual({ decision: "approve", note: "The parent sent a clear photo" });
+    expect(logRows().map((r) => [r.action, r.outcome, r.decision, r.validation_id, r.user_id])).toEqual([
+      ["amend", "attempt", "approve", "42", "u-reviewer"],
+      ["amend", "ok", "approve", "42", "u-reviewer"],
+    ]);
+    const dump = JSON.stringify([body, logRows()]);
+    for (const s of [...PEOPLE_SECRETS, API_KEY, BASE_URL, "clear photo"].filter((x) => x !== "clear photo")) expect(dump, s).not.toContain(s);
+    // the reason is never in the log
+    expect(JSON.stringify(logRows())).not.toContain("clear photo");
+  });
+
+  it("is only rejected -> approved, with a reason: reject, no reason, a flag that is not a boolean, and a check that was never decided are all refused before anything is sent", async () => {
+    review({}, REJECTED_RECORD);
+    for (const payload of [
+      { decision: "reject", note: "x", amend: true },
+      { decision: "approve", note: "", amend: true },
+      { decision: "approve", amend: true },
+      { decision: "approve", note: "x", amend: "yes" },
+      { decision: "approve", note: "x", amend: 1 },
+    ]) {
+      expect((await post("42", { friend_id: "child-77", ...payload })).status, JSON.stringify(payload)).toBe(400);
+    }
+    expect(posts()).toHaveLength(0);
+    review({}, PEOPLE_RECORD);
+    const never = await read(await amend());
+    expect(never.status).toBe(400);
+    expect(never.body.code).toBe("invalid_request");
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("refuses to amend an APPROVED check (409), a check that cannot be found (404), and still never decides a rejected one again without the flag", async () => {
+    review({}, { ...PEOPLE_RECORD, review_status: "APPROVED", reviewed_at: "2026-10-19T01:00:00+00:00" });
+    expect((await read(await amend())).status).toBe(409);
+    review({}, { ...PEOPLE_RECORD, id: 99 });
+    expect((await read(await amend())).status).toBe(404);
+    review({}, REJECTED_RECORD);
+    const plain = await read(await decide("approve"));
+    expect(plain.status).toBe(409);
+    expect(plain.body.code).toBe("already_decided");
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("answers amend_refused (409), logs the failed amendment as an 'amend', and says nothing the back end said, when the back end will not change a decision", async () => {
+    for (const status of [409, 400, 422]) {
+      setup({ apiHandler: (c) => (c.init.method === "POST" ? json({ error: "SECRET_BACKEND_WORDS" }, status) : json({ items: [REJECTED_RECORD] })) });
+      const res = await read(await amend());
+      expect(res.status, String(status)).toBe(409);
+      expect(res.body.code).toBe("amend_refused");
+      expect(JSON.stringify([res.body, logRows()])).not.toContain("SECRET_BACKEND_WORDS");
+      expect(logRows().slice(-2).map((r) => [r.action, r.outcome])).toEqual([["amend", "attempt"], ["amend", "error"]]);
+    }
+  });
+
+  it("needs kyc.decide for an amendment too, and logs it as 'amend' / forbidden with nothing sent", async () => {
+    setup({ caps: ["menu.kyc", "kyc.view", "kyc.reveal"], apiHandler: () => json({ items: [REJECTED_RECORD] }) });
+    const res = await read(await amend());
+    expect(res.status).toBe(403);
+    expect(api.calls.api).toHaveLength(0);
+    expect(logRows().map((r) => [r.action, r.outcome, r.decision])).toEqual([["amend", "forbidden", "approve"]]);
   });
 
   it("rejects only with a note, sends the note cleaned (one line, no control or bidi characters), and says whether the parent's e-mail went", async () => {

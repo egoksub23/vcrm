@@ -44,7 +44,8 @@ describe("migration 188", () => {
       const m = new RegExp(`${constraint}\\s+CHECK \\((?:decision IS NULL OR )?\\w+ IN \\(([^)]*)\\)`).exec(code);
       return m ? [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]) : null;
     };
-    expect(list("kyc_access_log_action_check")).toEqual([...KYC_ACTIONS]);
+    // 188's list; 'amend' came with migration 192 (its own test checks the whole list)
+    expect(list("kyc_access_log_action_check")).toEqual(KYC_ACTIONS.filter((a) => a !== "amend"));
     expect(list("kyc_access_log_outcome_check")).toEqual([...KYC_OUTCOMES]);
     expect(list("kyc_access_log_decision_check")).toEqual([...KYC_DECISIONS]);
   });

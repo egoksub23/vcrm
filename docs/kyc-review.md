@@ -53,7 +53,7 @@ Every other role, and every custom role built on one, has none of them until an 
 - **Filters** (section 2.2), above the queue.
 - **Queue rows**: the **decision** leads the row — "Approved", "Rejected", or "Needs review" for one nobody has looked at — then the status the back end sent (an icon and its word, green / amber / red / grey by meaning; never colour alone), then the kind, the time (relative; the exact time in the browser's time zone in the tooltip), a short id and a score if there is one. Empty: "No validations for this ID".
 - **The image** (middle): zoom, rotate, fit or actual size, keys `+ - 0 R F`, a loading skeleton, "Could not load the image" with Retry. **One check is on screen at a time**: the viewer is mounted once and lets go of the previous image in the same render the check changes in, so two children can never be shown at once.
-- **Who it is** (right): the **child** and the **parent** the check names (name and nickname shown; ID number and wallet id partly hidden; e-mail and phone hidden; all revealed by Reveal, which is logged), then the check's own known fields. Everything else the back end sent — its loose keys, the validation id, the status as sent — is under a collapsed **Technical details**.
+- **Who it is** (right): the **child** and the **parent** the check names (name and nickname shown; ID number and wallet id partly hidden; e-mail and phone hidden; all revealed by Reveal, which is logged), then the check's own known fields. The **child's block is pastel green** (the parent's is plain) so a reviewer sees at a glance which data set belongs to the child whose ID is on screen; the heading still names it, so the colour is never the only signal, and it works in light and dark. Everything else the back end sent — its loose keys, the validation id, the status as sent — is under a collapsed **Technical details**.
 - **Previous / Next** in the image pane's header, with "3 of 13", move through the queue as it is filtered.
 - **Phone width**: the queue takes the screen; opening a check shows the image, who it is and the decision in one column, with a back arrow.
 - **Footer**: "Every view of this page is recorded."
@@ -61,7 +61,7 @@ Every other role, and every custom role built on one, has none of them until an 
 
 ### 2.1 Approve and reject (migration 188, `kyc.decide`)
 
-Under the data card, a **Decision** box. A check that already carries a review (`review_status` APPROVED or REJECTED, with its note and time) shows that instead, to everybody who can open the screen, and offers no buttons.
+Under the data card, a **Decision** box. A check that already carries a review (`review_status` APPROVED or REJECTED, with its note and time) shows that instead, to everybody who can open the screen. An approved check offers no buttons; a **rejected** one offers only the amend action (section 2.3).
 
 - **Approve** sets the child's eKYC status to Verified. **Reject** sets it to Rejected and the verification service **e-mails the parent**. Both are the back end's own doing (`POST /validations/{id}/review`, body `{"decision": "approve" | "reject", "note": "..."}`, `x-api-key`); Halo stores nothing of the decision except the access-log rows.
 - A **note** is required to reject, optional to approve, one clean line of at most 500 characters. Both buttons open a confirmation that says what will happen and that Halo cannot undo it. While the call is out everything is disabled.
@@ -85,6 +85,15 @@ The back end applies **only** `friend_id` and `doc_type`; it ignores every other
 The document kind is also checked on the screen, so the filter still holds if the back end ever ignores the one it was sent. A check decided a moment ago **stays in the queue** even when "Needs review" would now drop it, so the reviewer can see what was recorded; it goes on the next search or filter change.
 
 A real "waiting for review" list is still the right answer and is one of the open questions for the engineers (section 8).
+
+### 2.3 Amending a rejected check (migration 192)
+
+A check that was **rejected** can be changed to **approved**, for the case where the document was put right after the rejection. Only that: **rejected -> approved**. An approved check cannot be changed from Halo, and a rejected check is never rejected again.
+
+- On a rejected check the Decision box shows the rejection (word, note, time) and, under it, **Amend this decision**: a **reason is required** (one clean line, at most 500 characters) and the button **Amend and approve**. It asks first, in words: the child's eKYC status becomes Verified, **the parent was already e-mailed about the rejection and Halo does not send another message**, and Halo cannot undo it. It needs the same permission as deciding (`kyc.decide`).
+- **On the server** (`decideValidation` with `amend: true`): the check is read again and must carry a **rejection** (an approved one is a 409 `already_decided`; one with no review is a 400; one that cannot be found is a 404). The **`attempt` row is written first**, then the back end is called once, no retry. Rows are logged as **`amend`** (not `decision`) with the decision `approve`, so an audit tells an amendment from a first decision. The reason is sent to the back end as the review note and is never logged.
+- **What the back end does is not known.** Its collection describes `POST /validations/{id}/review` for a first decision only. Whether it takes a second one on a rejected check, and whether it then changes `ekyc_status` and the stored review, is one of the open questions for the engineers (section 8). When it refuses (409, 400 or 422) the screen says so (`amend_refused`, HTTP 409), **nothing is changed**, and the failure is logged as an `amend` with the outcome `error`. Do the first amendment on a **test** record.
+- API: `POST /api/kyc/validations/{id}/review` with `"amend": true`, `"decision": "approve"` and a `note`; any other `amend` value is a 400.
 
 ## 3. Masking and Reveal
 
@@ -142,7 +151,7 @@ Routes (all `GET` except the review, all `Cache-Control: no-store`):
 
 ## 6. Privacy and the access log
 
-**Table `kyc_access_log`** (migration 182). Each row: workspace, person, **action** (`lookup`, `list`, `view_image`, `reveal`, `config_error`, `decision`), **friend ID** (as typed, trimmed, only if it passes the check above), **validation ID**, **outcome** (`ok`, `not_found`, `forbidden`, `error`, and `attempt` for the row a decision writes before the back end is called), the **decision** (`approve` or `reject`, only on a `decision` row) and the time. A row is written for every search (`lookup`), every reload of a list (`list`), every image shown (`view_image`), every reveal (`reveal`) and every set-up or rejected-key error (`config_error`); a refused attempt is a row with outcome `forbidden`; a search that finds nothing has outcome `not_found`.
+**Table `kyc_access_log`** (migration 182). Each row: workspace, person, **action** (`lookup`, `list`, `view_image`, `reveal`, `config_error`, `decision`, and `amend` for a rejected check changed to approved, migration 192), **friend ID** (as typed, trimmed, only if it passes the check above), **validation ID**, **outcome** (`ok`, `not_found`, `forbidden`, `error`, and `attempt` for the row a decision writes before the back end is called), the **decision** (`approve` or `reject`, only on a `decision` row; `approve` on an `amend` row) and the time. A row is written for every search (`lookup`), every reload of a list (`list`), every image shown (`view_image`), every reveal (`reveal`) and every set-up or rejected-key error (`config_error`); a refused attempt is a row with outcome `forbidden`; a search that finds nothing has outcome `not_found`.
 
 **What is NOT stored**: the API key, the base URL, any image or image address, any field value (no name, no ID number, no date of birth), anything the back end answered, the search results. The writer builds the row from named arguments, so nothing else can reach it; tests check every audit row of every route.
 
@@ -212,6 +221,7 @@ To fix a guess: edit the table in `adapter.ts`, add the real sample to `adapter.
 - `src/app/api/kyc/kyc-routes.test.ts`: every route with an injected back end: not set up, rejected key, timeouts-as-failures, masking on the server, reveal permission and limiter, an audit row for every action and no key or value in any row, header, answer or log line, input validation, per-person rate limits, the log-first rule, the admin-only log and CSV.
 - `src/lib/auth/*.test.ts`, `src/lib/platform/features.test.ts`: the three permissions (catalogue, defaults, parity with migration 182) and the default-off flag; `src/components/layout/nav-items.test.ts`: the menu row.
 - `src/components/kyc/*.test.*`: the pure helpers (idle cover, reveal timer, watermark, zoom state and keys, recent searches) and the markup of every state in all four languages.
+- `supabase/ci/verify-192-kyc-amend.sql` (run it rolled back against production): the log takes an `amend` row that approves, refuses one that rejects or carries no decision, still takes every older row and stays append-only and closed to browsers; `src/lib/kyc/migration-192.test.ts` guards the text of the migration.
 - `supabase/ci/verify-188-kyc-decisions.sql` (run it rolled back against production): `kyc.decide`, the log's new action, outcome and column, and that it is still append-only and closed to browsers; `src/lib/kyc/migration-188.test.ts` guards the text of the migration.
 - `supabase/ci/verify-182-kyc-review.sql` (run it rolled back against production): the permissions, the flag, the log's privileges and append-only rule, the workspace export and deletion.
 

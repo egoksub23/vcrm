@@ -11835,7 +11835,8 @@
       "generic": "Sesuatu telah berlaku. Cuba lagi.",
       "unauthorizedAdmin": "Kunci ditolak. Semak KYC_DOC_API_KEY pada pelayan.",
       "imageHostAdmin": "Tambah hos imej ke KYC_DOC_ALLOWED_IMAGE_HOSTS pada pelayan (log pelayan menamakan hos tersebut).",
-      "already_decided": "Seseorang sudah meluluskan atau menolak semakan ini, jadi tiada apa-apa dihantar."
+      "already_decided": "Seseorang sudah meluluskan atau menolak semakan ini, jadi tiada apa-apa dihantar.",
+      "amend_refused": "Perkhidmatan pengesahan tidak menerima perubahan itu, jadi tiada apa-apa yang diubah. Ia mungkin tidak membenarkan keputusan diubah setelah dibuat: tanya jurutera."
     },
     "log": {
       "title": "Log akses",
@@ -11870,7 +11871,8 @@
         "view_image": "Imej dibuka",
         "reveal": "Nilai ditunjukkan",
         "config_error": "Ralat penyediaan",
-        "decision": "Keputusan"
+        "decision": "Keputusan",
+        "amend": "Meminda penolakan"
       },
       "outcomes": {
         "ok": "OK",
@@ -11909,7 +11911,17 @@
       "doneRejectedNoEmail": "Ditolak, tetapi e-mel kepada ibu bapa tidak dihantar. Beritahu pasukan kejuruteraan.",
       "doneRejectedEmailUnknown": "Ditolak. Perkhidmatan pengesahan tidak memberitahu sama ada e-mel kepada ibu bapa dihantar.",
       "partial": "Perkhidmatan pengesahan tidak dapat menyimpan keputusan ini di semua tempat. Beritahu pasukan kejuruteraan, bersama id pengesahan ini.",
-      "uncertain": "Halo tidak dapat mengesahkan sama ada keputusan itu diambil. Semakan telah dimuat semula: lihat statusnya sebelum mencuba lagi."
+      "uncertain": "Halo tidak dapat mengesahkan sama ada keputusan itu diambil. Semakan telah dimuat semula: lihat statusnya sebelum mencuba lagi.",
+      "amendTitle": "Pinda keputusan ini",
+      "amendIntro": "Semakan ini telah ditolak dan ibu bapa telah dimaklumkan. Jika dokumen telah dibetulkan, anda boleh menukar keputusan kepada Diluluskan. Nyatakan sebabnya di bawah.",
+      "amendNoteLabel": "Mengapa ia diubah? (wajib)",
+      "amendNotePlaceholder": "cth. Ibu bapa menghantar foto jelas dokumen yang sama",
+      "amendNoteRequired": "Nyatakan sebab keputusan diubah.",
+      "amendButton": "Pinda dan luluskan",
+      "confirmAmendTitle": "Tukar penolakan ini kepada Diluluskan?",
+      "confirmAmendBody": "Status eKYC kanak-kanak menjadi Disahkan. Ibu bapa sudah dimaklumkan melalui e-mel tentang penolakan dan Halo tidak menghantar mesej lain kepada mereka. Halo tidak boleh membatalkannya.",
+      "confirmAmend": "Ya, pinda dan luluskan",
+      "doneAmended": "Dipinda. Semakan kini Diluluskan dan status eKYC kanak-kanak ialah Disahkan."
     },
     "readOnlyShort": "Baca sahaja",
     "resizePanel": "Ubah saiz panel",

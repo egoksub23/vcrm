@@ -201,7 +201,7 @@ export interface ReviewReply {
  * POST /validations/{id}/review. The id must already match VALIDATION_ID_RE (the route checks); it is percent-encoded here as well. Any 2xx means the
  * decision was taken, even when the answer cannot be read. Never retried: a retry could e-mail a parent twice.
  */
-export async function postReview(config: KycConfig, transport: KycTransport, validationId: string, decision: KycDecision, note: string, opts: CallOptions = {}): Promise<ReviewReply> {
+export async function postReview(config: KycConfig, transport: KycTransport, validationId: string, decision: KycDecision, note: string, opts: CallOptions & { amend?: boolean } = {}): Promise<ReviewReply> {
   const url = `${config.baseUrl}/validations/${encodeURIComponent(validationId)}/review`;
   const body = JSON.stringify(note ? { decision, note } : { decision });
   try {
@@ -210,6 +210,8 @@ export async function postReview(config: KycConfig, transport: KycTransport, val
       if (res.status < 200 || res.status >= 300) {
         await res.body?.cancel().catch(() => undefined);
         // 409: somebody decided first. 400 and 422: the back end did not accept what we sent (a programming error here, never the reviewer's).
+        // For an AMENDMENT (a check already rejected, now approved) all three mean the same thing to the reviewer: the back end will not change a decision.
+        if (opts.amend && (res.status === 409 || res.status === 400 || res.status === 422)) throw new KycError("amend_refused");
         if (res.status === 409) throw new KycError("already_decided");
         if (res.status === 400 || res.status === 422) throw new KycError("invalid_request");
         throw statusToError(res.status);
