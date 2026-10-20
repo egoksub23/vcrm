@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.97.4] — 2026-10-20
+
+**Migration required: `190_invite_accept_purge_flag.sql`.** Apply it before the new code is deployed (it changes one database function and nothing else; there is no app change in this release).
+
+### Fixed
+
+- **Accepting an invitation failed with "Failed to redeem invitation" for every new person who signed up and then accepted.** Accepting moves the person into the inviter's workspace and deletes the empty personal workspace they were given at signup. That delete runs into the Compliance request types every workspace is seeded with, which a guard added with Compliance refuses to delete unless a workspace is being purged on purpose, so it raised `compliance_system_type_is_fixed`. The route did not recognise that error and answered a generic 500; the whole accept rolled back, so nobody was left half moved and an invitation that failed this way is still pending and works once the migration is applied. The function now names that one personal workspace for that one delete. Because the same flag would also let retained records go, the "does their workspace hold data" check now also refuses a workspace holding a Compliance case (kept seven years), a Secure Sign document or a KYC log entry: that person is told to sign up with a different email, exactly as for any other data, and nothing is deleted.
+
 ## [0.97.3] — 2026-10-20
 
 ### Changed
