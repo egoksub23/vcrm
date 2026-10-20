@@ -846,7 +846,11 @@
       "openedInTab": "已在新标签页中打开。如果没有反应，请使用“在新标签页中打开”。",
       "frameTitle": "Vircle Back Office 客户服务视图",
       "frameLoading": "正在加载 Back Office...",
-      "frameNote": "如果页面没有显示或要求您登录，请使用“在新标签页中打开”。"
+      "frameNote": "如果页面没有显示或要求您登录，请使用“在新标签页中打开”。",
+      "minimise": "最小化到侧边栏",
+      "maximise": "全屏显示",
+      "restoreSize": "恢复默认大小",
+      "railLabelMinimised": "此客户的后台已打开：点击恢复显示"
     }
   },
   "Contacts": {

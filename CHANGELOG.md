@@ -9,6 +9,13 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.97.3] — 2026-10-20
+
+### Changed
+
+- **The Back Office panel opens at 60% of the screen** (at least 360 px; it was about two thirds, up to 1100 px) and has three buttons: **Minimise** puts it away into the rail on the right while the Back Office page stays loaded (the rail button, now with a dot, brings it back exactly as it was, with no reload); **Full screen** / **Back to the usual size** toggles between 60% and the whole screen (not shown on a phone); **Close** shuts it and unloads the page. Esc and a click outside minimise a panel that is showing a customer and close a form that is still empty. A panel left minimised for ten minutes is closed, and moving to another conversation closes it at once, so one parent's record is never left loaded behind another parent's chat.
+- When the Back Office is shown in the panel, its address now carries `&embed=1` after the phone, as a request to the Back Office to leave out its own menu and header. **The Back Office does not act on it yet**; see `docs/back-office-link.md`. Without it the page looks as before.
+
 ## [0.97.2] — 2026-10-20
 
 **Migration required: `189_compliance_edit_fix.sql`.** Apply it before the new code is deployed (it changes one database function and nothing else; the app code is unchanged by this fix).

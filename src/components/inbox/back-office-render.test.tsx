@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 //   Search with embedding off (the "Opened in a new tab" line, no frame) and on (the frame: src, sandbox, no referrer, title, loading line and note)
 // renderToStaticMarkup paints the FIRST render only. NOT covered (no DOM renderer, no browser): clicking the rail or the chevron, the localStorage
 // read after mount, the slide-in, the dialog's focus moving into the phone box and back to the button that opened it, Tab staying inside, Esc closing,
-// the sheet's width classes actually giving 65vw / 360 / 1100 px, window.open, the frame really loading the Back Office, and dark mode. The dialog
+// the sheet's width actually being 60vw / 360 px / the whole screen, the hidden frame staying loaded while minimised, window.open, the frame really loading the Back Office, and dark mode. The dialog
 // shell (base-ui Dialog in a portal) draws nothing on the server, so the panel is tested through its body and the pure reducer (panel.test.ts).
 
 import { PANEL_CLOSED, panelReducer, type PanelState } from "@/lib/back-office/panel";
@@ -134,6 +134,8 @@ function body(locale: Locale, state: PanelState, opts: { embed?: boolean; contac
       onSearch={noop}
       onReset={noop}
       onClose={noop}
+      onMinimize={noop}
+      onToggleMaximize={noop}
       onFrameLoaded={noop}
       titleId="bo-title"
     />,
@@ -213,7 +215,8 @@ describe.each(LOCALES)("Back Office panel (%s)", (locale) => {
   it("embedding ON, after Search: a sandboxed frame without a referrer, titled, with a loading line and the note", () => {
     const html = body(locale, searched("+60123456789"), { embed: true });
     const frame = html.match(/<iframe[^>]*>/)![0];
-    expect(attr(frame, "src")).toBe(`${UAT}#q=%2B60123456789`);
+    // the frame is told it is inside Halo (&embed=1); the phone is read exactly as before
+    expect(attr(frame, "src")).toBe(`${UAT}#q=%2B60123456789&embed=1`);
     expect(attr(frame, "sandbox")).toBe("allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox");
     expect(attr(frame, "sandbox")).toBe(BACK_OFFICE_FRAME_SANDBOX);
     expect(attr(frame, "referrerPolicy")).toBe("no-referrer");
@@ -236,7 +239,7 @@ describe.each(LOCALES)("Back Office panel (%s)", (locale) => {
   it("embedding ON: the frame shows what was searched, not what is being typed next", () => {
     const state = panelReducer(searched("0123456789"), { type: "edit", phone: "0999" });
     const html = body(locale, state, { embed: true });
-    expect(attr(html.match(/<iframe[^>]*>/)![0], "src")).toBe(`${UAT}#q=0123456789`);
+    expect(attr(html.match(/<iframe[^>]*>/)![0], "src")).toBe(`${UAT}#q=0123456789&embed=1`);
     expect(attr(html.match(/<a [^>]*>/)![0], "href")).toBe(`${UAT}#q=0999`);
   });
 
@@ -250,6 +253,51 @@ describe.each(LOCALES)("Back Office panel (%s)", (locale) => {
     expect(html).toContain("bg-background");
     expect(html).toContain("border-border");
     expect(html).not.toMatch(/\bdark:/);
+  });
+});
+
+describe.each(LOCALES)("Back Office panel: minimise, maximise, close (%s)", (locale) => {
+  const t = tr(locale);
+  const labelled = (html: string, action: string) => html.match(new RegExp(`<button[^>]*data-action="${action}"[^>]*>`))?.[0] ?? "";
+
+  it("has three separate buttons in the header, each named in words", () => {
+    const html = body(locale, opened("0123"));
+    for (const [action, key] of [["minimise", "minimise"], ["maximise", "maximise"], ["close", "close"]] as const) {
+      const b = labelled(html, action);
+      expect(b, action).not.toBe("");
+      expect(attr(b, "aria-label"), action).toBe(t(key));
+      expect(attr(b, "title"), action).toBe(t(key));
+    }
+    // three different words, so no button can be mistaken for another
+    expect(new Set([t("minimise"), t("maximise"), t("close")]).size).toBe(3);
+  });
+
+  it("the size button says what it will do: full screen, then back to the usual size", () => {
+    const usual = labelled(body(locale, opened("0123")), "maximise");
+    expect(attr(usual, "aria-label")).toBe(t("maximise"));
+    expect(usual).toContain('aria-pressed="false"');
+    const big = labelled(body(locale, panelReducer(opened("0123"), { type: "toggle-maximize" })), "maximise");
+    expect(attr(big, "aria-label")).toBe(t("restoreSize"));
+    expect(big).toContain('aria-pressed="true"');
+    expect(t("restoreSize")).not.toBe(t("maximise"));
+  });
+
+  it("the size button is for screens wider than a phone, where the panel is already the whole width", () => {
+    expect(labelled(body(locale, opened("0123")), "maximise")).toContain("hidden");
+    expect(labelled(body(locale, opened("0123")), "maximise")).toContain("sm:inline-flex");
+  });
+
+  it("the rail button says a panel is put away, in words and a dot, and a plain one does not", () => {
+    const plain = page(locale, <BackOfficeRail expanded={false} onToggleExpanded={noop} onOpen={noop} />);
+    const away = page(locale, <BackOfficeRail expanded={false} onToggleExpanded={noop} onOpen={noop} minimized />);
+    expect(plain).not.toContain("back-office-minimised-dot");
+    expect(away).toContain("back-office-minimised-dot");
+    const button = (html: string) => html.match(/<button[^>]*aria-haspopup="dialog"[^>]*>/)![0];
+    expect(attr(button(plain), "aria-label")).toBe(t("railLabel"));
+    expect(attr(button(away), "aria-label")).toBe(t("railLabelMinimised"));
+    expect(attr(button(away), "title")).toBe(t("railLabelMinimised"));
+    expect(button(away)).toContain('data-minimized="true"');
+    expect(t("railLabelMinimised")).not.toBe(t("railLabel"));
   });
 });
 

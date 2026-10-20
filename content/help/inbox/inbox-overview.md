@@ -107,7 +107,7 @@ Click it. A panel slides in from the right across the chat. It is called **Back 
 3. The Back Office opens in a **new tab**. The panel says so. If nothing happens (a pop-up blocker can stop the tab), click **Open in new tab**.
 4. To look up someone else, click **Find another user**, or change the number and search again.
 
-Press Esc or the close button to close the panel.
+The buttons at the top right of the panel: **Minimise** puts it away into the bar on the right (the Back Office page stays loaded, and the bar's button, now with a dot, brings it back exactly as you left it), **Full screen** makes it fill the screen and **Back to the usual size** undoes that, and **Close** shuts it. Esc minimises a panel that is showing a customer and closes one that is still empty. A panel you leave minimised for ten minutes, or that is open when you move to another conversation, is closed for you.
 
 If your administrator has switched on the embedded view, **Search** shows the Back Office inside the panel instead of a new tab. This only works if the Back Office allows being shown inside Halo and allows sign-in there. If the page does not appear or asks you to sign in, click **Open in new tab**. Administrators: the setting is `BACK_OFFICE_EMBED` (see `docs/back-office-link.md`). Keep it off unless the Back Office team has confirmed it works.
 

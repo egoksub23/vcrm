@@ -846,7 +846,11 @@
       "openedInTab": "새 탭에서 열었습니다. 아무 일도 일어나지 않으면 새 탭에서 열기를 사용하세요.",
       "frameTitle": "Vircle Back Office 고객 지원 화면",
       "frameLoading": "Back Office를 불러오는 중...",
-      "frameNote": "페이지가 나타나지 않거나 로그인을 요구하면 새 탭에서 열기를 사용하세요."
+      "frameNote": "페이지가 나타나지 않거나 로그인을 요구하면 새 탭에서 열기를 사용하세요.",
+      "minimise": "사이드바로 최소화",
+      "maximise": "전체 화면으로 보기",
+      "restoreSize": "기본 크기로 되돌리기",
+      "railLabelMinimised": "이 고객의 백오피스가 열려 있습니다: 다시 불러오기"
     }
   },
   "Contacts": {

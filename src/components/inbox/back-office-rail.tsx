@@ -44,13 +44,17 @@ export function BackOfficeRail({
   expanded,
   onToggleExpanded,
   onOpen,
+  minimized = false,
 }: {
   expanded: boolean;
   onToggleExpanded: () => void;
   onOpen: () => void;
+  /** A Back Office panel was put away into this rail: the button says so and brings it back. */
+  minimized?: boolean;
 }) {
   const t = useTranslations("Inbox.backOffice");
   const toggleLabel = expanded ? t("collapseRail") : t("expandRail");
+  const openLabel = minimized ? t("railLabelMinimised") : t("railLabel");
   return (
     <aside
       aria-label={t("railRegion")}
@@ -76,16 +80,21 @@ export function BackOfficeRail({
       <button
         type="button"
         onClick={onOpen}
-        aria-label={t("railLabel")}
-        title={t("railLabel")}
+        aria-label={openLabel}
+        title={openLabel}
         aria-haspopup="dialog"
+        data-minimized={minimized ? "true" : "false"}
         className={cn(
           "flex w-full items-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
           expanded ? "gap-2.5" : "justify-center",
+          minimized && "bg-muted text-foreground",
           FOCUS_RING,
         )}
       >
-        <Building2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+        <span className="relative shrink-0">
+          <Building2 className="h-5 w-5" aria-hidden="true" />
+          {minimized && <span aria-hidden="true" data-testid="back-office-minimised-dot" className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-card" />}
+        </span>
         {expanded && (
           <span className="min-w-0 text-left">
             <span className="block truncate text-sm font-medium text-foreground">{t("railTitle")}</span>

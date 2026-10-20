@@ -159,6 +159,13 @@ function InboxPageInner() {
     () => dispatchBackOfficePanel({ type: "open", contactPhone: activeContactPhone }),
     [activeContactPhone],
   );
+  // A panel put away into the rail belongs to the conversation it was opened on. Moving to another conversation closes it (and its frame), so one
+  // parent's record is never left loaded behind another parent's chat.
+  const activeConversationId = activeConversation?.id ?? null;
+  useEffect(() => {
+    dispatchBackOfficePanel({ type: "close" });
+  }, [activeConversationId]);
+  const backOfficeMinimized = backOfficePanel.status !== "closed" && backOfficePanel.minimized;
 
   /** Most a panel may grow to: the row, less the thread's minimum and every other open panel (and the Back Office rail, where it is drawn: xl+). */
   const maxPaneWidth = (which: "list" | "tickets" | "contact") => {
@@ -890,6 +897,7 @@ function InboxPageInner() {
             ticketPanelOpen={ticketPanelOpen}
             onToggleTicketPanel={handleToggleTicketPanel}
             onOpenBackOffice={backOfficeBaseUrl ? openBackOffice : undefined}
+            backOfficeMinimized={backOfficeMinimized}
           />
         </div>
 
@@ -958,6 +966,7 @@ function InboxPageInner() {
             expanded={backOfficeRail.expanded}
             onToggleExpanded={backOfficeRail.toggle}
             onOpen={openBackOffice}
+            minimized={backOfficeMinimized}
           />
         )}
       </div>

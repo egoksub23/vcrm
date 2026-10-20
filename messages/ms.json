@@ -846,7 +846,11 @@
       "openedInTab": "Dibuka dalam tab baharu. Jika tiada apa berlaku, gunakan Buka dalam tab baharu.",
       "frameTitle": "Paparan khidmat pelanggan Vircle Back Office",
       "frameLoading": "Memuatkan Back Office...",
-      "frameNote": "Jika halaman tidak muncul atau meminta anda log masuk, gunakan Buka dalam tab baharu."
+      "frameNote": "Jika halaman tidak muncul atau meminta anda log masuk, gunakan Buka dalam tab baharu.",
+      "minimise": "Kecilkan ke bar sisi",
+      "maximise": "Jadikan skrin penuh",
+      "restoreSize": "Kembali ke saiz biasa",
+      "railLabelMinimised": "Back Office sedang dibuka untuk pelanggan ini: bawa kembali"
     }
   },
   "Contacts": {

@@ -1,12 +1,15 @@
 "use client";
 
-import { useId, useRef, type Dispatch } from "react";
-import { Building2, ExternalLink, Loader2, Search, X } from "lucide-react";
+import { useEffect, useId, useRef, type CSSProperties, type Dispatch } from "react";
+import { Building2, ExternalLink, Loader2, Maximize2, Minimize2, Minus, Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
+  MINIMISED_UNLOAD_MS,
+  dismissAction,
   panelTargetUrl,
+  panelWidthCss,
   searchMode,
   type PanelAction,
   type PanelState,
@@ -35,6 +38,8 @@ export function BackOfficePanelBody({
   onSearch,
   onReset,
   onClose,
+  onMinimize,
+  onToggleMaximize,
   onFrameLoaded,
   phoneInputRef,
   titleId,
@@ -48,6 +53,10 @@ export function BackOfficePanelBody({
   onSearch: () => void;
   onReset: () => void;
   onClose: () => void;
+  /** Put the panel away into the rail, keeping the page that is loaded in it. */
+  onMinimize: () => void;
+  /** Between the usual 60% of the screen and all of it. */
+  onToggleMaximize: () => void;
   onFrameLoaded: () => void;
   phoneInputRef?: React.RefObject<HTMLInputElement | null>;
   titleId?: string;
@@ -57,7 +66,8 @@ export function BackOfficePanelBody({
   const mode = searchMode(embed);
   const searching = state.status === "searching";
   const typedUrl = panelTargetUrl(baseUrl, state.phone);
-  const frameSrc = searching ? panelTargetUrl(baseUrl, state.searched ?? "") : null;
+  // The frame's address carries a hint that the page is shown inside Halo; "Open in new tab" (typedUrl) never does.
+  const frameSrc = searching ? panelTargetUrl(baseUrl, state.searched ?? "", { embedded: true }) : null;
   const showNoPhoneHint = !contactHasPhone && state.searched === null && state.phone.trim() === "";
 
   return (
@@ -70,9 +80,25 @@ export function BackOfficePanelBody({
           <h2 id={titleId} className="truncate text-base font-semibold text-foreground">{t("panelTitle")}</h2>
           <p className="truncate text-xs text-muted-foreground">{t("panelSubtitle")}</p>
         </div>
-        <button type="button" onClick={onClose} aria-label={t("close")} title={t("close")} className={cn(GHOST_BUTTON, "w-8 px-0")}>
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button type="button" onClick={onMinimize} aria-label={t("minimise")} title={t("minimise")} data-action="minimise" className={cn(GHOST_BUTTON, "w-8 px-0")}>
+            <Minus className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleMaximize}
+            aria-label={state.maximized ? t("restoreSize") : t("maximise")}
+            title={state.maximized ? t("restoreSize") : t("maximise")}
+            aria-pressed={state.maximized}
+            data-action="maximise"
+            className={cn(GHOST_BUTTON, "hidden w-8 px-0 sm:inline-flex")}
+          >
+            {state.maximized ? <Minimize2 className="h-4 w-4" aria-hidden="true" /> : <Maximize2 className="h-4 w-4" aria-hidden="true" />}
+          </button>
+          <button type="button" onClick={onClose} aria-label={t("close")} title={t("close")} data-action="close" className={cn(GHOST_BUTTON, "w-8 px-0")}>
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       <form
@@ -167,9 +193,14 @@ export function BackOfficePanelBody({
 }
 
 /**
- * The Back Office panel: slides in from the right edge across the chat (full width on a phone; otherwise about two thirds of the screen, between 360
- * and 1100 px). A dialog: focus moves in (to the phone box) and comes back to the button that opened it, Tab stays inside, Esc closes. Closing
- * unmounts everything in it, so a frame never keeps loading in the background. The phone number lives in this browser only.
+ * The Back Office panel: slides in from the right edge across the chat (full width on a phone; otherwise 60% of the screen, at least 360 px, or the
+ * whole screen when maximised). A dialog: focus moves in (to the phone box) and comes back to the button that opened it, Tab stays inside.
+ *
+ * Three ways out, which differ in what they keep:
+ *   Minimise (and Esc, or a click outside, while a search is on screen)  puts it away into the rail. The page in the frame stays loaded, hidden, and the
+ *                                                                      rail button brings it back as it was. Left minimised for ten minutes, it is closed.
+ *   Close (and Esc on a form with nothing to keep)                      unmounts everything, so a frame never keeps loading in the background.
+ * The phone number lives in this browser only.
  */
 export function BackOfficePanel({
   state,
@@ -187,6 +218,13 @@ export function BackOfficePanel({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const titleId = useId();
 
+  // A record must not sit in a hidden frame all shift: a panel left minimised for ten minutes is closed (and the frame with it).
+  useEffect(() => {
+    if (!state.minimized) return;
+    const timer = window.setTimeout(() => dispatch({ type: "close" }), MINIMISED_UNLOAD_MS);
+    return () => window.clearTimeout(timer);
+  }, [state.minimized, dispatch]);
+
   const onSearch = () => {
     const url = panelTargetUrl(baseUrl, state.phone);
     if (!url) return;
@@ -196,14 +234,18 @@ export function BackOfficePanel({
   };
 
   return (
-    <Sheet open={state.status !== "closed"} onOpenChange={(open) => !open && dispatch({ type: "close" })}>
+    <Sheet open={state.status !== "closed" && !state.minimized} onOpenChange={(open) => !open && dispatch({ type: dismissAction(state) })}>
       <SheetContent
         side="right"
         showCloseButton={false}
+        // Put away, the page in the frame is kept (hidden); closed, nothing is.
+        keepMounted={state.status !== "closed"}
         aria-labelledby={titleId}
         initialFocus={inputRef}
         overlayClassName="bg-foreground/20"
-        className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:w-[clamp(360px,65vw,1100px)] data-[side=right]:sm:max-w-[1100px]"
+        data-maximized={state.maximized ? "true" : "false"}
+        style={{ "--bo-panel-w": panelWidthCss(state.maximized) } as CSSProperties}
+        className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:w-(--bo-panel-w) data-[side=right]:sm:max-w-none"
       >
         <BackOfficePanelBody
           state={state}
@@ -217,6 +259,8 @@ export function BackOfficePanel({
             inputRef.current?.focus();
           }}
           onClose={() => dispatch({ type: "close" })}
+          onMinimize={() => dispatch({ type: "minimize" })}
+          onToggleMaximize={() => dispatch({ type: "toggle-maximize" })}
           onFrameLoaded={() => dispatch({ type: "frame-loaded" })}
           phoneInputRef={inputRef}
           titleId={titleId}

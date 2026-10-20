@@ -178,6 +178,8 @@ interface MessageThreadProps {
    * Back Office rail beside the Customer information panel is not drawn.
    */
   onOpenBackOffice?: () => void;
+  /** A Back Office panel was put away into the rail: the header button says so and brings it back. */
+  backOfficeMinimized?: boolean;
 }
 
 function formatDateSeparator(dateStr: string, t: ReturnType<typeof useTranslations>): string {
@@ -244,6 +246,7 @@ export function MessageThread({
   ticketPanelOpen,
   onToggleTicketPanel,
   onOpenBackOffice,
+  backOfficeMinimized = false,
 }: MessageThreadProps) {
   const t = useTranslations("Inbox.messageThread");
   const tBackOffice = useTranslations("Inbox.backOffice");
@@ -1629,12 +1632,14 @@ export function MessageThread({
             <button
               type="button"
               onClick={onOpenBackOffice}
-              aria-label={tBackOffice("railLabel")}
-              title={tBackOffice("railLabel")}
+              aria-label={backOfficeMinimized ? tBackOffice("railLabelMinimised") : tBackOffice("railLabel")}
+              title={backOfficeMinimized ? tBackOffice("railLabelMinimised") : tBackOffice("railLabel")}
               aria-haspopup="dialog"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:hidden"
+              data-minimized={backOfficeMinimized ? "true" : "false"}
+              className="relative inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:hidden"
             >
               <Building2 className="h-4 w-4" aria-hidden="true" />
+              {backOfficeMinimized && <span aria-hidden="true" className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />}
             </button>
           )}
 

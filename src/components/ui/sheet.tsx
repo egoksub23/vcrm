@@ -42,10 +42,13 @@ function SheetContent({
   side = "right",
   showCloseButton = true,
   overlayClassName,
+  keepMounted,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
+  /** Keep the content in the page (hidden) while the sheet is closed, so something loaded inside it (a frame) is not thrown away. */
+  keepMounted?: boolean
   /** Overrides the backdrop's dim/blur for this one Sheet instance (e.g. a
    *  wide panel meant to sit alongside the page rather than cover it) —
    *  the Backdrop element itself still renders, so click-outside-to-close
@@ -53,7 +56,7 @@ function SheetContent({
   overlayClassName?: string
 }) {
   return (
-    <SheetPortal>
+    <SheetPortal keepMounted={keepMounted}>
       <SheetOverlay className={overlayClassName} />
       <SheetPrimitive.Popup
         data-slot="sheet-content"

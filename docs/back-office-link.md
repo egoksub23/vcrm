@@ -6,13 +6,16 @@ A customer care agent who is talking to a parent can open that parent's record i
 
 - On a wide screen (extra large, 1280 px and up) there is a narrow rail at the far right of the Inbox, beside the Customer information panel. It shows one icon-only button, **Open in Vircle Back Office**. A small chevron at the top of the rail expands it to show the label and the line "Open this parent's record". The choice (minimised or expanded) is remembered in that browser only. The rail is there for every conversation and stays put while the agent switches between the Contact and Knowledge tabs.
 - On narrower screens (phones, tablets, small laptops) the rail is not drawn. The same button sits in the conversation header instead.
-- Clicking the button slides a panel in from the right across the chat (full width on a phone; otherwise about two thirds of the screen, between 360 and 1100 px). The panel is titled **Vircle Back Office - Customer care** and holds a **Find an app user** form:
+- Clicking the button slides a panel in from the right across the chat (full width on a phone; otherwise **60% of the screen**, never narrower than 360 px). The panel is titled **Vircle Back Office - Customer care** and holds a **Find an app user** form:
   - a phone box, **prefilled with the contact's phone number exactly as Halo holds it** (editable; empty if the contact has none, such as a web chat visitor);
   - **Search** (Enter works too);
   - **Open in new tab**, always available once a number is in the box;
   - **Find another user**, which clears the form.
 - What **Search** does depends on `BACK_OFFICE_EMBED` (below): it opens the Back Office in a new tab (default), or shows it inside the panel.
-- Esc or the close button shuts the panel. Focus returns to the button that opened it. Closing the panel unloads the frame, so nothing keeps loading in the background.
+- The header has three buttons, which differ in what they keep:
+  - **Minimise** puts the panel away into the rail. The Back Office page stays loaded (hidden) and the rail button, which now shows a dot, brings it back exactly as it was: same search, same tab, nothing reloaded. **Esc** and a click outside the panel do the same while a search is on screen. A panel left minimised for **ten minutes** is closed, and moving to another conversation closes it at once, so one parent's record is never left loaded behind another parent's chat.
+  - **Full screen / Back to the usual size** (not shown on a phone, where the panel already fills the screen) toggles between 60% of the screen and all of it.
+  - **Close** shuts the panel and unloads the frame, so nothing keeps loading in the background. **Esc** does this on the form when there is no search to keep. Focus returns to the button that opened it.
 
 Signing in is separate. Halo and the Back Office use different identity providers, so the agent signs in to the Back Office on its own. An agent without the Back Office **Customer Care** page sees "access denied" there. That is intended.
 
@@ -22,7 +25,7 @@ Both are read when the server runs. Put them in `.env.local` and restart the con
 
 | Variable | Meaning |
 |---|---|
-| `BACK_OFFICE_USER_URL` | The address of the Back Office user page. UAT: `https://v2-uat.vircle.net/app-user-details-b`. The production address is not known yet. It must be a valid **https** URL (no user name or password in it). Any query string or `#fragment` is removed. If it is unset or not valid, the feature is hidden: no rail, no header button. |
+| `BACK_OFFICE_USER_URL` | The address of the Back Office user page. Production: `https://v2.vircle.net/app-user-details-b` (the Halo at halo.vircle.tech uses this one since 20 Oct 2026). UAT: `https://v2-uat.vircle.net/app-user-details-b`. It must be a valid **https** URL (no user name or password in it). Any query string or `#fragment` is removed. If it is unset or not valid, the feature is hidden: no rail, no header button. |
 | `BACK_OFFICE_EMBED` | Optional. `true` or `1` shows the Back Office inside the panel (a frame). Anything else, including unset, is off: Search opens a new tab. Has no effect without a valid `BACK_OFFICE_USER_URL`. |
 
 The browser learns both from `GET /api/account/back-office-link`, which answers `{ "baseUrl": string | null, "embed": boolean }` and nothing else. It needs the **Inbox menu** permission (`menu.inbox`), is workspace-scoped through the signed-in session and is never cached.
@@ -59,6 +62,16 @@ The frame is sandboxed (`allow-same-origin allow-scripts allow-forms allow-popup
 ### Content-Security-Policy
 
 Halo's Content-Security-Policy is currently **Report-Only**. If `BACK_OFFICE_USER_URL` is set **when the image is built** (`next build`), the policy's `frame-src` allows `'self'` and the Back Office origin. Next.js computes response headers at build time, so this part does **not** follow a change made at runtime. The Dockerfile does not pass `BACK_OFFICE_USER_URL` into the build today, so before the policy is switched to enforcing, add it as a build argument (or add the origin to `frame-src` by hand). Until then a framed Back Office is reported in the browser console, not blocked. New-tab mode needs no policy change.
+
+### Asking the Back Office for a body-only page (`embed=1`)
+
+The Back Office page has its own menu and header, which take a third of a narrow panel. Halo cannot remove them: it is another site's page. When it shows the page in the panel, Halo therefore adds a hint to the address, after the phone:
+
+```
+<BACK_OFFICE_USER_URL>#q=<encodeURIComponent(phone)>&embed=1
+```
+
+"Open in new tab" never carries it. **The Back Office does not act on it yet** (as of 20 Oct 2026 its app reads only `q`, from the fragment or the query string, and ignores anything else, so the hint is harmless). What the Back Office team would add: when `embed=1` is present, in the fragment or the query string, do not draw the sidebar and the top header on that page, and let the page use the full width of its window. The user's sign-in, the `q` search and everything below the header stay as they are. A single flag on the app shell is all it takes; no change is needed in Halo when it ships.
 
 ## Checking it
 

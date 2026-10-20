@@ -846,7 +846,11 @@
       "openedInTab": "Opened in a new tab. If nothing happened, use Open in new tab.",
       "frameTitle": "Vircle Back Office customer care view",
       "frameLoading": "Loading the Back Office...",
-      "frameNote": "If the page does not appear or asks you to sign in, use Open in new tab."
+      "frameNote": "If the page does not appear or asks you to sign in, use Open in new tab.",
+      "minimise": "Minimise to the side bar",
+      "maximise": "Make it full screen",
+      "restoreSize": "Back to the usual size",
+      "railLabelMinimised": "Back Office is open for this customer: bring it back"
     }
   },
   "Contacts": {

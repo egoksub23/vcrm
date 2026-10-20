@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MINIMISED_UNLOAD_MS,
   PANEL_CLOSED,
+  PANEL_DEFAULT_VW,
+  PANEL_MIN_PX,
+  dismissAction,
   panelPrefill,
   panelReducer,
   panelTargetUrl,
+  panelWidthCss,
   searchMode,
   type PanelAction,
   type PanelState,
@@ -20,6 +25,15 @@ import {
 } from "./rail";
 
 const UAT = "https://v2-uat.vircle.net/app-user-details-b";
+
+describe("the address a frame is given", () => {
+  it("adds &embed=1 after the phone for the frame only, and never for Open in new tab", () => {
+    expect(panelTargetUrl(UAT, "+60123456789")).toBe(`${UAT}#q=%2B60123456789`);
+    expect(panelTargetUrl(UAT, "+60123456789", { embedded: true })).toBe(`${UAT}#q=%2B60123456789&embed=1`);
+    expect(panelTargetUrl(UAT, "  ", { embedded: true })).toBeNull();
+    expect(panelTargetUrl(null, "0123", { embedded: true })).toBeNull();
+  });
+});
 
 const run = (actions: PanelAction[], from: PanelState = PANEL_CLOSED) => actions.reduce(panelReducer, from);
 
@@ -125,6 +139,81 @@ describe("panelReducer", () => {
     for (const a of [{ type: "edit", phone: "1" }, { type: "search" }, { type: "reset" }, { type: "frame-loaded" }] as PanelAction[]) {
       expect(panelReducer(PANEL_CLOSED, a)).toBe(PANEL_CLOSED);
     }
+  });
+});
+
+describe("the size of the panel", () => {
+  it("opens at 60% of the screen, never narrower than 360 px, and fills the screen when maximised", () => {
+    expect(PANEL_DEFAULT_VW).toBe(60);
+    expect(PANEL_MIN_PX).toBe(360);
+    expect(panelWidthCss(false)).toBe("max(360px, 60vw)");
+    expect(panelWidthCss(true)).toBe("100vw");
+  });
+
+  it("starts at the usual size, and maximise toggles it", () => {
+    const s = run([{ type: "open", contactPhone: "0123" }]);
+    expect(s.maximized).toBe(false);
+    const big = panelReducer(s, { type: "toggle-maximize" });
+    expect(big.maximized).toBe(true);
+    expect(panelReducer(big, { type: "toggle-maximize" }).maximized).toBe(false);
+  });
+
+  it("keeps the size through Find another user, but a fresh open is the usual size again", () => {
+    const big = run([{ type: "open", contactPhone: "0123" }, { type: "toggle-maximize" }, { type: "search" }, { type: "reset" }]);
+    expect(big).toMatchObject({ status: "open", maximized: true, searched: null });
+    expect(run([{ type: "close" }, { type: "open", contactPhone: "0123" }], big).maximized).toBe(false);
+  });
+
+  it("cannot be resized while it is away or closed", () => {
+    expect(panelReducer(PANEL_CLOSED, { type: "toggle-maximize" })).toBe(PANEL_CLOSED);
+    const away = run([{ type: "open", contactPhone: "0123" }, { type: "minimize" }]);
+    expect(panelReducer(away, { type: "toggle-maximize" })).toBe(away);
+  });
+});
+
+describe("minimising into the rail", () => {
+  const searching = () => run([{ type: "open", contactPhone: "0123" }, { type: "search" }, { type: "frame-loaded" }]);
+
+  it("puts the panel away and KEEPS the search, the typed number and the loaded frame", () => {
+    const s = panelReducer(searching(), { type: "minimize" });
+    expect(s).toMatchObject({ status: "searching", minimized: true, searched: "0123", searchId: 1, frameLoaded: true });
+  });
+
+  it("brings the same panel back from the rail without starting again", () => {
+    const edited = run([{ type: "edit", phone: "0199" }], searching());
+    const back = run([{ type: "minimize" }, { type: "open", contactPhone: "0777" }], edited);
+    // the contact's phone (0777) does not overwrite what the agent had; nothing was reloaded
+    expect(back).toMatchObject({ status: "searching", minimized: false, phone: "0199", searched: "0123", searchId: 1, frameLoaded: true });
+  });
+
+  it("restore does the same, and does nothing to a panel that is not away", () => {
+    const away = panelReducer(searching(), { type: "minimize" });
+    expect(panelReducer(away, { type: "restore" }).minimized).toBe(false);
+    const up = searching();
+    expect(panelReducer(up, { type: "restore" })).toBe(up);
+  });
+
+  it("is nothing to minimise while closed, and minimising twice changes nothing", () => {
+    expect(panelReducer(PANEL_CLOSED, { type: "minimize" })).toBe(PANEL_CLOSED);
+    const away = panelReducer(searching(), { type: "minimize" });
+    expect(panelReducer(away, { type: "minimize" })).toBe(away);
+  });
+
+  it("closing from the rail drops everything, so the frame is unmounted", () => {
+    expect(run([{ type: "minimize" }, { type: "close" }], searching())).toEqual(PANEL_CLOSED);
+  });
+
+  it("opening a closed panel is a fresh start, never a stale minimised one", () => {
+    expect(run([{ type: "close" }, { type: "open", contactPhone: "0777" }], panelReducer(searching(), { type: "minimize" }))).toMatchObject({ status: "open", minimized: false, phone: "0777", searched: null });
+  });
+
+  it("Esc and a click outside put a search away, but close a form that has nothing to keep", () => {
+    expect(dismissAction(searching())).toBe("minimize");
+    expect(dismissAction(run([{ type: "open", contactPhone: "0123" }]))).toBe("close");
+  });
+
+  it("a panel left away is closed after ten minutes (the panel's timer uses this)", () => {
+    expect(MINIMISED_UNLOAD_MS).toBe(10 * 60_000);
   });
 });
 

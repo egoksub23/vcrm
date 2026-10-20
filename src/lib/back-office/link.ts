@@ -56,15 +56,22 @@ export function parseBackOfficeEmbed(raw: unknown): boolean {
  * The phone is trimmed and otherwise left exactly as Halo holds it (no lower-casing, no
  * normalising, no country code added). The base is checked again here (https only, query and
  * fragment removed) so a wrong value can never produce a link.
+ *
+ * `embedded` adds `&embed=1` after the phone: Halo is showing the page inside a frame, so the Back Office may leave out its own menu and header
+ * (it ignores a parameter it does not know, and reads `q` as before). Only the frame gets it; "Open in new tab" never does.
  */
-export function buildBackOfficeUrl(baseUrl: string | null | undefined, phone: string | null | undefined): string | null {
+export function buildBackOfficeUrl(
+  baseUrl: string | null | undefined,
+  phone: string | null | undefined,
+  opts: { embedded?: boolean } = {},
+): string | null {
   const base = parseBackOfficeBaseUrl(baseUrl);
   if (!base) return null;
   if (typeof phone !== "string") return null;
   const trimmed = phone.trim();
   if (!trimmed) return null;
   try {
-    return `${base}#q=${encodeURIComponent(trimmed)}`;
+    return `${base}#q=${encodeURIComponent(trimmed)}${opts.embedded ? "&embed=1" : ""}`;
   } catch {
     // encodeURIComponent throws on a lone surrogate half; such a value is not a phone number.
     return null;
