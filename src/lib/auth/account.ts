@@ -38,6 +38,7 @@ import {
   getCapability,
   overridesFromRows,
   resolveCapabilities,
+  withAddonCapabilities,
 } from "./capabilities";
 import {
   ACCOUNT_SUSPENDED_MESSAGE,
@@ -279,6 +280,40 @@ export function loadCapabilities(ctx: AccountContext): Promise<Set<string>> {
 }
 
 async function resolveForContext(ctx: AccountContext): Promise<Set<string>> {
+  if (ctx.role === "owner") return resolveCapabilities("owner");
+  // The base role's (or custom role's) set, plus whatever the person's add-on roles give (migration 191). Add-only.
+  const [base, addons] = await Promise.all([resolveBaseCapabilities(ctx), loadAddonCapabilityKeys(ctx)]);
+  return withAddonCapabilities(base, ctx.role, addons);
+}
+
+/**
+ * The capability keys of the add-on roles the caller holds in this workspace (every one named, before the base tier's floor is applied, which
+ * `withAddonCapabilities` does). Fails closed like the overrides read: if it cannot be read the request is refused, because the result decides what
+ * the caller may do. A missing table (migration 191 not applied yet) means no add-on can exist, so there are none.
+ */
+async function loadAddonCapabilityKeys(ctx: AccountContext): Promise<string[]> {
+  const { data, error } = await ctx.supabase
+    .from("member_addon_roles")
+    .select("account_addon_roles(account_addon_role_capabilities(capability))")
+    .eq("user_id", ctx.userId)
+    .eq("account_id", ctx.accountId);
+  if (error) {
+    if (error.code && MISSING_TABLE_CODES.has(error.code)) return [];
+    console.error("[loadCapabilities] add-on roles fetch error:", error);
+    throw new ForbiddenError("Could not load permissions");
+  }
+  type Row = { account_addon_roles?: { account_addon_role_capabilities?: { capability?: unknown }[] | null } | { account_addon_role_capabilities?: { capability?: unknown }[] | null }[] | null };
+  const keys: string[] = [];
+  for (const row of (data ?? []) as Row[]) {
+    const roles = Array.isArray(row.account_addon_roles) ? row.account_addon_roles : row.account_addon_roles ? [row.account_addon_roles] : [];
+    for (const role of roles) {
+      for (const c of role.account_addon_role_capabilities ?? []) if (typeof c.capability === "string") keys.push(c.capability);
+    }
+  }
+  return keys;
+}
+
+async function resolveBaseCapabilities(ctx: AccountContext): Promise<Set<string>> {
   if (ctx.role === "owner") return resolveCapabilities("owner");
   // A custom-role caller (migration 112) resolves overrides against
   // their own account_roles row instead of the literal role — `role`

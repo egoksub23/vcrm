@@ -3,6 +3,7 @@
 // member panel, the invite dialog and their tests. No I/O, no React.
 // ============================================================
 
+import type { AddonRoleRef } from "@/lib/auth/addon-roles";
 import { roleRank, type AccountRole } from "@/lib/auth/roles";
 
 /** A team as shown on a chip. */
@@ -32,6 +33,8 @@ export interface RosterMember {
   teams: TeamRef[];
   open_conversations: number;
   open_tickets: number;
+  /** The add-on roles the member holds on top of their base role (migration 191); absent reads as none. */
+  addon_roles?: AddonRoleRef[];
 }
 
 /** A custom role assignable from the role picker, filtered to the
@@ -42,6 +45,19 @@ export interface AssignableCustomRole {
   id: string;
   name: string;
   baseRole: Exclude<AccountRole, "owner">;
+}
+
+/** An add-on role as the member panel and the invite dialog offer it. `minBaseRole` is the lowest base role at which every permission in it applies. */
+export interface AssignableAddonRole {
+  id: string;
+  name: string;
+  description: string | null;
+  minBaseRole: AccountRole;
+}
+
+/** Does every permission in the add-on apply to someone whose base role is `role`? When not, some of it has no effect on them and the screens say so. */
+export function addonFullyApplies(addon: Pick<AssignableAddonRole, "minBaseRole">, role: AccountRole): boolean {
+  return roleRank(role) >= roleRank(addon.minBaseRole);
 }
 
 /** A pending invitation row as the invitations route returns it. */
@@ -60,6 +76,8 @@ export interface RosterInvitation {
   created_at: string;
   expires_at: string;
   team_ids: string[];
+  /** Add-on roles the invitation carries; given when it is accepted (migration 191). Absent reads as none. */
+  addon_role_ids?: string[];
 }
 
 /** How many team chips show before the "+N" overflow. */

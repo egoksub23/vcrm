@@ -29,6 +29,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
+import { parseAddonRoleIds } from "@/lib/auth/addon-roles";
 import {
   clampExpiryDays,
   generateInviteToken,
@@ -163,7 +164,7 @@ export async function GET() {
     const { data, error } = await ctx.supabase
       .from("account_invitations")
       .select(
-        "id, role, custom_role_id, label, email, email_sent_at, team_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
+        "id, role, custom_role_id, label, email, email_sent_at, team_ids, addon_role_ids, created_by_user_id, created_at, expires_at, accepted_at, accepted_by_user_id",
       )
       .eq("account_id", ctx.accountId)
       .is("accepted_at", null)
@@ -206,6 +207,7 @@ export async function POST(request: Request) {
           label?: unknown;
           teamIds?: unknown;
           email?: unknown;
+          addonRoleIds?: unknown;
         }
       | null;
 
@@ -281,6 +283,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: teams.error }, { status: 400 });
     }
 
+    // Add-on roles (migration 191) the new member gets when they accept. Only the shape is checked here; the database trigger keeps just this
+    // workspace's roles and refuses one that holds a permission the inviter does not hold themselves.
+    const addons = parseAddonRoleIds(body?.addonRoleIds);
+    if (!addons.ok) {
+      return NextResponse.json({ error: addons.error }, { status: 400 });
+    }
+
     // Optional (migration 108) — when set, this invite auto-joins that
     // exact, verified email the moment it signs in (including via
     // Google/Microsoft SSO — no link click needed), and the link itself
@@ -341,9 +350,10 @@ export async function POST(request: Request) {
         label,
         email,
         team_ids: teams.ids,
+        addon_role_ids: addons.value,
         expires_at: expiresAt.toISOString(),
       })
-      .select("id, role, custom_role_id, label, email, team_ids, expires_at, created_at")
+      .select("id, role, custom_role_id, label, email, team_ids, addon_role_ids, expires_at, created_at")
       .single();
 
     if (error || !data) {
@@ -352,6 +362,10 @@ export async function POST(request: Request) {
           { error: "There is already a pending invitation for this email" },
           { status: 409 },
         );
+      }
+      // the add-on rules in the database (migration 191): another workspace's role, or one with a permission the inviter does not hold
+      if (error?.code === "22023" || error?.code === "42501") {
+        return NextResponse.json({ error: error.message }, { status: error.code === "42501" ? 403 : 400 });
       }
       console.error("[POST /api/account/invitations] insert error:", error);
       return NextResponse.json(

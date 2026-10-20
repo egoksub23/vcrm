@@ -2436,7 +2436,9 @@
         "none": "Tiada pasukan",
         "more": "+{count}",
         "showAll": "Tunjuk semua {count} pasukan",
-        "allTeams": "Semua {count, plural, =1 {# pasukan} other {# pasukan}}"
+        "allTeams": "Semua {count, plural, =1 {# pasukan} other {# pasukan}}",
+        "noAddOns": "Tiada peranan tambahan",
+        "addOnsMore": "+{count}"
       },
       "members": {
         "searchPlaceholder": "Cari nama atau e-mel",
@@ -2537,7 +2539,18 @@
         "openConversations": "Perbualan terbuka",
         "openTickets": "Tiket terbuka",
         "remove": "Alih keluar ahli",
-        "networkError": "Tidak dapat menghubungi pelayan"
+        "networkError": "Tidak dapat menghubungi pelayan",
+        "addOnRoles": "Peranan tambahan",
+        "addOnRolesHint": "Kebenaran tambahan di atas peranan asas mereka. Ia hanya menambah; tiada apa-apa diambil.",
+        "editAddOnRoles": "Pilih peranan tambahan...",
+        "searchAddOnRoles": "Cari peranan tambahan...",
+        "noAddOnRolesYet": "Belum ada peranan tambahan. Cipta satu di bawah Peranan & kebenaran.",
+        "addOnRolesFailed": "Tidak dapat mengemas kini peranan tambahan. Sila cuba lagi.",
+        "addOnRolesUpdated": "Peranan tambahan dikemas kini untuk {name}",
+        "addOnRolesReadOnly": "Anda tidak boleh menukar peranan tambahan orang ini.",
+        "addOnNeedsRole": "Memerlukan {role} atau ke atas",
+        "addOnPartial": "Sesetengah kebenaran dalam \"{name}\" memerlukan peranan {role} atau ke atas, jadi ia tidak terpakai kepada orang ini.",
+        "accessSummaryWithAddOns": "{role} serta {count, plural, =1 {# peranan tambahan} other {# peranan tambahan}}: {enabled} daripada {total} keupayaan diaktifkan."
       },
       "remove": {
         "title": "Alih keluar ahli",
@@ -2660,7 +2673,14 @@
         "emailSentHint": "E-mel jemputan baru sahaja dihantar kepada <bold>{email}</bold>.",
         "emailSendFailedHint": "Tidak dapat menghantar e-mel jemputan. Salin pautan di bawah dan kongsikan sendiri.",
         "emailNotConfiguredHint": "Penghantaran e-mel belum disediakan pada pelayan ini. Salin pautan di bawah dan kongsikan sendiri.",
-        "linkFallbackHint": "Kongsikan pautan ini dengan mereka sebagai gantinya."
+        "linkFallbackHint": "Kongsikan pautan ini dengan mereka sebagai gantinya.",
+        "addOnRolesLabel": "Peranan tambahan",
+        "pickAddOnRoles": "Pilih peranan tambahan...",
+        "searchAddOnRoles": "Cari peranan tambahan...",
+        "noAddOnRolesYet": "Belum ada peranan tambahan",
+        "addOnRolesHint": "Diberikan apabila mereka menerima, di atas peranan mereka. Ia hanya menambah kebenaran.",
+        "addOnNeedsRole": "Memerlukan {role} atau ke atas",
+        "willGetAddOns": "Mereka juga akan mendapat peranan tambahan ini"
       }
     },
     "invite": {
@@ -6381,7 +6401,8 @@
       "people": "Orang",
       "sign": "Secure Sign",
       "kyc": "Semakan KYC",
-      "compliance": "Permintaan pematuhan"
+      "compliance": "Permintaan pematuhan",
+      "incidents": "Insiden"
     },
     "preset": {
       "support-manager": {
@@ -6554,6 +6575,39 @@
       "peopleFailed": "Tidak dapat memuatkan senarai orang.",
       "nobody": "Tiada sesiapa yang memiliki keupayaan ini buat masa ini.",
       "unnamed": "Tanpa nama"
+    },
+    "addons": {
+      "tab": "Peranan tambahan",
+      "sectionTitle": "Peranan tambahan",
+      "sectionDescription": "Kebenaran tambahan yang anda berikan kepada seseorang di atas peranan asas mereka. Peranan tambahan hanya menambah; ia tidak pernah mengambil apa-apa, dan seseorang boleh mempunyai beberapa.",
+      "newRole": "Peranan tambahan baharu",
+      "empty": "Belum ada peranan tambahan. Cipta satu untuk tugas yang memerlukan beberapa kebenaran tambahan, seperti menyemak semakan ID.",
+      "memberCount": "{count, plural, other {# orang memilikinya}}",
+      "permissionCount": "{count, plural, other {# kebenaran}}",
+      "loadFailed": "Tidak dapat memuatkan peranan tambahan.",
+      "retry": "Cuba lagi",
+      "newRoleTitle": "Peranan tambahan baharu",
+      "newRoleDescription": "Namakannya sekarang dan pilih apa yang ditambahnya pada skrin seterusnya. Anda hanya boleh menambah kebenaran yang anda sendiri miliki.",
+      "nameLabel": "Nama",
+      "namePlaceholder": "cth. Penyemak KYC",
+      "descriptionLabel": "Penerangan (pilihan)",
+      "descriptionPlaceholder": "Untuk apa peranan ini",
+      "nameRequired": "Berikan nama kepada peranan ini",
+      "createFailed": "Tidak dapat mencipta peranan tambahan ini. Sila cuba lagi.",
+      "created": "\"{name}\" dicipta. Pilih apa yang ditambahnya.",
+      "cancel": "Batal",
+      "create": "Cipta peranan tambahan",
+      "saved": "\"{name}\" disimpan",
+      "saveFailed": "Tidak dapat menyimpan peranan tambahan ini. Sila cuba lagi.",
+      "delete": "Padam",
+      "deleteConfirmWithMembers": "Padam \"{name}\"? {count, plural, =1 {# orang kehilangan} other {# orang kehilangan}} apa yang diberikannya. Peranan asas mereka tidak berubah.",
+      "deleteConfirmBody": "Padam \"{name}\"? Tindakan ini tidak boleh dibatalkan.",
+      "deleteFailed": "Tidak dapat memadam peranan tambahan ini. Sila cuba lagi.",
+      "deleted": "Peranan tambahan dipadam",
+      "onlyAdds": "Peranan tambahan hanya menambah kebenaran kepada peranan asas seseorang. Ia tidak pernah mengambil mana-mana.",
+      "appliesFrom": "Semua di dalamnya terpakai kepada {role} dan ke atas; bagi sesiapa di bawahnya, kebenaran yang memerlukan lebih tidak berkesan.",
+      "needsRole": "Memerlukan {role} atau ke atas",
+      "reasonNotHeld": "Anda hanya boleh menambah kebenaran yang anda sendiri miliki."
     }
   },
   "Audit": {

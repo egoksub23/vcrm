@@ -70,6 +70,7 @@ import {
   type SortDir,
   type TeamRef,
 } from '@/lib/teams/members';
+import { ADDON_CHIP_LIMIT, AddonRoleChips } from './addon-role-chips';
 import { MemberAvatar, RoleLozenge } from './member-parts';
 import { MemberSheet } from './member-sheet';
 import { MultiSelectPopover, type PickerOption } from './multi-select-popover';
@@ -626,8 +627,9 @@ export function MembersView({ roster }: { roster: TeamRoster }) {
                             )}
                           </span>
                         </button>
-                        <div>
+                        <div className="flex flex-wrap items-center gap-1">
                           <RoleLozenge role={m.role} />
+                          <AddonRoleChips addons={m.addon_roles ?? []} limit={ADDON_CHIP_LIMIT} hideEmpty />
                         </div>
                         <TeamChips teams={m.teams} />
                         <span className="text-xs text-muted-foreground">

@@ -489,6 +489,39 @@ export function resolveCapabilities(
   return out;
 }
 
+/**
+ * What an add-on role (migration 191) gives a person whose base tier is `role`: the capabilities it names that exist and that the tier is high enough
+ * for (`minGrantRole`, the same floor a custom role has), so an add-on never lifts a Viewer to a write permission. Mirrors `addon_grants_capability()`.
+ */
+export function addonCapabilitiesFor(role: AccountRole, granted: Iterable<string>): Set<string> {
+  const out = new Set<string>();
+  for (const cap of granted) {
+    const def = BY_KEY.get(cap);
+    if (def && roleRank(role) >= roleRank(def.minGrantRole)) out.add(cap);
+  }
+  return out;
+}
+
+/** A person's base set PLUS their add-on roles' capabilities. Add-only: nothing in `base` is ever removed. */
+export function withAddonCapabilities(base: ReadonlySet<string>, role: AccountRole, granted: Iterable<string>): Set<string> {
+  const out = new Set(base);
+  for (const cap of addonCapabilitiesFor(role, granted)) out.add(cap);
+  return out;
+}
+
+/**
+ * The lowest base tier at which EVERY capability in the set applies: the highest `minGrantRole` among them ("viewer" for an empty set). Below it, some of
+ * the add-on's capabilities have no effect on the person, which the screens say when it is given.
+ */
+export function addonMinBaseRole(granted: Iterable<string>): AccountRole {
+  let best: AccountRole = "viewer";
+  for (const cap of granted) {
+    const def = BY_KEY.get(cap);
+    if (def && roleRank(def.minGrantRole) > roleRank(best)) best = def.minGrantRole;
+  }
+  return best;
+}
+
 /** Convenience: does `role` (with overrides) hold `cap`? Unknown => false. */
 export function roleHasCapability(
   role: AccountRole,

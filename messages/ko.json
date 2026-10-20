@@ -2436,7 +2436,9 @@
         "none": "팀 없음",
         "more": "+{count}",
         "showAll": "팀 {count}개 모두 보기",
-        "allTeams": "팀 {count}개 전체"
+        "allTeams": "팀 {count}개 전체",
+        "noAddOns": "추가 역할 없음",
+        "addOnsMore": "+{count}"
       },
       "members": {
         "searchPlaceholder": "이름 또는 이메일 검색",
@@ -2537,7 +2539,18 @@
         "openConversations": "열린 대화",
         "openTickets": "열린 티켓",
         "remove": "멤버 제거",
-        "networkError": "서버에 연결할 수 없습니다"
+        "networkError": "서버에 연결할 수 없습니다",
+        "addOnRoles": "추가 역할",
+        "addOnRolesHint": "기본 역할에 더해지는 추가 권한입니다. 더하기만 하고 빼앗지 않습니다.",
+        "editAddOnRoles": "추가 역할 선택...",
+        "searchAddOnRoles": "추가 역할 검색...",
+        "noAddOnRolesYet": "아직 추가 역할이 없습니다. '역할 & 권한'에서 만드세요.",
+        "addOnRolesFailed": "추가 역할을 업데이트하지 못했습니다. 다시 시도하세요.",
+        "addOnRolesUpdated": "{name}님의 추가 역할을 업데이트했습니다",
+        "addOnRolesReadOnly": "이 사람의 추가 역할을 변경할 수 없습니다.",
+        "addOnNeedsRole": "{role} 이상 필요",
+        "addOnPartial": "\"{name}\"의 일부 권한은 {role} 이상 역할이 필요하여 이 사람에게는 적용되지 않습니다.",
+        "accessSummaryWithAddOns": "{role} + {count, plural, =1 {#개의 추가 역할} other {#개의 추가 역할}}: 전체 {total}개 중 {enabled}개 기능 사용 가능."
       },
       "remove": {
         "title": "멤버 제거",
@@ -2660,7 +2673,14 @@
         "emailSentHint": "초대 이메일이 <bold>{email}</bold>로 전송되었습니다.",
         "emailSendFailedHint": "초대 이메일을 보내지 못했습니다. 아래 링크를 복사해서 직접 공유해 주세요.",
         "emailNotConfiguredHint": "이 서버에는 이메일 발송이 설정되어 있지 않습니다. 아래 링크를 복사해서 직접 공유해 주세요.",
-        "linkFallbackHint": "대신 이 링크를 공유해 주세요."
+        "linkFallbackHint": "대신 이 링크를 공유해 주세요.",
+        "addOnRolesLabel": "추가 역할",
+        "pickAddOnRoles": "추가 역할 선택...",
+        "searchAddOnRoles": "추가 역할 검색...",
+        "noAddOnRolesYet": "아직 추가 역할이 없습니다",
+        "addOnRolesHint": "초대를 수락할 때 역할에 더해 부여됩니다. 권한을 더하기만 합니다.",
+        "addOnNeedsRole": "{role} 이상 필요",
+        "willGetAddOns": "다음 추가 역할도 함께 받습니다"
       }
     },
     "invite": {
@@ -7110,7 +7130,8 @@
       "people": "사람",
       "sign": "Secure Sign",
       "kyc": "KYC 검토",
-      "compliance": "컴플라이언스 요청"
+      "compliance": "컴플라이언스 요청",
+      "incidents": "인시던트"
     },
     "preset": {
       "support-manager": {
@@ -7283,6 +7304,39 @@
       "peopleFailed": "사람 목록을 불러오지 못했습니다.",
       "nobody": "현재 이 권한을 가진 사람이 없습니다.",
       "unnamed": "이름 없음"
+    },
+    "addons": {
+      "tab": "추가 역할",
+      "sectionTitle": "추가 역할",
+      "sectionDescription": "기본 역할에 더해 사람에게 부여하는 추가 권한입니다. 추가 역할은 권한을 더하기만 하며 어떤 것도 빼앗지 않고, 한 사람이 여러 개를 가질 수 있습니다.",
+      "newRole": "새 추가 역할",
+      "empty": "아직 추가 역할이 없습니다. 신분증 확인 검토처럼 몇 가지 추가 권한이 필요한 업무용으로 만들어 보세요.",
+      "memberCount": "{count, plural, other {#명이 가짐}}",
+      "permissionCount": "{count, plural, other {#개 권한}}",
+      "loadFailed": "추가 역할을 불러오지 못했습니다.",
+      "retry": "다시 시도",
+      "newRoleTitle": "새 추가 역할",
+      "newRoleDescription": "지금 이름을 정하고, 다음 화면에서 무엇을 더할지 선택하세요. 본인이 가진 권한만 추가할 수 있습니다.",
+      "nameLabel": "이름",
+      "namePlaceholder": "예: KYC 검토자",
+      "descriptionLabel": "설명(선택)",
+      "descriptionPlaceholder": "이 역할의 용도",
+      "nameRequired": "역할 이름을 입력하세요",
+      "createFailed": "이 추가 역할을 만들지 못했습니다. 다시 시도하세요.",
+      "created": "\"{name}\" 역할을 만들었습니다. 무엇을 더할지 선택하세요.",
+      "cancel": "취소",
+      "create": "추가 역할 만들기",
+      "saved": "\"{name}\" 저장됨",
+      "saveFailed": "이 추가 역할을 저장하지 못했습니다. 다시 시도하세요.",
+      "delete": "삭제",
+      "deleteConfirmWithMembers": "\"{name}\" 역할을 삭제하시겠습니까? {count, plural, =1 {#명이} other {#명이}} 이 역할이 주던 권한을 잃습니다. 기본 역할은 바뀌지 않습니다.",
+      "deleteConfirmBody": "\"{name}\" 역할을 삭제하시겠습니까? 되돌릴 수 없습니다.",
+      "deleteFailed": "이 추가 역할을 삭제하지 못했습니다. 다시 시도하세요.",
+      "deleted": "추가 역할을 삭제했습니다",
+      "onlyAdds": "추가 역할은 기본 역할에 권한을 더하기만 하며, 어떤 권한도 빼앗지 않습니다.",
+      "appliesFrom": "포함된 모든 권한은 {role} 이상에 적용됩니다. 그보다 낮은 사람에게는 더 높은 역할이 필요한 권한이 적용되지 않습니다.",
+      "needsRole": "{role} 이상 필요",
+      "reasonNotHeld": "본인이 가진 권한만 추가할 수 있습니다."
     }
   },
   "Audit": {

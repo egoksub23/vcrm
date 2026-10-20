@@ -18,7 +18,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, Loader2, MessageCircle, Sparkles, Users } from 'lucide-react';
+import { Copy, Layers, Loader2, MessageCircle, Sparkles, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -43,7 +43,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
-import { customRolesBelow, rolesBelow, type AssignableCustomRole, type TeamRef } from '@/lib/teams/members';
+import { addonFullyApplies, customRolesBelow, rolesBelow, type AssignableAddonRole, type AssignableCustomRole, type TeamRef } from '@/lib/teams/members';
 import { cn } from '@/lib/utils';
 import type { Team } from '@/types';
 import { MultiSelectPopover } from './multi-select-popover';
@@ -65,6 +65,8 @@ interface CreatedInvite {
   role: InviteRole;
   /** Set when the invite carries a custom role instead of a plain one. */
   customRoleName: string | null;
+  /** Names of the add-on roles the invitation carries. */
+  addOnNames: string[];
   expiresInDays: number;
   teams: TeamRef[];
   /** Snapshotted so a later account rename cannot change the message. */
@@ -86,11 +88,14 @@ export function InviteDialog({
   onOpenChange,
   teams,
   customRoles = [],
+  addonRoles = [],
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teams: Team[];
+  /** The workspace's add-on roles (migration 191): extra permissions the new member is given on top of their role, when they accept. */
+  addonRoles?: AssignableAddonRole[];
   /** The account's custom roles, for the role picker (empty when the
    *  caller cannot see them — the picker then only offers built-ins). */
   customRoles?: AssignableCustomRole[];
@@ -121,6 +126,7 @@ export function InviteDialog({
   const [customRoleId, setCustomRoleId] = useState<string | null>(null);
   const chosenCustomRole = customRoleId ? customRoleOptions.find((r) => r.id === customRoleId) : undefined;
   const [teamIds, setTeamIds] = useState<string[]>([]);
+  const [addonIds, setAddonIds] = useState<string[]>([]);
   const [expiry, setExpiry] = useState<string>('7');
   const [label, setLabel] = useState('');
   const [email, setEmail] = useState('');
@@ -140,11 +146,24 @@ export function InviteDialog({
   // plain built-in selection.
   const effectiveRole: InviteRole = chosenCustomRole?.baseRole ?? role;
 
+  const addonOptions = useMemo(
+    () =>
+      addonRoles.map((a) => ({
+        id: a.id,
+        label: a.name,
+        // an add-on whose permissions need a higher role than the one picked: say so right in the list
+        hint: addonFullyApplies(a, effectiveRole) ? a.description : t('addOnNeedsRole', { role: tRoles(a.minBaseRole) }),
+      })),
+    [addonRoles, effectiveRole, t, tRoles],
+  );
+  const chosenAddons = addonRoles.filter((a) => addonIds.includes(a.id));
+
   function reset() {
     setMode('email');
     setRole('agent');
     setCustomRoleId(null);
     setTeamIds([]);
+    setAddonIds([]);
     setExpiry('7');
     setLabel('');
     setEmail('');
@@ -174,6 +193,7 @@ export function InviteDialog({
           expiresInDays: Number(expiry),
           label: trimmedLabel || undefined,
           teamIds,
+          addonRoleIds: addonIds,
           email: trimmedEmail || undefined,
         }),
       });
@@ -196,6 +216,7 @@ export function InviteDialog({
         url: data.url,
         role: effectiveRole,
         customRoleName: chosenCustomRole?.name ?? null,
+        addOnNames: chosenAddons.map((a) => a.name),
         expiresInDays: data.expiresInDays,
         teams: chosenTeams,
         accountName: account?.name ?? t('fallbackAccountName'),
@@ -261,6 +282,19 @@ export function InviteDialog({
             </DialogHeader>
 
             <div className="space-y-3 py-2">
+              {result.addOnNames.length > 0 && (
+                <div className="space-y-1.5" data-testid="invite-addons-result">
+                  <Label className="text-muted-foreground">{t('willGetAddOns')}</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {result.addOnNames.map((n) => (
+                      <span key={n} className="inline-flex items-center rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs text-foreground">
+                        {n}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {result.teams.length > 0 && (
                 <div className="space-y-1.5">
                   <Label className="text-muted-foreground">
@@ -432,6 +466,35 @@ export function InviteDialog({
                     : t('rolesBelowHint')}
                 </p>
               </div>
+
+              {addonRoles.length > 0 ? (
+                <div className="space-y-2" data-testid="invite-addons">
+                  <Label className="text-muted-foreground">
+                    {t('addOnRolesLabel')}{' '}
+                    <span className="text-xs text-muted-foreground">{t('optional')}</span>
+                  </Label>
+                  <MultiSelectPopover
+                    options={addonOptions}
+                    selected={addonIds}
+                    onChange={setAddonIds}
+                    label={t('pickAddOnRoles')}
+                    icon={<Layers className="size-3.5" />}
+                    searchPlaceholder={t('searchAddOnRoles')}
+                    emptyLabel={t('noAddOnRolesYet')}
+                    className="w-full"
+                  />
+                  {chosenAddons.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {chosenAddons.map((a) => (
+                        <span key={a.id} className="inline-flex items-center rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs text-foreground">
+                          {a.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">{t('addOnRolesHint')}</p>
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label className="text-muted-foreground" htmlFor="invite-email">

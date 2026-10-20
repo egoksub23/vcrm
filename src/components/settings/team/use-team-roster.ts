@@ -15,7 +15,8 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
 import { useCapability } from '@/hooks/use-auth';
-import type { AssignableCustomRole, RosterInvitation, RosterMember } from '@/lib/teams/members';
+import type { AddonRoleEntry } from '@/lib/auth/addon-roles';
+import type { AssignableAddonRole, AssignableCustomRole, RosterInvitation, RosterMember } from '@/lib/teams/members';
 import type { Team } from '@/types';
 
 export interface TeamRoster {
@@ -27,6 +28,10 @@ export interface TeamRoster {
   /** Same, per custom role id — a member's real count when they hold one. */
   customRoleCapabilityCounts: Record<string, number>;
   capabilityTotal: number;
+  /** For a member who holds add-on roles, how many permissions they really have (the base role's plus the add-ons'), by user id. */
+  effectiveCapabilityCounts: Record<string, number>;
+  /** The workspace's add-on roles (migration 191), for the member panel and the invite dialog. Empty for someone who can do neither. */
+  addonRoles: AssignableAddonRole[];
   /** The account's custom roles, for the role picker. Empty for a
    *  caller who cannot see them (fetch requires roles.manage) — the
    *  picker then just offers the 4 built-ins, same as before this
@@ -40,6 +45,7 @@ export function useTeamRoster(): TeamRoster {
   const t = useTranslations('Settings.team');
   const canInvite = useCapability('members.invite');
   const canSeeRoles = useCapability('roles.manage');
+  const canChangeRole = useCapability('members.change-role');
   const [members, setMembers] = useState<RosterMember[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [invitations, setInvitations] = useState<RosterInvitation[]>([]);
@@ -50,6 +56,8 @@ export function useTeamRoster(): TeamRoster {
     Record<string, number>
   >({});
   const [capabilityTotal, setCapabilityTotal] = useState(0);
+  const [effectiveCapabilityCounts, setEffectiveCapabilityCounts] = useState<Record<string, number>>({});
+  const [addonRoles, setAddonRoles] = useState<AssignableAddonRole[]>([]);
   const [customRoles, setCustomRoles] = useState<AssignableCustomRole[]>([]);
   const [loading, setLoading] = useState(true);
   const seq = useRef(0);
@@ -57,7 +65,7 @@ export function useTeamRoster(): TeamRoster {
   const reload = useCallback(async () => {
     const mine = ++seq.current;
     try {
-      const [mres, tres, ires, cres] = await Promise.all([
+      const [mres, tres, ires, cres, ares] = await Promise.all([
         fetch('/api/account/members', { cache: 'no-store' }),
         fetch('/api/account/teams', { cache: 'no-store' }),
         canInvite
@@ -65,6 +73,9 @@ export function useTeamRoster(): TeamRoster {
           : Promise.resolve(null),
         canSeeRoles
           ? fetch('/api/account/roles/custom', { cache: 'no-store' })
+          : Promise.resolve(null),
+        canChangeRole || canInvite
+          ? fetch('/api/account/roles/addons', { cache: 'no-store' })
           : Promise.resolve(null),
       ]);
       // A newer reload started while this one was in flight: drop this one.
@@ -79,9 +90,11 @@ export function useTeamRoster(): TeamRoster {
         members: RosterMember[];
         capabilityCounts?: Record<string, number>;
         customRoleCapabilityCounts?: Record<string, number>;
+        effectiveCapabilityCounts?: Record<string, number>;
         capabilityTotal?: number;
       };
       setMembers(mdata.members);
+      setEffectiveCapabilityCounts(mdata.effectiveCapabilityCounts ?? {});
       setCapabilityCounts(mdata.capabilityCounts ?? {});
       setCustomRoleCapabilityCounts(mdata.customRoleCapabilityCounts ?? {});
       setCapabilityTotal(mdata.capabilityTotal ?? 0);
@@ -93,6 +106,13 @@ export function useTeamRoster(): TeamRoster {
         setCustomRoles(cdata.roles.map((r) => ({ id: r.id, name: r.name, baseRole: r.baseRole })));
       } else if (cres) {
         setCustomRoles([]);
+      }
+
+      if (ares?.ok) {
+        const adata = (await ares.json()) as { addons: AddonRoleEntry[] };
+        setAddonRoles(adata.addons.map((a) => ({ id: a.id, name: a.name, description: a.description, minBaseRole: a.minBaseRole })));
+      } else if (ares) {
+        setAddonRoles([]);
       }
 
       if (tres.ok) {
@@ -125,7 +145,7 @@ export function useTeamRoster(): TeamRoster {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [canInvite, canSeeRoles, t]);
+  }, [canInvite, canSeeRoles, canChangeRole, t]);
 
   useEffect(() => {
     void reload();
@@ -138,6 +158,8 @@ export function useTeamRoster(): TeamRoster {
     capabilityCounts,
     customRoleCapabilityCounts,
     capabilityTotal,
+    effectiveCapabilityCounts,
+    addonRoles,
     customRoles,
     loading,
     reload,

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { CAPABILITIES, DEFAULT_CAPABILITIES } from "./capabilities";
+
 // getCurrentAccount resolves the caller's account context. The
 // regression this file guards (issue #294): account loading must NOT
 // depend on a PostgREST embedded FK join (`accounts!inner`), because a
@@ -266,8 +268,11 @@ type OverrideResult = { data: unknown; error: unknown };
 function makeCapabilityClient(opts: {
   role: "owner" | "admin" | "agent" | "viewer";
   overrides?: OverrideResult;
+  /** What `member_addon_roles` answers (migration 191): rows with the add-on role's capabilities embedded. */
+  addons?: OverrideResult;
 }) {
   const overridesQueries: [string, unknown][][] = [];
+  const addonQueries: [string, unknown][][] = [];
 
   const from = (table: string) => {
     const eqArgs: [string, unknown][] = [];
@@ -287,6 +292,10 @@ function makeCapabilityClient(opts: {
             : { data: { id: "acct-1", name: "Acme" }, error: null },
         ),
       then: (resolve: (v: OverrideResult) => unknown) => {
+        if (table === "member_addon_roles") {
+          addonQueries.push(eqArgs);
+          return resolve(opts.addons ?? { data: [], error: null });
+        }
         overridesQueries.push(eqArgs);
         return resolve(opts.overrides ?? { data: [], error: null });
       },
@@ -296,6 +305,7 @@ function makeCapabilityClient(opts: {
 
   return {
     overridesQueries,
+    addonQueries,
     client: {
       auth: {
         getUser: () =>
@@ -417,6 +427,118 @@ describe("requireCapability", () => {
     await loadCapabilities(ctx);
     await loadCapabilities(ctx);
     expect(overridesQueries).toHaveLength(1);
+  });
+});
+
+// ------------------------------------------------------------
+// Add-on roles (migration 191): a person's base set PLUS the add-ons' capabilities. Add-only, and never above the base tier's floor.
+// ------------------------------------------------------------
+// capabilities of a switched-off feature are removed from everybody, so a test cannot use them
+const FLAGGED_GROUPS = new Set<string>(["kyc", "compliance", "incidents", "sign"]);
+
+const addonRows = (...sets: string[][]) => ({
+  data: sets.map((caps) => ({ account_addon_roles: { account_addon_role_capabilities: caps.map((capability) => ({ capability })) } })),
+  error: null,
+});
+
+describe("add-on roles", () => {
+  it("add the capabilities an add-on names to what the base role holds", async () => {
+    const { client } = makeCapabilityClient({ role: "agent", addons: addonRows(["tags.manage", "channels.manage"]) });
+    createClient.mockReturnValue(client);
+    const ctx = await requireCapability("tags.manage");
+    expect(ctx.capabilities.has("channels.manage")).toBe(true);
+    // the base role's own capabilities are all still there
+    expect(ctx.capabilities.has("messages.send")).toBe(true);
+    // and an add-on gives nothing it does not name
+    expect(ctx.capabilities.has("roles.manage")).toBe(false);
+  });
+
+  it("without an add-on the same agent is refused", async () => {
+    const { client } = makeCapabilityClient({ role: "agent" });
+    createClient.mockReturnValue(client);
+    await expect(requireCapability("tags.manage")).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("add up: several add-on roles each give theirs", async () => {
+    const { client } = makeCapabilityClient({ role: "agent", addons: addonRows(["tags.manage"], ["channels.manage"]) });
+    createClient.mockReturnValue(client);
+    const ctx = await requireCapability("tags.manage");
+    expect(ctx.capabilities.has("channels.manage")).toBe(true);
+  });
+
+  it("never remove: an override that switched a capability off for the role still stands unless an add-on names it, and the rest is untouched", async () => {
+    const { client } = makeCapabilityClient({
+      role: "admin",
+      overrides: { data: [{ capability: "channels.manage", granted: false }], error: null },
+      addons: addonRows(["tags.manage"]),
+    });
+    createClient.mockReturnValue(client);
+    await expect(requireCapability("channels.manage")).rejects.toThrow("channels.manage");
+    createClient.mockReturnValue(client);
+    await expect(requireCapability("tags.manage")).resolves.toBeDefined();
+  });
+
+  it("cannot lift a person above their base tier: a viewer is not given a write capability, but is given one a viewer may hold", async () => {
+    // a capability a viewer may hold but does not by default, when the catalogue has one
+    const viewerMay = CAPABILITIES.find((c) => c.minGrantRole === "viewer" && !DEFAULT_CAPABILITIES.viewer.has(c.key) && !FLAGGED_GROUPS.has(c.group));
+    const { client } = makeCapabilityClient({ role: "viewer", addons: addonRows(["tags.manage", ...(viewerMay ? [viewerMay.key] : [])]) });
+    createClient.mockReturnValue(client);
+    await expect(requireCapability("tags.manage")).rejects.toBeInstanceOf(ForbiddenError);
+    if (viewerMay) {
+      createClient.mockReturnValue(client);
+      const ctx = await requireCapability(viewerMay.key);
+      expect(ctx.capabilities.has("tags.manage")).toBe(false);
+    }
+  });
+
+  it("ignore a capability that does not exist", async () => {
+    const { client } = makeCapabilityClient({ role: "agent", addons: addonRows(["not.a.capability"]) });
+    createClient.mockReturnValue(client);
+    const ctx = await requireCapability("messages.send");
+    expect(ctx.capabilities.has("not.a.capability")).toBe(false);
+  });
+
+  it("are read for this person in this workspace, once per context, and not at all for the owner", async () => {
+    const { client, addonQueries } = makeCapabilityClient({ role: "agent" });
+    createClient.mockReturnValue(client);
+    const ctx = await requireCapability("messages.send");
+    await loadCapabilities(ctx);
+    await loadCapabilities(ctx);
+    expect(addonQueries).toHaveLength(1);
+    expect(addonQueries[0]).toEqual([
+      ["user_id", "user-1"],
+      ["account_id", "acct-1"],
+    ]);
+    const owner = makeCapabilityClient({ role: "owner" });
+    createClient.mockReturnValue(owner.client);
+    await requireCapability("roles.manage");
+    expect(owner.addonQueries).toHaveLength(0);
+  });
+
+  it("fail closed when they cannot be read, but a missing table (191 not applied yet) means there are none", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const broken = makeCapabilityClient({ role: "agent", addons: { data: null, error: { code: "XX000", message: "boom" } } });
+    createClient.mockReturnValue(broken.client);
+    const err = await requireCapability("messages.send").catch((e) => e);
+    expect(err).toBeInstanceOf(ForbiddenError);
+    expect(err.message).toBe("Could not load permissions");
+    for (const code of ["42P01", "PGRST205"]) {
+      const { client } = makeCapabilityClient({ role: "agent", addons: { data: null, error: { code, message: "no table" } } });
+      createClient.mockReturnValue(client);
+      await expect(requireCapability("messages.send")).resolves.toBeDefined();
+      createClient.mockReturnValue(client);
+      await expect(requireCapability("tags.manage")).rejects.toBeInstanceOf(ForbiddenError);
+    }
+  });
+
+  it("are read in whichever shape PostgREST embeds them (one object, or a list)", async () => {
+    const one = { data: [{ account_addon_roles: { account_addon_role_capabilities: [{ capability: "tags.manage" }] } }], error: null };
+    const many = { data: [{ account_addon_roles: [{ account_addon_role_capabilities: [{ capability: "tags.manage" }] }] }], error: null };
+    for (const addons of [one, many]) {
+      const { client } = makeCapabilityClient({ role: "agent", addons });
+      createClient.mockReturnValue(client);
+      await expect(requireCapability("tags.manage")).resolves.toBeDefined();
+    }
   });
 });
 

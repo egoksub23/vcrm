@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   CAPABILITIES,
   CAPABILITY_GROUPS,
+  addonCapabilitiesFor,
+  addonMinBaseRole,
+  withAddonCapabilities,
   DEFAULT_CAPABILITIES,
   LEGACY_CAN_ACTIONS,
   MENU_CAPABILITIES,
@@ -537,5 +540,47 @@ describe("Compliance requests capabilities (migration 183)", () => {
     expect(capabilityI18nId("menu.compliance")).toBe("menu_compliance");
     expect(capabilityI18nId("compliance.approve")).toBe("compliance_approve");
     expect(capabilityI18nId("compliance.reveal")).toBe("compliance_reveal");
+  });
+});
+
+// Add-on roles (migration 191): the pure rule the server and the screens share, mirrored in SQL by addon_grants_capability().
+describe("add-on roles", () => {
+  it("give a capability only when the base tier is high enough for it: the same floor a custom role has", () => {
+    for (const cap of CAPABILITIES) {
+      for (const role of ACCOUNT_ROLES) {
+        const granted = addonCapabilitiesFor(role, [cap.key]).has(cap.key);
+        expect(granted, `${role} / ${cap.key}`).toBe(roleRank(role) >= roleRank(cap.minGrantRole));
+      }
+    }
+  });
+
+  it("never give a viewer a capability that writes data, and always give the owner any", () => {
+    expect(addonCapabilitiesFor("viewer", ["kyc.decide"]).size).toBe(0);
+    expect(addonCapabilitiesFor("agent", ["kyc.decide"]).has("kyc.decide")).toBe(true);
+    expect(addonCapabilitiesFor("owner", ["kyc.decide"]).has("kyc.decide")).toBe(true);
+  });
+
+  it("ignore a key that is not in the catalogue", () => {
+    expect(addonCapabilitiesFor("admin", ["not.a.capability", "kyc.decide"])).toEqual(new Set(["kyc.decide"]));
+  });
+
+  it("only ADD: every capability of the base set is still there, and the base set is not changed", () => {
+    const base = resolveCapabilities("agent");
+    const before = new Set(base);
+    const out = withAddonCapabilities(base, "agent", ["kyc.decide", "compliance.review"]);
+    for (const cap of before) expect(out.has(cap), cap).toBe(true);
+    expect(out.has("kyc.decide")).toBe(true);
+    expect(out.has("compliance.review")).toBe(true);
+    expect(base).toEqual(before);
+    expect(withAddonCapabilities(base, "agent", [])).toEqual(before);
+  });
+
+  it("name the lowest base tier at which every capability in a set applies", () => {
+    expect(addonMinBaseRole([])).toBe("viewer");
+    expect(addonMinBaseRole(["menu.inbox"])).toBe("viewer");
+    expect(addonMinBaseRole(["menu.kyc", "kyc.view", "kyc.decide"])).toBe("agent");
+    for (const cap of CAPABILITIES) expect(roleRank(addonMinBaseRole([cap.key]))).toBe(Math.max(roleRank("viewer"), roleRank(cap.minGrantRole)));
+    // an unknown key does not raise it
+    expect(addonMinBaseRole(["not.a.capability"])).toBe("viewer");
   });
 });

@@ -2436,7 +2436,9 @@
         "none": "无团队",
         "more": "+{count}",
         "showAll": "显示全部 {count} 个团队",
-        "allTeams": "全部 {count, plural, =1 {# 个团队} other {# 个团队}}"
+        "allTeams": "全部 {count, plural, =1 {# 个团队} other {# 个团队}}",
+        "noAddOns": "无附加角色",
+        "addOnsMore": "+{count}"
       },
       "members": {
         "searchPlaceholder": "搜索姓名或邮箱",
@@ -2537,7 +2539,18 @@
         "openConversations": "待处理对话",
         "openTickets": "待处理工单",
         "remove": "移除成员",
-        "networkError": "无法连接到服务器"
+        "networkError": "无法连接到服务器",
+        "addOnRoles": "附加角色",
+        "addOnRolesHint": "在基础角色之上的额外权限。只增加，不收回。",
+        "editAddOnRoles": "选择附加角色...",
+        "searchAddOnRoles": "搜索附加角色...",
+        "noAddOnRolesYet": "还没有附加角色。请在“角色与权限”中创建。",
+        "addOnRolesFailed": "无法更新附加角色，请重试。",
+        "addOnRolesUpdated": "已更新 {name} 的附加角色",
+        "addOnRolesReadOnly": "您无法更改此人的附加角色。",
+        "addOnNeedsRole": "需要{role}或以上",
+        "addOnPartial": "“{name}”中的部分权限需要{role}或以上角色，因此对此人不生效。",
+        "accessSummaryWithAddOns": "{role}加 {count, plural, =1 {# 个附加角色} other {# 个附加角色}}：已启用 {enabled} / {total} 项功能。"
       },
       "remove": {
         "title": "移除成员",
@@ -2660,7 +2673,14 @@
         "emailSentHint": "邀请邮件刚刚已发送至 <bold>{email}</bold>。",
         "emailSendFailedHint": "无法发送邀请邮件。请复制下方链接并自行分享。",
         "emailNotConfiguredHint": "此服务器尚未设置邮件发送。请复制下方链接并自行分享。",
-        "linkFallbackHint": "请改为将此链接分享给对方。"
+        "linkFallbackHint": "请改为将此链接分享给对方。",
+        "addOnRolesLabel": "附加角色",
+        "pickAddOnRoles": "选择附加角色...",
+        "searchAddOnRoles": "搜索附加角色...",
+        "noAddOnRolesYet": "暂无附加角色",
+        "addOnRolesHint": "对方接受邀请时，在其角色之上授予。只增加权限。",
+        "addOnNeedsRole": "需要{role}或以上",
+        "willGetAddOns": "对方还将获得这些附加角色"
       }
     },
     "invite": {
@@ -6381,7 +6401,8 @@
       "people": "人员",
       "sign": "Secure Sign",
       "kyc": "KYC 审核",
-      "compliance": "合规请求"
+      "compliance": "合规请求",
+      "incidents": "事件"
     },
     "preset": {
       "support-manager": {
@@ -6554,6 +6575,39 @@
       "peopleFailed": "无法加载人员列表。",
       "nobody": "目前没有人拥有此权限。",
       "unnamed": "未命名"
+    },
+    "addons": {
+      "tab": "附加角色",
+      "sectionTitle": "附加角色",
+      "sectionDescription": "在某人基础角色之上额外授予的权限。附加角色只增加权限，不会收回任何权限，一个人可以拥有多个。",
+      "newRole": "新建附加角色",
+      "empty": "还没有附加角色。可为需要额外权限的工作创建一个，例如审核身份证件检查。",
+      "memberCount": "{count, plural, other {# 人拥有}}",
+      "permissionCount": "{count, plural, other {# 项权限}}",
+      "loadFailed": "无法加载附加角色。",
+      "retry": "重试",
+      "newRoleTitle": "新建附加角色",
+      "newRoleDescription": "先命名，然后在下一屏选择它增加哪些权限。您只能添加自己已拥有的权限。",
+      "nameLabel": "名称",
+      "namePlaceholder": "例如：KYC 审核员",
+      "descriptionLabel": "描述（可选）",
+      "descriptionPlaceholder": "此角色的用途",
+      "nameRequired": "请为角色命名",
+      "createFailed": "无法创建此附加角色，请重试。",
+      "created": "已创建“{name}”。请选择它增加哪些权限。",
+      "cancel": "取消",
+      "create": "创建附加角色",
+      "saved": "已保存“{name}”",
+      "saveFailed": "无法保存此附加角色，请重试。",
+      "delete": "删除",
+      "deleteConfirmWithMembers": "删除“{name}”？{count, plural, =1 {# 个人将失去} other {# 个人将失去}}它所授予的权限。他们的基础角色不变。",
+      "deleteConfirmBody": "删除“{name}”？此操作无法撤销。",
+      "deleteFailed": "无法删除此附加角色，请重试。",
+      "deleted": "附加角色已删除",
+      "onlyAdds": "附加角色只会在某人的基础角色之上增加权限，不会收回任何权限。",
+      "appliesFrom": "其中的所有权限适用于{role}及以上；对更低角色的人，需要更高角色的权限不会生效。",
+      "needsRole": "需要{role}或以上",
+      "reasonNotHeld": "您只能添加自己已拥有的权限。"
     }
   },
   "Audit": {

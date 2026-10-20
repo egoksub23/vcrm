@@ -9,6 +9,22 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.98.0] — 2026-10-20
+
+**Migration required: `191_addon_roles.sql`.** Apply it **before** the new code is deployed (the app reads its tables).
+
+### Added
+
+- **Add-on roles.** A person keeps ONE base role, as now, and can be given any number of **add-on roles** on top: named sets of extra permissions, for example "KYC reviewer" or "Compliance". What they can do is their role's permissions **plus** every add-on's. An add-on **only adds**; nothing in it takes a permission away. Make them under **Settings → Roles & permissions → Add-on roles**, give them from a person's panel in **Settings → Team** or choose them in the invitation (the person gets them when they accept). The Team list shows them beside the role, and the member panel's access summary counts them.
+  - An add-on cannot lift a person above their role: a permission that writes data is never given to a Viewer. The editor says which permissions need Agent or above, and the member panel says when part of an add-on does not apply to that person.
+  - Nobody can give more than they hold: a permission goes into an add-on, and an add-on is given to someone (or carried by an invitation), only by a person who holds every permission in it. Making and editing needs **Manage roles**; giving needs **Change member roles**, an admin rank and a person below you; never the owner, never yourself.
+  - Every change is in the audit log; deleting an add-on or removing someone from the workspace takes it away.
+  - One function now answers "does this person hold this permission" for the row-level policies, the app, Compliance and the people who are notified (approvals, a raised incident, an incident escalation), and the verify script proves they agree on every permission. See `docs/add-on-roles.md`.
+
+### Fixed
+
+- **The Roles & permissions screen showed the raw text `Permissions.group.incidents`** as the heading of the Incidents group of permissions. It now says Incidents (Insiden, 事件, 인시던트).
+
 ## [0.97.4] — 2026-10-20
 
 **Migration required: `190_invite_accept_purge_flag.sql`.** Apply it before the new code is deployed (it changes one database function and nothing else; there is no app change in this release).

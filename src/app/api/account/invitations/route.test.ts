@@ -257,3 +257,40 @@ describe('POST /api/account/invitations — email delivery', () => {
     expect(body.url).toContain('/join/')
   })
 })
+
+// Add-on roles (migration 191): an invitation may carry them; the database trigger keeps only this workspace's and refuses one the inviter cannot give.
+describe('POST /api/account/invitations with add-on roles', () => {
+  const ADDON_A = '33333333-3333-4333-8333-333333333333'
+  const ADDON_B = '44444444-4444-4444-8444-444444444444'
+
+  it('stores the add-on role ids on the invitation, each once, and carries none by default', async () => {
+    h.requireCapability.mockResolvedValue(ctx('admin'))
+    await post('agent', { addonRoleIds: [ADDON_A.toUpperCase(), ADDON_B, ADDON_A] })
+    expect(h.insert.mock.calls[0][0]).toMatchObject({ addon_role_ids: [ADDON_A, ADDON_B] })
+    h.requireCapability.mockResolvedValue(ctx('admin'))
+    await post('agent')
+    expect(h.insert.mock.calls[1][0]).toMatchObject({ addon_role_ids: [] })
+  })
+
+  it('refuses something that is not a list of role ids, with a 400 before anything is inserted', async () => {
+    for (const addonRoleIds of ['x', ['nope'], [1], Array.from({ length: 51 }, () => ADDON_A)]) {
+      h.requireCapability.mockResolvedValue(ctx('admin'))
+      expect((await post('agent', { addonRoleIds })).status, JSON.stringify(addonRoleIds)).toBe(400)
+    }
+    expect(h.insert).not.toHaveBeenCalled()
+  })
+
+  it("passes the database's refusal on in its own words: 403 for an add-on the inviter cannot give, 400 for another workspace's role", async () => {
+    for (const [code, status, message] of [
+      ['42501', 403, "You cannot invite with an add-on role that includes 'kyc.decide', which you do not hold yourself"],
+      ['22023', 400, 'Role not found'],
+    ] as const) {
+      const c = ctx('admin')
+      h.requireCapability.mockResolvedValue(c)
+      h.insert.mockReturnValue({ select: () => ({ single: async () => ({ data: null, error: { code, message } }) }) })
+      const res = await post('agent', { addonRoleIds: [ADDON_A] })
+      expect(res.status).toBe(status)
+      expect((await res.json()).error).toBe(message)
+    }
+  })
+})

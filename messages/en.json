@@ -2436,7 +2436,9 @@
         "none": "No teams",
         "more": "+{count}",
         "showAll": "Show all {count} teams",
-        "allTeams": "All {count, plural, =1 {# team} other {# teams}}"
+        "allTeams": "All {count, plural, =1 {# team} other {# teams}}",
+        "noAddOns": "No add-on roles",
+        "addOnsMore": "+{count}"
       },
       "members": {
         "searchPlaceholder": "Search name or email",
@@ -2537,7 +2539,18 @@
         "openConversations": "Open conversations",
         "openTickets": "Open tickets",
         "remove": "Remove member",
-        "networkError": "Could not reach the server"
+        "networkError": "Could not reach the server",
+        "addOnRoles": "Add-on roles",
+        "addOnRolesHint": "Extra permissions on top of their base role. They only add; nothing is taken away.",
+        "editAddOnRoles": "Choose add-on roles...",
+        "searchAddOnRoles": "Search add-on roles...",
+        "noAddOnRolesYet": "No add-on roles yet. Make one under Roles & permissions.",
+        "addOnRolesFailed": "Could not update the add-on roles. Please try again.",
+        "addOnRolesUpdated": "Add-on roles updated for {name}",
+        "addOnRolesReadOnly": "You cannot change this person's add-on roles.",
+        "addOnNeedsRole": "Needs {role} or above",
+        "addOnPartial": "Some permissions in \"{name}\" need the {role} role or above, so they do not apply to this person.",
+        "accessSummaryWithAddOns": "{role} plus {count, plural, =1 {# add-on role} other {# add-on roles}}: {enabled} of {total} capabilities enabled."
       },
       "remove": {
         "title": "Remove member",
@@ -2660,7 +2673,14 @@
         "emailSentHint": "An invite email was just sent to <bold>{email}</bold>.",
         "emailSendFailedHint": "Couldn't send the invite email. Copy the link below and share it yourself.",
         "emailNotConfiguredHint": "Email delivery isn't set up on this server. Copy the link below and share it yourself.",
-        "linkFallbackHint": "Share this link with them instead."
+        "linkFallbackHint": "Share this link with them instead.",
+        "addOnRolesLabel": "Add-on roles",
+        "pickAddOnRoles": "Choose add-on roles...",
+        "searchAddOnRoles": "Search add-on roles...",
+        "noAddOnRolesYet": "No add-on roles yet",
+        "addOnRolesHint": "Given when they accept, on top of their role. They only add permissions.",
+        "addOnNeedsRole": "Needs {role} or above",
+        "willGetAddOns": "They will also get these add-on roles"
       }
     },
     "invite": {
@@ -7110,7 +7130,8 @@
       "people": "People",
       "sign": "Secure Sign",
       "kyc": "KYC review",
-      "compliance": "Compliance requests"
+      "compliance": "Compliance requests",
+      "incidents": "Incidents"
     },
     "preset": {
       "support-manager": {
@@ -7283,6 +7304,39 @@
       "peopleFailed": "Could not load the list of people.",
       "nobody": "Nobody currently has this capability.",
       "unnamed": "Unnamed"
+    },
+    "addons": {
+      "tab": "Add-on roles",
+      "sectionTitle": "Add-on roles",
+      "sectionDescription": "Extra permissions you give a person on top of their base role. An add-on only adds; it never takes anything away, and a person can have several.",
+      "newRole": "New add-on role",
+      "empty": "No add-on roles yet. Make one for a job that needs a few extra permissions, such as reviewing ID checks.",
+      "memberCount": "{count, plural, one {# person has it} other {# people have it}}",
+      "permissionCount": "{count, plural, one {# permission} other {# permissions}}",
+      "loadFailed": "Could not load the add-on roles.",
+      "retry": "Try again",
+      "newRoleTitle": "New add-on role",
+      "newRoleDescription": "Name it now and choose what it adds on the next screen. You can only add permissions you hold yourself.",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. KYC reviewer",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "What this role is for",
+      "nameRequired": "Give the role a name",
+      "createFailed": "Could not create this add-on role. Please try again.",
+      "created": "\"{name}\" created. Choose what it adds.",
+      "cancel": "Cancel",
+      "create": "Create add-on role",
+      "saved": "\"{name}\" saved",
+      "saveFailed": "Could not save this add-on role. Please try again.",
+      "delete": "Delete",
+      "deleteConfirmWithMembers": "Delete \"{name}\"? {count, plural, =1 {# person loses} other {# people lose}} what it gives them. Their base role does not change.",
+      "deleteConfirmBody": "Delete \"{name}\"? This cannot be undone.",
+      "deleteFailed": "Could not delete this add-on role. Please try again.",
+      "deleted": "Add-on role deleted",
+      "onlyAdds": "An add-on only adds permissions to a person's base role. It never takes any away.",
+      "appliesFrom": "Everything in it applies to {role} and above; for someone below that, the permissions that need more have no effect.",
+      "needsRole": "Needs {role} or above",
+      "reasonNotHeld": "You can only add a permission that you hold yourself."
     }
   },
   "Audit": {

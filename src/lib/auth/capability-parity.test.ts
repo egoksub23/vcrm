@@ -123,6 +123,8 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("account/members/[userId]", "PATCH", "admin", "members.change-role"),
   row("account/members/[userId]", "DELETE", "admin", "members.remove"),
   row("account/members/[userId]/remove", "POST", "admin", "members.remove"),
+  // add-on roles (migration 191): giving a member their add-on roles is changing their roles
+  row("account/members/[userId]/addons", "PUT", "admin", "members.change-role"),
   row("account/members/[userId]/teams", "PUT", "admin", "teams.manage"),
   row("account/members/bulk-teams", "POST", "admin", "teams.manage"),
   row("account/teams", "POST", "admin", "teams.manage"),

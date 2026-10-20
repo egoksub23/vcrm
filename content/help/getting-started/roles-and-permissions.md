@@ -2,7 +2,7 @@
 title: Roles and permissions
 description: What you can and cannot do by default as an agent, why a button or menu can be missing, and who to ask.
 order: 3
-updated: 2026-09-21
+updated: 2026-10-20
 ---
 
 Everyone in Halo has a role. Your role decides which screens you see and which buttons you can use. This page explains what that means for you.
@@ -56,6 +56,16 @@ A **Viewer** can open the menus they are given and the Reports page, and nothing
 | The sidebar is empty for a moment after you open the app | Your permissions are still loading. Wait a second. |
 | A message "Could not load your permissions" with a **Retry** button | Halo could not read your role, so it treats you as read-only until it can. Check your connection and press **Retry**. |
 | A message "This user is not linked to an account" | Your login is not attached to a workspace. Ask the owner to send the invitation again. |
+
+## Add-on roles: extra permissions on top of your role
+
+You have **one** role, and your admin may also give you one or more **add-on roles**. An add-on role is a small, named set of extra permissions for a particular job, for example "KYC reviewer" or "Compliance". It **only adds**. Nothing in it takes a permission away, and your own role does not change. What you can do is your role's permissions **plus** everything your add-on roles give.
+
+- Your add-on roles are shown next to your role in **Settings → Team**.
+- An add-on cannot lift you above your role. A permission that changes data is not given to a **Viewer**, even when an add-on contains it. If you hold an add-on and a button for it is still missing, ask your admin whether your base role is high enough.
+- If someone removes an add-on from you, or deletes it, you lose what it gave you the next time a page loads. Your role stays as it was.
+
+**For admins.** Make add-on roles under **Settings → Roles & permissions → Add-on roles**: name it, then switch on what it gives. You can only add a permission that you hold yourself. Give them to a person from their panel in **Settings → Team** ("Add-on roles"), or choose them in the invitation so the person gets them when they accept. You need the **Manage roles** permission to make or edit them and the **Change member roles** permission to give them, and you can only change people whose role is below yours.
 
 ## Who to ask
 

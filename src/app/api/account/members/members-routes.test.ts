@@ -107,6 +107,52 @@ describe('GET /api/account/members', () => {
   })
 })
 
+describe('GET /api/account/members: add-on roles (migration 191)', () => {
+  const rows = (table: string) => {
+    const data: Record<string, unknown[]> = {
+      member_addon_roles: [
+        { user_id: U1, addon_role_id: 'ad-2', account_addon_roles: { name: 'Reports', account_addon_role_capabilities: [{ capability: 'reports.view' }] } },
+        { user_id: U1, addon_role_id: 'ad-1', account_addon_roles: { name: 'Ticket worker', account_addon_role_capabilities: [{ capability: 'tags.manage' }, { capability: 'channels.manage' }] } },
+      ],
+    }
+    return { select: () => ({ eq: async () => ({ data: data[table] ?? [], error: null }) }) }
+  }
+  const roster = [
+    { user_id: U1, full_name: 'Ana', role: 'agent', joined_at: '2026-01-01T00:00:00Z', teams: [] },
+    { user_id: U2, full_name: 'Ben', role: 'agent', joined_at: '2026-01-01T00:00:00Z', teams: [] },
+  ]
+
+  it("lists each person's add-ons by name, and corrects the count only for people who hold some", async () => {
+    h.getCurrentAccount.mockResolvedValue(ctx())
+    h.from.mockImplementation(rows)
+    h.rpc.mockResolvedValue({ data: roster, error: null })
+    const body = await (await GET()).json()
+    const ana = body.members.find((m: { user_id: string }) => m.user_id === U1)
+    const ben = body.members.find((m: { user_id: string }) => m.user_id === U2)
+    expect(ana.addon_roles).toEqual([{ id: 'ad-2', name: 'Reports' }, { id: 'ad-1', name: 'Ticket worker' }].sort((x, y) => x.name.localeCompare(y.name)))
+    expect(ben.addon_roles).toEqual([])
+    // a plain agent's count is the base role's; Ana's is the agent set plus what her add-ons add (the base tier allows each of them)
+    expect(body.effectiveCapabilityCounts[U2]).toBeUndefined()
+    expect(body.effectiveCapabilityCounts[U1]).toBeGreaterThan(body.capabilityCounts.agent)
+    expect(body.effectiveCapabilityCounts[U1]).toBeLessThanOrEqual(body.capabilityCounts.agent + 3)
+  })
+
+  it('still answers when the add-on roles cannot be read (an older database): nobody has any', async () => {
+    h.getCurrentAccount.mockResolvedValue(ctx())
+    h.from.mockImplementation((table: string) =>
+      table === 'member_addon_roles'
+        ? { select: () => ({ eq: async () => ({ data: null, error: { code: '42P01', message: 'no table' } }) }) }
+        : rows(table),
+    )
+    h.rpc.mockResolvedValue({ data: roster, error: null })
+    const res = await GET()
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.members.every((m: { addon_roles: unknown[] }) => m.addon_roles.length === 0)).toBe(true)
+    expect(body.effectiveCapabilityCounts).toEqual({})
+  })
+})
+
 describe('POST /api/account/members/[userId]/remove', () => {
   it('needs members.remove', async () => {
     h.requireCapability.mockResolvedValue(ctx())

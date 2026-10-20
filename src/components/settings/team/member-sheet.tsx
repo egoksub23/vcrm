@@ -5,6 +5,7 @@
 //
 //   Role          dropdown limited to roles strictly below the caller's;
 //                 disabled with a tooltip that says why otherwise
+//   Add-on roles  multi-select of the workspace's add-on roles (migration 191); they only ADD to the base role; every change saved immediately
 //   Teams         multi-select, every change saved immediately
 //   Access        how many capabilities their role holds + link to
 //                 Roles & permissions
@@ -18,6 +19,7 @@ import { toast } from 'sonner';
 import {
   ExternalLink,
   Inbox,
+  Layers,
   Loader2,
   ShieldCheck,
   Ticket,
@@ -51,11 +53,13 @@ import {
 import { useAuth, useCapability } from '@/hooks/use-auth';
 import type { AccountRole } from '@/lib/auth/roles';
 import {
+  addonFullyApplies,
   canActOnMember,
   customRolesBelow,
   rolesBelow,
   type RosterMember,
 } from '@/lib/teams/members';
+import { AddonRoleChips } from './addon-role-chips';
 import { MemberAvatar, RoleLozenge } from './member-parts';
 import { MultiSelectPopover } from './multi-select-popover';
 import { TeamChips } from './team-chips';
@@ -126,8 +130,11 @@ function MemberPanel({
   // lands); null means "show what the server said".
   const [optimisticTeams, setOptimisticTeams] = useState<string[] | null>(null);
   const [savingTeams, setSavingTeams] = useState(false);
+  // Add-on role ids while a save is in flight (null = show what the server said), the same way as the teams.
+  const [optimisticAddons, setOptimisticAddons] = useState<string[] | null>(null);
+  const [savingAddons, setSavingAddons] = useState(false);
 
-  const { teams, capabilityCounts, customRoleCapabilityCounts, capabilityTotal, customRoles, reload } = roster;
+  const { teams, capabilityCounts, customRoleCapabilityCounts, effectiveCapabilityCounts, addonRoles, capabilityTotal, customRoles, reload } = roster;
 
   const isSelf = member.user_id === user?.id;
   const acting = canActOnMember(accountRole, user?.id, member);
@@ -155,6 +162,41 @@ function MemberPanel({
     .filter((tm) => teamIds.includes(tm.id))
     .map((tm) => ({ id: tm.id, name: tm.name, color: tm.color }));
   const name = member.full_name || member.email || t('unnamed');
+
+  // Add-on roles: who may change them is the same as who may change a role (and the owner never needs them).
+  const addonEditable = canChangeRole && acting && member.role !== 'owner';
+  const addonIds = optimisticAddons ?? (member.addon_roles ?? []).map((a) => a.id);
+  const shownAddons = addonRoles.filter((a) => addonIds.includes(a.id)).map((a) => ({ id: a.id, name: a.name }));
+  // add-ons the person holds whose permissions are only partly effective at their base role
+  const partialAddons = addonRoles.filter((a) => addonIds.includes(a.id) && !addonFullyApplies(a, member.role));
+
+  async function saveAddons(next: string[]) {
+    if (savingAddons) return;
+    setOptimisticAddons(next);
+    setSavingAddons(true);
+    try {
+      const res = await fetch(`/api/account/members/${member.user_id}/addons`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addonRoleIds: next }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        toast.error(payload.error || t('addOnRolesFailed'));
+        setOptimisticAddons(null);
+        return;
+      }
+      toast.success(t('addOnRolesUpdated', { name }));
+      await reload();
+      setOptimisticAddons(null);
+    } catch (err) {
+      console.error('[MemberSheet] add-on roles save error:', err);
+      toast.error(t('networkError'));
+      setOptimisticAddons(null);
+    } finally {
+      setSavingAddons(false);
+    }
+  }
 
   async function changeRole(value: string) {
     if (savingRole) return;
@@ -228,9 +270,13 @@ function MemberPanel({
     }
   }
 
-  const enabled = member.custom_role_id
-    ? customRoleCapabilityCounts[member.custom_role_id]
-    : capabilityCounts[member.role];
+  // With add-on roles the count is the base set plus theirs (the members route sends it for those people only); otherwise the base role's.
+  const withAddons = shownAddons.length > 0 && effectiveCapabilityCounts?.[member.user_id] !== undefined && optimisticAddons === null;
+  const enabled = withAddons
+    ? effectiveCapabilityCounts[member.user_id]
+    : member.custom_role_id
+      ? customRoleCapabilityCounts[member.custom_role_id]
+      : capabilityCounts[member.role];
   const joined = new Date(member.joined_at).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
@@ -323,6 +369,44 @@ function MemberPanel({
           </p>
         </section>
 
+        {/* Add-on roles */}
+        {addonRoles.length > 0 || shownAddons.length > 0 ? (
+          <section className="space-y-2" data-section="addon-roles">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <Layers className="size-3.5 text-muted-foreground" aria-hidden />
+                {t('addOnRoles')}
+              </h3>
+              {savingAddons && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+            </div>
+            <AddonRoleChips addons={shownAddons} />
+            {addonEditable ? (
+              <MultiSelectPopover
+                options={addonRoles.map((a) => ({
+                  id: a.id,
+                  label: a.name,
+                  hint: addonFullyApplies(a, member.role) ? a.description : t('addOnNeedsRole', { role: tRoles(a.minBaseRole) }),
+                }))}
+                selected={addonIds}
+                onChange={saveAddons}
+                disabled={savingAddons}
+                label={t('editAddOnRoles')}
+                searchPlaceholder={t('searchAddOnRoles')}
+                emptyLabel={t('noAddOnRolesYet')}
+                className="w-full"
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('addOnRolesReadOnly')}</p>
+            )}
+            <p className="text-xs text-muted-foreground">{t('addOnRolesHint')}</p>
+            {partialAddons.map((a) => (
+              <p key={a.id} className="text-xs text-muted-foreground" role="note">
+                {t('addOnPartial', { name: a.name, role: tRoles(a.minBaseRole) })}
+              </p>
+            ))}
+          </section>
+        ) : null}
+
         {/* Teams */}
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -362,11 +446,18 @@ function MemberPanel({
             <div className="min-w-0 flex-1 text-sm">
               <p className="text-foreground">
                 {enabled !== undefined && capabilityTotal > 0
-                  ? t('accessSummary', {
-                      role: shownLabel,
-                      enabled,
-                      total: capabilityTotal,
-                    })
+                  ? withAddons
+                    ? t('accessSummaryWithAddOns', {
+                        role: shownLabel,
+                        count: shownAddons.length,
+                        enabled,
+                        total: capabilityTotal,
+                      })
+                    : t('accessSummary', {
+                        role: shownLabel,
+                        enabled,
+                        total: capabilityTotal,
+                      })
                   : t('accessUnknown', { role: shownLabel })}
               </p>
               {canSeeRoles ? (
