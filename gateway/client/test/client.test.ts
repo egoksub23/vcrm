@@ -236,7 +236,7 @@ describe('staying connected', () => {
       getSession: async () => {
         if (first) {
           first = false
-          return { token: 'vcs_not_a_real_token', wsPath: '/ws' }
+          return { token: 'vcn_not_a_real_token', wsPath: '/ws' }
         }
         const s = await h.session({ wallet_id: 'W-refused' })
         return { token: s.token, wsPath: '/ws' }

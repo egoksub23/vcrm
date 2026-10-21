@@ -72,6 +72,8 @@ what you use to see a chat working before the app exists.
 - Done: Halo's send now carries the contact's name, phone and email (contract 1.1), so the gateway can name the
   recipient to the push API even for a user who has never opened the chat.
 - Nothing else changes: `delivery` is shown as "sent" whatever the gateway answered.
+- Planned (contract 1.3, work package 9): a signed read endpoint for earlier messages (contract section 3.5) and a "history limit" setting
+  on the Vircle Chat channel (90 days by default).
 
 ## 6. Plan and effort
 
@@ -89,6 +91,7 @@ One engineer working alone. Days are working days.
 | 7 | Deployment, TLS hostname, backups, load test (a thousand idle connections and a burst), runbook. **Done 3 Oct 2026** (`vircle-chat-gateway-loadtest.md`, `vircle-chat-gateway-runbook.md`); the backup scripts and Docker/nginx settings still need their first run on the server | 3 |
 | | **Total** | **about 22 days, 4 to 6 weeks with review and fixes** |
 | 8 | Real push API adapter, once you provide the details | 1 to 2 |
+| 9 | **Older history on demand** (owner's requirement, 21 Oct 2026: scroll up like WhatsApp, up to 90 days from Halo, kept on the phone, Clear chat). Halo read endpoint and setting (2), gateway `history` frame, pass-through, file re-serving and rate limit (3), client library 1.1.0: `loadOlder`, database store, `clearChat` (2.5), simulator scroll-up and Clear chat with scenarios (1), tests and documents (0.5). The app side is tasks 13 and 14 of the app design document | about 9 |
 
 You can try the first useful milestone after step 3 (about 2.5 weeks): the simulator-less version, driven by
 the mock script, with a real chat between Halo and a scripted phone.
@@ -105,7 +108,8 @@ the mock script, with a real chat between Halo and a scripted phone.
    to buy or operate.
 4. **Your backend developer**: one small call, "when a signed-in user opens the chat, ask the gateway for a
    session" (about half a day on their side, with a sample I will write).
-5. **Retention**: how long the gateway keeps messages after delivery (default 30 days).
+5. **Retention**: how long the gateway keeps messages after delivery (default 30 days). This only bounds the relay: once work package 9 is
+   built, earlier messages (up to 90 days) come from Halo as the user scrolls up.
 6. **Go-ahead**, and your reading on the 4 to 6 week range.
 
 ## 8. Not in this scope

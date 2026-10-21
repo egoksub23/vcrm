@@ -1,6 +1,6 @@
 # Vircle Chat: contract between Halo and the chat gateway
 
-Version 1.2 draft, 3 October 2026 (1.1: push is the gateway's job, not Halo's; Halo's send also carries the contact's name, phone and email. 1.2: files in both directions, replies that quote a message, "read" ticks back to the app, and typing indicators in both directions: all additions, nothing from 1.1 changed). Phase 0 of the Vircle Chat plan (`docs/vircle-chat-design.docx`).
+Version 1.3 draft, 21 October 2026 (1.3: older history on demand, a signed read from the gateway to Halo, section 3.5: an addition, nothing changed; 1.1: push is the gateway's job, not Halo's; Halo's send also carries the contact's name, phone and email. 1.2: files in both directions, replies that quote a message, "read" ticks back to the app, and typing indicators in both directions: all additions, nothing from 1.1 changed). Phase 0 of the Vircle Chat plan (`docs/vircle-chat-design.docx`).
 This is what the Halo team and the gateway team agree **before** either writes code. Everything is plain
 HTTPS with JSON, so each side can build and test against the mock in `scripts/vircle-chat-mock.mjs`.
 
@@ -141,6 +141,54 @@ answers `200 {"ok":true}` and remembers nothing. The gateway sends at most one p
 type; Halo shows "typing..." to the agent for about 6 seconds after the last one. A paused workspace answers
 `200 {"ok":true,"ignored":"paused"}`.
 
+### 3.5 `POST /api/vircle-chat/history`: the gateway asks Halo for earlier messages (1.3 draft)
+
+Not built yet. Confirmed by the owner (21 Oct 2026): only the Vircle Chat conversation is returned, and files older than the gateway's
+retention are fetched by the gateway from Halo and streamed from the gateway's own address. A **read**, sent as a POST so it reuses the signing of section 2 unchanged. Same headers and the same 300-second clock rule;
+Halo does **not** remember an `event_id` for reads (a retry must work).
+
+```json
+{
+  "v": 1,
+  "workspace_key": "vcw_...",
+  "conversation_id": "c_9f2a",
+  "wallet_id": "W123",
+  "before": { "sent_at": "2026-09-01T10:00:00Z", "server_id": "m_..." },
+  "limit": 30,
+  "not_before": "2026-09-20T00:00:00Z"
+}
+```
+
+Answer `200`:
+
+```json
+{
+  "messages": [
+    { "server_id": "m_...", "direction": "out", "kind": "image", "text": "caption", "sent_at": "2026-08-30T09:00:00Z",
+      "status": "read", "sender": { "name": "Aisha" }, "reply_to": null,
+      "media": { "file_name": "a.jpg", "mime_type": "image/jpeg", "size_bytes": 81234, "duration_seconds": null,
+                 "animated": false, "download_url": "https://<halo-host>/...", "expires_at": "..." } }
+  ],
+  "more": true
+}
+```
+
+with `end: "start"` or `"window"` when `more` is false (sent at once if there are no messages at all).
+
+Halo's rules.
+
+* **Which messages**: the person's Vircle Chat conversation only (not their WhatsApp or web chat), direction `in` or `out`, **not** internal notes,
+  assignments or system events, **not** failed sends. Ordered newest first by (`sent_at`, id), strictly older than `before`, then returned oldest
+  first. `limit` is clamped to 1 to 50.
+* **How far back**: the workspace's history limit, **90 days by default** (a Halo setting on the Vircle Chat channel). Older messages are never
+  returned; `end: "window"` tells the app so.
+* `server_id` is the id the gateway gave the message (section 6), so the page de-duplicates against what the app already holds.
+* `download_url` is a short-lived signed link from Halo's private media store. The gateway fetches it only from the host of the workspace's
+  registered Halo address and re-serves the file from its own address.
+* The answer is only for **that person's own conversation**: Halo checks that `wallet_id` is the contact the conversation belongs to.
+* Errors: `401` bad signature or clock, `404` unknown conversation (answer as an empty page ending in `start` instead), `429` too many, `503`
+  try later. A paused workspace answers `200 {"ok":true,"ignored":"paused"}` and the gateway shows an empty page with `end: "window"`.
+
 ## 4. REST: Halo to gateway
 
 ```
@@ -264,7 +312,7 @@ for them on every event, and why the user's session token (the gateway's own, se
 
 ## 8. Versioning and change
 
-Version 1.2 only adds fields and calls (replies, voice-note length, `user.typing`, `/v1/receipts`, `/v1/typing`); a 1.1 gateway
+Version 1.3 adds one signed read (section 3.5, older history). Version 1.2 only adds fields and calls (replies, voice-note length, `user.typing`, `/v1/receipts`, `/v1/typing`); a 1.1 gateway
 or a 1.1 Halo keeps working with a 1.2 peer, because each side ignores what it does not know.
 
 This is version 1. Additions that do not break a reader (new optional fields, new event types a receiver can

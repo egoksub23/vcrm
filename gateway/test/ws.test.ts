@@ -42,7 +42,7 @@ describe('connecting', () => {
 
   it('refuses a token that is wrong, then closes with 4401', async () => {
     const c = track(await TestClient.connect(h.gw.port))
-    c.hello('vcs_not_a_real_token')
+    c.hello('vcn_not_a_real_token')
     expect(await c.next('error')).toMatchObject({ code: 'unauthorized' })
     expect((await c.untilClosed()).code).toBe(CLOSE.unauthorized)
   })

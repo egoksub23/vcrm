@@ -15,10 +15,10 @@ const fail = (v: unknown) => {
 }
 
 describe('parseClientFrame: hello', () => {
-  const hello = { type: 'hello', v: 1, token: 'vcs_abc', device_id: 'dev-1' }
+  const hello = { type: 'hello', v: 1, token: 'vcn_abc', device_id: 'dev-1' }
 
   it('accepts a minimal hello and a full one', () => {
-    expect(parse(hello)).toEqual({ ok: true, frame: { type: 'hello', v: 1, token: 'vcs_abc', deviceId: 'dev-1', appVersion: null, lastSeq: null } })
+    expect(parse(hello)).toEqual({ ok: true, frame: { type: 'hello', v: 1, token: 'vcn_abc', deviceId: 'dev-1', appVersion: null, lastSeq: null } })
     expect(parse({ ...hello, app_version: '2.4.1', last_seq: 17 })).toMatchObject({ ok: true, frame: { appVersion: '2.4.1', lastSeq: 17 } })
   })
 

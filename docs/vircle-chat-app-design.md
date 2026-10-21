@@ -2,7 +2,7 @@
 title: "Vircle Chat in the Vircle app: design document for the mobile front-end"
 subtitle: "Ionic / Capacitor build guide, keys and credentials, screens, attachments, emoji, GIFs, push, testing"
 author: "Vircle Halo team"
-date: "3 October 2026 (version 1.0)"
+date: "21 October 2026 (version 1.1 draft: older history on demand, the copy on the phone, Clear chat, reference screens and the app kit added)"
 ---
 
 # 1. Read this first
@@ -23,9 +23,10 @@ notification.
 | --- | --- |
 | Gateway (the server the app connects to) | Built and live at `https://chat.vircle.tech`. Owned by the Halo team |
 | Client library | Built and tested. Delivered with this document as `vircle-chat-client-1.0.0.tgz` |
-| Reference screen | The **simulator** (section 14) is a working pretend phone built on the same library: emoji picker, attach menu, GIFs, replies, ticks |
+| Reference screen | The **simulator** (section 14) is a working pretend phone built on the same library: emoji picker, attach menu, GIFs, replies, ticks. Screenshots are in section 7.8; the whole simulator, the library source and the protocol file are in the app kit (`vircle-chat-app-kit.zip`) |
 | Session endpoint on the Vircle backend | **Not built.** Backend developer. Ten lines, example in section 5 |
 | Push notifications | **On hold** until the Vircle push API details are provided. The gateway already decides when to alert; section 11 says what the app must be ready for |
+| Older history (scroll up, 90 days) and the copy on the phone | **Specified, not built.** Halo endpoint, gateway frame and library 1.1.0 (section 7.7, gateway work package 9) |
 | GIFs | **No picker and no GIF service in version 1.** The app only has to show a GIF when one arrives (section 10) |
 
 **The chat feels like WhatsApp and the web chat widget.** Section 2 is the feature list you are building to, with what is and is
@@ -46,7 +47,7 @@ call one method; "You" means you build it with an Ionic or Capacitor plugin.
 | Videos (up to 16 MB) | Yes | Yes | **Yes** | You pick and compress; library: `sendFile` |
 | Documents (PDF, Word, Excel, PowerPoint, text) | Yes | Yes | **Yes** | You pick; library: `sendFile` |
 | Audio files | Yes | recorder only | **Yes** | You pick; library: `sendFile` |
-| Camera (take a photo or video now) | Yes | phone browser | **Yes** | You (Capacitor Camera / file picker) |
+| Camera (take a photo or video now) | Yes | phone browser | **Yes** | You: a photo with Capacitor Camera; a video with a plugin that records video or a file input with `capture` (to our knowledge the Camera plugin takes photos only: confirm on your Capacitor version) |
 | **Attachment menu** ("+", pops up the choices) | Yes | Yes | **Yes** | You (section 8) |
 | Voice notes (hold to record, up to 5 minutes) | Yes | Yes | **Yes** | You record; library sends with its length |
 | Captions on photos, videos and documents | Yes | Yes | **Yes** | Library |
@@ -54,6 +55,8 @@ call one method; "You" means you build it with an Ionic or Capacitor plugin.
 | Typing indicator, both ways | Yes | Not yet | **Yes** | Library signals; you draw "typing..." |
 | Sent, delivered, read ticks | Yes | Yes | **Yes** | Library state; you draw the ticks |
 | Works offline, sends when back | Yes | Yes | **Yes** | Library |
+| Scroll up for earlier messages (up to 90 days), kept on the phone | Yes | No | **Yes (to be built)** | Halo and gateway serve pages; library 1.1.0 `loadOlder`; you draw the loading row (section 7.7) |
+| Clear chat (this phone only) | Yes | n/a | **Yes (to be built)** | Library `clearChat`; you add the menu item (section 7.7) |
 | Unread badge | Yes | n/a | **Yes** | Library: `unreadCount`; you show the badge |
 | Alert when the app is closed | Push | Email | **Push (on hold)** | Gateway decides; you handle the tap (section 11) |
 | Stickers, Location, Contact card, Poll | Yes | No | **No** | Not in version 1 (nor on the widget) |
@@ -99,8 +102,8 @@ If something in the second half of that table is wanted, it is a product decisio
   connection, the gateway raises **one** alert per "away period" (a reminder after 24 hours if the person still has not come back).
   Messages are never lost: opening the chat shows everything.
 - Every send carries an id you cannot see (the library makes it), so a message sent twice because the network dropped is stored once.
-- The conversation is **one per person**, kept by the gateway for 30 days after delivery (Halo keeps it for good). A fresh install
-  shows the history the gateway still holds.
+- The conversation is **one per person.** The gateway is a relay and keeps delivered messages for 30 days; **Halo keeps the
+  conversation for good** and serves earlier messages, up to 90 days back, as the user scrolls up (section 7.7).
 - One person may have up to **3 devices** connected; a new one beyond that replaces the oldest, which then shows `replaced`.
 
 # 4. Keys, secrets and where each one comes from
@@ -185,6 +188,11 @@ Rules for the backend developer:
   (it links the chat to their WhatsApp or email history). Send `phone` and `email` whenever known: when the app is closed the gateway
   uses them to find the person in the push API.
 - The call must be made per connection; do not cache the token.
+- `wallet_id` is **stable and never reused**: the same person always has the same one, and it is never given to anyone else (up to 200 characters).
+  It is the key of the whole conversation, in the gateway and in Halo.
+- `phone` in **international format with the country code and no spaces or dashes**, for example `+60123456789` (E.164, up to 40 characters), and
+  `email` a valid address. The push API and Halo's matching of the person to their other history depend on these being consistent. The gateway
+  refuses a malformed email (400) but does **not** check the phone format, so the backend must.
 - Answer 401 when nobody is signed in; the library then stops trying and reports `lastError`.
 
 **App:** `getSession: () => http.post('/chat/session')` returning `{ token, wsPath }`, with your normal auth header attached by your
@@ -203,7 +211,8 @@ speaks protocol version 1, and a protocol change will be announced with a new ma
 listens to `online`, `visibilitychange` and `resume`), in any framework, and in a plain browser. Requirements: a WebView with
 WebSocket, `fetch`, `Blob` and `Promise` (every current iOS, Android and Huawei WebView).
 
-The library's own README (`README.md` inside the package) is the API reference. This document tells you how to use it in the app.
+The library's own README (`README.md` inside the package) is the API reference. This document tells you how to use it in the app. The
+TypeScript source is in the kit (`library/src`) for stepping into with a debugger; the compiled package is what you install.
 
 # 7. The chat screen
 
@@ -339,8 +348,8 @@ is uploaded.
 - **Keyboard:** use `Keyboard` plugin resize mode `native` (iOS) or `body`, and make the list scroll to the bottom when the keyboard
   opens. Put the composer in `ion-footer` so it rides above the keyboard and the safe area.
 - **Safe areas:** pad the composer with `env(safe-area-inset-bottom)`; the header with `env(safe-area-inset-top)`.
-- **Long conversations:** the library keeps the last 200 messages on the device between launches, and a fresh install loads whatever
-  history the gateway still holds (30 days) in batches. Use a virtualised list (`ion-content` with `cdk-virtual-scroll` or
+- **Long conversations:** the library keeps every message it has loaded on the device and loads older ones page by page as the
+  user scrolls up (section 7.7). Use a virtualised list (`ion-content` with `cdk-virtual-scroll` or
   `@tanstack/virtual`) once lists pass a few hundred rows. Message heights vary, so use dynamic row heights.
 - **Dark mode:** use Ionic's colour variables; the bubbles for "mine" and "support" need a contrast pair in both themes.
 - **Text size:** respect the system text size (Ionic `dynamic font scaling`).
@@ -348,6 +357,137 @@ is uploaded.
   alternatives.
 - **Language:** the app's strings (placeholders, "typing...", tick labels, errors) go through the app's normal translation system.
   The conversation text itself is whatever the person and the agent wrote.
+
+## 7.7 Earlier messages and the copy on the phone (to be built: work package 9)
+
+**Status.** Specified, **not built yet.** Version 1.0.0 of the library (the one in the kit today) keeps only the last 200 messages
+and has no `loadOlder`. This section describes library **1.1.0**, which arrives with the Halo and gateway pieces (protocol section 7,
+contract section 3.5, gateway work package 9). Build the rest of the screen now; the items here plug in later without changes
+elsewhere.
+
+**Confirmed by the owner, 21 October 2026.** (1) **Clear chat is local**: it clears the whole chat store on this phone (every cached
+message and every saved file) and nothing in Halo. (2) The app shows **only the Vircle Chat conversation** (never the person's
+WhatsApp or web chat history). (3) Files older than the gateway's 30 days are **fetched by the gateway from Halo and streamed from
+`chat.vircle.tech`**, so the app only ever talks to one host.
+
+**Behaviour: the same as WhatsApp.**
+
+- Opening the chat shows the newest messages at once (from the copy on the phone, then whatever has arrived).
+- As the user scrolls up and gets near the top (about one and a half screens away), the screen asks for the next older page with
+  `chat.loadOlder()`: **30 messages at a time, newest to oldest.** **Halo is the source**: it keeps the whole conversation and serves
+  up to **90 days** back (a Halo setting per workspace, 90 by default). The gateway only passes the pages on.
+- A short pause is normal. Show a small spinner row above the oldest message while a page loads. Do not block the screen, and **do
+  not move what the user is looking at**: when older messages are added above, keep the reading position (anchor on the first
+  visible message and restore its offset after the insert, or use the list component's keep-scroll-position option).
+- Ask for one page at a time (`loadingOlder` is true while one is out).
+- When there is nothing more, `historyEnd` says why: `'start'` is the first message ever (a day divider, nothing else); `'window'`
+  means older messages exist but are beyond the 90 days (a quiet line: "Earlier messages are not shown"); `'cleared'` means the user
+  cleared the chat on this phone (nothing is shown).
+- If a page fails (`historyError`: Halo or the network is down) show a row "Could not load earlier messages. Tap to try again" that
+  calls `loadOlder()` again. Never retry in a loop.
+
+**The copy on the phone.**
+
+- Every message the library receives, and every older page it loads, is **kept on the phone** and shown again at once next time,
+  with no network. Scrolling through what the phone already holds downloads nothing; only scrolling past it asks Halo.
+- It stays until the user chooses **Clear chat** (below) or the app is uninstalled. App updates, restarts, being offline and a
+  changed network do not remove it. Signing out removes it too (decision D4, section 16).
+- Thousands of messages over 90 days do not fit in preferences or `localStorage`: keep the copy in a database (section 13.2).
+- **Photos, voice notes and other files** (decision D5, owner, 21 October 2026: saved on the phone, "in gallery", **200 MB cap**).
+  The library keeps only links, which expire, so the app saves the file itself the first time it is opened (task 14):
+  - **The app's own file cache** holds photos, voice notes, and videos and documents once opened, so old messages show with no
+    network. It is capped at **200 MB**, oldest out first, and **Clear chat and sign-out delete it all.**
+  - **The phone's photo gallery** gets a photo or video when the person taps **Save to gallery** on it (the viewer's menu); on iOS
+    this uses the photo library "add only" permission, on Android the media store. Voice notes and documents are not gallery items:
+    they stay in the app cache, and the viewer's share sheet can send them to Files or another app.
+  - **A copy in the gallery belongs to the person, not to the chat**: it is not counted in the 200 MB, and Clear chat and sign-out
+    cannot remove it. Customer-care chats can carry ID cards and receipts, and the gallery can be backed up to the cloud, so saving
+    is **on tap, never automatic** (owner's decision, 21 October 2026).
+
+**Clear chat.**
+
+- Where: the overflow menu (three dots) of the chat screen, **Clear chat**, as WhatsApp.
+- It asks first: "Clear this chat? This removes the messages and files from this phone only. Support keeps the conversation.
+  Messages from before now will not be shown again on this phone." Buttons: Cancel, Clear chat.
+- `await chat.clearChat()` removes every cached message; the app deletes its saved files. The library keeps a **cleared-before
+  marker** (the gateway's time at that moment): `loadOlder()` never goes past it, so cleared history does not come back by scrolling.
+  New messages after it appear as normal. Messages still waiting to be sent are kept and still sent.
+- It is **local.** Agents in Halo still see everything. The marker lives on the phone, so a reinstall or a new phone shows the last
+  90 days again. If product wording must promise otherwise, that needs a marker kept by Halo, which is not in this scope.
+- Not the same as `clearLocal()` (sign-out), which also forgets the marker.
+- Photos the person saved to the phone's gallery are theirs and stay; the app cannot and should not remove them.
+
+**What an older page contains.** Only what the person could see: their own messages and the replies sent to them, with text,
+files, quotes and ticks as Halo holds them. **Never** internal notes, assignments, or messages that failed to send. The fields are
+the same as for a live message (`kind`, `media`, `replyTo`, `status`); an old message has no `seq`. Messages are ordered by time and
+the library removes duplicates by `id`. Older messages are never counted as unread and never produce a "delivered" receipt.
+
+**Snapshot additions in 1.1.0:** `hasOlder`, `loadingOlder`, `historyEnd` (`null`, `'start'`, `'window'`, `'cleared'`), `historyError`.
+
+## 7.8 Reference screens
+
+These seven pictures are the **simulator** (section 14) running the real library, taken on a computer. They show **behaviour and
+structure**: what appears, where, in which order. **They are not the visual design**: colours, fonts, icons, spacing and the Vircle
+look come from Vircle design (task 2). The simulator has a dark theme only; the app needs both themes (section 7.6).
+
+![A conversation: the customer's messages on the right with two blue ticks once an agent has read them ("read"), support's on the left with the sender name, a time and a reply link under each message. Composer at the bottom: emoji button, + button, text field, Send.](app-kit/screens/01-conversation.png){ width=2.4in }
+
+![The attach menu opened by the + button: Document, Photos & videos, Camera, Audio. (The grey note under the entries belongs to the simulator, not to the app.)](app-kit/screens/02-attach-menu.png){ width=2.4in }
+
+![The emoji picker over the chat: a search box, category tabs, a grid. Tapping an emoji puts it at the cursor and keeps the picker open.](app-kit/screens/03-emoji-picker.png){ width=2.4in }
+
+![A reply: the quoted message sits inside the bubble, sender first ("Support" or "You"), then a one-line preview.](app-kit/screens/05-reply-quote.png){ width=2.4in }
+
+![A photo with a caption, a voice note with a player and its length, and a document or photo from support. (The simulator draws files as a placeholder tile.)](app-kit/screens/06-photos-voice.png){ width=2.4in }
+
+![Emoji, including skin tones, joined and flag emoji, and a GIF: a looping muted video with a small "GIF" tag and no controls.](app-kit/screens/07-emoji-gif.png){ width=2.4in }
+
+Not shown, because a still picture cannot show them: the typing line ("Support is typing..."), the connection bar when the app is not
+online, the failed message with Retry, the loading row for older messages, and the Clear chat dialog. Section 7.4 to 7.7 describes each;
+the simulator's scenario buttons make the first three happen.
+
+## 7.9 The words the app needs (for translation)
+
+English source. Translate into the app's languages (Halo's own four are English, Malay, Chinese and Korean). **Everything the
+conversation says** (what the person and the agent wrote) is not translated; only these labels are.
+
+| Where | English |
+| --- | --- |
+| Screen title | Customer care |
+| Connection bar, connecting | Connecting... |
+| Connection bar, offline | Waiting for network |
+| Connection bar, replaced (section 12) | Chat is open on another screen |
+| Button on that bar | Reconnect |
+| Support is typing | Support is typing... |
+| Composer placeholder | Message |
+| Day dividers | Today, Yesterday (then the date in the person's format) |
+| Pill for new messages | New messages |
+| Tick labels (screen readers) | Sending, Sent, Delivered, Read, Not sent |
+| Not sent, row actions | Retry, Delete |
+| Quote labels | You, Support, Photo |
+| GIF tag | GIF |
+| Reading a bubble aloud | "Support, 10:42, " then the text; "You, 10:43, delivered" |
+| Attach menu | Document, Photos & videos, Camera, Audio |
+| Voice note | Hold to record, Slide left to cancel, Slide up to lock |
+| Too long | Too many characters |
+| File too big | This file is too big (16 MB maximum) |
+| File type | This type of file cannot be sent |
+| Video too long | This video is too long. Trim it to about 30 seconds. |
+| Too many unsent messages | Too many unsent messages: check your connection |
+| Photo viewer menu | Save to gallery |
+| Saved to gallery (confirmation) | Saved to your gallery |
+| Older messages, loading | Loading earlier messages... |
+| Older messages, failed | Could not load earlier messages. Tap to try again |
+| Older messages, 90-day limit | Earlier messages are not shown |
+| Overflow menu | Clear chat |
+| Clear chat dialog, title | Clear this chat? |
+| Clear chat dialog, text | This removes the messages and files from this phone only. Support keeps the conversation. Messages from before now will not be shown again on this phone. |
+| Clear chat dialog, buttons | Cancel, Clear chat |
+| Push alert, foreground | (none: a chat alert is not shown while the chat screen is open) |
+| iOS camera permission text | Take photos and videos to send to Vircle support. |
+| iOS microphone permission text | Record voice notes to send to Vircle support. |
+| iOS photo library permission text | Choose photos and videos to send to Vircle support. |
+| iOS photo library "add only" text | Save photos from your chat with Vircle support to your gallery. |
 
 # 8. The attachment menu, photos, videos, documents, camera, audio
 
@@ -449,7 +589,7 @@ has one:
   tab, remembered on the device.
 - Tapping an emoji inserts it **at the cursor** in the text field and keeps the picker open.
 - **Data:** do not write your own list. Use either the same list the web widget uses (1,914 emoji, each with search words; the file
-  `emoji.js` is delivered with this document, and the simulator's `simulator.js`, function `buildEmoji`, shows how to read it), or a maintained component such as `emoji-picker-element` (a web component that works in a WebView).
+  `emoji.js` is in the kit as `emoji/emoji.js`, and `simulator/public/simulator.js`, function `buildEmoji`, shows how to read it), or a maintained component such as `emoji-picker-element` (a web component that works in a WebView).
 - **Rendering:** emoji use the phone's own emoji font. Older Android and some Huawei WebViews lack the newest emoji and show an empty
   box; if that matters for your minimum OS, bundle Noto Color Emoji as a web font.
 - **Skin tones** are a nice extra; they are normal emoji sequences, so they send like any text.
@@ -537,6 +677,7 @@ The library's methods reject with a `ChatError` that has a `code` and a plain `m
 | `rate_limited` (on a message) | More than 30 sends in 10 seconds | The library waits and sends; no message needed |
 | `upload_failed`, `network`, `timeout`, `offline` | The network failed during an upload | The message shows `failed`; offer Retry |
 | `queue_full` | A very large number of unsent messages | "Too many unsent messages: check your connection" |
+| `history_unavailable`, `history_rate_limited` (on `loadOlder`, library 1.1.0) | Halo or the network could not give the next page, or pages were asked for too fast | The "Could not load earlier messages. Tap to try again" row (section 7.7) |
 
 A message that fails has `status: 'failed'` and an `error`; show a red mark and **Retry** / **Delete**. Connection problems are not
 errors on a message: they show in `snapshot.state` and `snapshot.lastError`.
@@ -555,16 +696,19 @@ does not fight for it: show "Chat is open on another screen" and a **Reconnect**
 | App returns to the foreground | `reconnectNow()` (the library also reconnects by itself on `online` and `resume`) |
 | Network comes back | Nothing: the library reconnects with growing waits (1 s to 30 s) and sends what was queued |
 | User taps a push alert | Navigate, then `reconnectNow()` |
-| Sign out | `stop()` then `await clearLocal()`; never leave one person's conversation for the next person |
+| Sign out | `stop()` then `await clearLocal()`, **decided (D4, 21 October 2026)**: the cached conversation, the marker and the app's saved files are all removed, so one person's conversation is never left for the next person. The next sign-in loads up to 90 days again as the user scrolls up |
 | Account switch | `stop()`, `clearLocal()`, then `start()` with the new wallet id (the store key is per wallet) |
 | App killed with unsent messages | Written text is kept and sent at the next launch; files not yet uploaded are not kept: the user sees the message was not sent |
 
 ## 13.2 Storage and privacy
 
-The library keeps the last 200 messages (and unsent text) through the `ChatStore` you give it. `localStorage` works but is plain text on
-the device. If Vircle's policy requires encryption at rest, implement `ChatStore` on an encrypted store (for example an encrypted
-SQLite plugin or the secure-storage plugin), keeping the key per signed-in person. Media files are never stored by the library
-(only their short-lived links).
+Library 1.0.0 (in the kit today) keeps the last 200 messages (and unsent text) through the `ChatStore` you give it, as one block of
+JSON; `localStorage` or Capacitor Preferences are fine for that, though they are plain text on the device. **Library 1.1.0 keeps every
+message it has loaded** (section 7.7), which over 90 days means thousands of rows, so the store changes to a database interface:
+add or update a message, read a range ordered by time, count, delete all. Implement it on SQLite (a Capacitor SQLite plugin; one
+database per signed-in person). If Vircle's policy requires encryption at rest, use the plugin's encrypted mode with a key held in
+the iOS keychain or Android keystore. The library ships a small adapter so a 1.0 style store keeps working for the first 200
+messages. Media files are never stored by the library (only their short-lived links); the app's own file cache is described in 7.7.
 
 **Never log** tokens, message text or phone numbers. The library does not.
 
@@ -573,7 +717,7 @@ SQLite plugin or the secure-storage plugin), keeping the key per signed-in perso
 | Platform | Settings |
 | --- | --- |
 | iOS | `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription` (text a human can understand, in the app's languages); URL type `vircle`; push capability and background modes if used; App Transport Security stays on (the gateway is HTTPS only) |
-| Android | `CAMERA`, `RECORD_AUDIO`; for gallery access `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` (Android 13 and later) or the photo picker; `POST_NOTIFICATIONS` (Android 13 and later); intent filter for `vircle://chat`; cleartext traffic stays off |
+| Android | `CAMERA`, `RECORD_AUDIO`; for gallery access `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` (Android 13 and later) or the photo picker; saving to the gallery needs `WRITE_EXTERNAL_STORAGE` only on Android 9 and older (newer versions use the media store with no permission); `POST_NOTIFICATIONS` (Android 13 and later); intent filter for `vircle://chat`; cleartext traffic stays off |
 | Huawei | The same as Android; push through Huawei Push Kit; test on a device without Google services (the library needs nothing from them) |
 | All | Allow `https://chat.vircle.tech` and `wss://chat.vircle.tech` in the WebView's Content Security Policy (`connect-src`), plus `img-src`/`media-src` for the same host (files are served from it) |
 
@@ -582,17 +726,18 @@ SQLite plugin or the secure-storage plugin), keeping the key per signed-in perso
 - No secret in the app or in source control. The sessions key lives only on the backend.
 - The session token is requested for every connection and never stored.
 - All traffic is TLS (`https`, `wss`); consider certificate pinning to `chat.vircle.tech` if Vircle's other APIs do.
-- The conversation is cleared from the device on sign-out.
+- The conversation and the app's saved files are cleared from the device on sign-out (decision D4).
 - The wallet id sent to the gateway comes from the backend's authenticated session, never from the app.
 
 # 14. Testing: the simulator is your reference
 
 **The simulator** is a pretend phone running the same library, with a console for the agent side, so you can see exactly what the app
 should look like and do. An administrator opens it from Halo: **Settings, Channels, Vircle Chat, Open simulator** (it opens at
-`https://chat.vircle.tech/simulator`). You can also run it on your own machine without any server:
+`https://chat.vircle.tech/simulator`). The hosted copy is for the pilot and is **switched off at launch**, so rely on the copy in the kit. It runs on your own machine with no
+server and no Halo (Node 20 or later):
 
 ```bash
-cd gateway && npm install && npm run sim        # then open http://localhost:8090/launch
+cd simulator && npm install && npm run sim      # then open http://localhost:8090/launch
 ```
 
 What to try there, as your specification:
@@ -628,6 +773,14 @@ and answer from its inbox; the person in the app appears there as a contact with
 | 14 | Sign out and sign in as someone else | No trace of the first conversation |
 | 15 | Dark mode, largest text size, screen reader, small phone, tablet | Readable and usable |
 | 16 | A Huawei phone without Google services | Everything above works; push through Huawei Push Kit |
+| 17 | Scroll up through a long conversation (more than 100 messages) | Older pages load 30 at a time with a spinner row; the screen does not jump; the oldest message ends in a day divider |
+| 18 | A conversation older than 90 days | Scrolling stops at 90 days with "Earlier messages are not shown" |
+| 19 | Aeroplane mode: open the chat and scroll through what was loaded before; then scroll past it | Everything loaded earlier shows and scrolls with no network; past it the retry row appears |
+| 20 | Close and reopen the app, update it, change the network | The earlier messages and saved photos are still there |
+| 21 | Clear chat | Messages and files vanish from the phone; scrolling up finds nothing older; a new message from support appears normally; Halo still shows the whole conversation |
+| 22 | Reinstall (or a second phone) after Clear chat | The last 90 days load again as the user scrolls up |
+| 23 | Sign out, then sign in as someone else | No trace of the first person's messages or saved files in the app; the first person's gallery copies are untouched |
+| 24 | Open photos until the saved files pass 200 MB; tap Save to gallery on a photo | The oldest saved files are dropped, not the newest; the photo appears in the phone's gallery; Clear chat leaves the gallery copy alone |
 
 ## 14.2 Devices
 
@@ -650,8 +803,10 @@ services. Old WebViews are where voice recording, emoji rendering and video play
 | 10 | Unread badge, foreground and background handling, sign-out | 13.1 | 1 |
 | 11 | Push alert handling and deep link | 11 (final testing after the push API) | 2 |
 | 12 | Encrypted store (if required), permissions, CSP, accessibility, dark mode, translations | 13 | 3 |
-| 13 | Device testing (section 14.1) and fixes | | 4 |
-| | **Total** | A realistic range is **3 to 4 weeks**, with the backend endpoint ready on day one | **about 27** |
+| 13 | Older history: scroll-up loading, spinner row, keep-position, end markers, retry row (library 1.1.0 and the Halo and gateway work first) | 7.7 | 2.5 |
+| 14 | The copy on the phone: SQLite store, saved-file cache (200 MB cap), Save to gallery, Clear chat menu and confirmation, sign-out clearing | 7.7, 13.2 | 4 |
+| 15 | Device testing (section 14.1) and fixes | | 4 |
+| | **Total** | **About 34 engineer-days**: 3 to 4 weeks for two engineers, 6 to 7 weeks for one, with the backend endpoint ready on day one. Tasks 13 and 14 wait for the history work in Halo and the gateway (about 9 days, work package 9) | **about 34** |
 
 **Definition of done:** every row of the test plan passes on the device list; the checklist in 13.4 is signed off; no secret or token
 appears in the code, the logs or the network traces other than the one-time connect token; the screens are translated; the
@@ -669,7 +824,10 @@ conversation is cleared on sign-out.
 | App strings in each language, icons, and colour pairs for bubbles in both themes | Design | Task 2 |
 | Decision: encrypted storage required? | Security | Task 12 |
 | Decision: certificate pinning to `chat.vircle.tech`? | Security | Task 12 |
+| Older history: Halo read endpoint, gateway frame and library 1.1.0 (gateway work package 9, about 9 days) | Halo team | Before tasks 13 and 14 |
+| **D4, decided 21 October 2026: yes.** Sign-out removes the cached conversation, the cleared-before marker and the app's saved files | Product | Task 14 |
+| **D5, decided 21 October 2026:** photos and voice notes are saved on the phone, in the app's file cache, **200 MB cap**. Saving to the phone's gallery is **on tap only**, never automatic (section 7.7) | Product | Task 14 |
 
-**Contacts and sources.** The library's README (inside the package) is the API reference. The protocol, if you need to see exactly what
-travels, is `docs/vircle-chat-app-protocol.md`; the agreement with Halo is `docs/vircle-chat-contract.md`; running the gateway is
-`docs/vircle-chat-gateway-runbook.md`. The simulator is the working example of everything in this document.
+**Sources, all in the kit.** The library's README (inside the package) is the API reference. What travels on the wire is described in
+`docs/vircle-chat-app-protocol.md` and defined exactly in `protocol/protocol.ts`. The simulator (`simulator/`) is the working example of
+everything in this document. Questions go to the Halo team, who own the gateway and the library.

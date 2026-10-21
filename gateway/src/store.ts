@@ -352,7 +352,8 @@ export class Store {
   // ----------------------------------------------------------
 
   async createSession(subject: Subject): Promise<{ token: string; expiresAt: Date }> {
-    const token = randomToken('vcs_')
+    // `vcn_` (connect), not `vcs_`: that prefix already names the signing secret Halo and the gateway share.
+    const token = randomToken('vcn_')
     const expiresAt = new Date(Date.now() + this.cfg.sessionTtlSeconds * 1000)
     await this.db.query('INSERT INTO sessions (token_hash, workspace_id, user_id, expires_at) VALUES ($1, $2, $3, $4)', [
       sha256Hex(token),

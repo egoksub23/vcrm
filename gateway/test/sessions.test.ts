@@ -34,7 +34,7 @@ describe('POST /v1/sessions', () => {
     expect(res.status).toBe(201)
     expect(res.headers.get('cache-control')).toBe('no-store')
     const body = (await res.json()) as { token: string; expires_at: string; ws_path: string; conversation_id: string }
-    expect(body.token).toMatch(/^vcs_/)
+    expect(body.token).toMatch(/^vcn_/)
     expect(body.ws_path).toBe('/ws')
     expect(body.conversation_id).toMatch(/^c_/)
     expect(new Date(body.expires_at).getTime()).toBeGreaterThan(Date.now())

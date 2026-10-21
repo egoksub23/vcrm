@@ -133,7 +133,7 @@ describe('connect sessions', () => {
     const { token } = await store.createSession(subject)
     await db.query(`UPDATE sessions SET expires_at = now() - interval '1 second' WHERE user_id = $1`, [subject.user.id])
     expect(await store.consumeSession(token)).toBeNull()
-    expect(await store.consumeSession('vcs_unknown')).toBeNull()
+    expect(await store.consumeSession('vcn_unknown')).toBeNull()
   })
 
   it('stores only a hash of the token, and purges old ones', async () => {

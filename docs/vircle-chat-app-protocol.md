@@ -19,11 +19,12 @@ Authorization: Bearer <sessions key>        # issued to your backend when the wo
 { "user": { "wallet_id": "W123", "name": "Aisha", "phone": "+60123456789", "email": "aisha@example.com" } }
 ```
 
-   `wallet_id` is required; name, phone and email are optional but should be sent: the gateway uses the phone or email
-   to alert the user when the app is closed. Answer `201`:
+   `wallet_id` is required, **stable and never reused for another person**; name, phone and email are optional but should be sent: the
+   gateway uses the phone or email to alert the user when the app is closed. Send the phone in international format with the country
+   code and no spaces, for example `+60123456789`; the gateway refuses a malformed email (400) but does not check the phone. Answer `201`:
 
 ```
-{ "token": "vcs_...", "expires_at": "...", "ws_path": "/ws", "conversation_id": "c_9f2a" }
+{ "token": "vcn_...", "expires_at": "...", "ws_path": "/ws", "conversation_id": "c_9f2a" }
 ```
 
    The token is for **one connection** and expires in about a minute. Your backend hands it to the app.
@@ -115,3 +116,30 @@ is valid for 24 hours; when it expires (a `410`), send `file_url` for a new one.
 | `internal` | A fault on our side: try again. |
 
 The simulator's **Wire log** tab shows every frame as it happens, which is the quickest way to learn the shapes.
+
+## 7. Older history (planned, not built yet; contract 1.3)
+
+Added to protocol version 1 without breaking it: a gateway that has it says so in `welcome`, and a client that does not know it ignores the
+extra fields. The app asks for earlier messages as the user scrolls up; **Halo is the source** (it keeps the conversation for good, the gateway
+keeps delivered messages for 30 days only) and the gateway passes the pages through. The client library (1.1.0) does all of this for you
+(`loadOlder`); read this only to see what travels.
+
+`welcome` gains `features: ["history"]` and `history_days: 90`.
+
+| Frame | Fields | Meaning |
+| --- | --- | --- |
+| `history` (app to gateway) | `request_id`, `before: { sent_at, server_id }`, `limit?` (default 30, at most 50), `not_before?` (a time) | "Give me messages **older than this one**", where `before` is the oldest message the app holds. `not_before` is the app's cleared-before marker (the user pressed Clear chat): nothing older than it is returned. |
+| `history_page` (gateway to app) | `request_id`, `messages: [...]` (oldest first, same shape as `deliver` but **without `seq`**), `more`, `end?` | One page. `more: false` comes with `end`: `"start"` (the conversation begins here) or `"window"` (older messages exist beyond Halo's history limit, 90 days by default). |
+
+Rules.
+
+* Pages are strictly older than `before`, at most `limit` long, never older than Halo's limit or `not_before`. `more: true` is only said when at
+  least one more message exists inside those bounds.
+* Messages in a page are **history, not news**: do not send `receipt` `delivered` for them, do not count them as unread, do not show a
+  notification. De-duplicate by `server_id` (a page can overlap messages the app already has); order by `sent_at`, then `server_id`.
+* Only what the person could see: no internal notes, no assignments, no messages that failed to send.
+* `media.url` is a fresh 24-hour link, served from the gateway's own address. For files the gateway no longer holds (older than its 30 days) the
+  gateway fetches them from Halo and streams them, so the app still talks to one host.
+* Errors: `history_unavailable` (Halo could not answer: try later, `retry_after`), `history_disabled` (the workspace has no history), `rate_limited`
+  (10 pages a minute per user), `bad_request`.
+* The gateway stores no history page; each request is a signed read from Halo (contract section 3.5).
