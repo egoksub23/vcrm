@@ -91,7 +91,7 @@ One engineer working alone. Days are working days.
 | 7 | Deployment, TLS hostname, backups, load test (a thousand idle connections and a burst), runbook. **Done 3 Oct 2026** (`vircle-chat-gateway-loadtest.md`, `vircle-chat-gateway-runbook.md`); the backup scripts and Docker/nginx settings still need their first run on the server | 3 |
 | | **Total** | **about 22 days, 4 to 6 weeks with review and fixes** |
 | 8 | Real push API adapter, once you provide the details | 1 to 2 |
-| 9 | **Older history on demand** (owner's requirement, 21 Oct 2026: scroll up like WhatsApp, up to 90 days from Halo, kept on the phone, Clear chat). Halo read endpoint and setting (2), gateway `history` frame, pass-through, file re-serving and rate limit (3), client library 1.1.0: `loadOlder`, database store, `clearChat` (2.5), simulator scroll-up and Clear chat with scenarios (1), tests and documents (0.5). The app side is tasks 13 and 14 of the app design document | about 9 |
+| 9 | **Older history on demand** (owner's requirement, 21 Oct 2026: scroll up like WhatsApp, up to 90 days from Halo, kept on the phone, Clear chat). Halo read endpoint and setting (2), gateway `history` frame, pass-through, file re-serving and rate limit (3), client library 1.1.0: one call, `fetchHistory` (1; the app's own engine does the paging, the copy on the phone and Clear chat), simulator support and scenarios (1), tests and documents (0.5). The app side is tasks 13 and 14 of the app design document and `docs/vircle-chat-app-build-spec.md` | about 7.5 |
 
 You can try the first useful milestone after step 3 (about 2.5 weeks): the simulator-less version, driven by
 the mock script, with a real chat between Halo and a scripted phone.

@@ -173,7 +173,7 @@ Answer `200`:
 }
 ```
 
-with `end: "start"` or `"window"` when `more` is false (sent at once if there are no messages at all).
+`before.server_id` is optional: it is left out when the app holds no message ("older than `sent_at`"). The answer carries `end: "start"` or `"window"` when `more` is false (sent at once if there are no messages at all).
 
 Halo's rules.
 

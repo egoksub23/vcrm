@@ -121,14 +121,14 @@ The simulator's **Wire log** tab shows every frame as it happens, which is the q
 
 Added to protocol version 1 without breaking it: a gateway that has it says so in `welcome`, and a client that does not know it ignores the
 extra fields. The app asks for earlier messages as the user scrolls up; **Halo is the source** (it keeps the conversation for good, the gateway
-keeps delivered messages for 30 days only) and the gateway passes the pages through. The client library (1.1.0) does all of this for you
-(`loadOlder`); read this only to see what travels.
+keeps delivered messages for 30 days only) and the gateway passes the pages through. The app's engine does the paging and the keeping; the client
+library (1.1.0) adds one call, `fetchHistory`, that returns one page. Read this only to see what travels.
 
 `welcome` gains `features: ["history"]` and `history_days: 90`.
 
 | Frame | Fields | Meaning |
 | --- | --- | --- |
-| `history` (app to gateway) | `request_id`, `before: { sent_at, server_id }`, `limit?` (default 30, at most 50), `not_before?` (a time) | "Give me messages **older than this one**", where `before` is the oldest message the app holds. `not_before` is the app's cleared-before marker (the user pressed Clear chat): nothing older than it is returned. |
+| `history` (app to gateway) | `request_id`, `before: { sent_at, server_id? }`, `limit?` (default 30, at most 50), `not_before?` (a time) | "Give me messages **older than this one**", where `before` is the oldest message the app holds (`server_id` is left out when it holds none: "older than `sent_at`"). `not_before` is the app's cleared-before marker (the user pressed Clear chat): nothing older than it is returned. |
 | `history_page` (gateway to app) | `request_id`, `messages: [...]` (oldest first, same shape as `deliver` but **without `seq`**), `more`, `end?` | One page. `more: false` comes with `end`: `"start"` (the conversation begins here) or `"window"` (older messages exist beyond Halo's history limit, 90 days by default). |
 
 Rules.

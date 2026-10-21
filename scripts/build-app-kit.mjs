@@ -49,6 +49,7 @@ try {
   console.warn('pandoc not found: using the .docx as it is on disk (it may be older than the .md)')
 }
 putFile('docs/vircle-chat-app-design.docx', join(docs, 'vircle-chat-app-design.docx'))
+putFile('docs/vircle-chat-app-build-spec.md', join(docs, 'vircle-chat-app-build-spec.md'))
 putFile('docs/vircle-chat-app-protocol.md', join(docs, 'vircle-chat-app-protocol.md'))
 
 // 2. The library: the package to install, and its source.
@@ -68,7 +69,7 @@ const skip = (rel, name) =>
   name === 'node_modules' || name === 'dist' || name === 'test' || name === 'Dockerfile' || name === 'package-lock.json' ||
   name.startsWith('.env') || name === 'vitest.config.ts' || name === 'vitest.setup.ts' ||
   rel === 'public/vircle-chat-client.js' || rel === 'client/dist' || rel === 'client/test' ||
-  /^scripts\/(loadtest|test-pg)/.test(rel)
+  /^scripts\/(loadtest|test-pg|bench-dispatch)/.test(rel)
 for (const abs of walk(gw, skip)) putFile(`simulator/${relative(gw, abs).split(sep).join('/')}`, abs)
 
 // The simulator's package.json: only what `npm run sim` needs (no test runner, no embedded Postgres).
@@ -100,6 +101,8 @@ put(
 ===================================================
 
 Start with docs/vircle-chat-app-design.docx. It says what to build, what is decided, and what you must ask others for.
+Then docs/vircle-chat-app-build-spec.md: HOW to build it (architecture, interfaces, algorithms, tasks with acceptance criteria, testing).
+Give that file, and this whole kit, to the coding agent that does the work.
 
 docs/vircle-chat-app-protocol.md   what travels between the app and the gateway (you rarely need it: the library does it)
 library/                           ${tgz} is the package to install (npm install ./${tgz}); src/ is its TypeScript source; README.md is the API reference
@@ -114,6 +117,10 @@ Run the simulator (Node 20 or later, no server, no database, no Halo needed):
     npm install
     npm run sim
     open http://localhost:8090/launch
+
+A script can play the support agent against it (scripts/sim-agent.mjs); with the simulator running, this checks the setup end to end:
+
+    node scripts/sim-agent-selftest.mjs
 
 No secret is in this kit and none belongs in the app. The one secret the chat needs (the "sessions key") lives only on the Vircle backend.
 `,
