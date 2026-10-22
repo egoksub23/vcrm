@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { KycValidation } from "@/lib/kyc/types";
 
-import { AUTO_PAGE_MAX, AUTO_PAGE_TARGET, NO_FILTERS, filterValidations, matchesFilters, needsOwnPaging, resultOptions, reviewWord, shouldKeepPaging, type KycFilters } from "./helpers";
+import { AUTO_PAGE_MAX, AUTO_PAGE_TARGET, DEFAULT_FILTERS, NO_FILTERS, isDefaultFilters, filterValidations, matchesFilters, needsOwnPaging, resultOptions, reviewWord, shouldKeepPaging, type KycFilters } from "./helpers";
 
 const v = (over: Partial<KycValidation> = {}): KycValidation => ({
   id: "1",
@@ -94,5 +94,34 @@ describe("reading further pages for a filter the back end will not apply", () =>
     let pages = 0;
     while (shouldKeepPaging({ matches: 0, pages, hasMore: true, filters: f({ review: "approved" }) })) pages += 1;
     expect(pages).toBe(AUTO_PAGE_MAX);
+  });
+});
+
+describe("what the page opens on", () => {
+  it("is Needs review, with every other choice still available", () => {
+    expect(DEFAULT_FILTERS).toEqual({ review: "pending", result: "", docType: "" });
+    expect(isDefaultFilters(DEFAULT_FILTERS)).toBe(true);
+    expect(isDefaultFilters(NO_FILTERS)).toBe(false);
+    expect(isDefaultFilters(f({ review: "approved" }))).toBe(false);
+    expect(isDefaultFilters(f({ review: "pending", docType: "nric" }))).toBe(false);
+    expect(isDefaultFilters(f({ review: "pending", result: "UNREADABLE" }))).toBe(false);
+  });
+
+  it("keeps only the undecided checks, and so has to read on for them", () => {
+    const undecided = v({ id: "a", review: null });
+    const decided = v({ id: "b", review: { raw: "APPROVED", at: null, note: null } as unknown as KycValidation["review"] });
+    expect(filterValidations([undecided, decided], DEFAULT_FILTERS).map((x) => x.id)).toEqual(["a"]);
+    expect(needsOwnPaging(DEFAULT_FILTERS)).toBe(true);
+  });
+
+  it("reads further back for a changed choice only when the loaded checks do not fill the list", () => {
+    // 20 or more already match: nothing more is pulled
+    expect(shouldKeepPaging({ matches: AUTO_PAGE_TARGET, pages: 0, hasMore: true, filters: f({ review: "approved" }) })).toBe(false);
+    // too few match and there is more: go and look
+    expect(shouldKeepPaging({ matches: 3, pages: 0, hasMore: true, filters: f({ review: "approved" }) })).toBe(true);
+    // nothing more to read
+    expect(shouldKeepPaging({ matches: 0, pages: 0, hasMore: false, filters: f({ review: "approved" }) })).toBe(false);
+    // "All checks" never reads on by itself
+    expect(shouldKeepPaging({ matches: 0, pages: 0, hasMore: true, filters: NO_FILTERS })).toBe(false);
   });
 });

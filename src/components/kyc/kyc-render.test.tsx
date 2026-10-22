@@ -22,7 +22,7 @@ import type { KycAccessRow, KycDecisionResult, KycValidation } from "@/lib/kyc/t
 import { AccessLogPanel, AccessLogTable } from "./access-log";
 import { DecisionPanel, DoneNotice } from "./decision";
 import { FilterBar } from "./filter-bar";
-import { INITIAL_VIEW, NO_FILTERS, watermarkBackground, watermarkText } from "./helpers";
+import { DEFAULT_FILTERS, INITIAL_VIEW, NO_FILTERS, watermarkBackground, watermarkText } from "./helpers";
 import { ImageViewerView, type Phase } from "./image-viewer";
 import { KycScreen } from "./kyc-screen";
 import { DataCard, ErrorPanel, ProvisionalNote, ReadOnlyNotice, SetupNotice, StatusChip, UatBanner, ValidationList } from "./parts";
@@ -492,8 +492,8 @@ describe.each(LOCALES)("KYC filters in %s", (locale) => {
   const m = kyc(locale);
   const f = (m as unknown as { filters: Record<string, string> & { reviews: Record<string, string>; types: Record<string, string> } }).filters;
 
-  it("offers three dropdowns, the status words the list actually holds, and no Clear until a filter is set", () => {
-    const html = page(locale, <FilterBar filters={NO_FILTERS} results={["UNREADABLE", "MATCH"]} onChange={() => undefined} />);
+  it("offers three dropdowns, the status words the list actually holds, and no Clear while the filters are the default (Needs review)", () => {
+    const html = page(locale, <FilterBar filters={DEFAULT_FILTERS} results={["UNREADABLE", "MATCH"]} onChange={() => undefined} />);
     const t = text(html);
     for (const k of ["review", "result", "docType"]) expect(t, k).toContain(f[k]);
     for (const k of ["all", "pending", "approved", "rejected"]) expect(t, k).toContain(f.reviews[k]);
@@ -507,7 +507,8 @@ describe.each(LOCALES)("KYC filters in %s", (locale) => {
     expect(errors).toEqual([]);
   });
 
-  it("offers Clear once something is filtered", () => {
+  it("offers Clear once something is filtered, including \"All checks\", which is no longer the default", () => {
+    expect(text(page(locale, <FilterBar filters={NO_FILTERS} results={[]} onChange={() => undefined} />))).toContain(f.clear);
     expect(text(page(locale, <FilterBar filters={{ review: "approved", result: "", docType: "" }} results={[]} onChange={() => undefined} />))).toContain(f.clear);
     expect(text(page(locale, <FilterBar filters={{ review: "all", result: "", docType: "nric" }} results={[]} onChange={() => undefined} />))).toContain(f.clear);
   });

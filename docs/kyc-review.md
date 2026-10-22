@@ -47,7 +47,7 @@ Every other role, and every custom role built on one, has none of them until an 
 
 ## 2. What the screen does
 
-- **Start page**: opens on the **latest ID checks of everybody**, newest first, 50 at a time (**Load older** for more). No friend ID is needed.
+- **Start page**: opens on **Needs review**: the checks nobody has decided yet, newest first. No friend ID is needed. The back end cannot filter by decision, so the screen reads the latest checks and keeps the undecided ones, stopping at 20 of them or after 8 pages (section 2.2). **Clear filters** goes back to this view; every other view is one dropdown choice away.
 - **Search**: a friend ID (1 to 100 characters of `A-Z a-z 0-9 . _ @ : + -`). Enter searches; paste is fine; the clear button empties it. The last eight ids searched are remembered **per person in this browser** (ids only, never data), with a "Clear recent" link.
 - **Three panes, and the page itself never scrolls** (the Inbox's shape, and its drag handle; each width is remembered per person in this browser): the **queue** on the left, the **ID image** in the middle, and **who it is plus the decision** on the right. Each pane scrolls on its own, the image fits the height of its pane, and Approve and Reject sit at the foot of the right pane, in sight without scrolling.
 - **Filters** (section 2.2), above the queue.
@@ -76,13 +76,15 @@ Three dropdowns over the queue:
 
 | Filter | Options | Applied by |
 | --- | --- | --- |
-| **Review** | All checks, Needs review, Approved, Rejected | the screen |
+| **Review** | All checks, **Needs review (the default)**, Approved, Rejected | the screen |
 | **Result** | any status word seen in the checks loaded (Unreadable, Match, Mismatch, No id on client ...) | the screen |
 | **Document** | NRIC, Passport, Selfie | the **back end** (`doc_type`), so it fetches a fresh list |
 
 The back end applies **only** `friend_id` and `doc_type`; it ignores every other filter it is sent (the engineers' collection of 19 Oct 2026). So "show me the approved ones" cannot be asked for: the screen reads pages itself (`before_id`) until it has **20 matches**, the back end runs out, or it has read **8 pages** in one go — whichever comes first. The cap matters: the list route allows thirty calls a minute per person and **every page is a row in the access log**. **Keep looking** reads the next eight. The count under the filters says both numbers ("7 matches, out of 400 looked at").
 
 The document kind is also checked on the screen, so the filter still holds if the back end ever ignores the one it was sent. A check decided a moment ago **stays in the queue** even when "Needs review" would now drop it, so the reviewer can see what was recorded; it goes on the next search or filter change.
+
+Changing the Review or Result choice reads further back **only when the checks already loaded do not fill the list** (fewer than 20 matches and more pages exist); **All checks** never reads beyond the page that is there. Nothing more is pulled than the choice needs.
 
 A real "waiting for review" list is still the right answer and is one of the open questions for the engineers (section 8).
 

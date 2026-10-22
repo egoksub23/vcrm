@@ -9,6 +9,12 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.99.1] — 2026-10-22
+
+### Changed
+
+- **KYC review opens on Needs review.** The page used to open on every check; it now shows only the checks nobody has decided, and **Clear filters** returns to that view. Picking Approved, Rejected or All checks is one dropdown choice. Changing the Review or Result choice now goes and reads further back by itself when the checks already loaded do not fill the list (it used to just filter what was loaded, leaving "0 matches" and a Keep looking button), and reads nothing more when they do. The verification service cannot filter by decision, so Halo still has to read recent checks to find the undecided ones (at most 8 pages for 20 matches).
+
 ## [0.99.0] — 2026-10-20
 
 **Migration required: `192_kyc_amend.sql`.** Apply it **before** the new code is deployed (it only widens the access log; the code writes the new `amend` action).

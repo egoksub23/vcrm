@@ -229,6 +229,11 @@ export interface KycFilters {
 
 export const NO_FILTERS: KycFilters = { review: "all", result: "", docType: "" };
 
+/** What the page opens on, and what "Clear filters" goes back to: the checks nobody has decided yet. Everything else is one dropdown choice away. */
+export const DEFAULT_FILTERS: KycFilters = { review: "pending", result: "", docType: "" };
+
+export const isDefaultFilters = (f: KycFilters): boolean => f.review === DEFAULT_FILTERS.review && f.result === DEFAULT_FILTERS.result && f.docType === DEFAULT_FILTERS.docType;
+
 /** "APPROVED" -> approved, "REJECTED" -> rejected, another word the back end may send -> other; null when nobody has decided this check. */
 export function reviewWord(v: Pick<KycValidation, "review">): "approved" | "rejected" | "other" | null {
   return v.review ? reviewKind(v.review.raw) : null;

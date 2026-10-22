@@ -12,7 +12,7 @@ import { useTranslations } from "next-intl";
 
 import { KYC_DOC_TYPES, type KycDocType } from "@/lib/kyc/types";
 
-import type { KycFilters, ReviewFilter } from "./helpers";
+import { DEFAULT_FILTERS, isDefaultFilters, type KycFilters, type ReviewFilter } from "./helpers";
 import { humanStatus } from "./parts";
 
 const SELECT =
@@ -34,7 +34,8 @@ export function FilterBar({
 }) {
   const t = useTranslations("Kyc.filters");
   const set = (patch: Partial<KycFilters>) => onChange({ ...filters, ...patch });
-  const any = filters.review !== "all" || filters.result !== "" || filters.docType !== "";
+  // "Clear filters" goes back to what the page opens on (Needs review), so it is offered whenever the filters differ from that.
+  const any = !isDefaultFilters(filters);
 
   return (
     <div className="grid grid-cols-2 gap-2 lg:grid-cols-3" role="group" aria-label={t("label")}>
@@ -95,7 +96,7 @@ export function FilterBar({
         <div className="col-span-2 lg:col-span-3">
           <button
             type="button"
-            onClick={() => onChange({ review: "all", result: "", docType: "" })}
+            onClick={() => onChange(DEFAULT_FILTERS)}
             disabled={disabled}
             className="text-xs text-muted-foreground underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >

@@ -34,7 +34,7 @@ import { AccessLogPanel } from "./access-log";
 import { getStatus, getValidations, postDecision } from "./api";
 import { DecisionPanel } from "./decision";
 import {
-  NO_FILTERS,
+  DEFAULT_FILTERS,
   REVEAL_MS,
   addRecent,
   loadRecent,
@@ -97,7 +97,7 @@ export function KycScreen() {
   const [recent, setRecent] = useState<string[]>([]);
   // "" = the latest checks of everybody (the start page); otherwise the list is filtered to this friend id
   const [friendId, setFriendId] = useState<string>("");
-  const [filters, setFilters] = useState<KycFilters>(NO_FILTERS);
+  const [filters, setFilters] = useState<KycFilters>(DEFAULT_FILTERS);
   const [phase, setPhase] = useState<Phase>("idle");
   const [nextBeforeId, setNextBeforeId] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -210,21 +210,21 @@ export function KycScreen() {
     [scan],
   );
 
-  // The page opens on the latest checks of everybody, so nobody has to know a friend id to start.
+  // The page opens on the checks that need a review (the default filter), so nobody has to know a friend id to start.
   useEffect(() => {
     if (started.current || !status?.configured || !canMenu) return;
     started.current = true;
     // load-on-mount fetch whose result sets state
      
-    void run("", NO_FILTERS);
+    void run("", DEFAULT_FILTERS);
   }, [status?.configured, canMenu, run]);
 
-  const loadMore = async () => {
+  const loadMore = async (f: KycFilters = filters) => {
     if (!nextBeforeId || loadingMore || phase !== "ready") return;
     const mine = seq.current;
     setLoadingMore(true);
     setScanError(null);
-    const out = await scan(friendId, filters, nextBeforeId, items, mine);
+    const out = await scan(friendId, f, nextBeforeId, items, mine);
     setLoadingMore(false);
     if (!out) return;
     setItems(out.items);
@@ -240,6 +240,10 @@ export function KycScreen() {
     }
     setFilters(next);
     setKeep([]);
+    // Another review or result choice may need checks that were not read yet. Go and look, but only when what is loaded does not already fill the
+    // list: nothing more is pulled than the choice needs, and "All checks" never reads beyond the page that is there.
+    const have = items.filter((v) => matchesFilters(v, next)).length;
+    if (shouldKeepPaging({ matches: have, pages: 0, hasMore: nextBeforeId !== null, filters: next })) void loadMore(next);
   };
 
   const submit = (e?: FormEvent) => {
