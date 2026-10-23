@@ -72,7 +72,7 @@ what you use to see a chat working before the app exists.
 - Done: Halo's send now carries the contact's name, phone and email (contract 1.1), so the gateway can name the
   recipient to the push API even for a user who has never opened the chat.
 - Nothing else changes: `delivery` is shown as "sent" whatever the gateway answered.
-- Planned (contract 1.3, work package 9): a signed read endpoint for earlier messages (contract section 3.5) and a "history limit" setting
+- Built (contract 1.3, work package 9, 23 Oct 2026): a signed read endpoint for earlier messages (contract section 3.5) and a "history limit" setting
   on the Vircle Chat channel (90 days by default).
 
 ## 6. Plan and effort

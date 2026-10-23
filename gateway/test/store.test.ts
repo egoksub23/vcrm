@@ -77,6 +77,17 @@ describe('changing a workspace after Halo changes it', () => {
     await expect(store.updateWorkspace('vcw_doesnotexist000000001', { name: 'x' })).rejects.toThrow(/No workspace/)
   })
 
+  it('sets the own alert link and wording of a workspace, merged with what is there, and removes one setting with an empty value', async () => {
+    const w = (await store.createWorkspace({ ...WORKSPACE, key: 'vcw_pushsettings000001', apiToken: 'vct_push' })).workspace
+    let u = await store.updateWorkspace(w.workspace_key, { pushSettings: { deep_link: 'https://app.example.com/chat/{conversation_id}' } })
+    expect(u.push_settings).toEqual({ deep_link: 'https://app.example.com/chat/{conversation_id}' })
+    u = await store.updateWorkspace(w.workspace_key, { pushSettings: { title: 'Care' } })
+    expect(u.push_settings).toEqual({ deep_link: 'https://app.example.com/chat/{conversation_id}', title: 'Care' })
+    u = await store.updateWorkspace(w.workspace_key, { pushSettings: { deep_link: '' } })
+    expect(u.push_settings).toEqual({ title: 'Care' })
+    await expect(store.updateWorkspace(w.workspace_key, { pushSettings: { deep_link: 'not a link' } })).rejects.toThrow(/full address/)
+  })
+
   it('rotates the sessions key: the new one works, the old one does not', async () => {
     const w = await store.createWorkspace({ ...WORKSPACE, key: 'vcw_sessionssessions001', apiToken: 'vct_sess' })
     const next = await store.rotateSessionsKey(w.workspace.workspace_key)

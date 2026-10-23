@@ -34,6 +34,7 @@ import {
 import { SettingsPanelHead } from '../settings-panel-head';
 import { ChannelEnabledSwitch } from './channel-enabled-switch';
 import type { VircleChatConfigView } from '@/lib/vircle-chat/config';
+import { HISTORY_DAYS_MAX, HISTORY_DAYS_MIN } from '@/lib/vircle-chat/history-limits';
 
 const BASE = '/api/account/channels/vircle-chat';
 
@@ -54,6 +55,67 @@ type Confirming = 'secret' | 'token' | 'disconnect' | null;
 
 async function readJson<T>(res: Response): Promise<T & { error?: string }> {
   return (await res.json().catch(() => ({}))) as T & { error?: string };
+}
+
+/** How many days of earlier messages Halo supplies when a person scrolls up in the app (migration 193). */
+function HistoryDaysCard({ historyDays, onSaved }: { historyDays: number; onSaved: (days: number) => void }) {
+  const t = useTranslations('Settings.channels.vircleChat');
+  const [value, setValue] = useState(String(historyDays));
+  const [saving, setSaving] = useState(false);
+  const days = Number(value);
+  const valid = /^[0-9]{1,3}$/.test(value.trim()) && days >= HISTORY_DAYS_MIN && days <= HISTORY_DAYS_MAX;
+
+  async function save() {
+    if (!valid) {
+      toast.error(t('historyInvalid'));
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(BASE, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ historyDays: days }),
+      });
+      const data = await readJson<{ historyDays?: number }>(res);
+      if (!res.ok) throw new Error(data.error || t('historyFailed'));
+      onSaved(days);
+      toast.success(t('historySaved'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('historyFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle className="text-base">{t('historyTitle')}</CardTitle>
+        <CardDescription>{t('historyDescription')}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Label htmlFor="vircle-chat-history-days" className="text-muted-foreground">
+          {t('historyLabel')}
+        </Label>
+        <div className="flex gap-2">
+          <Input
+            id="vircle-chat-history-days"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            inputMode="numeric"
+            autoComplete="off"
+            className="w-28"
+          />
+          <Button onClick={() => void save()} disabled={saving || !valid || days === historyDays} className="shrink-0">
+            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            {t('save')}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">{t('historyHint')}</p>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function VircleChatChannel() {
@@ -331,6 +393,13 @@ export function VircleChatChannel() {
 
       {config ? (
         <>
+          <HistoryDaysCard
+            historyDays={config.historyDays}
+            onSaved={(days) =>
+              setState((prev) => (prev?.config ? { ...prev, config: { ...prev.config, historyDays: days } } : prev))
+            }
+          />
+
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="text-base">{t('detailsTitle')}</CardTitle>

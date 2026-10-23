@@ -117,7 +117,27 @@ const url = await chat.getMediaUrl(message.id)   // use it as <img src>, <video 
 ```
 
 It returns the address the message has when that is good for another minute, and otherwise asks the gateway for a new one.
-Video and audio play and seek on iOS (the gateway supports `Range`).
+Video and audio play and seek on iOS (the gateway supports `Range`). Since 1.1.0 you can also give the message itself, which is what you need for a
+message from `fetchHistory` (it is not in the library's list): `await chat.getMediaUrl(message)` renews its link in place.
+
+### Older messages (1.1.0)
+
+```ts
+const page = await chat.fetchHistory({
+  before: { sentAt: oldest.sentAt, serverId: oldest.serverId },   // the oldest message you hold (leave serverId out when you hold none)
+  limit: 30,                                                      // 1 to 50, default 30
+  notBefore: clearedBefore,                                       // optional: nothing older than the moment the user cleared the chat
+})
+// page.messages  oldest first, ready to put above the ones you show (seq is null, id === serverId)
+// page.more      another page exists: ask again with page.messages[0] as the cursor
+// page.end       when !more: 'start' (the conversation begins here) or 'window' (older exists beyond how far back Halo shows)
+```
+
+One call, one page, **stateless**: the messages are not added to the library's list, nothing counts as unread and no receipt is sent. Keeping them (on the
+phone, until the user clears the chat) and the paging are the app's. Halo supplies up to 90 days (a setting per workspace). Needs a connection; it rejects
+with a `ChatError` whose `code` is `offline`, `history_unavailable` or `rate_limited` (both with `retryAfterSeconds`), `history_disabled` (stop asking),
+`bad_request` or `timeout`. Ten pages a minute are allowed. The first time the user opens an old photo or voice note it takes a moment (the gateway fetches
+it from Halo).
 
 ### The chat screen
 

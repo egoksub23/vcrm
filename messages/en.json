@@ -3294,7 +3294,14 @@
         "disconnectBody": "The workspace key, signing secret and API token are deleted. People cannot reach you through the app until you connect again and give the gateway team the new values. Existing conversations are kept.",
         "disconnectConfirm": "Disconnect",
         "disconnected": "Vircle Chat disconnected",
-        "disconnectFailed": "Could not disconnect Vircle Chat"
+        "disconnectFailed": "Could not disconnect Vircle Chat",
+        "historyTitle": "Older messages",
+        "historyDescription": "How far back the app can scroll. When a person scrolls up past what is on their phone, Halo supplies their earlier Vircle Chat messages, up to this many days.",
+        "historyLabel": "Days of history",
+        "historyHint": "From 1 to 365 days, 90 by default. Older messages stay in Halo; the app is told the conversation goes further back.",
+        "historySaved": "History limit saved",
+        "historyInvalid": "Enter a whole number from 1 to 365",
+        "historyFailed": "Could not save the history limit"
       },
       "tiktok": {
         "title": "TikTok",

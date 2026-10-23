@@ -176,7 +176,7 @@ export class Store {
    */
   async updateWorkspace(
     key: string,
-    changes: { haloWebhookUrl?: string; signingSecret?: string; apiToken?: string; name?: string },
+    changes: { haloWebhookUrl?: string; signingSecret?: string; apiToken?: string; name?: string; pushSettings?: { title?: string; body?: string; deep_link?: string } },
   ): Promise<Workspace> {
     const sets: string[] = []
     const params: unknown[] = []
@@ -194,6 +194,14 @@ export class Store {
       set('halo_api_token_hash', sha256Hex(changes.apiToken))
     }
     if (changes.name !== undefined) set('name', changes.name)
+    if (changes.pushSettings !== undefined) {
+      const p = changes.pushSettings
+      if (p.deep_link !== undefined && p.deep_link !== '' && !/^[a-z][a-z0-9+.-]*:\/\//i.test(p.deep_link)) throw new Error('The deep link must be a full address, for example https://app.example.com/chat/{conversation_id}')
+      // Merged into what is there, so setting the link keeps the title; an empty value removes that one setting.
+      params.push(JSON.stringify(Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined && v !== ''))))
+      const removed = Object.entries(p).filter(([, v]) => v === '').map(([k]) => k)
+      sets.push(`push_settings = (push_settings - ${removed.length ? `ARRAY[${removed.map((k) => `'${k.replace(/[^a-z_]/g, '')}'`).join(',')}]::text[]` : "ARRAY[]::text[]"}) || $${params.length}::jsonb`)
+    }
     if (sets.length === 0) throw new Error('Nothing to change')
     params.push(key)
     const { rows } = await this.db.query<Workspace>(
@@ -689,6 +697,12 @@ export class Store {
       [conversationId, limit],
     )
     return rows
+  }
+
+  async subjectByUserId(userId: string): Promise<Subject | null> {
+    const conv = await this.db.query<Conversation>('SELECT id, workspace_id, user_id, last_seq FROM conversations WHERE user_id = $1', [userId])
+    const c = conv.rows[0]
+    return c ? this.subjectByConversation(c.id) : null
   }
 
   async subjectByConversation(conversationId: string): Promise<Subject | null> {

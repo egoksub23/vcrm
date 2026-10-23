@@ -11,6 +11,7 @@
 //                    file_url { file_id }
 //                    receipt  { up_to_seq, status: 'delivered' | 'read' }
 //                    resume   { last_seq }
+//                    history  { request_id, before: { sent_at, server_id? }, limit?, not_before? }   (older messages, from Halo)
 //                    typing   { }
 //                    ping     { t? }
 //   gateway -> app   welcome  { v, server_time, heartbeat_s, limits, user, conversation }
@@ -22,6 +23,7 @@
 //                    receipt  { conversation_id, status: 'delivered' | 'read', messages: [{ server_id, seq }] }
 //                    typing   { conversation_id, from: 'support' }
 //                    resume_done { conversation_id, up_to_seq, more }
+//                    history_page { request_id, messages: [deliver-shaped, no seq], more, end? }
 //                    pong     { t? }
 //                    error    { code, message, retry_after?, request_id?, client_id? }
 //
@@ -49,12 +51,20 @@ export type ClientFrame =
   | { type: 'file_url'; fileId: string }
   | { type: 'receipt'; upToSeq: number; status: 'delivered' | 'read' }
   | { type: 'resume'; lastSeq: number }
+  | { type: 'history'; requestId: string; beforeSentAt: string; beforeServerId: string | null; limit: number; notBefore: string | null }
   | { type: 'typing' }
   | { type: 'ping'; t: unknown }
 
-export type ParseResult = { ok: true; frame: ClientFrame } | { ok: false; code: string; message: string }
+export type ParseResult = { ok: true; frame: ClientFrame } | { ok: false; code: string; message: string; extra?: Record<string, unknown> }
 
-const bad = (code: string, message: string): ParseResult => ({ ok: false, code, message })
+const bad = (code: string, message: string, extra?: Record<string, unknown>): ParseResult => ({ ok: false, code, message, ...(extra ? { extra } : {}) })
+
+/** A time as an ISO string, or null when it is not a sensible time. */
+function isoTime(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const t = Date.parse(v)
+  return Number.isFinite(t) && t > Date.UTC(2000, 0, 1) && t < Date.UTC(2100, 0, 1) ? new Date(t).toISOString() : null
+}
 
 const MESSAGE_TYPES: readonly string[] = ['text', 'image', 'video', 'audio', 'document']
 
@@ -128,6 +138,23 @@ export function parseClientFrame(raw: string, limits: Limits): ParseResult {
       const lastSeq = seq(f.last_seq)
       if (lastSeq === null) return bad('bad_frame', 'resume needs last_seq')
       return { ok: true, frame: { type: 'resume', lastSeq } }
+    }
+    case 'history': {
+      const requestId = str(f.request_id, 100)
+      if (!requestId) return bad('bad_frame', 'history needs a request_id')
+      const before = f.before && typeof f.before === 'object' && !Array.isArray(f.before) ? (f.before as Record<string, unknown>) : null
+      const beforeSentAt = isoTime(before?.sent_at)
+      if (!beforeSentAt) return bad('bad_request', 'history needs before.sent_at: a time', { request_id: requestId })
+      const beforeServerId = before?.server_id === undefined || before.server_id === null ? null : str(before.server_id, 100)
+      if (before && before.server_id !== undefined && before.server_id !== null && !beforeServerId) return bad('bad_request', 'before.server_id must be the id of a message', { request_id: requestId })
+      let limit = 30
+      if (f.limit !== undefined && f.limit !== null) {
+        if (typeof f.limit !== 'number' || !Number.isInteger(f.limit) || f.limit < 1 || f.limit > 50) return bad('bad_request', 'limit must be a whole number from 1 to 50', { request_id: requestId })
+        limit = f.limit
+      }
+      const notBefore = f.not_before === undefined || f.not_before === null ? null : isoTime(f.not_before)
+      if (f.not_before !== undefined && f.not_before !== null && !notBefore) return bad('bad_request', 'not_before must be a time', { request_id: requestId })
+      return { ok: true, frame: { type: 'history', requestId, beforeSentAt, beforeServerId, limit, notBefore } }
     }
     case 'typing':
       return { ok: true, frame: { type: 'typing' } }

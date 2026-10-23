@@ -165,6 +165,8 @@ export interface ClientOptions {
   pongTimeoutMs?: number
   /** How long to wait for an upload slot or a file link. Default 10 seconds. */
   requestTimeoutMs?: number
+  /** How long to wait for a page of older messages (Halo is asked, so it takes longer). Default 20 seconds. */
+  historyTimeoutMs?: number
   /** Replace the platform's `WebSocket` (Node, tests). */
   WebSocket?: new (url: string) => WebSocketLike
   /** Replace the platform's `fetch` (Node, tests). */
@@ -203,10 +205,42 @@ export interface ChatStore {
   clear(): Promise<void>
 }
 
+/** Where `fetchHistory` continues from: the oldest message the app holds (its time, and its id when it has one). */
+export interface HistoryCursor {
+  /** When the message was sent (milliseconds since the epoch). */
+  sentAt: number
+  /** The gateway's id of that message (`ChatMessage.serverId`). Leave out when the app holds no message yet. */
+  serverId?: string | null
+}
+
+export interface HistoryRequest {
+  /** Messages strictly older than this are returned. */
+  before: HistoryCursor
+  /** How many messages to ask for, 1 to 50. Default 30. */
+  limit?: number
+  /** Nothing older than this is wanted (milliseconds since the epoch): the moment the user cleared the chat on this phone. */
+  notBefore?: number
+}
+
+/**
+ * One page of older messages, oldest first, ready to put above the ones the app already shows.
+ *   more   there is another page: ask again with the first message of this one as the cursor
+ *   end    why there is no more: `start` (the conversation begins here) or `window` (older messages exist but are beyond how far back
+ *          Halo shows). Null while `more` is true.
+ * The messages are not added to the library's own list and have no `seq`; they are not counted as unread and send no receipts.
+ */
+export interface HistoryPage {
+  messages: ChatMessage[]
+  more: boolean
+  end: 'start' | 'window' | null
+}
+
 export class ChatError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    /** For `rate_limited` and `history_unavailable`: how long to wait before asking again. */
+    readonly retryAfterSeconds?: number,
   ) {
     super(message)
     this.name = 'ChatError'

@@ -50,6 +50,7 @@ try {
 }
 putFile('docs/vircle-chat-app-design.docx', join(docs, 'vircle-chat-app-design.docx'))
 putFile('docs/vircle-chat-app-build-spec.md', join(docs, 'vircle-chat-app-build-spec.md'))
+putFile('docs/vircle-chat-app-update-1.1.md', join(docs, 'vircle-chat-app-update-1.1.md'))
 putFile('docs/vircle-chat-app-protocol.md', join(docs, 'vircle-chat-app-protocol.md'))
 
 // 2. The library: the package to install, and its source.
@@ -103,6 +104,7 @@ put(
 Start with docs/vircle-chat-app-design.docx. It says what to build, what is decided, and what you must ask others for.
 Then docs/vircle-chat-app-build-spec.md: HOW to build it (architecture, interfaces, algorithms, tasks with acceptance criteria, testing).
 Give that file, and this whole kit, to the coding agent that does the work.
+docs/vircle-chat-app-update-1.1.md   WHAT CHANGED in library 1.1.0 (older messages), the deep link (universal link) and the push marker: read this first if you have the 1.0.0 kit
 
 docs/vircle-chat-app-protocol.md   what travels between the app and the gateway (you rarely need it: the library does it)
 library/                           ${tgz} is the package to install (npm install ./${tgz}); src/ is its TypeScript source; README.md is the API reference
@@ -111,7 +113,7 @@ emoji/emoji.js                     the emoji list the web chat widget uses (1,91
 screens/                           the reference screens (behaviour, not the visual design)
 simulator/                         a pretend phone and an agent console, built on the same library
 
-Run the simulator (Node 20 or later, no server, no database, no Halo needed):
+Run the simulator (Node 24.22.1 or later (22.23.4 or later also works), no server, no database, no Halo needed):
 
     cd simulator
     npm install

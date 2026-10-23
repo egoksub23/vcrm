@@ -177,6 +177,11 @@ push setting: there is nothing to switch on in Settings. Halo only reads the `de
 gateway answers with (`socket`, `push`, `queued` or `no_device`) and shows every one of them as
 "sent" (section 5). To change when a customer is alerted, change the gateway, not Halo.
 
+**Older messages.** When a person scrolls up past what is on their phone, the app asks the gateway and the gateway asks Halo
+(`POST /api/vircle-chat/history`, signed like every event). Settings, Channels, Vircle Chat, **Older messages** sets how many days back Halo
+answers: 90 by default, 1 to 365. Only the person's own Vircle Chat conversation is ever returned (no internal notes, no WhatsApp or web chat).
+The setting needs migration 193.
+
 (The web widget has its own separate, still inactive placeholder for app pushes,
 `src/lib/widget/notify-app-push.ts`. It is not used by Vircle Chat.)
 

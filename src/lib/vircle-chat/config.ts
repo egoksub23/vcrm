@@ -14,6 +14,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
 
+import { HISTORY_DAYS_DEFAULT } from './history-limits'
+
 export interface VircleChatConfigRow {
   id: string
   account_id: string
@@ -22,6 +24,8 @@ export interface VircleChatConfigRow {
   signing_secret: string
   api_token: string
   enabled: boolean
+  /** How many days back Halo answers the app's requests for older messages (migration 193; 90 until a workspace changes it). */
+  history_days: number
   last_inbound_at: string | null
   last_error: string | null
   connected_by_user_id: string | null
@@ -34,6 +38,7 @@ export interface VircleChatConfigView {
   workspaceKey: string
   gatewayBaseUrl: string
   enabled: boolean
+  historyDays: number
   lastInboundAt: string | null
   lastError: string | null
   createdAt: string
@@ -44,6 +49,7 @@ export function toConfigView(row: VircleChatConfigRow): VircleChatConfigView {
     workspaceKey: row.workspace_key,
     gatewayBaseUrl: row.gateway_base_url,
     enabled: row.enabled,
+    historyDays: typeof row.history_days === 'number' ? row.history_days : HISTORY_DAYS_DEFAULT,
     lastInboundAt: row.last_inbound_at,
     lastError: row.last_error,
     createdAt: row.created_at,

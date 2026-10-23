@@ -232,6 +232,9 @@ export const RATE_LIMITS = {
    *  checked with checkSharedRateLimit. 1 200/min = 20 events a second, far above a
    *  customer-care chat; it only stops a runaway or hostile gateway. */
   vircleInbound: { limit: 1200, windowMs: 60_000 },
+  /** Requests for older messages from one workspace's gateway (`/api/vircle-chat/history`), checked with
+   *  checkSharedRateLimit. The gateway already allows each person 10 pages a minute; 600/min only stops a runaway gateway. */
+  vircleHistory: { limit: 600, windowMs: 60_000 },
   /** "Typing..." signals an agent sends to a Vircle Chat user (`/api/vircle-chat/typing`):
    *  one per 3 seconds per agent and conversation (contract 4.2). A signal over the budget
    *  is dropped quietly, not refused: it is cosmetic and the composer fires it freely. */

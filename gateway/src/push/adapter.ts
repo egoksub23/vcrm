@@ -21,6 +21,21 @@ export interface PushRequest {
   deepLink: string
   /** Alerts with the same key replace one another on the phone (the conversation id). */
   collapseKey: string
+  /**
+   * Custom string fields that travel with the alert, so the app can route it without parsing text. Always `chatAlertData(...)`:
+   * the app tells a chat alert from every other alert by `chat_alert === '1'`.
+   */
+  data: Record<string, string>
+}
+
+/** The existing push type the app already handles (generic alert). A chat alert keeps it and adds `chat_alert`. */
+export const NOTIFICATION_TYPE = '01'
+/** THE marker of a chat alert: this field is `'1'` on every alert the gateway raises, and on no other alert. */
+export const CHAT_ALERT_FIELD = 'chat_alert'
+
+/** The `data` of a chat alert (docs/vircle-chat-contract.md, section 7). Values are strings, as push services require. */
+export function chatAlertData(conversationId: string, deepLink: string): Record<string, string> {
+  return { notification_type: NOTIFICATION_TYPE, [CHAT_ALERT_FIELD]: '1', conversation_id: conversationId, deep_link: deepLink }
 }
 
 export type PushResult =

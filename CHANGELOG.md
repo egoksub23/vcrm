@@ -9,6 +9,20 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.100.0] — 2026-10-23
+
+**Migration required: `193_vircle_chat_history_days.sql`.** Apply it **before** the new code is deployed (the app reads the new column). The Vircle Chat gateway has to be rebuilt and redeployed too (it carries the other half of this change).
+
+### Added
+
+- **Vircle Chat: older messages for the app.** When a person scrolls up past what is on their phone, the app asks the gateway and the gateway asks Halo (`POST /api/vircle-chat/history`, signed like every event, a read). Halo answers with that person's own Vircle Chat messages only (never their WhatsApp or web chat, never internal notes, failed sends or messages in the trash), newest page first, and a fresh download link for a photo or voice note when the app opens it.
+- **Settings, Channels, Vircle Chat, Older messages: how many days back.** 90 by default, 1 to 365. Messages older than that stay in Halo; the app is told the conversation goes further back.
+
+### Changed
+
+- **Chat alerts now carry a marker and a universal link.** The gateway's alert data is `notification_type: "01"`, `chat_alert: "1"`, `conversation_id` and `deep_link`, and the default link is `https://app.vircle.com/chat/{conversation_id}` (a workspace can still override it, now also from the gateway's command line). The push team has to confirm that the push API forwards the custom fields.
+- **`@vircle/chat-client` 1.1.0** adds `fetchHistory` (and lets `getMediaUrl` take a message), and the app kit carries it.
+
 ## [0.99.1] — 2026-10-22
 
 ### Changed

@@ -3294,7 +3294,14 @@
         "disconnectBody": "Kunci ruang kerja, rahsia tandatangan dan token API dipadam. Orang tidak dapat menghubungi anda melalui aplikasi sehingga anda menyambung semula dan memberikan nilai baharu kepada pasukan gateway. Perbualan sedia ada dikekalkan.",
         "disconnectConfirm": "Putuskan sambungan",
         "disconnected": "Sambungan Vircle Chat diputuskan",
-        "disconnectFailed": "Tidak dapat memutuskan sambungan Vircle Chat"
+        "disconnectFailed": "Tidak dapat memutuskan sambungan Vircle Chat",
+        "historyTitle": "Mesej lama",
+        "historyDescription": "Sejauh mana aplikasi boleh tatal ke belakang. Apabila seseorang menatal melepasi apa yang ada pada telefon mereka, Halo membekalkan mesej Vircle Chat terdahulu mereka, hingga bilangan hari ini.",
+        "historyLabel": "Hari sejarah",
+        "historyHint": "Dari 1 hingga 365 hari, 90 secara lalai. Mesej yang lebih lama kekal dalam Halo; aplikasi dimaklumkan bahawa perbualan bermula lebih awal.",
+        "historySaved": "Had sejarah disimpan",
+        "historyInvalid": "Masukkan nombor bulat dari 1 hingga 365",
+        "historyFailed": "Tidak dapat menyimpan had sejarah"
       },
       "tiktok": {
         "title": "TikTok",

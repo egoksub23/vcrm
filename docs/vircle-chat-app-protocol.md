@@ -42,6 +42,7 @@ Every frame is one JSON text frame with a `type`. Binary frames are refused.
 | `file_url` | `file_id` | Ask for a fresh link to a file in this conversation (the link in a message expired). |
 | `receipt` | `up_to_seq`, `status: 'delivered' \| 'read'` | About **support's** messages: the app received them (`delivered`, send it as soon as they arrive) or showed them on the chat screen (`read`). Cumulative: everything up to that number. |
 | `resume` | `last_seq` | Replay everything after `last_seq` (use after a gap, and to page through a long one). |
+| `history` | `request_id`, `before: { sent_at, server_id? }`, `limit?`, `not_before?` | Ask for older messages than the app holds (section 7). Answered with `history_page`. |
 | `typing` | | The user is typing. Send it at most every 2 to 3 seconds while they type. |
 | `ping` | `t?` | Keep-alive; answered with `pong`. |
 
@@ -117,14 +118,14 @@ is valid for 24 hours; when it expires (a `410`), send `file_url` for a new one.
 
 The simulator's **Wire log** tab shows every frame as it happens, which is the quickest way to learn the shapes.
 
-## 7. Older history (planned, not built yet; contract 1.3)
+## 7. Older history (built; contract 1.3)
 
 Added to protocol version 1 without breaking it: a gateway that has it says so in `welcome`, and a client that does not know it ignores the
 extra fields. The app asks for earlier messages as the user scrolls up; **Halo is the source** (it keeps the conversation for good, the gateway
 keeps delivered messages for 30 days only) and the gateway passes the pages through. The app's engine does the paging and the keeping; the client
 library (1.1.0) adds one call, `fetchHistory`, that returns one page. Read this only to see what travels.
 
-`welcome` gains `features: ["history"]` and `history_days: 90`.
+`welcome` gains `features: ["history"]`. A gateway without it sends no `features`, and answers a `history` frame with `bad_frame`.
 
 | Frame | Fields | Meaning |
 | --- | --- | --- |
@@ -138,8 +139,11 @@ Rules.
 * Messages in a page are **history, not news**: do not send `receipt` `delivered` for them, do not count them as unread, do not show a
   notification. De-duplicate by `server_id` (a page can overlap messages the app already has); order by `sent_at`, then `server_id`.
 * Only what the person could see: no internal notes, no assignments, no messages that failed to send.
-* `media.url` is a fresh 24-hour link, served from the gateway's own address. For files the gateway no longer holds (older than its 30 days) the
-  gateway fetches them from Halo and streams them, so the app still talks to one host.
-* Errors: `history_unavailable` (Halo could not answer: try later, `retry_after`), `history_disabled` (the workspace has no history), `rate_limited`
-  (10 pages a minute per user), `bad_request`.
+* `media` names the file with an id that starts with `h_` and a link (`url`, `expires_at`) good for 24 hours, served from the gateway's own address.
+  **Nothing is fetched until the link is first opened**: the gateway then asks Halo for the file, keeps it for a day and serves it, so the first
+  open of an old photo takes a moment and the app still talks to one host. Renew an expired link with `file_url`, as for any file. `file_name` and
+  `size_bytes` of an old file may be empty (`null` / `0`).
+* Errors (an `error` frame carrying the `request_id` of the request): `history_unavailable` (Halo could not answer: try later, `retry_after`),
+  `history_disabled` (Halo does not offer history for the workspace: stop asking), `rate_limited` (10 pages a minute per user; `retry_after`),
+  `bad_request` (the cursor, `limit` or `not_before` is not valid).
 * The gateway stores no history page; each request is a signed read from Halo (contract section 3.5).

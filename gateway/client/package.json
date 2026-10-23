@@ -1,7 +1,7 @@
 {
   "name": "@vircle/chat-client",
-  "version": "1.0.0",
-  "description": "Client for the Vircle Chat gateway: connection, reconnect and resume, sending text and files, receipts, typing. No dependencies.",
+  "version": "1.1.0",
+  "description": "Client for the Vircle Chat gateway: connection, reconnect and resume, sending text and files, receipts, typing, older messages. No dependencies.",
   "private": true,
   "type": "module",
   "main": "dist/index.js",

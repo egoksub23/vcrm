@@ -29,6 +29,8 @@ import {
   type ClientEvents,
   type ClientOptions,
   type ConnectionState,
+  type HistoryPage,
+  type HistoryRequest,
   type Limits,
   type MessageKind,
   type MessageStatus,
@@ -133,6 +135,8 @@ export class VircleChatClient {
   private readonly pending = new Map<string, Pending>()
   private readonly failed = new Map<string, Pending>()
   private readonly waiters = new Map<string, Waiter>()
+  /** What the gateway said it can do in its last `welcome`; null before the first one. */
+  private features: string[] | null = null
   private screenOpen = false
   private deliveredUpTo = 0
   private readUpTo = 0
@@ -376,10 +380,12 @@ export class VircleChatClient {
 
   /**
    * An address that shows or plays the message's file. Returns the one the message has when it is good for another
-   * minute, otherwise asks the gateway for a new one (which needs a connection).
+   * minute, otherwise asks the gateway for a new one (which needs a connection). Give the id of a message in the list, or (1.1.0)
+   * a message from a history page, whose link is then renewed in place.
    */
-  async getMediaUrl(id: string): Promise<string> {
-    const m = this.byId.get(id)
+  async getMediaUrl(ref: string | ChatMessage): Promise<string> {
+    const listed = this.byId.get(typeof ref === 'string' ? ref : ref.id)
+    const m = listed ?? (typeof ref === 'string' ? undefined : ref)
     const media = m?.media
     if (!m || !media) throw new ChatError('not_found', 'That message has no file')
     const fresh = media.url && (media.expiresAt === null || media.expiresAt - this.now() > LINK_REFRESH_MARGIN_MS)
@@ -390,9 +396,49 @@ export class VircleChatClient {
     if (!url) throw new ChatError('bad_response', 'The gateway sent no address')
     media.url = url
     media.expiresAt = Date.parse(str(frame.expires_at) ?? '') || null
-    this.touch(m, 'updated')
-    this.persistSoon()
+    if (listed) {
+      this.touch(listed, 'updated')
+      this.persistSoon()
+    }
     return url
+  }
+
+  /**
+   * One page of messages older than `before`, asked of Halo through the gateway (1.1.0). Stateless: nothing is added to the list, no
+   * receipt is sent and nothing counts as unread; the app puts the page in its own storage and above the messages it shows.
+   * Needs a connection. Rejects with a `ChatError` whose code is one of
+   *   offline              not connected (or the connection dropped meanwhile): try again when `state` is `online`
+   *   history_unavailable  Halo could not answer; `retryAfterSeconds` says how long to wait
+   *   history_disabled     Halo does not offer older messages for this workspace: stop asking
+   *   rate_limited         too many pages in a minute (10 are allowed); `retryAfterSeconds` says how long to wait
+   *   bad_request          the cursor or the limit was not valid
+   *   timeout              no answer in time
+   */
+  async fetchHistory(req: HistoryRequest): Promise<HistoryPage> {
+    const sentAt = req.before?.sentAt
+    if (typeof sentAt !== 'number' || !Number.isFinite(sentAt)) throw new ChatError('bad_request', 'before.sentAt must be a time')
+    // A gateway that does not list the feature cannot answer: say so now instead of waiting for a timeout.
+    if (this.features && !this.features.includes('history')) throw new ChatError('history_disabled', 'This gateway does not offer older messages')
+    const requestId = `h-${randomId()}`
+    const serverId = req.before.serverId
+    const frame = await this.request(
+      `hist:${requestId}`,
+      {
+        type: 'history',
+        request_id: requestId,
+        before: { sent_at: new Date(sentAt).toISOString(), ...(serverId ? { server_id: serverId } : {}) },
+        ...(req.limit !== undefined ? { limit: req.limit } : {}),
+        ...(req.notBefore !== undefined ? { not_before: new Date(req.notBefore).toISOString() } : {}),
+      },
+      this.opts.historyTimeoutMs ?? 20_000,
+    )
+    const messages: ChatMessage[] = []
+    for (const raw of Array.isArray(frame.messages) ? frame.messages : []) {
+      const m = this.historyMessage(raw)
+      if (m) messages.push(m)
+    }
+    const more = frame.more === true && messages.length > 0
+    return { messages, more, end: more ? null : frame.end === 'window' ? 'window' : 'start' }
   }
 
   /** Forget everything kept on this device (sign-out). */
@@ -704,6 +750,8 @@ export class VircleChatClient {
       }
       case 'file_url':
         return this.settle(`url:${str(f.file_id)}`, f)
+      case 'history_page':
+        return this.settle(`hist:${str(f.request_id)}`, f)
       case 'resume_done':
         if (f.more === true) this.sendFrame({ type: 'resume', last_seq: this.lastSeq })
         else if (!this.loaded) {
@@ -732,6 +780,7 @@ export class VircleChatClient {
         sendWindowSeconds: num(lim.send_window_s) ?? 10,
       }
     }
+    this.features = Array.isArray(f.features) ? f.features.filter((x): x is string => typeof x === 'string') : []
     const conv = asRecord(f.conversation)
     const convId = str(conv?.id)
     const serverLast = num(conv?.last_seq)
@@ -871,9 +920,11 @@ export class VircleChatClient {
     const message = str(f.message) ?? 'The gateway refused the request'
     const clientId = str(f.client_id)
     const requestId = str(f.request_id)
-    const err = new ChatError(code, message)
+    const retryAfter = num(f.retry_after)
+    const err = new ChatError(code, message, retryAfter ?? undefined)
 
     if (requestId && this.rejectWaiter(`up:${requestId}`, err)) return
+    if (requestId && this.rejectWaiter(`hist:${requestId}`, err)) return
     if (code === 'file_not_found' && !clientId) {
       for (const key of [...this.waiters.keys()]) if (key.startsWith('url:')) this.rejectWaiter(key, err)
       return
@@ -950,13 +1001,13 @@ export class VircleChatClient {
   // Requests that wait for an answer (upload slot, file link)
   // ----------------------------------------------------------
 
-  private request(key: string, frame: Record<string, unknown>): Promise<Record<string, unknown>> {
+  private request(key: string, frame: Record<string, unknown>, timeoutMs?: number): Promise<Record<string, unknown>> {
     if (this.state !== 'online') return Promise.reject(new ChatError('offline', 'The chat is not connected'))
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.waiters.delete(key)
         reject(new ChatError('timeout', 'The gateway did not answer'))
-      }, this.opts.requestTimeoutMs ?? 10_000)
+      }, timeoutMs ?? this.opts.requestTimeoutMs ?? 10_000)
       this.waiters.set(key, { resolve, reject, timer })
       this.sendFrame(frame)
     })
@@ -1038,6 +1089,30 @@ export class VircleChatClient {
       if (b.seq !== null) return 1
       return (index.get(a) ?? 0) - (index.get(b) ?? 0)
     })
+  }
+
+  /** A message of a history page: like a delivered one, but with no place in the list (`seq` stays null). */
+  private historyMessage(raw: unknown): ChatMessage | null {
+    const f = asRecord(raw)
+    const serverId = str(f?.server_id)
+    if (!f || !serverId) return null
+    const kind = str(f.kind)
+    const mine = f.direction === 'in'
+    const wire = str(f.status) as MessageStatus | null
+    return {
+      id: serverId,
+      serverId,
+      seq: null,
+      mine,
+      kind: kind === 'image' || kind === 'video' || kind === 'audio' || kind === 'document' ? kind : 'text',
+      text: str(f.text),
+      media: this.mediaFrom(f.media),
+      replyTo: this.quoteFrom(f.reply_to),
+      sender: str(asRecord(f.sender)?.name),
+      sentAt: Date.parse(str(f.sent_at) ?? '') || this.now(),
+      status: mine && wire && STATUS_ORDER.includes(wire) ? wire : 'sent',
+      error: null,
+    }
   }
 
   private quoteOf(serverId: string): Quote | null {

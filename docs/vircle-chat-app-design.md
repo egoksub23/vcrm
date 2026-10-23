@@ -26,7 +26,7 @@ kit. This document says what and why; that one says how.
 | Item | State |
 | --- | --- |
 | Gateway (the server the app connects to) | Built and live at `https://chat.vircle.tech`. Owned by the Halo team |
-| Client library | Built and tested. Delivered with this document as `vircle-chat-client-1.0.0.tgz` |
+| Client library | Built and tested (1.1.0, with `fetchHistory`). Delivered with this document as `vircle-chat-client-1.1.0.tgz` |
 | Reference screen | The **simulator** (section 14) is a working pretend phone built on the same library: emoji picker, attach menu, GIFs, replies, ticks. Screenshots are in section 7.8; the whole simulator, the library source and the protocol file are in the app kit (`vircle-chat-app-kit.zip`) |
 | Session endpoint on the Vircle backend | **Not built.** Backend developer. Ten lines, example in section 5 |
 | Push notifications | **On hold** until the Vircle push API details are provided. The gateway already decides when to alert; section 11 says what the app must be ready for |
@@ -88,7 +88,7 @@ If something in the second half of that table is wanted, it is a product decisio
                          |             |                                        (agents' inbox,
                          |             +-- app closed? --> Vircle PUSH API       AI, tickets)
                          |                                  (phone or email)
-                         +<-- push notification tap -- (5) vircle://chat/{conversation_id}
+                         +<-- push notification tap -- (5) https://app.vircle.com/chat/{conversation_id}
 ```
 
 1. When the chat opens, the library calls **your** function `getSession()`. You call the Vircle backend.
@@ -151,7 +151,7 @@ or an email), it is rotated and the backend is given the new one.
 | Gateway address | `https://chat.vircle.tech` | Same for all builds. A different address only if a separate gateway is ever stood up |
 | Session endpoint | the backend's address, for example `https://api.vircle.tech/chat/session` | Built by the backend developer; section 5 |
 | Device id | a random id made on first launch, kept in secure storage | One per install. Same value forever: it is how the gateway recognises "the same device reconnecting" |
-| Deep link | `vircle://chat/{conversation_id}` | The scheme your app registers; section 11 |
+| Deep link | `https://app.vircle.com/chat/{conversation_id}` | A universal link (iOS) and App Link (Android and Huawei); section 11 |
 
 ## 4.4 Test and live environments
 
@@ -205,10 +205,10 @@ HTTP interceptor.
 
 # 6. Installing the library
 
-The library is delivered as a package file, `vircle-chat-client-1.0.0.tgz` (about 40 KB: ES module, TypeScript types, a README).
+The library is delivered as a package file, `vircle-chat-client-1.1.0.tgz` (about 40 KB: ES module, TypeScript types, a README).
 
 ```bash
-npm install ./vendor/vircle-chat-client-1.0.0.tgz
+npm install ./vendor/vircle-chat-client-1.1.0.tgz
 ```
 
 Keep the file in the app repository (for example `vendor/`) so builds are repeatable. A new version is delivered the same way; version 1
@@ -363,14 +363,14 @@ is uploaded.
 - **Language:** the app's strings (placeholders, "typing...", tick labels, errors) go through the app's normal translation system.
   The conversation text itself is whatever the person and the agent wrote.
 
-## 7.7 Earlier messages and the copy on the phone (to be built: work package 9)
+## 7.7 Earlier messages and the copy on the phone (work package 9)
 
-**Status.** Specified, **not built yet.** Version 1.0.0 of the library (the one in the kit today) keeps only the last 200 messages
-and cannot fetch older ones. **Library 1.1.0 adds one call, `fetchHistory`**, which returns one page of older messages from Halo and nothing
-else (protocol section 7, contract section 3.5, gateway work package 9). **Everything else in this section is the app's own engine**
-(`docs/vircle-chat-app-build-spec.md`): paging, the copy on the phone, the cleared-before marker, Clear chat. The engine's copy already
-keeps, until Clear chat, every message the library delivers, so most of this works before 1.1.0 exists; only reaching past what the phone
-holds waits for the server work.
+**Status.** The server side and the library are built (23 October 2026): the gateway's `history` frame, Halo's `/api/vircle-chat/history` and the
+Halo setting for how far back, and **library 1.1.0 with one new call, `fetchHistory`**, which returns one page of older messages from Halo and
+nothing else (protocol section 7, contract section 3.5, gateway work package 9). The library itself still keeps only the last 200 messages.
+**Everything else in this section is the app's own engine** (`docs/vircle-chat-app-build-spec.md`): paging, the copy on the phone, the
+cleared-before marker, Clear chat. The simulator in the kit answers `fetchHistory` with a made-up older conversation, so the whole scroll-up can
+be built and tested without a real Halo.
 
 **Confirmed by the owner, 21 October 2026.** (1) **Clear chat is local**: it clears the whole chat store on this phone (every cached
 message and every saved file) and nothing in Halo. (2) The app shows **only the Vircle Chat conversation** (never the person's
@@ -647,14 +647,19 @@ ready for, so that nothing changes on your side when push is switched on.
 1. Register the device for push as the app does today (FCM on Android, APNs on iPhone, Huawei Push Kit on Huawei). **Nothing
    chat-specific is registered**: the push API finds the person by phone or email.
 2. **Receive** an alert. Its content, set by the gateway: a title (default: the workspace name), a body (default: "You have a new
-   message"; both can be changed per workspace), a **deep link** `vircle://chat/{conversation_id}`, and a **collapse key** (the
-   conversation id) so a second alert replaces the first instead of stacking.
-3. **Tap** opens the app at the deep link. Register the scheme `vircle://` (iOS URL type; Android intent filter; and Huawei) and
-   listen:
+   message"; both can be changed per workspace), a **deep link** `https://app.vircle.com/chat/{conversation_id}`, and a **collapse key** (the
+   conversation id) so a second alert replaces the first instead of stacking. The alert's data is `notification_type: "01"` (as every Vircle alert),
+   **`chat_alert: "1"`** (this marks a chat alert; test `data.chat_alert === "1"` and nothing else), `conversation_id` and `deep_link`, all strings.
+   The push team still has to confirm that the push API passes those fields through unchanged.
+3. **Tap** opens the app at the deep link, which is a **universal link**: iOS needs the Associated Domains capability `applinks:app.vircle.com`
+   and the `apple-app-site-association` file on `app.vircle.com`; Android needs an intent filter with `android:autoVerify="true"` for host
+   `app.vircle.com` and path prefix `/chat/`, and the `assetlinks.json` file; Huawei devices use the same Android App Link (the Vircle team confirms
+   it verifies there, or registers the link with Huawei App Linking). Without these a tap on an alert opens the browser, not the chat page. The old
+   `vircle://chat/...` form is still understood. Listen:
 
 ```ts
 App.addListener('appUrlOpen', ({ url }) => {
-  const m = /^vircle:\/\/chat\/([\w-]+)/.exec(url)
+  const m = /^(?:https:\/\/app\.vircle\.com|vircle:\/)\/chat\/([\w-]+)/.exec(url)
   if (m) { this.router.navigateByUrl('/chat'); this.chatService.chat.reconnectNow() }   // the missed messages arrive
 })
 PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
@@ -711,7 +716,7 @@ does not fight for it: show "Chat is open on another screen" and a **Reconnect**
 
 ## 13.2 Storage and privacy
 
-Library 1.0.0 (in the kit today) keeps the last 200 messages (and unsent text) through the `ChatStore` you give it, as one block of
+The library keeps the last 200 messages (and unsent text) through the `ChatStore` you give it, as one block of
 JSON; `localStorage` or Capacitor Preferences are fine for that, though they are plain text on the device. **The app's engine keeps every
 message it has seen in its own database** (section 7.7), which over 90 days means thousands of rows, so use SQLite (a Capacitor SQLite
 plugin; one database per signed-in person) for that, and leave the library's small store as it is. If Vircle's policy requires
@@ -724,8 +729,8 @@ change. Media files are never stored by the library (only their short-lived link
 
 | Platform | Settings |
 | --- | --- |
-| iOS | `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription` (text a human can understand, in the app's languages); URL type `vircle`; push capability and background modes if used; App Transport Security stays on (the gateway is HTTPS only) |
-| Android | `CAMERA`, `RECORD_AUDIO`; for gallery access `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` (Android 13 and later) or the photo picker; saving to the gallery needs `WRITE_EXTERNAL_STORAGE` only on Android 9 and older (newer versions use the media store with no permission); `POST_NOTIFICATIONS` (Android 13 and later); intent filter for `vircle://chat`; cleartext traffic stays off |
+| iOS | `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription` (text a human can understand, in the app's languages); Associated Domains `applinks:app.vircle.com`; URL type `vircle`; push capability and background modes if used; App Transport Security stays on (the gateway is HTTPS only) |
+| Android | `CAMERA`, `RECORD_AUDIO`; for gallery access `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` (Android 13 and later) or the photo picker; saving to the gallery needs `WRITE_EXTERNAL_STORAGE` only on Android 9 and older (newer versions use the media store with no permission); `POST_NOTIFICATIONS` (Android 13 and later); App Link intent filter (`autoVerify`) for `https://app.vircle.com/chat/`; cleartext traffic stays off |
 | Huawei | The same as Android; push through Huawei Push Kit; test on a device without Google services (the library needs nothing from them) |
 | All | Allow `https://chat.vircle.tech` and `wss://chat.vircle.tech` in the WebView's Content Security Policy (`connect-src`), plus `img-src`/`media-src` for the same host (files are served from it) |
 
@@ -742,7 +747,7 @@ change. Media files are never stored by the library (only their short-lived link
 **The simulator** is a pretend phone running the same library, with a console for the agent side, so you can see exactly what the app
 should look like and do. An administrator opens it from Halo: **Settings, Channels, Vircle Chat, Open simulator** (it opens at
 `https://chat.vircle.tech/simulator`). The hosted copy is for the pilot and is **switched off at launch**, so rely on the copy in the kit. It runs on your own machine with no
-server and no Halo (Node 20 or later):
+server and no Halo (Node 24.22.1 or later (22.23.4 or later also works)):
 
 ```bash
 cd simulator && npm install && npm run sim      # then open http://localhost:8090/launch

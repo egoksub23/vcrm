@@ -13,6 +13,8 @@ export function welcomeFrame(subject: Subject, cfg: GatewayConfig): Record<strin
     v: PROTOCOL_VERSION,
     server_time: new Date().toISOString(),
     heartbeat_s: cfg.heartbeatSeconds,
+    // What this gateway can do beyond the first version of the protocol; a client that does not know a name ignores it.
+    features: ['history'],
     limits: {
       text_max: cfg.limits.textMax,
       caption_max: cfg.limits.captionMax,
@@ -74,6 +76,11 @@ export function typingFrame(conversationId: string): Record<string, unknown> {
 
 export function uploadSlotFrame(requestId: string, slot: { fileId: string; uploadUrl: string; expiresAt: Date; maxBytes: number }): Record<string, unknown> {
   return { type: 'upload_slot', request_id: requestId, file_id: slot.fileId, upload_url: slot.uploadUrl, expires_at: slot.expiresAt.toISOString(), max_bytes: slot.maxBytes }
+}
+
+/** One page of older messages from Halo (docs/vircle-chat-app-protocol.md, section 7). `end` is present only when there is no more. */
+export function historyPageFrame(requestId: string, page: { messages: Record<string, unknown>[]; more: boolean; end: 'start' | 'window' | null }): Record<string, unknown> {
+  return { type: 'history_page', request_id: requestId, messages: page.messages, more: page.more, ...(page.more || !page.end ? {} : { end: page.end }) }
 }
 
 export function fileUrlFrame(fileId: string, link: { url: string; expiresAt: Date }): Record<string, unknown> {

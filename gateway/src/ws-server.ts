@@ -19,7 +19,8 @@ import { WebSocket, WebSocketServer } from 'ws'
 
 import type { GatewayConfig } from './config'
 import { FileError, type FileKind, type FileRow, type FileService, type MessageMedia } from './files'
-import { ackFrame, deliverFrame, errorFrame, fileUrlFrame, receiptFrame, uploadSlotFrame, welcomeFrame } from './frames'
+import { ackFrame, deliverFrame, errorFrame, fileUrlFrame, historyPageFrame, receiptFrame, uploadSlotFrame, welcomeFrame } from './frames'
+import { HistoryError, type HistoryService } from './history'
 import type { Hub, LiveConnection } from './hub'
 import { parseClientFrame, type ClientFrame } from './protocol'
 import type { Message, Store, Subject } from './store'
@@ -75,14 +76,17 @@ export function attachWebSocket(args: {
   hub: Hub
   store: Store
   files: FileService
+  history: HistoryService
   cfg: GatewayConfig
   hooks?: GatewayHooks
 }): WebSocketGateway {
-  const { server, hub, store, files, cfg, hooks } = args
+  const { server, hub, store, files, history, cfg, hooks } = args
   const wss = new WebSocketServer({ noServer: true, maxPayload: cfg.maxFrameBytes })
   const limiter = new SendRateLimiter(cfg.sendRateLimit.limit, cfg.sendRateLimit.windowMs)
   // Twenty upload slots per user every ten minutes: enough for a gallery, not for filling the disk.
   const uploadLimiter = new SendRateLimiter(20, 600_000)
+  // Ten pages of older messages a minute per user: a fast scroll is a page every few seconds, not a flood on Halo.
+  const historyLimiter = new SendRateLimiter(10, 60_000)
   const sockets = new Set<WebSocket>()
   const alive = new WeakMap<WebSocket, boolean>()
 
@@ -138,7 +142,7 @@ export function attachWebSocket(args: {
         if (!parsed.ok) {
           if (++badFrames >= MAX_BAD_FRAMES) return fail(CLOSE.tooManyErrors, 'too_many_errors', 'Too many bad frames')
           if (!subject) return fail(CLOSE.unauthorized, parsed.code, parsed.message)
-          return void send(errorFrame(parsed.code, parsed.message))
+          return void send(errorFrame(parsed.code, parsed.message, undefined, parsed.extra))
         }
         try {
           await handle(parsed.frame)
@@ -254,7 +258,21 @@ export function attachWebSocket(args: {
           }
           return
         }
+        case 'history': {
+          const wait = historyLimiter.hit(subject.user.id)
+          if (wait > 0) return void send(errorFrame('rate_limited', 'Too many requests for older messages: wait a little', wait, { request_id: frame.requestId }))
+          try {
+            const page = await history.page(subject, { beforeSentAt: frame.beforeSentAt, beforeServerId: frame.beforeServerId, limit: frame.limit, notBefore: frame.notBefore })
+            send(historyPageFrame(frame.requestId, page))
+          } catch (err) {
+            if (err instanceof HistoryError) return void send(errorFrame(err.code, err.message, err.retryAfterSeconds, { request_id: frame.requestId }))
+            throw err
+          }
+          return
+        }
         case 'file_url': {
+          // A file in an older message: a fresh link to this gateway (the file is fetched from Halo when it is opened).
+          if (history.ownedBy(subject, frame.fileId)) return void send(fileUrlFrame(frame.fileId, files.linkForApp(frame.fileId)))
           const link = await files.linkForUser(subject, frame.fileId)
           if (!link) return void send(errorFrame('file_not_found', 'No such file in your conversation'))
           return void send(fileUrlFrame(frame.fileId, link))

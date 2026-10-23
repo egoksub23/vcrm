@@ -14,6 +14,7 @@ import type { Db } from './db'
 import { DeliveryService, type DeliveryOptions } from './delivery'
 import { Dispatcher, type DispatcherOptions } from './dispatcher'
 import { FileService, type FileServiceOptions } from './files'
+import { HistoryService, type HistoryServiceOptions } from './history'
 import { buildRoutes, handleRequest, type Route } from './http'
 import { Hub } from './hub'
 import { createPushAdapter, MockPushAdapter, type PushAdapter } from './push'
@@ -35,6 +36,8 @@ export interface Gateway {
   delivery: DeliveryService
   /** Files in both directions: upload slots, fetching from Halo, signed links. */
   files: FileService
+  /** Older messages, asked of Halo. */
+  history: HistoryService
   /** Where the alerts for simulator users go (the mock), whatever the real adapter is. */
   simulatedPush: MockPushAdapter
   /** The port actually listening (useful when started on port 0). */
@@ -61,6 +64,8 @@ export async function startGateway(args: {
   delivery?: DeliveryOptions & { sweeper?: boolean }
   /** What the file service fetches Halo's files with (tests replace it). */
   files?: FileServiceOptions
+  /** What the history service asks Halo with (tests replace it). */
+  history?: HistoryServiceOptions
   /** Where the simulator's page files are (gateway/public). Needed only when the simulator is enabled. */
   publicDir?: string
 }): Promise<Gateway> {
@@ -70,10 +75,10 @@ export async function startGateway(args: {
   const files = new FileService(db, cfg, args.files)
   const simulatedPush = new MockPushAdapter()
   const delivery = new DeliveryService(store, hub, args.push ?? createPushAdapter(cfg), simulatedPush, cfg, { ...args.delivery, files })
-  const services = { store, hub, cfg, delivery, files, db }
-
   // The simulator may switch a Halo "off": the dispatcher's calls to it then fail like a network outage.
   const simulator = cfg.simulator.enabled ? new SimulatorState() : null
+  const history = new HistoryService(store, files, cfg, { ...args.history, ...(simulator ? { fetch: simulatorFetch(simulator, args.history?.fetch) } : {}) })
+  const services = { store, hub, cfg, delivery, files, history, db }
   const dispatcherOptions: DispatcherOptions = {
     ...(args.dispatcher || {}),
     ...(simulator ? { fetch: simulatorFetch(simulator, args.dispatcher ? args.dispatcher.fetch : undefined) } : {}),
@@ -128,7 +133,7 @@ export async function startGateway(args: {
   }
 
   const server = createServer((req, res) => void handleRequest(req, res, services, routes))
-  const ws: WebSocketGateway = attachWebSocket({ server, hub, store, files, cfg, hooks })
+  const ws: WebSocketGateway = attachWebSocket({ server, hub, store, files, history, cfg, hooks })
 
   await new Promise<void>((resolve) => server.listen(cfg.port, resolve))
   const port = (server.address() as AddressInfo).port
@@ -158,6 +163,7 @@ export async function startGateway(args: {
     dispatcher,
     delivery,
     files,
+    history,
     simulatedPush,
     port,
     async close() {

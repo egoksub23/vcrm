@@ -141,9 +141,9 @@ answers `200 {"ok":true}` and remembers nothing. The gateway sends at most one p
 type; Halo shows "typing..." to the agent for about 6 seconds after the last one. A paused workspace answers
 `200 {"ok":true,"ignored":"paused"}`.
 
-### 3.5 `POST /api/vircle-chat/history`: the gateway asks Halo for earlier messages (1.3 draft)
+### 3.5 `POST /api/vircle-chat/history`: the gateway asks Halo for earlier messages (1.3)
 
-Not built yet. Confirmed by the owner (21 Oct 2026): only the Vircle Chat conversation is returned, and files older than the gateway's
+Built (23 Oct 2026). Confirmed by the owner (21 Oct 2026): only the Vircle Chat conversation is returned, and files older than the gateway's
 retention are fetched by the gateway from Halo and streamed from the gateway's own address. A **read**, sent as a POST so it reuses the signing of section 2 unchanged. Same headers and the same 300-second clock rule;
 Halo does **not** remember an `event_id` for reads (a retry must work).
 
@@ -166,8 +166,7 @@ Answer `200`:
   "messages": [
     { "server_id": "m_...", "direction": "out", "kind": "image", "text": "caption", "sent_at": "2026-08-30T09:00:00Z",
       "status": "read", "sender": { "name": "Aisha" }, "reply_to": null,
-      "media": { "file_name": "a.jpg", "mime_type": "image/jpeg", "size_bytes": 81234, "duration_seconds": null,
-                 "animated": false, "download_url": "https://<halo-host>/...", "expires_at": "..." } }
+      "media": { "file_name": null, "mime_type": "image/jpeg", "size_bytes": null, "duration_seconds": null, "animated": false } }
   ],
   "more": true
 }
@@ -180,14 +179,34 @@ Halo's rules.
 * **Which messages**: the person's Vircle Chat conversation only (not their WhatsApp or web chat), direction `in` or `out`, **not** internal notes,
   assignments or system events, **not** failed sends. Ordered newest first by (`sent_at`, id), strictly older than `before`, then returned oldest
   first. `limit` is clamped to 1 to 50.
-* **How far back**: the workspace's history limit, **90 days by default** (a Halo setting on the Vircle Chat channel). Older messages are never
-  returned; `end: "window"` tells the app so.
+* **How far back**: the workspace's history limit, **90 days by default** (Settings, Channels, Vircle Chat, Older messages: 1 to 365 days). Older
+  messages are never returned; `end: "window"` tells the app so. `not_before` can only make it shorter.
 * `server_id` is the id the gateway gave the message (section 6), so the page de-duplicates against what the app already holds.
-* `download_url` is a short-lived signed link from Halo's private media store. The gateway fetches it only from the host of the workspace's
-  registered Halo address and re-serves the file from its own address.
+* **A page carries a file's description, never its address**: `mime_type` and `animated` are known; `file_name`, `size_bytes` and `duration_seconds`
+  are `null` (Halo does not keep them). A file message whose file Halo no longer has arrives with `media: null`, and the gateway turns it into text.
+* **The file itself is asked for separately, when the app opens it** (the file request below). The gateway fetches it with the checks it applies to
+  any file from Halo, keeps it for a day and serves it from its own address, so the app only ever talks to one host.
 * The answer is only for **that person's own conversation**: Halo checks that `wallet_id` is the contact the conversation belongs to.
-* Errors: `401` bad signature or clock, `404` unknown conversation (answer as an empty page ending in `start` instead), `429` too many, `503`
-  try later. A paused workspace answers `200 {"ok":true,"ignored":"paused"}` and the gateway shows an empty page with `end: "window"`.
+* A person Halo does not know (no contact with that `wallet_id`) gets an empty page ending in `start`.
+* Errors: `401` bad signature or clock, `400` a request that cannot be read, `404` (file requests only) no such file, `429` too many (with
+  `Retry-After`), `503` try later (with `Retry-After`). A paused workspace answers `200 {"ok":true,"ignored":"paused"}` and the gateway shows an empty
+  page with `end: "window"`.
+
+**The file request** is the same address with `file_for` instead of `before`:
+
+```json
+{ "v": 1, "workspace_key": "vcw_...", "conversation_id": "c_9f2a", "wallet_id": "W123", "file_for": "m_..." }
+```
+
+Answer `200`:
+
+```json
+{ "media": { "download_url": "https://<halo-storage>/...", "kind": "image", "mime_type": "image/jpeg", "file_name": null,
+             "size_bytes": null, "duration_seconds": null, "animated": false } }
+```
+
+`download_url` is a signed link from Halo's private media store, good for 24 hours; the gateway fetches it at once. Halo answers `404` for a message that
+is not the person's own Vircle Chat message, has no file, is an internal note or is in the trash.
 
 ## 4. REST: Halo to gateway
 
@@ -250,6 +269,13 @@ retryable (honours `Retry-After`) and everything else as final, surfaced as "Not
 | `message_too_long` | over the text limit |
 | `blocked` | the user opted out or is barred from chat |
 
+### 4.0 `POST /v1/sessions-key`: Halo asks for a new sessions key (1.3 draft)
+
+Behind the **Generate sessions key** button on Halo's Vircle Chat settings. Authenticated with the API token like every Halo call. The gateway makes a
+new sessions key (`vgs_...`, the credential the Vircle **backend** uses for `POST /v1/sessions`), keeps only its hash, retires the old one **at once**,
+and answers `201 {"sessions_key": "vgs_..."}` with `Cache-Control: no-store`. Halo shows it once and does not store it. `401` for a bad token. A
+gateway that predates this call answers `404`, which Halo reports as "update the gateway".
+
 ### 4.1 `POST /v1/receipts`: the agent read the user's messages (1.2)
 
 ```
@@ -310,9 +336,20 @@ The gateway needs the user's phone and email to name the push recipient, which i
 for them on every event, and why the user's session token (the gateway's own, see
 `docs/vircle-chat-gateway-scope.md`) carries them.
 
+**What the alert carries** (agreed with the app team, 23 Oct 2026; the push team still has to confirm that the push API passes custom string fields
+through unchanged):
+
+```json
+{ "notification_type": "01", "chat_alert": "1", "conversation_id": "c_9f2a",
+  "deep_link": "https://app.vircle.com/chat/c_9f2a" }
+```
+
+All four are strings. `notification_type` stays `"01"` like every other Vircle alert; **`chat_alert` is what marks a chat alert** (the app tests
+`data.chat_alert === "1"` and nothing else). The deep link is a universal link (iOS) / App Link (Android) to `https://app.vircle.com/chat/{conversation_id}`;
+a workspace can override it (and the title and text) with `push_settings` on the gateway (`update-workspace --deep-link ...`).
 ## 8. Versioning and change
 
-Version 1.3 adds one signed read (section 3.5, older history). Version 1.2 only adds fields and calls (replies, voice-note length, `user.typing`, `/v1/receipts`, `/v1/typing`); a 1.1 gateway
+Version 1.3 adds one signed read address (section 3.5, older history: a page of messages, and a fresh link for one message's file). Version 1.2 only adds fields and calls (replies, voice-note length, `user.typing`, `/v1/receipts`, `/v1/typing`); a 1.1 gateway
 or a 1.1 Halo keeps working with a 1.2 peer, because each side ignores what it does not know.
 
 This is version 1. Additions that do not break a reader (new optional fields, new event types a receiver can

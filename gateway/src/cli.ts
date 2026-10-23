@@ -2,7 +2,7 @@
 // Operator commands for the gateway, run on the server next to it:
 //
 //   npm run cli -- create-workspace --key vcw_... --name "Vircle" --halo-url https://halo.example.com/api/vircle-chat/webhook
-//   npm run cli -- update-workspace --key vcw_... [--halo-url ...] [--name ...]
+//   npm run cli -- update-workspace --key vcw_... [--halo-url ...] [--name ...] [--deep-link https://app.vircle.com/chat/{conversation_id}] [--push-title ...] [--push-body ...]
 //   npm run cli -- rotate-sessions-key --key vcw_...
 //   npm run cli -- list-workspaces
 //   npm run cli -- delete-workspace --key vcw_... --yes
@@ -84,6 +84,9 @@ async function main(): Promise<void> {
           name: flags.name,
           signingSecret,
           apiToken,
+          ...(flags['deep-link'] !== undefined || flags['push-title'] !== undefined || flags['push-body'] !== undefined
+            ? { pushSettings: { deep_link: flags['deep-link'], title: flags['push-title'], body: flags['push-body'] } }
+            : {}),
         })
         console.log(`Workspace ${w.workspace_key} updated.`)
         break

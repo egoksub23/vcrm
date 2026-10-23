@@ -27,6 +27,7 @@ import { FileError, type FileKind, type FileService } from './files'
 import { acceptHaloMessage } from './halo-messages'
 import type { Hub } from './hub'
 import { applySupportStatus, showAgentTyping } from './receipts'
+import { HistoryError, isHistoryFileId, type HistoryService } from './history'
 import type { Store, Workspace } from './store'
 import { log } from './log'
 
@@ -34,6 +35,7 @@ export interface Services {
   store: Store
   delivery: DeliveryService
   files: FileService
+  history: HistoryService
   hub: Hub
   cfg: GatewayConfig
   db?: Db
@@ -145,6 +147,17 @@ async function authenticateHalo(req: IncomingMessage, s: Services): Promise<Work
   const workspace = token ? await s.store.authenticateHalo(token) : null
   if (!workspace) throw new HttpError(401, 'unauthorized', 'Bad or missing API token')
   return workspace
+}
+
+/**
+ * Halo's "Generate sessions key" button (contract section 4.3): a new key for the Vircle backend. The old one stops working at once; the new one
+ * is in this answer and nowhere else (only its hash is kept). Authenticated with Halo's API token, like every Halo call, so only that workspace's
+ * Halo can ask, and only for its own workspace.
+ */
+async function rotateSessionsKey(req: IncomingMessage, res: ServerResponse, s: Services): Promise<void> {
+  const workspace = await authenticateHalo(req, s)
+  const sessionsKey = await s.store.rotateSessionsKey(workspace.workspace_key)
+  sendJson(res, 201, { sessions_key: sessionsKey })
 }
 
 /** Halo's "Test connection" (contract section 5). */
@@ -289,6 +302,17 @@ async function getFile(req: IncomingMessage, res: ServerResponse, s: Services, p
   const link = s.files.verify('file', id, q.get('exp'), q.get('sig'))
   if (link === 'bad') throw new HttpError(401, 'unauthorized', 'The file address is not valid', CORS)
   if (link === 'expired') throw new HttpError(410, 'expired', 'The file address has expired: ask for a new one', CORS)
+  // A file in an older message is fetched from Halo the first time its link is opened.
+  if (isHistoryFileId(id)) {
+    let there = false
+    try {
+      there = await s.history.materialise(id)
+    } catch (err) {
+      if (err instanceof HistoryError) throw new HttpError(503, err.code, 'The file could not be fetched from Halo right now: try again', { ...CORS, 'retry-after': '5' })
+      throw err
+    }
+    if (!there) throw new HttpError(404, 'file_not_found', 'No such file', CORS)
+  }
   const file = await s.files.read(id)
   if (!file) throw new HttpError(404, 'file_not_found', 'No such file', CORS)
 
@@ -358,6 +382,7 @@ export function buildRoutes(): Record<string, Route> {
     'POST /v1/receipts': postReceipts,
     'POST /v1/typing': postTyping,
     'GET /v1/health': health,
+    'POST /v1/sessions-key': rotateSessionsKey,
     'PUT /v1/uploads/:id': putUpload,
     'GET /v1/files/:id': getFile,
     'HEAD /v1/files/:id': getFile,

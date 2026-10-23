@@ -47,8 +47,10 @@ describe('a user who is offline', () => {
       walletId: ME.wallet_id,
       title: 'Vircle',
       body: 'You have a new message',
-      deepLink: `vircle://chat/${sent.conversation_id}`,
+      deepLink: `https://app.vircle.com/chat/${sent.conversation_id}`,
       collapseKey: sent.conversation_id,
+      // The marker the app routes on: the generic type it already handles, plus chat_alert.
+      data: { notification_type: '01', chat_alert: '1', conversation_id: sent.conversation_id, deep_link: `https://app.vircle.com/chat/${sent.conversation_id}` },
       result: { status: 'sent' },
     })
   })

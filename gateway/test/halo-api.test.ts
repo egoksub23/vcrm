@@ -191,3 +191,33 @@ describe('POST /v1/messages', () => {
     })
   })
 })
+
+// Last in the file on purpose: it retires the harness's sessions key, which the tests above use.
+describe('POST /v1/sessions-key', () => {
+  const rotate = (token: string | null = WORKSPACE.apiToken) =>
+    fetch(`${h.url}/v1/sessions-key`, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {} })
+  const session = (key: string) =>
+    fetch(`${h.url}/v1/sessions`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` }, body: JSON.stringify({ user: { wallet_id: 'W-rotated' } }) })
+
+  it('refuses anything but Halo\'s API token, and changes nothing when it refuses', async () => {
+    for (const token of [null, 'nope', h.sessionsKey, h.workspace.workspace_key]) expect((await rotate(token)).status).toBe(401)
+    expect((await session(h.sessionsKey)).status).toBe(201)
+  })
+
+  it('mints a new sessions key for Halo: shown once, the old one stops at once, the new one works', async () => {
+    const old = h.sessionsKey
+    const res = await rotate()
+    expect(res.status).toBe(201)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    const { sessions_key } = (await res.json()) as { sessions_key: string }
+    expect(sessions_key).toMatch(/^vgs_/)
+    expect(sessions_key).not.toBe(old)
+    expect((await session(old)).status).toBe(401)
+    expect((await session(sessions_key)).status).toBe(201)
+    // a second press gives yet another key and retires this one
+    const again = ((await (await rotate()).json()) as { sessions_key: string }).sessions_key
+    expect(again).not.toBe(sessions_key)
+    expect((await session(sessions_key)).status).toBe(401)
+    expect((await session(again)).status).toBe(201)
+  })
+})

@@ -29,6 +29,7 @@ import type { GatewayConfig } from './config'
 import type { FileService } from './files'
 import { deliverFrame } from './frames'
 import type { Hub } from './hub'
+import { chatAlertData } from './push/adapter'
 import type { MockPushAdapter, PushAdapter } from './push'
 import type { Delivery, Message, Store, Subject, Workspace } from './store'
 import { log } from './log'
@@ -113,6 +114,7 @@ export class DeliveryService {
       return { delivery: 'queued', final: true }
     }
 
+    const deepLink = this.deepLink(workspace, subject)
     let result
     try {
       result = await (user.simulated ? this.simulatedPush : this.push).send({
@@ -121,8 +123,9 @@ export class DeliveryService {
         walletId: user.wallet_id,
         title: this.title(workspace),
         body: this.body(workspace),
-        deepLink: this.deepLink(workspace, subject),
+        deepLink,
         collapseKey: conversation.id,
+        data: chatAlertData(conversation.id, deepLink),
       })
     } catch (err) {
       result = { status: 'failed' as const, error: err instanceof Error ? err.message : String(err), retryable: true }

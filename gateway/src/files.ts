@@ -338,11 +338,11 @@ export class FileService {
   async storeBytes(
     subject: Subject,
     origin: 'app' | 'halo',
-    f: { kind: FileKind; mimeType: string; fileName: string | null; durationSeconds: number | null; animated?: boolean; bytes: Buffer },
+    f: { id?: string; kind: FileKind; mimeType: string; fileName: string | null; durationSeconds: number | null; animated?: boolean; bytes: Buffer },
   ): Promise<FileRow> {
     const v = this.validateDeclared({ kind: f.kind, mimeType: f.mimeType, fileName: f.fileName, sizeBytes: f.bytes.length, durationSeconds: f.durationSeconds, animated: f.animated })
     if (!sniffMatches(v.mimeType, f.bytes)) throw new FileError('invalid_media', `The file's content is not ${v.mimeType}`, 400)
-    const fileId = newId('f_')
+    const fileId = f.id ?? newId('f_')
     const now = new Date(this.now()).toISOString()
     const { rows } = await this.db.query<FileRow>(
       `INSERT INTO files (id, workspace_id, conversation_id, origin, kind, mime_type, file_name, size_bytes, duration_seconds, animated, status, data, attached_at, expires_at)

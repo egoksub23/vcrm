@@ -10,7 +10,7 @@
 //          connection: a workspace key, a signing secret and an API token are
 //          generated, stored encrypted, and the two secrets come back in
 //          THIS response once (Cache-Control: no-store) and never again.
-//   PATCH  the pause switch (`enabled`).
+//   PATCH  the pause switch (`enabled`) and/or how many days of history Halo answers (`historyDays`, 1 to 365).
 //   DELETE remove the connection.
 //
 // All of it needs `channels.manage`, and the operator's Vircle Chat flag for
@@ -33,6 +33,7 @@ import {
   type VircleChatConfigRow,
 } from '@/lib/vircle-chat/config'
 import { vircleChatEnabled } from '@/lib/vircle-chat/feature'
+import { HISTORY_DAYS_MAX, HISTORY_DAYS_MIN } from '@/lib/vircle-chat/history-limits'
 import { normalizeGatewayUrl } from '@/lib/vircle-chat/gateway'
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
@@ -151,11 +152,20 @@ export async function PATCH(request: Request) {
     const refused = await vircleChatGate(admin, ctx, BUCKET)
     if (refused) return refused
 
-    const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null
-    if (typeof body?.enabled !== 'boolean') {
-      return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
+    const body = (await request.json().catch(() => null)) as { enabled?: unknown; historyDays?: unknown } | null
+    const patch: { enabled?: boolean; history_days?: number } = {}
+    if (body?.enabled !== undefined) {
+      if (typeof body.enabled !== 'boolean') return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
+      patch.enabled = body.enabled
     }
-    const patch = { enabled: body.enabled }
+    if (body?.historyDays !== undefined) {
+      const d = body.historyDays
+      if (typeof d !== 'number' || !Number.isInteger(d) || d < HISTORY_DAYS_MIN || d > HISTORY_DAYS_MAX) {
+        return NextResponse.json({ error: `historyDays must be a whole number from ${HISTORY_DAYS_MIN} to ${HISTORY_DAYS_MAX}` }, { status: 400 })
+      }
+      patch.history_days = d
+    }
+    if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'Nothing to change' }, { status: 400 })
 
     const { data, error } = await admin
       .from('vircle_chat_config')
@@ -169,7 +179,7 @@ export async function PATCH(request: Request) {
     }
     if (!data) return NextResponse.json({ error: 'Vircle Chat is not connected' }, { status: 404 })
 
-    return NextResponse.json({ success: true, ...patch })
+    return NextResponse.json({ success: true, ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}), ...(patch.history_days !== undefined ? { historyDays: patch.history_days } : {}) })
   } catch (err) {
     return toErrorResponse(err)
   }

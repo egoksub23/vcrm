@@ -13,6 +13,7 @@ import type { AddressInfo } from 'node:net'
 
 import { startGateway, type Gateway } from '../src/app'
 import type { FileServiceOptions } from '../src/files'
+import type { HistoryServiceOptions } from '../src/history'
 import type { DeliveryOptions } from '../src/delivery'
 import type { DispatcherOptions } from '../src/dispatcher'
 import { MockPushAdapter } from '../src/push'
@@ -105,6 +106,8 @@ export async function startHarness(
     delivery?: DeliveryOptions & { sweeper?: boolean }
     /** What the gateway fetches Halo's files with. */
     files?: FileServiceOptions
+    /** What the gateway asks Halo for older messages with. */
+    history?: HistoryServiceOptions
   } = {},
 ): Promise<Harness> {
   const db = await createTestDb()
@@ -119,6 +122,7 @@ export async function startHarness(
     push,
     delivery: { ...opts.delivery, sweeper: opts.delivery?.sweeper ?? false },
     files: opts.files,
+    history: opts.history,
     publicDir: join(MIGRATIONS, '..', 'public'),
   })
   const { workspace, sessionsKey } = await gw.store.createWorkspace(WORKSPACE)

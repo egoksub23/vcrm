@@ -3,6 +3,7 @@ import type { PushAdapter } from './adapter'
 import { MockPushAdapter } from './mock'
 
 export type { PushAdapter, PushRequest, PushResult } from './adapter'
+export { CHAT_ALERT_FIELD, NOTIFICATION_TYPE, chatAlertData } from './adapter'
 export { MockPushAdapter } from './mock'
 
 /** The adapter named by PUSH_ADAPTER. The real one arrives with work package 8, when the push API's details are known. */

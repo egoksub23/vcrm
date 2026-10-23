@@ -26,6 +26,42 @@ const HALO_PORT = Number(process.env.FAKE_HALO_PORT || 8091)
 const KEY = 'vcw_simulatorsimulator01'
 const SECRET = 'vcs_local_simulator_secret'
 
+// ------------------------------------------------------------
+// The made-up older conversation behind the fake Halo's history address. 190 text messages, one every 14 hours, the newest 14 hours
+// before the simulator started; Halo's window is 90 days, so the oldest 40 or so lie beyond it and the last page ends with "window".
+// ------------------------------------------------------------
+const STARTED = Date.now()
+const HOUR = 3600 * 1000
+const WINDOW_DAYS = 90
+const OLDER = Array.from({ length: 190 }, (_v, i) => {
+  const outgoing = i % 3 !== 1 // two of three from support, one from the person
+  return {
+    server_id: `m_simhist_${String(i).padStart(3, '0')}`,
+    direction: outgoing ? 'out' : 'in',
+    kind: 'text',
+    text: outgoing ? `Support, message ${190 - i} of the made-up history` : `You, message ${190 - i} of the made-up history`,
+    sent_at: new Date(STARTED - (i + 1) * 14 * HOUR).toISOString(),
+    status: 'read',
+    sender: { name: outgoing ? 'Aisha from support' : null },
+    reply_to: null,
+    media: null,
+  }
+}) // newest first
+
+function historyAnswer(body: Record<string, unknown>): { status: number; body: Record<string, unknown> } {
+  if (typeof body.file_for === 'string') return { status: 404, body: { error: 'not_found' } } // the made-up history has no files
+  const before = Date.parse(String((body.before as Record<string, unknown> | undefined)?.sent_at ?? ''))
+  if (!Number.isFinite(before)) return { status: 400, body: { error: 'invalid_payload' } }
+  const limit = Math.min(50, Math.max(1, Number(body.limit) || 30))
+  const notBefore = typeof body.not_before === 'string' ? Date.parse(body.not_before) : 0
+  const floor = Math.max(Date.now() - WINDOW_DAYS * 24 * HOUR, Number.isFinite(notBefore) ? notBefore : 0)
+  const eligible = OLDER.filter((m) => Date.parse(m.sent_at) < before && Date.parse(m.sent_at) > floor)
+  const page = eligible.slice(0, limit)
+  const more = eligible.length > limit
+  const beyond = OLDER.some((m) => Date.parse(m.sent_at) <= Date.now() - WINDOW_DAYS * 24 * HOUR)
+  return { status: 200, body: { messages: [...page].reverse(), more, ...(more ? {} : { end: beyond ? 'window' : 'start' }) } }
+}
+
 async function main(): Promise<void> {
   const pg = new PGlite()
   const wrap = (q: { query: PGlite['query'] }): Queryable => ({
@@ -53,6 +89,13 @@ async function main(): Promise<void> {
       const ok = req.headers['x-vircle-signature'] === signBody(SECRET, ts, raw) && Math.abs(Date.now() / 1000 - Number(ts)) < 300
       if (!ok) {
         res.writeHead(401).end(JSON.stringify({ error: 'Invalid signature' }))
+        return
+      }
+      // Older messages (contract 3.5): a made-up conversation, so the app can scroll up past what the gateway holds.
+      if ((req.url ?? '').split('?')[0]!.endsWith('/history')) {
+        const answer = historyAnswer(JSON.parse(raw) as Record<string, unknown>)
+        console.log(`[fake halo] history ${answer.status === 200 ? 'page' : 'file request'} -> ${answer.status}`)
+        res.writeHead(answer.status, { 'content-type': 'application/json' }).end(JSON.stringify(answer.body))
         return
       }
       const event = JSON.parse(raw) as { event: string; event_id: string }

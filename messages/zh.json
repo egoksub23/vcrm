@@ -3294,7 +3294,14 @@
         "disconnectBody": "工作区标识、签名密钥和 API 令牌将被删除。在您重新连接并把新值交给网关团队之前，用户无法通过应用联系您。现有对话会保留。",
         "disconnectConfirm": "断开连接",
         "disconnected": "Vircle Chat 已断开",
-        "disconnectFailed": "无法断开 Vircle Chat"
+        "disconnectFailed": "无法断开 Vircle Chat",
+        "historyTitle": "较早的消息",
+        "historyDescription": "应用可以向上回溯多远。当用户向上滚动超出手机上已有的内容时，Halo 会提供其更早的 Vircle Chat 消息，最多回溯这么多天。",
+        "historyLabel": "历史天数",
+        "historyHint": "1 至 365 天，默认 90 天。更早的消息仍保存在 Halo 中；应用会被告知对话还有更早的内容。",
+        "historySaved": "历史期限已保存",
+        "historyInvalid": "请输入 1 至 365 之间的整数",
+        "historyFailed": "无法保存历史期限"
       },
       "tiktok": {
         "title": "TikTok",

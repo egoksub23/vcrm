@@ -74,10 +74,10 @@ anything not listed above.
 
 | Phase | What | When |
 | --- | --- | --- |
-| **A** | Everything, working against library **1.0.0** (the one in the kit). The engine keeps its own copy of every message it sees, so "kept until Clear chat" works from day one. | Start now |
-| **B** | Reaching **past** the phone's own copy, to Halo, with the library's new `fetchHistory` call (library 1.1.0). | After the Halo team ships 1.1.0 (about 7.5 days of their work). You build against the interface in 5.4 with a "not available" stand-in until then. |
+| **A** | Everything except reaching to Halo. The engine keeps its own copy of every message it sees, so "kept until Clear chat" works from day one. | Start now |
+| **B** | Reaching **past** the phone's own copy, to Halo, with the library's `fetchHistory` call. **Library 1.1.0, in the kit, has it**, and the simulator answers with a made-up older conversation. | Now: after Phase A, or alongside it. |
 
-Do not wait for Phase B. T18 is Phase A, T19 is Phase B.
+T18 is Phase A, T19 is Phase B. Do A first; B is not blocked.
 
 ---
 
@@ -85,13 +85,13 @@ Do not wait for Phase B. T18 is Phase A, T19 is Phase B.
 
 | Item | State | What to do |
 | --- | --- | --- |
-| Library `@vircle/chat-client` 1.0.0 (+ TypeScript source) | In the kit, `library/` | `npm install ./library/vircle-chat-client-1.0.0.tgz` |
+| Library `@vircle/chat-client` 1.1.0 (+ TypeScript source) | In the kit, `library/` | `npm install ./library/vircle-chat-client-1.1.0.tgz` |
 | Simulator and scripted support agent | In the kit, `simulator/` | Section 13.1. Runs on your machine, no server, no Halo |
 | Reference screens | Kit, `screens/` | Behaviour and structure only. Not the visual design |
 | Emoji data (1,914 emoji with search words) | Kit, `emoji/emoji.js` | Use for the picker (T13) |
 | Backend session endpoint `POST /chat/session` | **Not built** (Vircle backend developer) | In development builds only, use `DevSimulatorSessionPort` (section 13.3) which asks the local simulator for a token. It must be impossible to include in a production build (T00 criterion) |
 | Sandbox Halo workspace and a real gateway token | **Do not exist yet** | Develop against the local simulator. Do not ask for production access |
-| Push API payload, Huawei push registration | **Unknown** | Build the deep-link handling from `vircle://chat/{conversation_id}` (T16); leave the payload parsing behind `PushRoutingPort` |
+| Push API payload, Huawei push registration | **Unknown** | Build the deep-link handling from `https://app.vircle.com/chat/{conversation_id}` (T16) and the alert marker `data.chat_alert === '1'` behind `PushRoutingPort` (agreed with the Halo team; the push team still has to confirm the push API passes the field through) |
 | Visual design (colours, fonts, icons, both themes) | From Vircle design | Use the app's existing theme tokens; leave every colour a token, never a hard-coded value (T20) |
 | Encryption-at-rest policy | Undecided (Security) | Code to `SqlPort`; encryption is a configuration of the adapter, not of the engine |
 | App languages | Vircle's list | All visible words go through the app's i18n with the keys in section 10; supply English |
@@ -116,7 +116,7 @@ Do not wait for Phase B. T18 is Phase A, T19 is Phase B.
 **Dependency rules** (enforce with a lint rule or a test that greps imports, T00):
 
 1. `engine/` imports nothing from `@capacitor/*`, `@angular/*`, `react`, `vue`, `@ionic/*`, or the DOM-framework-specific anything. It may use
-   standard web APIs that exist in Node 20 too (`Intl`, `URL`, `Blob`, `crypto.randomUUID`) and must reach everything else through a port.
+   standard web APIs that exist in current Node too (`Intl`, `URL`, `Blob`, `crypto.randomUUID`) and must reach everything else through a port.
 2. `platform/` is the only place plugins are imported. Each adapter implements one port and nothing else.
 3. `ui/` imports the engine's public API (`engine/index.ts`) and nothing deeper.
 
@@ -324,19 +324,23 @@ export interface ChatViewState {
 - Nothing in `rows` is older than the cleared-before marker, except messages still `sending` or `failed`.
 - The engine never throws from `subscribe` callbacks' perspective; failures appear in state (`connection.lastError`, a message's `status:'failed'`, `history.phase:'error'`) or as a rejected promise on the action that caused them.
 
-## 5.4 The library call Phase B needs (specified, not built yet)
+## 5.4 The library call Phase B needs (built: library 1.1.0)
 
-Program against this; until library 1.1.0 exists, the engine detects its absence (`typeof (chat as { fetchHistory?: unknown }).fetchHistory !== 'function'`)
+Program against this. A 1.0.0 library has no such call, so the engine still detects its absence (`typeof (chat as { fetchHistory?: unknown }).fetchHistory !== 'function'`)
 and behaves as in 8.4 "Phase A".
 
 ```ts
 interface HistoryRequest { before: { sentAt: number; serverId?: string }; limit?: number /* 1..50, default 30 */; notBefore?: number }   // serverId omitted when the engine holds no message
 interface HistoryPage { messages: ChatMessage[]  /* oldest first; seq null; id === serverId; media.url a fresh 24 h link */; more: boolean; end: 'start' | 'window' | null }
 // VircleChatClient.fetchHistory(req: HistoryRequest): Promise<HistoryPage>
-// rejects with ChatError.code in: 'history_unavailable' | 'history_disabled' | 'rate_limited' | 'offline' | 'bad_request'
+// rejects with ChatError.code in: 'history_unavailable' | 'history_disabled' | 'rate_limited' | 'offline' | 'bad_request' | 'timeout'
+//   (ChatError.retryAfterSeconds, when set, is how long to wait before asking again; 'history_disabled' means stop asking)
 ```
 
 It does not add the messages to the library's own list, sends no receipts and counts nothing as unread. The engine owns what happens next.
+`media.url` of a history message is a link to the gateway good for 24 hours; **the first open of an old file takes a moment** (the gateway fetches it from Halo),
+and `media.fileName` / `sizeBytes` may be empty. Renew an expired link with `chat.getMediaUrl(message)`, which since 1.1.0 accepts the message itself (a history
+message is not in the library's list). `fetchHistory` rejects `history_disabled` at once on a gateway that does not offer history. Pages are limited to 10 a minute.
 
 ---
 
@@ -356,7 +360,7 @@ IDs are for tests and commits (`R-...`). "The screen" means the UI layer; "the e
 - **R-CONN-4** App returns to foreground: `client.reconnectNow()` and `setScreenVisible` re-evaluates (R-CONN-5).
 - **R-CONN-5** `client.setScreenOpen(true)` only while the chat page is the active page **and** the app is in the foreground; `false` in every
   other case, including the app going to the background with the chat page on top. (Otherwise messages are reported "read" that nobody saw.)
-- **R-CONN-6** Deep link `vircle://chat/{conversation_id}` (`/^vircle:\/\/chat\/[\w-]+/`): `handleDeepLink` returns true and the app navigates to
+- **R-CONN-6** Deep link `https://app.vircle.com/chat/{conversation_id}` (`/^https:\/\/app\.vircle\.com\/chat\/[\w-]+/`; the older `https://app.vircle.com/chat/{conversation_id}` is accepted too): `handleDeepLink` returns true and the app navigates to
   the chat page; the engine calls `reconnectNow()`. Any other URL returns false.
 - **R-CONN-7** `connection.state === 'replaced'`: the screen shows "Chat is open on another screen" and a **Reconnect** button calling
   `reconnectNow()`. The engine never reconnects by itself in this state.
@@ -497,7 +501,8 @@ Refuse everything else before showing the preview, with the message for `file_ty
 - **R-BADGE-1** While the chat page is visible `unreadCount` is 0 (library). When the app goes to the background, `BadgePort.set(unreadCount)`.
 - **R-PUSH-1** When a push arrives while the app is in the foreground **and** the chat page is visible and `PushRoutingPort.isChatAlert(payload)`,
   show nothing. If the app is open on another page, show the app's usual in-app banner.
-- **R-PUSH-2** Tapping a chat alert: deep link (R-CONN-6). Payload parsing is behind `PushRoutingPort` because the push team has not fixed it.
+- **R-PUSH-2** Tapping a chat alert: deep link (R-CONN-6). The alert's data is `{ notification_type: '01', chat_alert: '1', conversation_id, deep_link }` (strings);
+  `PushRoutingPort.isChatAlert` is `data.chat_alert === '1'` and nothing else. The push team has still to confirm that the push API forwards those fields.
 
 ## 6.12 Quality
 
@@ -661,7 +666,7 @@ async function loadOlder(): Promise<void> {
     const page = cursor.key ? await cache.olderThan(cursor.sentAt, cursor.key, pageSize, clearedBefore) : []   // newest first, strictly older, > clearedBefore
     if (page.length > 0) { prepend(page.reverse()); return setHistory({ phase: 'idle' }) }
 
-    // 2. Halo (Phase B). Absent in library 1.0.0.
+    // 2. Halo (Phase B). Needs library 1.1.0 (a 1.0.0 library has no fetchHistory).
     if (!hasFetchHistory) return setHistory({ phase: 'idle', canLoadMore: false, end: clearedBefore > 0 ? 'cleared' : null })   // Phase A: nothing older is available; no claim about the start
     const res = await chat.fetchHistory({ before: { sentAt: cursor.sentAt, serverId: cursor.key }, limit: pageSize, notBefore: clearedBefore || undefined })
     const fresh = res.messages.filter((m) => m.sentAt > clearedBefore)
@@ -885,8 +890,8 @@ Wording for the person is in `vircle-chat-app-design.docx` section 7.9; if the t
 
 | Platform | Settings |
 | --- | --- |
-| iOS | `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription` (texts in 7.9, translated); URL type scheme `vircle`; push capability as the app already has; App Transport Security stays on |
-| Android | `CAMERA`, `RECORD_AUDIO`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO` (13+) or the photo picker, `POST_NOTIFICATIONS` (13+); `WRITE_EXTERNAL_STORAGE` only on Android 9 and older for Save to gallery; intent filter `vircle://chat`; cleartext traffic off |
+| iOS | `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription` (texts in 7.9, translated); Associated Domains `applinks:app.vircle.com` (chat deep links are universal links); URL type scheme `vircle` (older links); push capability as the app already has; App Transport Security stays on |
+| Android | `CAMERA`, `RECORD_AUDIO`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO` (13+) or the photo picker, `POST_NOTIFICATIONS` (13+); `WRITE_EXTERNAL_STORAGE` only on Android 9 and older for Save to gallery; App Link intent filter (`autoVerify`) for `https://app.vircle.com/chat/`; cleartext traffic off |
 | Huawei | The same as Android; push through Huawei Push Kit; test on a device with no Google services |
 | WebView CSP | `connect-src` `https://chat.vircle.tech wss://chat.vircle.tech`; `img-src` and `media-src` the same host plus `blob:` `data:` and the origin Capacitor serves cached files from |
 
@@ -998,10 +1003,10 @@ Accept: table-driven test over every code in section 9; a failed upload shows `f
 Reconnect calls `reconnectNow`.
 
 **T16 Badge, foreground/background, deep link, push.** Depends: T02.
-Do: R-BADGE-1, R-PUSH-1, R-PUSH-2, R-CONN-4..6 wiring; `PushRoutingPort` stand-in (`isChatAlert` true when `data.deep_link` starts with `vircle://chat/`).
+Do: R-BADGE-1, R-PUSH-1, R-PUSH-2, R-CONN-4..6 wiring; `PushRoutingPort` (`isChatAlert` is `data.chat_alert === '1'`).
 Accept: tests: foreground event reconnects; background sets the badge to the unread count and foreground screen-visible sets it to 0; chat alert while
-the chat page is visible shows nothing; deep link navigates and calls `reconnectNow`; a non-chat URL returns false. Leave the real payload mapping
-marked `TODO(push-team)` with the contract in one place.
+the chat page is visible shows nothing; deep link navigates and calls `reconnectNow`; a non-chat URL returns false. Keep the payload contract in one place (the port) and mark `TODO(push-team)`
+only for the push API passing the fields through, which the push team has still to confirm.
 
 **T17 Clear chat and sign-out.** Depends: T04, T11.
 Do: 8.8 and R-CLEAR-1..2, R-SIGNOUT-1..2, overflow menu and confirm dialog.
@@ -1045,7 +1050,7 @@ Accept: section 14 checklist is all ticked, with evidence links.
 
 ## 13.1 The local gateway and the scripted support agent (no person needed)
 
-Start (from the kit's `simulator/` folder, Node 20 or later):
+Start (from the kit's `simulator/` folder, Node 24.22.1 or later (22.23.4 or later also works)):
 
 ```bash
 npm install

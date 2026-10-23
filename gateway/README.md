@@ -56,7 +56,9 @@ Settings (environment): `PORT`, `GATEWAY_WS_PATH` (`/ws`), `SESSION_TTL_SECONDS`
 `PUSH_SWEEP_MS` (1000), `PUBLIC_BASE_URL` (the https address file links are built from), `UPLOAD_SLOT_MINUTES` (15), `APP_FILE_LINK_HOURS` (24),
 `HALO_FILE_LINK_HOURS` (1), `FILE_FETCH_TIMEOUT_MS` (20000), `MAX_VOICE_SECONDS` (300),
 `PUSH_WINDOW_MINUTES` (60), `PUSH_REALERT_HOURS` (24), `PUSH_DEEP_LINK`
-(`vircle://chat/{conversation_id}`; a workspace can override the title, text and link in `push_settings`).
+(`https://app.vircle.com/chat/{conversation_id}`, a universal link; a workspace can override the title, text and link in `push_settings`, set with
+`update-workspace --deep-link ... --push-title ... --push-body ...`). The alert's `data` is `notification_type: "01"`, `chat_alert: "1"`,
+`conversation_id` and `deep_link`.
 
 ## The simulator
 

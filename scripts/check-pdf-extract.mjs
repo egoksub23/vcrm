@@ -1,6 +1,6 @@
 // Self-test for the PDF text extraction the knowledge-base import uses (src/lib/knowledge/import-file.ts, through `unpdf`).
 //
-// `npm ci` warns that unpdf and pdfjs-dist ask for Node 22+ while the Docker image runs Node 20. This reads a tiny PDF made in memory and prints
+// `npm ci` warns that unpdf and pdfjs-dist ask for Node 22+ (the Docker image used to run Node 20; it now runs Node 24). This reads a tiny PDF made in memory and prints
 // what came out, so you can see on the Node you actually run whether the feature works, instead of reading a warning.
 //
 //   locally:       node scripts/check-pdf-extract.mjs

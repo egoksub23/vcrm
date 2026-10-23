@@ -141,7 +141,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       sweepMs: int(env, 'PUSH_SWEEP_MS', 1000),
       windowMinutes: int(env, 'PUSH_WINDOW_MINUTES', 60),
       realertHours: int(env, 'PUSH_REALERT_HOURS', 24),
-      deepLinkTemplate: env.PUSH_DEEP_LINK || 'vircle://chat/{conversation_id}',
+      deepLinkTemplate: env.PUSH_DEEP_LINK || 'https://app.vircle.com/chat/{conversation_id}',
     },
     files: {
       publicBaseUrl: env.PUBLIC_BASE_URL ? env.PUBLIC_BASE_URL.replace(/\/+$/, '') : null,

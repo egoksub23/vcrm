@@ -27,6 +27,7 @@ const row: VircleChatConfigRow = {
   signing_secret: 'enc:vcs_secret',
   api_token: 'enc:vct_token',
   enabled: true,
+  history_days: 90,
   last_inbound_at: '2026-10-02T09:00:00Z',
   last_error: null,
   connected_by_user_id: 'u1',
@@ -60,10 +61,16 @@ describe('toConfigView', () => {
       workspaceKey: 'vcw_abcdefghijklmnop1234',
       gatewayBaseUrl: 'https://gw.example.com',
       enabled: true,
+      historyDays: 90,
       lastInboundAt: '2026-10-02T09:00:00Z',
       lastError: null,
       createdAt: '2026-10-01T00:00:00Z',
     })
+  })
+
+  it('reads 90 days for a connection saved before the setting existed', () => {
+    expect(toConfigView({ ...row, history_days: undefined } as unknown as VircleChatConfigRow).historyDays).toBe(90)
+    expect(toConfigView({ ...row, history_days: 30 }).historyDays).toBe(30)
   })
 })
 
