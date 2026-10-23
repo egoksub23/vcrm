@@ -33,7 +33,7 @@ time the job kept the Node process from serving anything else.
 | CPU | 12th Gen Intel Core i7-1260P, 16 logical cores (boosts well above 4 GHz) |
 | RAM | 31.7 GB |
 | OS | Windows 11 Pro (10.0.26200), x64 |
-| Node | v24.17.0 (the production image is `node:20-alpine`) |
+| Node | v24.17.0 (the production image was `node:20-alpine` when measured; now `node:24.22.1-alpine`) |
 | Load | not idle: other tools ran on it during the runs. A 4-page job measured 325 ms in a quiet moment and 390 to 650 ms during the full runs. The full-run medians are used below, so they are not flattering. A first full run gave the same picture within about 25 percent. |
 
 ## Results: one seal job

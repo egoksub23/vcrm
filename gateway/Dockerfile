@@ -1,5 +1,5 @@
 # Vircle Chat gateway. Build context: this folder (docker-compose.gateway.yml at the repo root does that).
-FROM node:20-alpine AS build
+FROM node:24.22.1-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -9,7 +9,7 @@ COPY client/src ./client/src
 COPY public ./public
 RUN node build.mjs
 
-FROM node:20-alpine
+FROM node:24.22.1-alpine
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json package-lock.json ./

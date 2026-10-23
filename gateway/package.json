@@ -5,7 +5,7 @@
   "description": "Vircle Chat gateway: live connections for the Vircle app, signed events to and from Halo, push decision (docs/vircle-chat-gateway-scope.md)",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "node": "^22.23.4 || ^24.22.1 || >=26.12.1"
   },
   "scripts": {
     "dev": "tsx src/server.ts",
