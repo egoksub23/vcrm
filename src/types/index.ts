@@ -1159,7 +1159,10 @@ export interface TeamMember {
 /** Schemaless on purpose (stored as JSONB) — mirrors ConversationList's
  *  own filter state so a new filter there never needs a migration here. */
 export interface InboxViewFilterConfig {
+  /** Ownership: all / mine / unassigned / unread. Views saved before the status dropdown may also say open / pending / closed here. */
   filter?: string;
+  /** The Status dropdown: active / open / pending / expired / closed / all. Absent in older views (see statusFromView). */
+  status?: string;
   tagIds?: string[];
   company?: string | null;
   teamId?: string | null;

@@ -293,7 +293,12 @@
       "awaitingResponseSince": "Awaiting a reply — customer messaged {time}",
       "tagTitle": "Tag: {name}",
       "labelTitle": "Label: {name}",
-      "tabComments": "Comments"
+      "tabComments": "Comments",
+      "statusLabel": "Status",
+      "statusActive": "Active",
+      "statusExpired": "Expired",
+      "statusAll": "All statuses",
+      "statusExpiredHint": "Active is open and pending chats. Expired is a WhatsApp chat whose 24-hour reply window has run out."
     },
     "messageThread": {
       "backToConversations": "Back to conversations",

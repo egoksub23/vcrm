@@ -293,7 +293,12 @@
       "awaitingResponseSince": "等待回复——客户于 {time} 发来消息",
       "tagTitle": "标签：{name}",
       "labelTitle": "标签：{name}",
-      "tabComments": "评论"
+      "tabComments": "评论",
+      "statusLabel": "状态",
+      "statusActive": "进行中",
+      "statusExpired": "已过期",
+      "statusAll": "所有状态",
+      "statusExpiredHint": "进行中包括未处理和待处理的对话。已过期是指 WhatsApp 对话的 24 小时回复窗口已结束。"
     },
     "messageThread": {
       "backToConversations": "返回对话列表",

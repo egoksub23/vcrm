@@ -293,7 +293,12 @@
       "awaitingResponseSince": "답변 대기 중 — 고객이 {time} 메시지를 보냈습니다",
       "tagTitle": "태그: {name}",
       "labelTitle": "라벨: {name}",
-      "tabComments": "댓글"
+      "tabComments": "댓글",
+      "statusLabel": "상태",
+      "statusActive": "진행 중",
+      "statusExpired": "만료됨",
+      "statusAll": "모든 상태",
+      "statusExpiredHint": "진행 중은 열림과 보류 중인 대화입니다. 만료됨은 24시간 응답 가능 시간이 끝난 WhatsApp 대화입니다."
     },
     "messageThread": {
       "backToConversations": "대화 목록으로 돌아가기",

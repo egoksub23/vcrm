@@ -293,7 +293,12 @@
       "awaitingResponseSince": "Menunggu balasan — pelanggan menghantar mesej {time}",
       "tagTitle": "Teg: {name}",
       "labelTitle": "Label: {name}",
-      "tabComments": "Komen"
+      "tabComments": "Komen",
+      "statusLabel": "Status",
+      "statusActive": "Aktif",
+      "statusExpired": "Tamat tempoh",
+      "statusAll": "Semua status",
+      "statusExpiredHint": "Aktif ialah sembang terbuka dan belum selesai. Tamat tempoh ialah sembang WhatsApp yang tetingkap balasan 24 jamnya telah berakhir."
     },
     "messageThread": {
       "backToConversations": "Kembali ke perbualan",

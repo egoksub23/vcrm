@@ -12,6 +12,17 @@ import { useTags } from "@/hooks/use-tags";
 import { useAuth, useCapability } from "@/hooks/use-auth";
 import { readOnlyTitle } from "@/components/ui/gated-button";
 import { useNow } from "@/hooks/use-now";
+import {
+  countByStatus,
+  DEFAULT_STATUS_FILTER,
+  effectiveStatusFilter,
+  matchesStatusFilter,
+  ownershipFromView,
+  statusFromView,
+  STATUS_FILTERS,
+  type OwnershipFilter,
+  type StatusFilter,
+} from "@/lib/inbox/status-filter";
 import { useInboxViews } from "@/hooks/use-inbox-views";
 import { cn } from "@/lib/utils";
 import type { StatusColors } from "@/lib/status-colors";
@@ -79,7 +90,8 @@ interface ConversationListProps {
   onBulkPatch?: (ids: string[], patch: Partial<Conversation>) => void;
 }
 
-type InboxFilter = ConversationStatus | "all" | "unread" | "mine" | "unassigned";
+/** Who the chats belong to; combines with the status filter (`StatusFilter`), which is its own dropdown. */
+type InboxFilter = OwnershipFilter;
 
 /** Sentinel for the "no team" bucket in the Team filter — distinct from
  *  `null` (no team filter applied at all). */
@@ -124,29 +136,28 @@ export function ConversationList({
   // rather than each ConversationItem running its own interval.
   const now = useNow(30000);
 
-  const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
+  // Ownership tabs: All / Mine / Unassigned / Unread. The chat's STATE (active, open, pending, expired, closed, all) is the separate Status
+  // dropdown above them, so the two combine ("Mine" + "Closed" = my closed chats).
+  const OWNERSHIP_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
     { label: t("filterAll"), value: "all" },
     { label: t("filterMine"), value: "mine" },
     { label: t("filterUnassigned"), value: "unassigned" },
     { label: t("filterUnread"), value: "unread" },
-    { label: t("filterOpen"), value: "open" },
-    { label: t("filterPending"), value: "pending" },
-    { label: t("filterClosed"), value: "closed" },
   ], [t]);
 
-  // The ownership row is All / Mine / Unassigned as direct tabs, plus an
-  // "Others" tab that opens the remaining status-based options in a
-  // dropdown — same seven values as FILTER_OPTIONS, just split into what
-  // deserves a one-click tab versus what's rare enough to stay tucked
-  // away. Replaces the single flat "All ▾" dropdown that used to hold
-  // all seven undifferentiated.
-  const OTHER_FILTER_OPTIONS = useMemo(
-    () => FILTER_OPTIONS.filter((o) => o.value === "unread" || o.value === "open" || o.value === "pending" || o.value === "closed"),
-    [FILTER_OPTIONS],
-  );
+  const STATUS_LABEL: Record<StatusFilter, string> = {
+    active: t("statusActive"),
+    open: t("filterOpen"),
+    pending: t("filterPending"),
+    expired: t("statusExpired"),
+    closed: t("filterClosed"),
+    all: t("statusAll"),
+  };
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
+  // The default hides closed chats: a chat that was closed leaves the list. Searching still finds it (see effectiveStatusFilter).
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(DEFAULT_STATUS_FILTER);
   const [loading, setLoading] = useState(true);
   // Contact-based filters (issue #272). Tags use OR logic (a conversation
   // matches if its contact carries any selected tag), consistent with
@@ -236,7 +247,9 @@ export function ConversationList({
 
   const applyView = useCallback((view: InboxView) => {
     const cfg = view.filter_config ?? {};
-    setFilter((cfg.filter as InboxFilter) ?? "all");
+    // A view saved before the status dropdown said "open" / "pending" / "closed" in `filter`: that now lives in `status`.
+    setFilter(ownershipFromView(cfg));
+    setStatusFilter(statusFromView(cfg));
     setSelectedTagIds(cfg.tagIds ?? []);
     setSelectedCompany(cfg.company ?? null);
     setSelectedTeamId(cfg.teamId ?? null);
@@ -273,6 +286,7 @@ export function ConversationList({
         name,
         filterConfig: {
           filter,
+          status: statusFilter,
           tagIds: selectedTagIds,
           company: selectedCompany,
           teamId: selectedTeamId,
@@ -298,6 +312,7 @@ export function ConversationList({
     saveViewShared,
     canSaveView,
     filter,
+    statusFilter,
     selectedTagIds,
     selectedCompany,
     selectedTeamId,
@@ -414,13 +429,15 @@ export function ConversationList({
     } else if (filter === "mine") {
       result = result.filter((c) => !!user && c.assigned_agent_id === user.id);
     } else if (filter === "unassigned") {
-      // Matches the P0 spec: no agent AND still open — a closed or
-      // pending conversation that never got assigned isn't a live queue
-      // item, so it shouldn't clutter this view.
-      result = result.filter((c) => !c.assigned_agent_id && c.status === "open");
-    } else if (filter !== "all") {
-      result = result.filter((c) => c.status === filter);
+      result = result.filter((c) => !c.assigned_agent_id);
     }
+
+    // Status: the dropdown's choice. Unassigned keeps its original meaning under the default (no agent AND still open: a pending
+    // chat that never got assigned isn't a live queue item); a status picked on purpose is honoured as picked. While searching, the
+    // default widens to every status so an old closed chat can still be found.
+    let status = effectiveStatusFilter(statusFilter, search.trim().length > 0);
+    if (filter === "unassigned" && status === "active") status = "open";
+    result = result.filter((c) => matchesStatusFilter(c, status, now));
 
     // Contact-based filters (tags via OR logic, exact company match).
     if (selectedTagIds.length > 0 || selectedCompany !== null) {
@@ -494,6 +511,8 @@ export function ConversationList({
     conversations,
     channelScope,
     filter,
+    statusFilter,
+    now,
     search,
     selectedTagIds,
     selectedCompany,
@@ -586,8 +605,11 @@ export function ConversationList({
     [onSelect]
   );
 
-  const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
-  const isOtherFilter = filter === "unread" || filter === "open" || filter === "pending" || filter === "closed";
+  // What each status would show, among the chats this inbox tab holds (the numbers in the Status menu).
+  const statusCounts = useMemo(
+    () => countByStatus(conversations.filter((c) => channelScope.includes(c.last_channel_type)), now),
+    [conversations, channelScope, now],
+  );
 
   return (
     <>
@@ -613,53 +635,50 @@ export function ConversationList({
           />
         </div>
 
-        {/* Ownership tabs — All / Mine / Unassigned as one-click tabs, plus
-            an "Others" tab holding the remaining status filters (Unread,
-            Open, Pending, Closed) in a dropdown. Replaces the old single
-            "All ▾" dropdown that flattened all seven options together. */}
+        {/* Status: which chats by state. Active (open + pending) is the default, so a closed chat leaves the list. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={t("statusLabel")}
+            className="flex w-full items-center justify-between rounded-md border border-border bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            <span>
+              <span className="text-muted-foreground">{t("statusLabel")}: </span>
+              {STATUS_LABEL[statusFilter]}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56 border-border bg-popover">
+            {STATUS_FILTERS.map((f) => (
+              <DropdownMenuItem
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={cn("flex items-center justify-between text-sm", statusFilter === f ? "text-primary" : "text-popover-foreground")}
+              >
+                <span>{STATUS_LABEL[f]}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{statusCounts[f]}</span>
+              </DropdownMenuItem>
+            ))}
+            <div className="border-t border-border px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">{t("statusExpiredHint")}</div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Ownership tabs: All / Mine / Unassigned / Unread. Combine with the status above. */}
         <div className="flex items-center gap-4 text-xs font-medium">
-          {(["all", "mine", "unassigned"] as const).map((v) => (
+          {OWNERSHIP_OPTIONS.map((o) => (
             <button
-              key={v}
+              key={o.value}
               type="button"
-              onClick={() => setFilter(v)}
+              onClick={() => setFilter(o.value)}
               className={cn(
                 "border-b-2 pb-1 pt-0.5 transition-colors",
-                filter === v
+                filter === o.value
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              {v === "all" ? t("filterAll") : v === "mine" ? t("filterMine") : t("filterUnassigned")}
+              {o.label}
             </button>
           ))}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={cn(
-                "flex items-center gap-0.5 border-b-2 pb-1 pt-0.5 transition-colors",
-                isOtherFilter
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {isOtherFilter ? activeFilter?.label : t("filterOthers")}
-              <ChevronDown className="h-3 w-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="border-border bg-popover">
-              {OTHER_FILTER_OPTIONS.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.value}
-                  onClick={() => setFilter(opt.value)}
-                  className={cn(
-                    "text-sm",
-                    filter === opt.value ? "text-primary" : "text-popover-foreground"
-                  )}
-                >
-                  {opt.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         <div className="flex flex-wrap items-center gap-1">

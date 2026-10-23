@@ -9,6 +9,19 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.101.0] — 2026-10-23
+
+No migration. (The gateway change below needs the gateway rebuilt and redeployed.)
+
+### Added
+
+- **Inbox: a Status dropdown above the tabs.** **Active** (open and pending chats) is the default, so a chat you close leaves the list. Also Open, Pending, **Expired** (a WhatsApp chat whose 24-hour reply window has run out), Closed and All statuses, each with a count. It combines with the All / Mine / Unassigned / Unread tabs ("Mine" plus "Closed" is your closed chats). Searching still finds a closed chat. Saved views made before this keep their meaning and now also remember the status.
+- **Vircle Chat alerts: the real push adapter (gateway).** Alerts are sent through Vircle's `send-mobile-alert` API by phone number, with the chat marker, conversation id and deep link in its `data` field. Set `PUSH_ADAPTER=vircle`, `PUSH_API_URL`, `PUSH_API_KEY` and `PUSH_API_STAGE` (`uat` or `prod`) on the gateway host. Not yet tested against the live API.
+
+### Changed
+
+- **Inbox: Unread is now its own tab**, and the "Others" menu is gone (its Open, Pending and Closed choices are in the Status dropdown).
+
 ## [0.100.0] — 2026-10-23
 
 **Migration required: `193_vircle_chat_history_days.sql`.** Apply it **before** the new code is deployed (the app reads the new column). The Vircle Chat gateway has to be rebuilt and redeployed too (it carries the other half of this change).
