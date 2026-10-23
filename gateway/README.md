@@ -55,6 +55,7 @@ Settings (environment): `PORT`, `GATEWAY_WS_PATH` (`/ws`), `SESSION_TTL_SECONDS`
 `DISPATCH_GIVE_UP_HOURS` (72), `MAX_HALO_BODY_BYTES` (64 KB), `PUSH_ADAPTER` (`mock`), `PUSH_ACK_TIMEOUT_MS` (5000),
 `PUSH_SWEEP_MS` (1000), `PUBLIC_BASE_URL` (the https address file links are built from), `UPLOAD_SLOT_MINUTES` (15), `APP_FILE_LINK_HOURS` (24),
 `HALO_FILE_LINK_HOURS` (1), `FILE_FETCH_TIMEOUT_MS` (20000), `MAX_VOICE_SECONDS` (300),
+`PUSH_API_URL`, `PUSH_API_KEY` (secret) and `PUSH_API_STAGE` (`uat` or `prod`; no default), all three required when `PUSH_ADAPTER=vircle`, plus `PUSH_API_SEND_DATA` (default `true`: the alert's `data`; `false` leaves it out) and `PUSH_API_TIMEOUT_MS` (10000),
 `PUSH_WINDOW_MINUTES` (60), `PUSH_REALERT_HOURS` (24), `PUSH_DEEP_LINK`
 (`https://app.vircle.com/chat/{conversation_id}`, a universal link; a workspace can override the title, text and link in `push_settings`, set with
 `update-workspace --deep-link ... --push-title ... --push-body ...`). The alert's `data` is `notification_type: "01"`, `chat_alert: "1"`,

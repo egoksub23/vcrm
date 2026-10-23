@@ -60,6 +60,18 @@ export interface GatewayConfig {
     realertHours: number
     /** Where tapping an alert goes; `{conversation_id}` and `{wallet_id}` are filled in. A workspace may override it (push_settings.deep_link). */
     deepLinkTemplate: string
+    /** The Vircle push API, used by the `vircle` adapter (src/push/vircle.ts). Not read for `mock`. */
+    api: {
+      /** The full https address of the send-mobile-alert endpoint. */
+      url: string | null
+      /** Sent as `x-api-key`. Secret: environment only. */
+      key: string | null
+      /** Sent as `x-api-stage`; chosen explicitly, never defaulted. */
+      stage: 'uat' | 'prod' | null
+      /** Send the alert's `data` (chat_alert, conversation_id, deep_link). On unless `PUSH_API_SEND_DATA=false`. */
+      sendData: boolean
+      timeoutMs: number
+    }
   }
   /** Files in both directions (src/files.ts). */
   files: {
@@ -109,6 +121,17 @@ function pushAdapter(raw: string | undefined): 'mock' | 'vircle' {
   throw new Error('PUSH_ADAPTER must be mock or vircle')
 }
 
+/** The Vircle push API settings; with `PUSH_ADAPTER=vircle` all three of address, key and stage are required, so a half-set gateway refuses to start. */
+function pushApi(env: NodeJS.ProcessEnv): GatewayConfig['push']['api'] {
+  const url = env.PUSH_API_URL?.trim() || null
+  const key = env.PUSH_API_KEY?.trim() || null
+  const rawStage = env.PUSH_API_STAGE?.trim() || null
+  if (rawStage !== null && rawStage !== 'uat' && rawStage !== 'prod') throw new Error('PUSH_API_STAGE must be uat or prod')
+  if (url !== null && !/^https:\/\//i.test(url)) throw new Error('PUSH_API_URL must start with https://')
+  if (env.PUSH_ADAPTER === 'vircle' && (!url || !key || !rawStage)) throw new Error('PUSH_ADAPTER=vircle needs PUSH_API_URL, PUSH_API_KEY and PUSH_API_STAGE')
+  return { url, key, stage: rawStage, sendData: env.PUSH_API_SEND_DATA !== 'false', timeoutMs: int(env, 'PUSH_API_TIMEOUT_MS', 10_000) }
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
   const databaseUrl = env.DATABASE_URL
   if (!databaseUrl) throw new Error('DATABASE_URL is required')
@@ -142,6 +165,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       windowMinutes: int(env, 'PUSH_WINDOW_MINUTES', 60),
       realertHours: int(env, 'PUSH_REALERT_HOURS', 24),
       deepLinkTemplate: env.PUSH_DEEP_LINK || 'https://app.vircle.com/chat/{conversation_id}',
+      api: pushApi(env),
     },
     files: {
       publicBaseUrl: env.PUBLIC_BASE_URL ? env.PUBLIC_BASE_URL.replace(/\/+$/, '') : null,

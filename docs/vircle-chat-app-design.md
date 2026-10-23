@@ -675,8 +675,8 @@ PushNotifications.addListener('pushNotificationActionPerformed', ({ notification
 and raises one alert at once (if the app was open but did not confirm the message within 5 seconds, it alerts after that); (d) the user taps it; (e) the app opens on the chat showing the reply. With the mock this is visible in the simulator's **Push
 inbox** tab.
 
-**Still needed from the push team** (blocks work package 8, not your screen): the endpoint and authentication, the request fields,
-the title and body wording, and the error contract. When agreed, the payload names will be added to this document.
+**The push API** (received 23 October 2026): it alerts a phone number with a subject, a body and a `data` object (the field Vircle added that day), and the gateway's real
+adapter is built (`PUSH_ADAPTER=vircle`). The alert's data (`chat_alert`, `conversation_id`, `deep_link`) travels in `data`. **Still to prove**: a live test that `data` reaches the app as those string fields.
 
 # 12. Errors and what to show
 

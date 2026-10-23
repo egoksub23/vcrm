@@ -336,6 +336,12 @@ The gateway needs the user's phone and email to name the push recipient, which i
 for them on every event, and why the user's session token (the gateway's own, see
 `docs/vircle-chat-gateway-scope.md`) carries them.
 
+**The push API** (details received 23 Oct 2026; the gateway's real adapter is `gateway/src/push/vircle.ts`): `POST` to the Vircle "send mobile alert" endpoint
+(UAT: `https://apis-uat.vircle.com/airtable/send-mobile-alert`) with headers `x-api-key` and `x-api-stage` (`uat` or `prod`) and the body
+`{ "mobile_number", "subject", "body", "data" }`. It alerts the person who owns that phone number (with or without a leading `+`) and writes the alert to Vircle's own
+queue; a number that belongs to no client answers HTTP 404 `ERA03`, which the gateway treats as "no device". Vircle added the **`data`** field the same day (Shoaib, 23 Oct 2026): the custom fields below go in it, the API passes them to the app, and there is no separate
+deep link or collapse key. `PUSH_API_SEND_DATA=false` leaves it out. Still to confirm by a live test: that `data` arrives in the app as the string fields shown.
+
 **What the alert carries** (agreed with the app team, 23 Oct 2026; the push team still has to confirm that the push API passes custom string fields
 through unchanged):
 

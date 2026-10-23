@@ -83,8 +83,9 @@ The gateway puts this in the alert's `data` (all values are strings):
 `data.chat_alert === '1'` and delete the other candidate markers. If the push API changes the field name or drops custom fields, that is a change in one place
 (the port); tell us and we change the gateway.
 
-**Not confirmed yet**: the Vircle push team must confirm their API forwards custom string fields unchanged. Until the real push adapter exists the gateway only
-records alerts (the simulator's **Push inbox** tab shows them with this data), so you cannot receive a real one yet.
+**How it travels**: the gateway calls Vircle's push API (`send-mobile-alert`, by phone number) with the phone number, a subject, a body and this object as **`data`**
+(Shoaib added that field on 23 October). The API hands it to the app as custom payload fields. The gateway side is built; **we have not yet sent a real one**, so what we
+still have to prove with a live test to a phone is that `data` reaches your handler as these string fields, on iOS, Android and Huawei. Tell us what you actually receive.
 
 ## 4. Test it without a server
 
