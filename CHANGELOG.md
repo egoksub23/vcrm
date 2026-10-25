@@ -9,6 +9,14 @@ Versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Pre-1.0, `MINOR` bumps cover new modules; `PATCH` bumps cover bug fixes
 and polish.
 
+## [0.102.0] — 2026-10-25
+
+**Migration required: `194_compliance_fraud_review.sql`.** Apply it, then the type is there (no code change: the screens read types from the database).
+
+### Added
+
+- **Compliance requests: a new type, Transaction fraud review.** Record a transaction a customer says is fraud: the kind of fraud, the transaction reference, date and amount, the customer's wallet, the recipient (the recipient's account is protected like bank details), what happened in the customer's words and a police report number. Add the customer's screenshots in the case, record the investigation (results, outcome, amount recovered, action taken, evidence files) while the case is in review, and tick the actions after the sign-off (preserve evidence, block the account, recall the funds, report, tell the customer). It goes through the same steps, sign-off and seven-year trail as every other case, with a starting target of 7 days and a hard stop of 30 that an administrator can change in Settings > Compliance.
+
 ## [0.101.0] — 2026-10-23
 
 No migration. (The gateway change below needs the gateway rebuilt and redeployed.)
