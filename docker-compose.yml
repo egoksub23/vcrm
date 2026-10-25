@@ -27,6 +27,12 @@ services:
     ports:
       - '${HOST_PORT:-3000}:3000'
     restart: unless-stopped
+    # Container logs rotate: the default keeps them for ever, and a busy server fills its disk with them (the chat gateway's compose file does the same).
+    logging:
+      driver: json-file
+      options:
+        max-size: '20m'
+        max-file: '5'
     # The second network reaches the Secure Sign converter below. It has no way out to the internet.
     networks:
       - default

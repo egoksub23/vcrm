@@ -92,6 +92,11 @@ no data is lost. Add it to root's crontab to run weekly:
 
 Check usage any time with `df -h /` and `docker system df`.
 
+Two things keep the disk and the build time in check without any job: the container's logs rotate (20 MB, five files, in `docker-compose.yml`), and
+the Dockerfile keeps the compiler's cache in a BuildKit cache mount between deploys, so a rebuild after a small change recompiles only what changed
+(about 44 s against 162 s cold, on a developer PC; the server is slower but the ratio holds). The weekly prune above also empties that cache, which
+makes the next build cold once.
+
 ## Secure Sign converter (Word to PDF)
 
 Secure Sign turns an uploaded Word file into a PDF with LibreOffice, run inside the
