@@ -80,7 +80,7 @@ BEGIN
   IF v_n <> 10 THEN RAISE EXCEPTION 'FAIL the closure type has % fields (expected 9 plus the question)', v_n; END IF;
   SELECT jsonb_array_length(fields) INTO v_n FROM compliance_request_types WHERE account_id = acctA AND key = 'withdrawal';
   IF v_n <> 11 THEN RAISE EXCEPTION 'FAIL the withdrawal type has % fields (expected 10 plus the question)', v_n; END IF;
-  IF (SELECT count(*) FROM compliance_request_types WHERE account_id = acctA) <> 3 THEN RAISE EXCEPTION 'FAIL a new workspace does not have exactly the three system types'; END IF;
+  IF (SELECT count(*) FROM compliance_request_types WHERE account_id = acctA AND is_system) <> 3 THEN RAISE EXCEPTION 'FAIL a new workspace does not have exactly the three system types'; END IF;
 
   -- ------------------------------------------------------------
   -- 2. The letter is conditional and required, with the new words, on both types
