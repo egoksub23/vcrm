@@ -30,16 +30,11 @@ import { dragHasFiles, droppedImages, pastedImages } from "@/lib/media/clipboard
 import { attachFileToIncident } from "@/lib/incidents/attachment-actions";
 import {
   INCIDENT_DETECTION_SOURCES,
-  INCIDENT_SEVERITIES,
-  INCIDENT_SEVERITY_LABEL,
-  INCIDENT_TYPES,
-  suggestsP2Minimum,
   type IncidentDetectionSource,
-  type IncidentSeverity,
-  type IncidentTypeCode,
 } from "@/lib/incidents/constants";
+import { useIncidentStandard } from "@/hooks/use-incident-standard";
 import type { Incident } from "@/lib/incidents/types";
-import { SEVERITY_STYLE } from "./incident-visuals";
+import { severityStyle } from "./incident-visuals";
 
 interface StagedFile {
   key: string;
@@ -71,23 +66,26 @@ interface RaiseIncidentDialogProps {
 export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreated }: RaiseIncidentDialogProps) {
   const t = useTranslations("Incidents.raise");
   const { user } = useAuth();
+  const { types, severities } = useIncidentStandard();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [incidentType, setIncidentType] = useState<IncidentTypeCode | "">("");
+  const [incidentType, setIncidentType] = useState<string>("");
   const [detectionSource, setDetectionSource] = useState<IncidentDetectionSource>("customer");
-  const [severity, setSeverity] = useState<IncidentSeverity>("P3");
+  const [severity, setSeverity] = useState<string>("P3");
   const [busy, setBusy] = useState(false);
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const defaultSeverity = severities[Math.max(0, severities.length - 2)]?.slug ?? "P3";
 
   const reset = () => {
     setTitle("");
     setDescription("");
     setIncidentType("");
     setDetectionSource("customer");
-    setSeverity("P3");
+    setSeverity(defaultSeverity);
     for (const s of staged) if (s.preview) URL.revokeObjectURL(s.preview);
     setStaged([]);
   };
@@ -112,7 +110,13 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
       return prev.filter((s) => s.key !== key);
     });
 
-  const showP2Hint = incidentType !== "" && suggestsP2Minimum(incidentType, detectionSource) && severity !== "P1" && severity !== "P2";
+  const selectedType = types.find((ty) => ty.code === incidentType);
+  const showMinSeverityHint =
+    incidentType !== "" &&
+    selectedType?.min_severity != null &&
+    (detectionSource === "regulator_partner" ||
+      (severities.findIndex((s) => s.slug === severity) >
+        severities.findIndex((s) => s.slug === selectedType.min_severity)));
 
   const handleSubmit = async () => {
     const trimmedTitle = title.trim();
@@ -303,14 +307,14 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="text-foreground">{t("typeLabel")}</Label>
-              <Select value={incidentType} onValueChange={(v) => setIncidentType(v as IncidentTypeCode)}>
+              <Select value={incidentType} onValueChange={(v) => setIncidentType(v ?? "")}>
                 <SelectTrigger className="h-10 w-full bg-muted">
                   <SelectValue placeholder={t("typePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {INCIDENT_TYPES.map((ty) => (
+                  {types.map((ty) => (
                     <SelectItem key={ty.code} value={ty.code}>
-                      {ty.code} — {ty.label}
+                      {ty.code} — {ty.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -337,24 +341,24 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
             <Label className="text-foreground">
               {t("severityLabel")} <span className="font-normal text-muted-foreground">{t("severityHint")}</span>
             </Label>
-            <div className="grid grid-cols-4 gap-2.5">
-              {INCIDENT_SEVERITIES.map((s) => (
+            <div className={cn("grid gap-2.5", severities.length <= 4 ? "grid-cols-4" : "grid-cols-2 sm:grid-cols-4")}>
+              {severities.map((sev) => (
                 <button
-                  key={s}
+                  key={sev.slug}
                   type="button"
-                  onClick={() => setSeverity(s)}
+                  onClick={() => setSeverity(sev.slug)}
                   disabled={busy}
                   className={cn(
                     "rounded-lg border px-2 py-2.5 text-center text-xs font-semibold transition-colors",
-                    severity === s ? cn(SEVERITY_STYLE[s], "border-2") : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                    severity === sev.slug ? cn(severityStyle(sev.slug), "border-2") : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
                   )}
                 >
-                  {s}
-                  <div className="mt-0.5 text-[10.5px] font-normal">{INCIDENT_SEVERITY_LABEL[s]}</div>
+                  {sev.slug}
+                  <div className="mt-0.5 text-[10.5px] font-normal">{sev.label}</div>
                 </button>
               ))}
             </div>
-            {showP2Hint ? (
+            {showMinSeverityHint ? (
               <div className="mt-2 flex items-start gap-2 rounded-md bg-orange-500/10 px-2.5 py-2 text-[12px] text-orange-700 dark:text-orange-300">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 <span>{t("p2MinimumHint")}</span>

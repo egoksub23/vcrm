@@ -23,7 +23,7 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
 } from "@/lib/rate-limit";
-import { INCIDENT_SEVERITIES, INCIDENT_TYPES, INCIDENT_DETECTION_SOURCES } from "@/lib/incidents/constants";
+import { INCIDENT_DETECTION_SOURCES } from "@/lib/incidents/constants";
 
 const MAX_TITLE_LEN = 200;
 const MAX_DESCRIPTION_LEN = 10000;
@@ -58,14 +58,45 @@ export async function POST(request: Request) {
         ? body.description.trim().slice(0, MAX_DESCRIPTION_LEN)
         : null;
 
-    const incidentType = body?.incidentType;
-    if (typeof incidentType !== "string" || !INCIDENT_TYPES.some((t) => t.code === incidentType)) {
+    const incidentType = typeof body?.incidentType === "string" ? body.incidentType : "";
+    if (!incidentType) {
+      return NextResponse.json({ error: "'incidentType' is required" }, { status: 400 });
+    }
+
+    // Validate incidentType and severity against the account's active standard catalogue.
+    const { data: aisRows } = await ctx.supabase
+      .from("account_incident_standards")
+      .select("standard_id")
+      .eq("account_id", ctx.accountId)
+      .eq("is_active", true)
+      .limit(1);
+
+    const standardId = aisRows?.[0]?.standard_id as string | undefined;
+    if (!standardId) {
+      return NextResponse.json({ error: "No active incident standard configured for this account" }, { status: 422 });
+    }
+
+    const { data: typeRow } = await ctx.supabase
+      .from("incident_type_catalogue")
+      .select("id")
+      .eq("standard_id", standardId)
+      .eq("code", incidentType)
+      .maybeSingle();
+
+    if (!typeRow) {
       return NextResponse.json({ error: "'incidentType' is not a recognized incident type" }, { status: 400 });
     }
 
     const severity = typeof body?.severity === "string" ? body.severity : "P3";
-    if (!INCIDENT_SEVERITIES.includes(severity as (typeof INCIDENT_SEVERITIES)[number])) {
-      return NextResponse.json({ error: "'severity' must be one of P1, P2, P3, P4" }, { status: 400 });
+    const { data: sevRow } = await ctx.supabase
+      .from("incident_severity_levels")
+      .select("id")
+      .eq("standard_id", standardId)
+      .eq("slug", severity)
+      .maybeSingle();
+
+    if (!sevRow) {
+      return NextResponse.json({ error: "'severity' is not a recognized severity level for this standard" }, { status: 400 });
     }
 
     const detectionSource = typeof body?.detectionSource === "string" ? body.detectionSource : "other";
@@ -92,6 +123,7 @@ export async function POST(request: Request) {
         severity,
         detection_source: detectionSource,
         reporter_id: ctx.userId,
+        standard_id: standardId,
       })
       .select("*")
       .single();

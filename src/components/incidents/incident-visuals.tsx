@@ -20,6 +20,27 @@ export const SEVERITY_STYLE: Record<IncidentSeverity, string> = {
   P4: "bg-muted text-muted-foreground border-border",
 };
 
+// Additional slug aliases used by non-BNM standards (ISO 27035, ISO 45001)
+const _SEVERITY_STYLE_EXT: Record<string, string> = {
+  critical:  "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30",
+  high:      "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30",
+  medium:    "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  low:       "bg-muted text-muted-foreground border-border",
+  fatal:     "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30",
+  major:     "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30",
+  minor:     "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  near_miss: "bg-muted text-muted-foreground border-border",
+};
+
+/** Returns the badge class for any severity slug (BNM P1–P4 or future standards). */
+export function severityStyle(slug: string): string {
+  return (
+    SEVERITY_STYLE[slug as IncidentSeverity] ??
+    _SEVERITY_STYLE_EXT[slug.toLowerCase()] ??
+    "bg-muted text-muted-foreground border-border"
+  );
+}
+
 /** The 3px coloured edge on a board card, by severity. */
 export const SEVERITY_EDGE: Record<IncidentSeverity, string> = {
   P1: "border-l-red-500",
@@ -37,18 +58,21 @@ export const STATUS_STYLE: Record<IncidentStatus, string> = {
   closed: "bg-muted text-muted-foreground",
 };
 
-export function SeverityBadge({ severity, className }: { severity: IncidentSeverity; className?: string }) {
+const _BNM_SEVERITY_SLUGS = new Set(["P1", "P2", "P3", "P4"]);
+
+export function SeverityBadge({ severity, label, className }: { severity: string; label?: string; className?: string }) {
   const t = useTranslations("Incidents.common.severity");
+  const displayLabel = label ?? (_BNM_SEVERITY_SLUGS.has(severity) ? t(severity as IncidentSeverity) : severity);
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-0.5 text-[11px] leading-none font-bold tracking-wide",
-        SEVERITY_STYLE[severity],
+        severityStyle(severity),
         className,
       )}
     >
       {severity === "P1" ? <AlertTriangle className="size-3" /> : null}
-      {severity} · {t(severity)}
+      {severity} · {displayLabel}
     </span>
   );
 }

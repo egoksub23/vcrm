@@ -5070,7 +5070,18 @@
       "description": "Escalation timers, who gets notified as an incident escalates, and the 24/7 incident contact used on generated reports.",
       "tabs": {
         "timers": "Escalation timers",
-        "recipients": "Recipients"
+        "recipients": "Recipients",
+        "standards": "Standards"
+      },
+      "standards": {
+        "active": "Active standard",
+        "activeLabel": "Active",
+        "incidentTypes": "Incident types",
+        "severityLevels": "Severity levels",
+        "typesList": "Incident type catalogue",
+        "notifiable": "Notifiable",
+        "bnmNote": "BNM RMiT is mandated for licensed financial service providers in Malaysia. Your incident types, severity taxonomy, and SLA windows are set by this framework.",
+        "moreStandardsNote": "Additional standards (ISO 27035, ISO 45001, MOE Malaysia) will be available in a future update — contact support to enable an early-access standard."
       },
       "timers": {
         "intro": "How long an incident can sit at a level before it auto-escalates. Attach a business-hours schedule to count only working time — leave it on \"All hours\" to count real time, 24/7.",

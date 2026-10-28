@@ -13,8 +13,9 @@ import { SettingsPanelHead } from "../settings-panel-head";
 import { EscalationTimersTab } from "./escalation-timers-tab";
 import { EscalationRecipientsTab } from "./escalation-recipients-tab";
 import { IncidentContactForm } from "./incident-contact-form";
+import { IncidentStandardsTab } from "./incident-standards-tab";
 
-type Tab = "timers" | "recipients";
+type Tab = "timers" | "recipients" | "standards";
 
 export function IncidentsSettingsPanel() {
   const t = useTranslations("Settings.incidents");
@@ -28,17 +29,22 @@ export function IncidentsSettingsPanel() {
         <TabsList>
           <TabsTrigger value="timers">{t("tabs.timers")}</TabsTrigger>
           <TabsTrigger value="recipients">{t("tabs.recipients")}</TabsTrigger>
+          <TabsTrigger value="standards">{t("tabs.standards")}</TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {tab === "timers" ? <EscalationTimersTab /> : <EscalationRecipientsTab />}
+      {tab === "timers" ? <EscalationTimersTab /> : null}
+      {tab === "recipients" ? <EscalationRecipientsTab /> : null}
+      {tab === "standards" ? <IncidentStandardsTab /> : null}
 
-      <div className="border-t border-border pt-5">
-        <h3 className="text-sm font-semibold text-foreground">{t("contact.title")}</h3>
-        <div className="mt-2">
-          <IncidentContactForm />
+      {tab !== "standards" ? (
+        <div className="border-t border-border pt-5">
+          <h3 className="text-sm font-semibold text-foreground">{t("contact.title")}</h3>
+          <div className="mt-2">
+            <IncidentContactForm />
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
