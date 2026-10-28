@@ -37,6 +37,8 @@ import {
   DEFAULT_FILTERS,
   REVEAL_MS,
   addRecent,
+  canFetch,
+  dateRangeRequired,
   loadRecent,
   matchesFilters,
   resultOptions,
@@ -166,6 +168,9 @@ export function KycScreen() {
         reload: seed.length > 0 || pages > 0,
         beforeId: before ?? undefined,
         docType: f.docType || undefined,
+        reviewStatus: f.reviewStatus !== "all" ? f.reviewStatus : undefined,
+        createdFrom: f.dateFrom || undefined,
+        createdTo: f.dateTo || undefined,
       });
       if (mine !== seq.current) return null;
       if (!res.ok) return { items: all, before, error: res.code };
@@ -233,15 +238,29 @@ export function KycScreen() {
   };
 
   const applyFilters = (next: KycFilters) => {
-    // A document kind is the back end's own filter, so it needs a fresh list; the rest only change what is shown (and may send the screen looking for more).
-    if (next.docType !== filters.docType) {
+    // Server-side filters (reviewStatus, dateFrom, dateTo, docType) always need a fresh list.
+    const serverChanged =
+      next.docType !== filters.docType ||
+      next.reviewStatus !== filters.reviewStatus ||
+      next.dateFrom !== filters.dateFrom ||
+      next.dateTo !== filters.dateTo;
+
+    if (serverChanged) {
+      // Don't fetch until dates are provided for non-pending statuses.
+      if (!canFetch(next)) {
+        setFilters(next);
+        setItems([]);
+        setNextBeforeId(null);
+        setPhase("idle");
+        return;
+      }
       void run(friendId, next);
       return;
     }
+
     setFilters(next);
     setKeep([]);
-    // Another review or result choice may need checks that were not read yet. Go and look, but only when what is loaded does not already fill the
-    // list: nothing more is pulled than the choice needs, and "All checks" never reads beyond the page that is there.
+    // The result (validation_status) filter is client-side; page further if needed.
     const have = items.filter((v) => matchesFilters(v, next)).length;
     if (shouldKeepPaging({ matches: have, pages: 0, hasMore: nextBeforeId !== null, filters: next })) void loadMore(next);
   };
@@ -290,7 +309,7 @@ export function KycScreen() {
   // A check decided a moment ago stays in place even when the filter would now drop it, so the reviewer can see what was recorded.
   const visible = useMemo(() => items.filter((v) => matchesFilters(v, filters) || (v.id !== "" && keep.includes(v.id))), [items, filters, keep]);
   const results = useMemo(() => resultOptions(items), [items]);
-  const filtered = filters.review !== "all" || filters.result !== "";
+  const filtered = filters.reviewStatus !== "all" || filters.dateFrom !== "" || filters.dateTo !== "" || filters.result !== "";
 
   // ---- selection and focus ----
   const index = useMemo(() => visible.findIndex((v, i) => rowKey(v, i) === selectedKey), [visible, selectedKey]);

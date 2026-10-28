@@ -13,7 +13,9 @@
 import { checkSharedRateLimit } from "@/lib/rate-limit-shared";
 import { failure, json, kycStaff, rateLimited } from "@/lib/kyc/http";
 import { lookupValidations, validFriendId, validValidationId } from "@/lib/kyc/service";
-import { BEFORE_ID_RE, isDocType, normaliseFriendId } from "@/lib/kyc/types";
+import { BEFORE_ID_RE, isDocType, isReviewStatus, normaliseFriendId } from "@/lib/kyc/types";
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function GET(request: Request) {
   return kycStaff({ bucket: "validations", perMinute: 30 }, async ({ admin, caller, runtime }) => {
@@ -27,6 +29,13 @@ export async function GET(request: Request) {
     // The only filter the back end honours besides the friend id. An unknown kind is refused rather than passed on.
     const docType = (params.get("doc_type") ?? "").trim().toLowerCase();
     if (docType !== "" && !isDocType(docType)) return failure("invalid_request");
+
+    const reviewStatus = (params.get("review_status") ?? "").trim().toLowerCase();
+    if (reviewStatus !== "" && !isReviewStatus(reviewStatus)) return failure("invalid_request");
+    const createdFrom = (params.get("created_from") ?? "").trim();
+    if (createdFrom !== "" && !DATE_RE.test(createdFrom)) return failure("invalid_request");
+    const createdTo = (params.get("created_to") ?? "").trim();
+    if (createdTo !== "" && !DATE_RE.test(createdTo)) return failure("invalid_request");
 
     const rawLimit = params.get("limit");
     const parsedLimit = rawLimit === null || rawLimit === "" ? 50 : Number(rawLimit);
@@ -42,7 +51,17 @@ export async function GET(request: Request) {
       if (!rate.success) return rateLimited(rate.reset);
     }
 
-    const result = await lookupValidations(admin, caller, runtime, { friendId, limit, beforeId: beforeId || null, docType: docType || null, reload: params.get("reload") === "1", revealValidationId });
+    const result = await lookupValidations(admin, caller, runtime, {
+      friendId,
+      limit,
+      beforeId: beforeId || null,
+      docType: docType || null,
+      reviewStatus: reviewStatus || null,
+      createdFrom: createdFrom || null,
+      createdTo: createdTo || null,
+      reload: params.get("reload") === "1",
+      revealValidationId,
+    });
     return result.ok ? json(result.body) : failure(result.code);
   });
 }

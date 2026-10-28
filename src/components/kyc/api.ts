@@ -40,10 +40,16 @@ async function call<T>(url: string): Promise<ApiResult<T>> {
 
 export const getStatus = (check = false) => call<KycStatus & { service?: "up" | "down" }>(`/api/kyc/status${check ? "?check=1" : ""}`);
 
-export function getValidations(friendId: string, opts: { reload?: boolean; revealValidationId?: string; beforeId?: string; docType?: string } = {}) {
+export function getValidations(
+  friendId: string,
+  opts: { reload?: boolean; revealValidationId?: string; beforeId?: string; docType?: string; reviewStatus?: string; createdFrom?: string; createdTo?: string } = {},
+) {
   const q = new URLSearchParams({ limit: "50" });
   if (friendId) q.set("friend_id", friendId);
   if (opts.docType) q.set("doc_type", opts.docType);
+  if (opts.reviewStatus) q.set("review_status", opts.reviewStatus);
+  if (opts.createdFrom) q.set("created_from", opts.createdFrom);
+  if (opts.createdTo) q.set("created_to", opts.createdTo);
   if (opts.beforeId) q.set("before_id", opts.beforeId);
   if (opts.reload) q.set("reload", "1");
   if (opts.revealValidationId) {

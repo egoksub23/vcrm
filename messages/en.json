@@ -13316,13 +13316,18 @@
         "all": "All checks",
         "pending": "Needs review",
         "approved": "Approved",
-        "rejected": "Rejected"
+        "rejected": "Rejected",
+        "staff_rejected": "Staff rejected",
+        "auto_rejected": "Auto-rejected"
       },
       "types": {
         "nric": "NRIC",
         "passport": "Passport",
         "selfie": "Selfie"
-      }
+      },
+      "dateFrom": "From date",
+      "dateTo": "To date",
+      "dateRequired": "Select start and end dates to search"
     }
   },
   "Compliance": {

@@ -509,8 +509,8 @@ describe.each(LOCALES)("KYC filters in %s", (locale) => {
 
   it("offers Clear once something is filtered, including \"All checks\", which is no longer the default", () => {
     expect(text(page(locale, <FilterBar filters={NO_FILTERS} results={[]} onChange={() => undefined} />))).toContain(f.clear);
-    expect(text(page(locale, <FilterBar filters={{ review: "approved", result: "", docType: "" }} results={[]} onChange={() => undefined} />))).toContain(f.clear);
-    expect(text(page(locale, <FilterBar filters={{ review: "all", result: "", docType: "nric" }} results={[]} onChange={() => undefined} />))).toContain(f.clear);
+    expect(text(page(locale, <FilterBar filters={{ reviewStatus: "approved", dateFrom: "2026-10-01", dateTo: "2026-10-28", result: "", docType: "" }} results={[]} onChange={() => undefined} />))).toContain(f.clear);
+    expect(text(page(locale, <FilterBar filters={{ reviewStatus: "all", dateFrom: "2026-10-01", dateTo: "2026-10-28", result: "", docType: "nric" }} results={[]} onChange={() => undefined} />))).toContain(f.clear);
   });
 
   it("says, in the list, which checks nobody has decided", () => {

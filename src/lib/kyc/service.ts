@@ -91,6 +91,11 @@ export interface LookupInput {
   beforeId?: string | null;
   /** The one filter the back end applies besides the friend id: `nric`, `passport` or `selfie`. null leaves it out. */
   docType?: string | null;
+  /** Server-side filter: pending | approved | rejected | staff_rejected | auto_rejected. null = all. */
+  reviewStatus?: string | null;
+  /** Server-side date filter: YYYY-MM-DD (Malaysia time). null leaves it out. */
+  createdFrom?: string | null;
+  createdTo?: string | null;
   /** A reload of a list already looked up: recorded as 'list' instead of 'lookup'. */
   reload: boolean;
   /** Show this validation's sensitive values in full. Needs kyc.reveal; recorded as 'reveal'. */
@@ -123,7 +128,13 @@ export async function lookupValidations(admin: SupabaseClient, caller: KycCaller
 
   let body: unknown;
   try {
-    body = await fetchValidations(cfg.config, rt.transport, input.friendId, input.limit, { beforeId: input.beforeId ?? null, docType: input.docType ?? null });
+    body = await fetchValidations(cfg.config, rt.transport, input.friendId, input.limit, {
+      beforeId: input.beforeId ?? null,
+      docType: input.docType ?? null,
+      reviewStatus: input.reviewStatus ?? null,
+      createdFrom: input.createdFrom ?? null,
+      createdTo: input.createdTo ?? null,
+    });
   } catch (err) {
     const code: KycErrorCode = err instanceof KycError ? err.code : "upstream_unreachable";
     if (code === "not_found") {

@@ -4,7 +4,7 @@
 // ============================================================
 
 import { reviewKind } from "@/lib/kyc/review";
-import type { KycDocType, KycErrorCode, KycValidation, StatusTone } from "@/lib/kyc/types";
+import type { KycDocType, KycErrorCode, KycReviewStatus, KycValidation, StatusTone } from "@/lib/kyc/types";
 
 /** The ID image is covered after this long without any interaction with it. */
 export const IDLE_COVER_MS = 3 * 60_000;
@@ -213,38 +213,50 @@ export function saveRecent(storage: StorageLike | null, userId: string, list: re
 // ------------------------------------------------------------
 // Filters: which checks the reviewer wants to see
 //
-// Only the document kind can be handed to the back end (`doc_type`); it ignores every other filter it is sent. So "approved only" is done HERE, over
-// the checks already fetched, and the screen reads further pages by itself until it has enough of them (shouldKeepPaging).
+// review_status, doc_type, created_from, created_to are sent to the back end and applied there.
+// The result (validation_status) word is applied here, client-side, so the screen pages itself
+// until it has enough matching rows (shouldKeepPaging).
 // ------------------------------------------------------------
-/** Which checks to list by the decision already taken. */
-export type ReviewFilter = "all" | "pending" | "approved" | "rejected";
 
 export interface KycFilters {
-  review: ReviewFilter;
-  /** One status word exactly as the back end sends it ("UNREADABLE"), or "" for every status. */
+  /** Server-side: pending | approved | rejected | staff_rejected | auto_rejected | "all" (omit param). */
+  reviewStatus: KycReviewStatus | "all";
+  /** YYYY-MM-DD (Malaysia time). Required when reviewStatus !== "pending". */
+  dateFrom: string;
+  dateTo: string;
+  /** One status word exactly as the back end sends it ("UNREADABLE"), or "" for every status. Client-side filter. */
   result: string;
   /** A document kind the back end can filter by, or "" for every kind. */
   docType: "" | KycDocType;
 }
 
-export const NO_FILTERS: KycFilters = { review: "all", result: "", docType: "" };
+export const NO_FILTERS: KycFilters = { reviewStatus: "all", dateFrom: "", dateTo: "", result: "", docType: "" };
 
-/** What the page opens on, and what "Clear filters" goes back to: the checks nobody has decided yet. Everything else is one dropdown choice away. */
-export const DEFAULT_FILTERS: KycFilters = { review: "pending", result: "", docType: "" };
+/** What the page opens on, and what "Clear filters" goes back to: the checks nobody has decided yet. */
+export const DEFAULT_FILTERS: KycFilters = { reviewStatus: "pending", dateFrom: "", dateTo: "", result: "", docType: "" };
 
-export const isDefaultFilters = (f: KycFilters): boolean => f.review === DEFAULT_FILTERS.review && f.result === DEFAULT_FILTERS.result && f.docType === DEFAULT_FILTERS.docType;
+export const isDefaultFilters = (f: KycFilters): boolean =>
+  f.reviewStatus === DEFAULT_FILTERS.reviewStatus && f.dateFrom === DEFAULT_FILTERS.dateFrom && f.dateTo === DEFAULT_FILTERS.dateTo && f.result === DEFAULT_FILTERS.result && f.docType === DEFAULT_FILTERS.docType;
+
+/** True when the selected status requires a date range before a fetch can be made. */
+export const dateRangeRequired = (f: KycFilters): boolean => f.reviewStatus !== "pending";
+
+/** True when both date fields carry a valid YYYY-MM-DD value and from ≤ to. */
+export const dateRangeValid = (f: KycFilters): boolean => {
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  return re.test(f.dateFrom) && re.test(f.dateTo) && f.dateFrom <= f.dateTo;
+};
+
+/** True when the current filters allow a fetch to be made. */
+export const canFetch = (f: KycFilters): boolean => !dateRangeRequired(f) || dateRangeValid(f);
 
 /** "APPROVED" -> approved, "REJECTED" -> rejected, another word the back end may send -> other; null when nobody has decided this check. */
 export function reviewWord(v: Pick<KycValidation, "review">): "approved" | "rejected" | "other" | null {
   return v.review ? reviewKind(v.review.raw) : null;
 }
 
-/** Does this check belong in the list that was asked for? The document kind is checked here too, so the filter holds even if the back end ignored it. */
+/** Does this check belong in the list that was asked for? review_status is server-side; only result and docType are re-checked here. */
 export function matchesFilters(v: KycValidation, f: KycFilters): boolean {
-  if (f.review !== "all") {
-    const word = reviewWord(v);
-    if (f.review === "pending" ? word !== null : word !== f.review) return false;
-  }
   if (f.result !== "" && (v.status.raw ?? "").toUpperCase() !== f.result.toUpperCase()) return false;
   if (f.docType !== "" && (v.type ?? "").toLowerCase() !== f.docType) return false;
   return true;
@@ -260,7 +272,7 @@ export function resultOptions(items: readonly KycValidation[]): string[] {
 }
 
 /** True when a filter the back end cannot apply is set, so the screen has to read further pages itself to fill one. */
-export const needsOwnPaging = (f: KycFilters) => f.review !== "all" || f.result !== "";
+export const needsOwnPaging = (f: KycFilters) => f.result !== "";
 
 /** How many matches to gather before stopping, and the most pages to read for them in one go. */
 export const AUTO_PAGE_TARGET = 20;
