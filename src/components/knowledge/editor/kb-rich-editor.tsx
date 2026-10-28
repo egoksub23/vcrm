@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor, useEditorState, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
   Bold,
+  ClipboardList,
   Heading2,
   Heading3,
   Image as ImageIcon,
@@ -28,6 +29,12 @@ import { EmojiPicker } from "@/components/emoji/emoji-picker";
 import { insertEmojiInEditor } from "@/lib/emoji/insert";
 import { normalizeLinkUrl } from "./kb-editor-utils";
 
+export interface ComplianceFormOption {
+  typeKey: string;
+  slug: string;
+  label: string;
+}
+
 interface KbRichEditorProps {
   /** HTML the editor opens with. Read once at mount: the parent remounts
    *  the editor (via `key`) to load a different article, so there is no
@@ -45,6 +52,9 @@ interface KbRichEditorProps {
   onImageFiles?: (files: File[], pos?: number) => void;
   /** The live editor, so the parent can add, swap and remove images. */
   onEditorReady?: (editor: Editor | null) => void;
+  /** Enabled compliance public forms for this account. When non-empty a
+   *  "Insert compliance form" button appears in the toolbar. */
+  complianceForms?: ComplianceFormOption[];
 }
 
 function ToolbarButton({
@@ -100,12 +110,15 @@ export function KbRichEditor({
   className,
   onImageFiles,
   onEditorReady,
+  complianceForms,
 }: KbRichEditorProps) {
   const t = useTranslations("Knowledge.editor");
   // Latest callbacks without re-creating the editor when the parent re-renders.
   const onChangeRef = useRef(onChange);
   const onImageFilesRef = useRef(onImageFiles);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [formPickerOpen, setFormPickerOpen] = useState(false);
+  const formPickerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     onChangeRef.current = onChange;
     onImageFilesRef.current = onImageFiles;
@@ -213,6 +226,25 @@ export function KbRichEditor({
     editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
   };
 
+  const insertComplianceForm = (form: ComplianceFormOption) => {
+    if (!editor) return;
+    setFormPickerOpen(false);
+    const href = `${window.location.origin}/c/${form.slug}`;
+    editor.chain().focus().insertContent(`<a href="${href}">${form.label}</a>`).run();
+  };
+
+  // Close the compliance-form picker when the user clicks outside it.
+  useEffect(() => {
+    if (!formPickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (formPickerRef.current && !formPickerRef.current.contains(e.target as Node)) {
+        setFormPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [formPickerOpen]);
+
   if (!editor) {
     return <div className={cn("min-h-[280px] rounded-xl border border-border bg-card", className)} />;
   }
@@ -270,6 +302,39 @@ export function KbRichEditor({
           returnFocusTo={() => editor.view.dom as HTMLElement}
           className="h-7 w-7"
         />
+        {complianceForms && complianceForms.length > 0 && (
+          <div ref={formPickerRef} className="relative">
+            <ToolbarButton
+              label={t("insertComplianceForm")}
+              disabled={off}
+              onClick={() => {
+                if (complianceForms.length === 1) {
+                  insertComplianceForm(complianceForms[0]!);
+                } else {
+                  setFormPickerOpen((v) => !v);
+                }
+              }}
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+            </ToolbarButton>
+            {formPickerOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-md">
+                {complianceForms.map((f) => (
+                  <button
+                    key={f.typeKey}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => insertComplianceForm(f)}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted"
+                  >
+                    <ClipboardList className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {onImageFiles && (
           <>
             <ToolbarButton label={t("insertImage")} disabled={off} onClick={() => fileInputRef.current?.click()}>

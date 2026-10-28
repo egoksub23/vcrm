@@ -6349,6 +6349,7 @@
       "testModeKeyword": "Searching by keyword",
       "testCutoff": "cut-off {note}",
       "insertImage": "Insert image",
+      "insertComplianceForm": "Insert compliance form link",
       "imageCaption": "Image caption",
       "imageCaptionPlaceholder": "Optional: shown to customers with the image",
       "inArticle": "In article",

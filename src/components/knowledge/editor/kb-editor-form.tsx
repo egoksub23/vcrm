@@ -35,7 +35,7 @@ import {
   type AttachmentRow,
 } from "./kb-editor-utils";
 import { KbHistory } from "./kb-history";
-import { KbRichEditor } from "./kb-rich-editor";
+import { KbRichEditor, type ComplianceFormOption } from "./kb-rich-editor";
 import { KbTestBox } from "./kb-test-box";
 import { useKbInlineImages } from "./use-kb-inline-images";
 import { KbInheritedFiles, KbLanguageChip, KbTranslationBanners, KbTranslationsCard } from "./kb-translations";
@@ -135,6 +135,8 @@ export function KbEditorForm({
   const [newCollection, setNewCollection] = useState<string | null>(null);
   const [creatingCollection, setCreatingCollection] = useState(false);
 
+  const [complianceForms, setComplianceForms] = useState<ComplianceFormOption[]>([]);
+
   const isQa = kind === "qa";
   // A translation is an article of its own linked to a base article: its
   // language is fixed and it carries banners; a base article carries the
@@ -183,6 +185,24 @@ export function KbEditorForm({
         if (!cancelled) setCollections(list);
       } catch {
         // The select still works with "No collection"; not worth a toast.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load the account's enabled compliance public forms (for the "Insert compliance form" toolbar button).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/compliance/public/forms", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => null)) as { forms?: ComplianceFormOption[] } | null;
+        if (!cancelled) setComplianceForms(data?.forms ?? []);
+      } catch {
+        // Silently ignored — the toolbar button simply won't appear.
       }
     })();
     return () => {
@@ -425,6 +445,7 @@ export function KbEditorForm({
                 setText(tx);
                 touch();
               }}
+              complianceForms={complianceForms.length > 0 ? complianceForms : undefined}
             />
             {text.length > MAX_CONTENT_CHARS * 0.8 && (
               <p className={cn("text-right text-xs", overLimit ? "text-destructive" : "text-muted-foreground")}>
