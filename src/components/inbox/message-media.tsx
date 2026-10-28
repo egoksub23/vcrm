@@ -7,6 +7,7 @@ import {
   ImageOff,
   Loader2,
   Maximize2,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -125,6 +126,44 @@ function MediaLinkPlaceholder({ status }: { status: string }) {
   );
 }
 
+function useExtractReceipt(message: Message, t: Translator) {
+  const [extracting, setExtracting] = useState(false);
+
+  const extract = useCallback(async () => {
+    if (extracting) return;
+    setExtracting(true);
+    try {
+      const res = await fetch(
+        `/api/conversations/${message.conversation_id}/extract-receipt`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messageId: message.id }),
+        },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        const code = data?.error ?? "";
+        toast.error(
+          code === "ai_not_configured"
+            ? t("extractReceiptNoAi")
+            : t("extractReceiptFailed"),
+        );
+      } else {
+        toast.success(t("extractReceiptDone"));
+      }
+    } catch {
+      toast.error(t("extractReceiptFailed"));
+    } finally {
+      setExtracting(false);
+    }
+  }, [extracting, message, t]);
+
+  return { extracting, extract };
+}
+
 export function MediaImageBubble({
   message,
   onOpen,
@@ -139,6 +178,7 @@ export function MediaImageBubble({
   // The fetch can succeed and the bytes still not be a decodable image.
   const [broken, setBroken] = useState(false);
   const { downloading, download } = useMediaDownload(message, t);
+  const { extracting, extract } = useExtractReceipt(message, t);
 
   if (status === "error" || broken) {
     return (
@@ -182,7 +222,13 @@ export function MediaImageBubble({
       )}
       {/* Hover-only: on touch there is no hover, but tapping the image opens
           the viewer, which carries a full-size Download button. */}
-      <div className="absolute bottom-2 right-2 opacity-0 transition-opacity group-hover/media:opacity-100 group-focus-within/media:opacity-100">
+      <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover/media:opacity-100 group-focus-within/media:opacity-100">
+        <MediaActionButton
+          icon={ScanLine}
+          label={t("extractReceipt")}
+          onClick={extract}
+          busy={extracting}
+        />
         <MediaActionButton
           icon={Download}
           label={t("download")}
