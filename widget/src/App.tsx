@@ -331,8 +331,16 @@ export function App({
       if (res.identityError) {
         // The token was rejected; the visitor simply continues unidentified. Tell the
         // host page (its dev console / analytics) so a bad integration is visible.
+        // `established` is true when the chat session is still functional (the visitor
+        // has an active conversation) — the host app should then silently refresh the
+        // identity token and call window.VircleWidget.identify({ token }) rather than
+        // prompting the user to sign in again.
         console.warn(`[vircle-widget] identity token rejected: ${res.identityError}`)
-        window.dispatchEvent(new CustomEvent('vircle-widget:identity-error', { detail: { code: res.identityError } }))
+        window.dispatchEvent(
+          new CustomEvent('vircle-widget:identity-error', {
+            detail: { code: res.identityError, established: !!res.conversationId },
+          }),
+        )
       }
       if (res.needsVerification) {
         // A matched claim just got an emailed code (migration 110):
@@ -418,6 +426,24 @@ export function App({
       }
     })
   }, [onIdentifyReady, runIdentity])
+
+  // When the Supabase anonymous session expires and cannot be refreshed (e.g. after a
+  // long background idle on mobile where the refresh timer never fired), Supabase emits
+  // SIGNED_OUT. At that point any Realtime subscription has lost its auth and will stay
+  // stuck in CHANNEL_ERROR. We dispatch `vircle-widget:session-expired` so the host app
+  // can call window.VircleWidget.identify({ token }) with a fresh signed identity token;
+  // that call triggers runIdentity(), which creates a new widget_visitors row for the
+  // new anonymous session and reconnects the Realtime channel.
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        window.dispatchEvent(new CustomEvent('vircle-widget:session-expired'))
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   // ---------- form handlers ----------
 
