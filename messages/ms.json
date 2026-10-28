@@ -3722,6 +3722,13 @@
         "template": "📋 Templat"
       }
     },
+    "soundNotifications": {
+      "title": "Sound notifications",
+      "description": "Play an audible ding for new customer messages and events like assignments and mentions. Saved to this device.",
+      "toggleLabel": "Play a sound for new notifications",
+      "toggleDesc": "Works while the app is open in a browser tab.",
+      "playTest": "Play test sound"
+    },
     "apiKeys": {
       "title": "Kunci API",
       "description": "Kunci mengesahkan REST API awam (<apiCode>/api/v1</apiCode>) supaya anda boleh membina automasi sendiri. Hantarkannya sebagai <headerCode>Authorization: Bearer &lt;key&gt;</headerCode>.",

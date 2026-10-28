@@ -3722,6 +3722,13 @@
         "template": "📋 模板"
       }
     },
+    "soundNotifications": {
+      "title": "Sound notifications",
+      "description": "Play an audible ding for new customer messages and events like assignments and mentions. Saved to this device.",
+      "toggleLabel": "Play a sound for new notifications",
+      "toggleDesc": "Works while the app is open in a browser tab.",
+      "playTest": "Play test sound"
+    },
     "apiKeys": {
       "title": "API 密钥",
       "description": "密钥用于验证公共 REST API（<apiCode>/api/v1</apiCode>），以便您构建自己的自动化。请以 <headerCode>Authorization: Bearer &lt;key&gt;</headerCode> 的形式发送。",

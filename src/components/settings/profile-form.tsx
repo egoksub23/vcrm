@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useTranslations } from 'next-intl';
 import { SettingsPanelHead } from './settings-panel-head';
 import { BrowserNotificationsCard } from './browser-notifications-card';
+import { SoundNotificationsCard } from './sound-notifications-card';
 import { LanguageCard } from './language-card';
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
@@ -360,6 +361,7 @@ export function ProfileForm() {
       <LanguageCard />
 
       <BrowserNotificationsCard className="mt-6" />
+      <SoundNotificationsCard className="mt-6" />
     </section>
   );
 }

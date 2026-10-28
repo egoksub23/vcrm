@@ -3722,6 +3722,13 @@
         "template": "📋 템플릿"
       }
     },
+    "soundNotifications": {
+      "title": "Sound notifications",
+      "description": "Play an audible ding for new customer messages and events like assignments and mentions. Saved to this device.",
+      "toggleLabel": "Play a sound for new notifications",
+      "toggleDesc": "Works while the app is open in a browser tab.",
+      "playTest": "Play test sound"
+    },
     "apiKeys": {
       "title": "API 키",
       "description": "키는 공개 REST API(<apiCode>/api/v1</apiCode>)를 인증해 직접 자동화를 구축할 수 있게 해줍니다. <headerCode>Authorization: Bearer &lt;key&gt;</headerCode> 형식으로 전송하세요.",

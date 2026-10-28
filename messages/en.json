@@ -3722,6 +3722,13 @@
         "template": "📋 Template"
       }
     },
+    "soundNotifications": {
+      "title": "Sound notifications",
+      "description": "Play an audible ding for new customer messages and events like assignments and mentions. Saved to this device.",
+      "toggleLabel": "Play a sound for new notifications",
+      "toggleDesc": "Works while the app is open in a browser tab.",
+      "playTest": "Play test sound"
+    },
     "apiKeys": {
       "title": "API keys",
       "description": "Keys authenticate the public REST API (<apiCode>/api/v1</apiCode>) so you can build your own automations. Send them as <headerCode>Authorization: Bearer &lt;key&gt;</headerCode>.",

@@ -14,6 +14,7 @@ import { UsageBanner } from "@/components/usage/usage-banner";
 import { PageGuard } from "@/components/auth/page-guard";
 import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 import { BrowserNotificationsListener } from "@/components/notifications/browser-notifications-listener";
+import { SoundNotificationsListener } from "@/components/notifications/sound-notifications-listener";
 
 // Auth-gated dashboard shell. Extracted from the layout so the layout
 // itself can stay a server component and export metadata (noindex) —
@@ -111,6 +112,9 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
       {/* Desktop alerts for new customer messages (opt-in via Settings →
           Your profile). Headless — renders nothing. */}
       <BrowserNotificationsListener />
+      {/* Audible ding for new customer messages and system events (opt-in
+          via Settings → Your profile). Headless — renders nothing. */}
+      <SoundNotificationsListener />
       <Sidebar
         open={sidebarOpen}
         onClose={closeSidebar}
