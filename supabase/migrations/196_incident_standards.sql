@@ -102,21 +102,13 @@ CREATE POLICY "incident_type_catalogue_select" ON public.incident_type_catalogue
 CREATE POLICY "incident_severity_levels_select" ON public.incident_severity_levels
   FOR SELECT USING (true);
 
--- Account standards: members read, admins write
+-- Account standards: members read, incidents.manage capability to write
 CREATE POLICY "account_incident_standards_select" ON public.account_incident_standards
-  FOR SELECT USING (
-    account_id IN (
-      SELECT account_id FROM public.account_users WHERE user_id = auth.uid()
-    )
-  );
+  FOR SELECT USING (is_account_member(account_id));
 
 CREATE POLICY "account_incident_standards_write" ON public.account_incident_standards
-  FOR ALL USING (
-    account_id IN (
-      SELECT account_id FROM public.account_users
-      WHERE user_id = auth.uid() AND role = ANY(ARRAY['admin', 'owner'])
-    )
-  );
+  FOR ALL USING (has_capability(account_id, 'incidents.manage'))
+  WITH CHECK (has_capability(account_id, 'incidents.manage'));
 
 -- Seed -------------------------------------------------------
 
