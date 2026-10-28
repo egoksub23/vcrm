@@ -164,6 +164,11 @@ export interface KnowledgeArticle {
   /** A translation with no files of its own uses its base's: those files,
    *  shown read-only. Empty when it has its own or is not a translation. */
   inherited_attachments: KnowledgeAttachment[]
+  /** The compliance_request_types.key of the attached form, or null if none. */
+  compliance_form_type_key?: string | null
+  /** Resolved from compliance_public_forms at load time; null if the form is
+   *  not attached, not enabled, or the type has no public form. */
+  compliance_form?: { type_key: string; slug: string; label: string } | null
 }
 
 /** One search result (GET /api/knowledge/search). */
@@ -181,6 +186,9 @@ export interface KnowledgeSearchResult {
   body_html: string | null
   via: 'meaning' | 'keyword'
   attachments: KnowledgeAttachment[]
+  /** Full public URL of the compliance form attached to this article (e.g.
+   *  https://app.vircle.net/c/close-account-xyz), or null if none attached. */
+  compliance_form_url?: string | null
 }
 
 /** POST /api/knowledge/test — what the AI would see for a question. */

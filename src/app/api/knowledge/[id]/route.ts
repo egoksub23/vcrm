@@ -12,7 +12,7 @@ import type { KnowledgeArticle, KnowledgeAttachment, KnowledgeTranslationBase, K
 type Params = { params: Promise<{ id: string }> }
 
 const FULL_COLUMNS =
-  'id, title, content, content_html, kind, language, status, use_in_ai, category, collection_id, review_by, updated_at, created_by, published_at, published_by, source_conversation_id, source_id, translation_of, machine_translated, translated_from_at'
+  'id, title, content, content_html, kind, language, status, use_in_ai, category, collection_id, review_by, updated_at, created_by, published_at, published_by, source_conversation_id, source_id, translation_of, machine_translated, translated_from_at, compliance_form_type_key'
 
 /**
  * GET /api/knowledge/[id] — the whole article, attachments included (any member).
@@ -53,6 +53,19 @@ export async function GET(_request: Request, { params }: Params) {
     }
     const attachments = (await loadAttachments(supabase, accountId, [id])).get(id) ?? []
 
+    // Resolve the attached compliance form (slug + label) when one is set.
+    const cfKey = (doc as typeof doc & { compliance_form_type_key?: string | null }).compliance_form_type_key ?? null
+    let complianceForm: { type_key: string; slug: string; label: string } | null = null
+    if (cfKey) {
+      const [{ data: form }, { data: reqType }] = await Promise.all([
+        supabase.from('compliance_public_forms').select('slug').eq('account_id', accountId).eq('type_key', cfKey).eq('enabled', true).maybeSingle(),
+        supabase.from('compliance_request_types').select('label').eq('account_id', accountId).eq('key', cfKey).maybeSingle(),
+      ])
+      if (form?.slug && reqType?.label) {
+        complianceForm = { type_key: cfKey, slug: form.slug as string, label: reqType.label as string }
+      }
+    }
+
     let publishedByName: string | null = null
     if (doc.published_by) {
       const { data: publisher } = await supabase
@@ -92,6 +105,7 @@ export async function GET(_request: Request, { params }: Params) {
       translations,
       base,
       inherited_attachments: inherited,
+      compliance_form: complianceForm,
     } as unknown as KnowledgeArticle
     return NextResponse.json(article)
   } catch (err) {
@@ -120,7 +134,15 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const { id } = await params
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
-    const { attachments: rawAttachments, ...articleBody } = body ?? {}
+    const { attachments: rawAttachments, compliance_form_type_key: rawCfKey, ...articleBody } = body ?? {}
+
+    // null clears the form; a string (≤40 chars) sets it; undefined = no change.
+    let complianceFormTypeKeyUpdate: string | null | undefined = undefined
+    if (rawCfKey !== undefined) {
+      if (rawCfKey === null) complianceFormTypeKeyUpdate = null
+      else if (typeof rawCfKey === 'string' && rawCfKey.length <= 40) complianceFormTypeKeyUpdate = rawCfKey
+      else return NextResponse.json({ error: 'Invalid compliance_form_type_key' }, { status: 400 })
+    }
 
     let staged: StagedKnowledgeAttachment[] | null = null
     if (rawAttachments !== undefined) {
@@ -209,6 +231,7 @@ export async function PATCH(request: Request, { params }: Params) {
         .from('ai_knowledge_documents')
         .update({
           ...fields,
+          ...(complianceFormTypeKeyUpdate !== undefined ? { compliance_form_type_key: complianceFormTypeKeyUpdate } : {}),
           updated_by: userId,
           // A person saved it: it is no longer just the machine text.
           ...(current.translation_of && current.machine_translated ? { machine_translated: false } : {}),

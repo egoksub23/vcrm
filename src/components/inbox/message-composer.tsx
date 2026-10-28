@@ -587,7 +587,8 @@ export function MessageComposer({
         editor.commands.focus("end");
       } else {
         const body = kbHtmlToChannelText(r.body_html, r.body, emailish ? "web_widget" : channel);
-        setText((prev) => (replace ? body : appendBelow(prev, body)));
+        const bodyWithForm = r.compliance_form_url ? appendBelow(body, r.compliance_form_url) : body;
+        setText((prev) => (replace ? bodyWithForm : appendBelow(prev, bodyWithForm)));
         requestAnimationFrame(() => {
           adjustHeight();
           const el = textareaRef.current;

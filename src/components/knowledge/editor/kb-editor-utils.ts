@@ -193,6 +193,8 @@ export interface SavePayloadInput {
   status: KbStatus | null
   sourceConversationId?: string | null
   attachments: AttachmentRow[]
+  /** compliance_request_types.key of the attached form; null removes it; undefined = no change. */
+  complianceFormTypeKey?: string | null
 }
 
 /** The JSON body for POST / PATCH /api/knowledge. `content` is sent too so a
@@ -212,6 +214,7 @@ export function buildSavePayload(i: SavePayloadInput): Record<string, unknown> {
   }
   if (i.status) body.status = i.status
   if (i.sourceConversationId) body.source_conversation_id = i.sourceConversationId
+  if (i.complianceFormTypeKey !== undefined) body.compliance_form_type_key = i.complianceFormTypeKey
   return body
 }
 

@@ -174,6 +174,9 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
     const images = kbImagePolicy(accountId)
+    // parseDocInput ignores unknown fields; read compliance_form_type_key separately.
+    const rawCfKey = body?.compliance_form_type_key
+    const cfKeyForInsert = typeof rawCfKey === 'string' ? rawCfKey : rawCfKey === null ? null : undefined
     const parsed = parseDocInput(body, { partial: false, images })
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
@@ -206,6 +209,7 @@ export async function POST(request: Request) {
       .insert({
         language: 'en',
         ...parsed.fields,
+        ...(cfKeyForInsert !== undefined ? { compliance_form_type_key: cfKeyForInsert } : {}),
         status,
         account_id: accountId,
         created_by: userId,

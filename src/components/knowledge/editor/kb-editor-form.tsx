@@ -5,7 +5,7 @@ import type { Editor } from "@tiptap/react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, History, Loader2 } from "lucide-react";
+import { ArrowLeft, ClipboardList, ExternalLink, History, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -136,6 +136,7 @@ export function KbEditorForm({
   const [creatingCollection, setCreatingCollection] = useState(false);
 
   const [complianceForms, setComplianceForms] = useState<ComplianceFormOption[]>([]);
+  const [complianceFormTypeKey, setComplianceFormTypeKey] = useState<string | null>(article?.compliance_form_type_key ?? null);
 
   const isQa = kind === "qa";
   // A translation is an article of its own linked to a base article: its
@@ -264,6 +265,7 @@ export function KbEditorForm({
         status: isAdmin ? target : null,
         sourceConversationId: article ? null : seed?.sourceConversationId,
         attachments: rows,
+        complianceFormTypeKey,
       });
       const res = await fetch(article ? `/api/knowledge/${article.id}` : "/api/knowledge", {
         method: article ? "PATCH" : "POST",
@@ -475,6 +477,55 @@ export function KbEditorForm({
             }}
             disabled={readOnly || busy}
           />
+
+          {(complianceForms.length > 0 || complianceFormTypeKey) && (
+            <div className="space-y-1.5">
+              <Label>{t("complianceForm")}</Label>
+              {complianceFormTypeKey ? (
+                <div className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1.5 text-sm">
+                    <ClipboardList className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">
+                      {complianceForms.find((f) => f.typeKey === complianceFormTypeKey)?.label ?? complianceFormTypeKey}
+                    </span>
+                  </span>
+                  {!readOnly && !busy && (
+                    <button
+                      type="button"
+                      aria-label={t("removeComplianceForm")}
+                      onClick={() => {
+                        setComplianceFormTypeKey(null);
+                        touch();
+                      }}
+                      className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <select
+                  className={selectClass}
+                  value=""
+                  disabled={readOnly || busy}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setComplianceFormTypeKey(e.target.value);
+                      touch();
+                    }
+                  }}
+                >
+                  <option value="">{t("noComplianceForm")}</option>
+                  {complianceForms.map((f) => (
+                    <option key={f.typeKey} value={f.typeKey}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <p className="text-xs text-muted-foreground">{t("complianceFormHint")}</p>
+            </div>
+          )}
         </div>
 
         <aside className="space-y-4">

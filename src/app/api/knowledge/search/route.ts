@@ -53,15 +53,33 @@ export async function GET(request: Request) {
 
     const { data: docs } = await supabase
       .from('ai_knowledge_documents')
-      .select('id, kind, content, content_html, use_in_ai')
+      .select('id, kind, content, content_html, use_in_ai, compliance_form_type_key')
       .in('id', top.map((h) => h.documentId))
     const byId = new Map((docs ?? []).map((d) => [d.id as string, d]))
     // A translation with no files of its own sends its base article's.
     const attachments = await loadEffectiveAttachments(supabase, accountId, top.map((h) => h.documentId))
 
+    // Resolve compliance form slugs for articles that have one attached.
+    const cfKeys = Array.from(
+      new Set((docs ?? []).map((d) => (d as { compliance_form_type_key?: string | null }).compliance_form_type_key).filter(Boolean) as string[]),
+    )
+    const cfSlugMap = new Map<string, string>()
+    if (cfKeys.length > 0) {
+      const { data: forms } = await supabase
+        .from('compliance_public_forms')
+        .select('type_key, slug')
+        .eq('account_id', accountId)
+        .in('type_key', cfKeys)
+        .eq('enabled', true)
+      for (const f of (forms ?? []) as { type_key: string; slug: string }[]) cfSlugMap.set(f.type_key, f.slug)
+    }
+    const origin = new URL(request.url).origin
+
     return NextResponse.json({
       results: top.map((h): KnowledgeSearchResult => {
         const doc = byId.get(h.documentId)
+        const cfKey = (doc as { compliance_form_type_key?: string | null } | undefined)?.compliance_form_type_key
+        const cfSlug = cfKey ? cfSlugMap.get(cfKey) : undefined
         return {
           id: h.documentId,
           title: h.title,
@@ -74,6 +92,7 @@ export async function GET(request: Request) {
           body_html: (doc?.content_html as string | null | undefined) ?? null,
           via: h.via,
           attachments: attachments.get(h.documentId) ?? [],
+          compliance_form_url: cfKey && cfSlug ? `${origin}/c/${cfSlug}` : null,
         }
       }),
     })
