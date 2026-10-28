@@ -458,7 +458,11 @@
       "internalComment": "内部评论",
       "commentNotPosted": "评论未发布",
       "you": "您",
-      "customer": "客户"
+      "customer": "客户",
+      "extractReceipt": "提取收据数据",
+      "extractReceiptDone": "收据数据已添加到评论",
+      "extractReceiptFailed": "无法提取收据数据",
+      "extractReceiptNoAi": "收据提取需要在设置中配置 Anthropic AI 助手"
     },
     "handoff": {
       "title": "分配给 {name}",
@@ -5600,7 +5604,12 @@
       "imageUnsupported": "文章中只能添加 PNG、JPEG、WebP 和 GIF 图片。",
       "imageTooLarge": "此图片压缩后仍超过 {max}。请使用更小的图片。",
       "imageUnreadable": "无法读取此图片。请重新复制，或另存为 PNG。",
-      "attachmentsHintInline": "粘贴或拖入正文的图片也会列在这里，并标记为“在文章中”。它们会在文字之后发送，顺序与在正文中出现的顺序一致。"
+      "attachmentsHintInline": "粘贴或拖入正文的图片也会列在这里，并标记为“在文章中”。它们会在文字之后发送，顺序与在正文中出现的顺序一致。",
+      "complianceForm": "合规表格",
+      "complianceFormHint": "当客服插入此文章时，表格链接将自动附加。",
+      "insertComplianceForm": "插入合规表格链接",
+      "noComplianceForm": "选择表格…",
+      "removeComplianceForm": "移除合规表格"
     },
     "library": {
       "rail": {
@@ -11956,13 +11965,18 @@
         "all": "全部检查",
         "pending": "待审核",
         "approved": "已批准",
-        "rejected": "已拒绝"
+        "rejected": "已拒绝",
+        "auto_rejected": "自动拒绝",
+        "staff_rejected": "员工拒绝"
       },
       "types": {
         "nric": "NRIC",
         "passport": "护照",
         "selfie": "自拍照"
-      }
+      },
+      "dateFrom": "开始日期",
+      "dateTo": "结束日期",
+      "dateRequired": "请选择开始和结束日期以进行搜索"
     }
   },
   "Platform": {

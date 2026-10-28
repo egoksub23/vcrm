@@ -458,7 +458,11 @@
       "internalComment": "Komen dalaman",
       "commentNotPosted": "Komen tidak dihantar",
       "you": "Anda",
-      "customer": "Pelanggan"
+      "customer": "Pelanggan",
+      "extractReceipt": "Ekstrak data resit",
+      "extractReceiptDone": "Data resit ditambah ke ulasan",
+      "extractReceiptFailed": "Tidak dapat mengekstrak data resit",
+      "extractReceiptNoAi": "Pengekstrakan resit memerlukan pembantu AI Anthropic yang dikonfigurasi dalam Tetapan"
     },
     "handoff": {
       "title": "Tugaskan kepada {name}",
@@ -5600,7 +5604,12 @@
       "imageUnsupported": "Hanya gambar PNG, JPEG, WebP dan GIF boleh ditambah ke artikel.",
       "imageTooLarge": "Gambar ini masih melebihi {max} selepas dikecilkan. Gunakan gambar yang lebih kecil.",
       "imageUnreadable": "Gambar ini tidak dapat dibaca. Cuba salin semula atau simpan sebagai PNG.",
-      "attachmentsHintInline": "Gambar yang ditampal atau diseret ke dalam teks turut disenaraikan di sini, ditandakan Dalam artikel. Ia dihantar selepas teks, mengikut susunan dalam teks."
+      "attachmentsHintInline": "Gambar yang ditampal atau diseret ke dalam teks turut disenaraikan di sini, ditandakan Dalam artikel. Ia dihantar selepas teks, mengikut susunan dalam teks.",
+      "complianceForm": "Borang pematuhan",
+      "complianceFormHint": "Apabila ejen memasukkan artikel ini, pautan borang akan ditambah secara automatik.",
+      "insertComplianceForm": "Masukkan pautan borang pematuhan",
+      "noComplianceForm": "Pilih borang…",
+      "removeComplianceForm": "Alih keluar borang pematuhan"
     },
     "library": {
       "rail": {
@@ -11956,13 +11965,18 @@
         "all": "Semua semakan",
         "pending": "Perlu semakan",
         "approved": "Diluluskan",
-        "rejected": "Ditolak"
+        "rejected": "Ditolak",
+        "auto_rejected": "Ditolak secara automatik",
+        "staff_rejected": "Ditolak oleh kakitangan"
       },
       "types": {
         "nric": "NRIC",
         "passport": "Pasport",
         "selfie": "Swafoto"
-      }
+      },
+      "dateFrom": "Tarikh dari",
+      "dateTo": "Tarikh hingga",
+      "dateRequired": "Pilih tarikh mula dan tamat untuk mencari"
     }
   },
   "Platform": {

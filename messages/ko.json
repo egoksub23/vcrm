@@ -458,7 +458,11 @@
       "internalComment": "내부 코멘트",
       "commentNotPosted": "코멘트가 게시되지 않았습니다",
       "you": "나",
-      "customer": "고객"
+      "customer": "고객",
+      "extractReceipt": "영수증 데이터 추출",
+      "extractReceiptDone": "영수증 데이터가 댓글에 추가됨",
+      "extractReceiptFailed": "영수증 데이터를 추출할 수 없습니다",
+      "extractReceiptNoAi": "영수증 추출에는 설정에서 구성된 Anthropic AI 어시스턴트가 필요합니다"
     },
     "handoff": {
       "title": "{name}에게 배정",
@@ -5066,7 +5070,8 @@
       "description": "에스컬레이션 타이머, 인시던트가 확대될 때 알림을 받을 사람, 그리고 생성된 보고서에 사용되는 24/7 인시던트 연락처입니다.",
       "tabs": {
         "timers": "에스컬레이션 타이머",
-        "recipients": "수신자"
+        "recipients": "수신자",
+        "standards": "표준"
       },
       "timers": {
         "intro": "인시던트가 자동으로 다음 단계로 확대되기 전까지 한 단계에 머무를 수 있는 시간입니다. 업무 시간만 계산하려면 영업시간 일정을 연결하세요 — \"전체 시간\"으로 두면 24/7 실제 시간을 계산합니다.",
@@ -5105,6 +5110,22 @@
         "save": "저장",
         "saved": "인시던트 연락처가 저장되었습니다.",
         "saveFailed": "인시던트 연락처를 저장하지 못했습니다. 다시 시도하세요."
+      },
+      "standards": {
+        "active": "활성 표준",
+        "activeLabel": "활성",
+        "incidentTypes": "인시던트 유형",
+        "severityLevels": "심각도 수준",
+        "typesList": "인시던트 유형 카탈로그",
+        "notifiable": "신고 의무",
+        "activate": "활성화",
+        "activating": "활성화 중…",
+        "typesCount": "인시던트 유형",
+        "levelsCount": "심각도 수준",
+        "loadFailed": "표준을 불러올 수 없습니다. 페이지를 새로 고침하고 다시 시도하세요.",
+        "switchFailed": "표준을 전환할 수 없습니다. 다시 시도하세요.",
+        "bnmNote": "BNM RMiT는 말레이시아 허가된 금융 서비스 제공자에게 의무 사항입니다. 인시던트 유형, 심각도 분류 체계 및 SLA 기간은 이 프레임워크에 의해 결정됩니다.",
+        "switchNote": "표준을 전환하면 계정 전체의 인시던트 유형 및 심각도 수준이 변경됩니다. 이전 인시던트는 원래의 유형 및 심각도 코드를 유지합니다."
       }
     },
     "ticketResolutions": {
@@ -6354,7 +6375,12 @@
       "imageUnsupported": "문서에는 PNG, JPEG, WebP, GIF 이미지만 추가할 수 있습니다.",
       "imageTooLarge": "이 이미지는 크기를 줄여도 {max}를 초과합니다. 더 작은 이미지를 사용해 주세요.",
       "imageUnreadable": "이 이미지를 읽을 수 없습니다. 다시 복사하거나 PNG로 저장해 보세요.",
-      "attachmentsHintInline": "본문에 붙여넣거나 끌어다 놓은 이미지도 여기에 '문서에 포함됨'으로 표시됩니다. 이 이미지는 본문 뒤에, 본문에 나타나는 순서대로 전송됩니다."
+      "attachmentsHintInline": "본문에 붙여넣거나 끌어다 놓은 이미지도 여기에 '문서에 포함됨'으로 표시됩니다. 이 이미지는 본문 뒤에, 본문에 나타나는 순서대로 전송됩니다.",
+      "complianceForm": "준법 양식",
+      "complianceFormHint": "상담사가 이 문서를 삽입하면 양식 링크가 자동으로 추가됩니다.",
+      "insertComplianceForm": "준법 양식 링크 삽입",
+      "noComplianceForm": "양식 선택…",
+      "removeComplianceForm": "준법 양식 제거"
     },
     "library": {
       "rail": {
@@ -13316,13 +13342,18 @@
         "all": "모든 확인",
         "pending": "검토 필요",
         "approved": "승인됨",
-        "rejected": "거부됨"
+        "rejected": "거부됨",
+        "auto_rejected": "자동 거부됨",
+        "staff_rejected": "직원에 의해 거부됨"
       },
       "types": {
         "nric": "NRIC",
         "passport": "여권",
         "selfie": "셀피"
-      }
+      },
+      "dateFrom": "시작 날짜",
+      "dateTo": "종료 날짜",
+      "dateRequired": "검색할 시작 및 종료 날짜를 선택하세요"
     }
   },
   "Compliance": {

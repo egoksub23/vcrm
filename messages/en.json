@@ -5080,8 +5080,14 @@
         "severityLevels": "Severity levels",
         "typesList": "Incident type catalogue",
         "notifiable": "Notifiable",
+        "activate": "Activate",
+        "activating": "Activating…",
+        "typesCount": "incident types",
+        "levelsCount": "severity levels",
+        "loadFailed": "Could not load standards. Refresh the page and try again.",
+        "switchFailed": "Could not switch standard. Try again.",
         "bnmNote": "BNM RMiT is mandated for licensed financial service providers in Malaysia. Your incident types, severity taxonomy, and SLA windows are set by this framework.",
-        "moreStandardsNote": "Additional standards (ISO 27035, ISO 45001, MOE Malaysia) will be available in a future update — contact support to enable an early-access standard."
+        "switchNote": "Switching standard changes the incident types and severity levels across the whole account. Previous incidents keep their original type and severity codes."
       },
       "timers": {
         "intro": "How long an incident can sit at a level before it auto-escalates. Attach a business-hours schedule to count only working time — leave it on \"All hours\" to count real time, 24/7.",
