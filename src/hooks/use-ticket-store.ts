@@ -65,8 +65,10 @@ const emptyTotals = (): Record<TicketStatus, number> => ({
  *   refetching everything; only a ticket that is new to this client costs a
  *   one-row fetch (payloads carry no customer join).
  *
- * Filters and search run on what is loaded (see the page); pushing them to the
- * server is the follow-up for accounts with very many tickets.
+ * Filters and search run over what is loaded here plus the wider candidate set
+ * from `useTicketSearch` (migration 128) when any filter is active. This store
+ * only keeps realtime state and the page-size window; the search hook is the
+ * server-side path for matches outside that window.
  */
 export function useTicketStore(mode: TicketViewMode, enabled = true) {
   const { accountId } = useAuth();
