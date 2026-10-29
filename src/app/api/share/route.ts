@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { supabaseAdmin } from "@/lib/flows/admin-client";
 import { clientIp } from "@/lib/net/client-ip";
+import { readBodyCapped } from "@/lib/net/read-capped";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { publicOrigin } from "@/lib/site-url";
 import { shareEnabled } from "@/lib/share/feature";
@@ -92,9 +93,21 @@ export async function POST(request: Request) {
       return json({ error: "Multipart form data or JSON required.", code: "bad_request" }, 400);
     }
 
+    const declared = Number(request.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > MAX_FILE_BYTES + 256 * 1024) {
+      return json({ error: "File is too large. Maximum size is 25 MB.", code: "file_too_large" }, 413);
+    }
+
+    const raw = await readBodyCapped(request, MAX_FILE_BYTES + 256 * 1024);
+    if (raw === null) {
+      return json({ error: "File is too large. Maximum size is 25 MB.", code: "file_too_large" }, 413);
+    }
+
     let formData: FormData;
     try {
-      formData = await request.formData();
+      formData = await new Response(raw as unknown as BodyInit, {
+        headers: { "content-type": ct },
+      }).formData();
     } catch {
       return json({ error: "Could not read the form data.", code: "bad_request" }, 400);
     }
