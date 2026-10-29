@@ -13,7 +13,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/flows/admin-client";
-import { sendEmail, isResendConfigured } from "@/lib/email/resend";
+import { realWorkspaceMailDeps, sendWorkspaceEmail } from "@/lib/email/workspace-mail";
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { shareEnabled } from "@/lib/share/feature";
@@ -104,12 +104,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       .update({ otp_hash: otpHash, otp_expires_at: expiresAt, otp_attempts: 0, gate_email: email.toLowerCase() })
       .eq("share_id", share.id);
 
-    // Send the OTP email (best effort — failure still returns ok so we don't reveal whether email exists)
-    if (isResendConfigured()) {
-      void sendOtpEmail({ to: email, otp, shareTitle: share.title }).catch(() => {});
-    }
+    // Send the OTP email via workspace channel (M365/Gmail first, Resend fallback) — best effort
+    void sendOtpEmail({ to: email, otp, shareTitle: share.title, accountId: share.account_id }).catch(() => {});
 
-    return NextResponse.json({ ok: true, sent: isResendConfigured() });
+    return NextResponse.json({ ok: true });
   }
 
   // ============================================================
@@ -171,14 +169,18 @@ function issueSession(shareId: string): NextResponse {
   return NextResponse.json({ ok: true }, { status: 200, headers: { "Set-Cookie": cookieVal } });
 }
 
-async function sendOtpEmail({ to, otp, shareTitle }: { to: string; otp: string; shareTitle: string }) {
+async function sendOtpEmail({ to, otp, shareTitle, accountId }: { to: string; otp: string; shareTitle: string; accountId: string }) {
   const productName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Halo";
   const html = `<p>Your verification code for <strong>${escHtml(shareTitle)}</strong>:</p>
 <p style="font-size:32px;font-weight:bold;letter-spacing:6px;font-family:monospace">${otp}</p>
 <p>This code expires in 10 minutes. If you did not request this, ignore this email.</p>
 <p style="color:#666;font-size:12px">Sent via ${escHtml(productName)}</p>`;
   const text = `Your verification code for "${shareTitle}": ${otp}\n\nExpires in 10 minutes.`;
-  await sendEmail({ to, subject: `Your access code: ${otp}`, html, text });
+  await sendWorkspaceEmail(
+    accountId,
+    () => ({ subject: `Your access code: ${otp}`, html, text, to }),
+    realWorkspaceMailDeps,
+  );
 }
 
 function escHtml(s: string) {
