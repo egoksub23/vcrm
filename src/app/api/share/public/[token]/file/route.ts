@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   const admin = supabaseAdmin();
   const { data: share } = await admin
     .from("share_links")
-    .select("id, account_id, title, file_path, file_name, content_type, status, expires_at, download_enabled, first_opened_at, view_count")
+    .select("id, account_id, title, file_path, file_name, content_type, status, expires_at, download_enabled, first_opened_at, view_count, watermark_enabled")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
 
@@ -51,6 +51,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   } catch (err) {
     if (err instanceof StorageError) return new NextResponse("File not found.", { status: 404 });
     throw err;
+  }
+
+  // PDF watermarking (Phase 4)
+  if (
+    (share as { watermark_enabled?: boolean }).watermark_enabled &&
+    (share.content_type === "application/pdf" || share.content_type == null)
+  ) {
+    try {
+      const { watermarkPdf } = await import("@/lib/share/watermark");
+      const label = process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Halo";
+      bytes = await watermarkPdf(bytes, label);
+    } catch {
+      // watermarking failure must not block delivery
+    }
   }
 
   // Record view: insert a row + increment counter + set first_opened_at (best effort)

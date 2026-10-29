@@ -23,6 +23,10 @@ export interface ShareLoadInfo {
   downloadEnabled: boolean;
   /** True when the gate has been passed (or gate type is "none"). */
   gateCleared: boolean;
+  kind: "file" | "url";
+  redirectUrl: string | null;
+  contentType: string;
+  watermarkEnabled: boolean;
 }
 
 export type ShareLoad =
@@ -39,7 +43,7 @@ export const loadShare = cache(async (token: string): Promise<ShareLoad> => {
   const admin = supabaseAdmin();
   const { data: share } = await admin
     .from("share_links")
-    .select("id, account_id, title, file_name, file_size, gate_type, download_enabled, status, expires_at")
+    .select("id, account_id, title, file_name, file_size, gate_type, download_enabled, status, expires_at, kind, redirect_url, content_type, watermark_enabled")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
 
@@ -67,6 +71,10 @@ export const loadShare = cache(async (token: string): Promise<ShareLoad> => {
       gateType,
       downloadEnabled: share.download_enabled,
       gateCleared,
+      kind: (share.kind ?? "file") as "file" | "url",
+      redirectUrl: share.redirect_url ?? null,
+      contentType: share.content_type ?? "application/pdf",
+      watermarkEnabled: share.watermark_enabled ?? false,
     },
   };
 });

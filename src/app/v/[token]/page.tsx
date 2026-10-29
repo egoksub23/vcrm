@@ -7,8 +7,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { HtmlViewer } from "@/components/share/viewer/html-viewer";
 import { ShareGate } from "@/components/share/viewer/share-gate";
 import { ShareViewer } from "@/components/share/viewer/share-viewer";
+import { UrlRedirect } from "@/components/share/viewer/url-redirect";
 import { loadShare } from "./load";
 
 interface PageProps {
@@ -45,6 +47,27 @@ export default async function ShareViewPage({ params }: PageProps) {
         token={token}
         title={share.title}
         gateType={share.gateType as "email" | "otp"}
+        product={product}
+      />
+    );
+  }
+
+  if (share.kind === "url" && share.redirectUrl) {
+    return (
+      <UrlRedirect
+        token={token}
+        title={share.title}
+        redirectUrl={share.redirectUrl}
+        product={product}
+      />
+    );
+  }
+
+  if (share.contentType === "text/html") {
+    return (
+      <HtmlViewer
+        token={token}
+        share={share}
         product={product}
       />
     );

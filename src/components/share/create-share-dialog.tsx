@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, Copy, FileText, Loader2, Lock, Mail, ShieldOff, Upload } from "lucide-react";
+import { Check, Copy, ExternalLink, FileText, Loader2, Lock, Mail, ShieldOff, Stamp, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ interface CreateShareDialogProps {
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 type GateType = "none" | "email" | "otp";
+type ShareMode = "file" | "url";
 
 const GATE_OPTIONS: { value: GateType; label: string; description: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { value: "none", label: "No gate", description: "Anyone with the link can view", Icon: ShieldOff },
@@ -33,20 +34,29 @@ const GATE_OPTIONS: { value: GateType; label: string; description: string; Icon:
   { value: "otp", label: "Email OTP", description: "Viewer gets a one-time code", Icon: Lock },
 ];
 
+const ACCEPT = ".pdf,.docx,.html,.htm";
+
 export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: CreateShareDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<ShareMode>("file");
   const [file, setFile] = useState<File | null>(null);
+  const [redirectUrl, setRedirectUrl] = useState("");
   const [title, setTitle] = useState("");
   const [gateType, setGateType] = useState<GateType>("none");
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const isPdf = file?.name.toLowerCase().endsWith(".pdf") ?? false;
+  const isDocx = file?.name.toLowerCase().endsWith(".docx") ?? false;
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = e.target.files?.[0] ?? null;
     if (!picked) return;
-    if (!picked.name.toLowerCase().endsWith(".pdf")) {
-      toast.error("Only PDF files are supported. Please convert PPTX to PDF first.");
+    const name = picked.name.toLowerCase();
+    if (!name.endsWith(".pdf") && !name.endsWith(".docx") && !name.endsWith(".html") && !name.endsWith(".htm")) {
+      toast.error("Supported files: PDF, DOCX, HTML.");
       return;
     }
     if (picked.size > MAX_FILE_BYTES) {
@@ -54,18 +64,37 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
       return;
     }
     setFile(picked);
-    if (!title) setTitle(picked.name.replace(/\.pdf$/i, ""));
+    if (!title) setTitle(picked.name.replace(/\.(pdf|docx|html?)$/i, ""));
+    if (!name.endsWith(".pdf")) setWatermarkEnabled(false);
   }
 
   async function handleCreate() {
-    if (!file) {
-      toast.error("Choose a PDF file to share.");
+    if (mode === "url") {
+      if (!redirectUrl.trim()) { toast.error("Enter a URL to share."); return; }
+      try { new URL(redirectUrl.trim()); } catch { toast.error("Enter a valid URL (including https://)."); return; }
+      if (!title.trim()) { toast.error("Enter a title for the share."); return; }
+
+      setSubmitting(true);
+      try {
+        const res = await fetch("/api/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ redirectUrl: redirectUrl.trim(), title: title.trim(), gateType, contactId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { toast.error(data?.error ?? "Could not create the share link."); return; }
+        setShareUrl(data.shareUrl);
+        onCreated?.(data.id, data.shareUrl);
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
-    if (!title.trim()) {
-      toast.error("Enter a title for the share.");
-      return;
-    }
+
+    if (!file) { toast.error("Choose a file to share."); return; }
+    if (!title.trim()) { toast.error("Enter a title for the share."); return; }
 
     setSubmitting(true);
     try {
@@ -74,15 +103,11 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
       form.append("title", title.trim());
       form.append("gateType", gateType);
       if (contactId) form.append("contactId", contactId);
+      if (watermarkEnabled) form.append("watermarkEnabled", "true");
 
       const res = await fetch("/api/share", { method: "POST", body: form });
       const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        toast.error(data?.error ?? "Could not create the share link.");
-        return;
-      }
-
+      if (!res.ok) { toast.error(data?.error ?? "Could not create the share link."); return; }
       setShareUrl(data.shareUrl);
       onCreated?.(data.id, data.shareUrl);
     } catch {
@@ -110,14 +135,21 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
 
   function handleClose(next: boolean) {
     if (!next) {
+      setMode("file");
       setFile(null);
+      setRedirectUrl("");
       setTitle("");
       setGateType("none");
+      setWatermarkEnabled(false);
       setShareUrl(null);
       setCopied(false);
     }
     onOpenChange(next);
   }
+
+  const canSubmit = mode === "url"
+    ? !!redirectUrl.trim() && !!title.trim()
+    : !!file && !!title.trim();
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -125,14 +157,14 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
         <DialogHeader>
           <DialogTitle className="text-popover-foreground">Share a document</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Upload a PDF to create a trackable share link.
+            Upload a file or share a URL with tracking.
           </DialogDescription>
         </DialogHeader>
 
         {shareUrl ? (
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Your share link is ready. Anyone with this link can view the document.
+              Your share link is ready.
             </p>
             <div className="flex items-center gap-2">
               <Input
@@ -147,36 +179,94 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
           </div>
         ) : (
           <div className="space-y-4 py-2">
-            {/* File picker */}
-            <div className="space-y-1.5">
-              <Label className="text-muted-foreground text-xs">PDF file</Label>
-              <div
-                className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/50 px-4 py-3 cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {file ? (
-                  <>
-                    <FileText className="size-5 text-primary shrink-0" />
-                    <span className="text-sm text-foreground truncate flex-1">{file.name}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {(file.size / (1024 * 1024)).toFixed(1)} MB
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="size-5 text-muted-foreground shrink-0" />
-                    <span className="text-sm text-muted-foreground">Click to choose a PDF (max 25 MB)</span>
-                  </>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              {(["file", "url"] as ShareMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
+                    mode === m ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {m === "file" ? "Upload file" : "Share a URL"}
+                </button>
+              ))}
             </div>
+
+            {mode === "file" ? (
+              <>
+                {/* File picker */}
+                <div className="space-y-1.5">
+                  <Label className="text-muted-foreground text-xs">File (PDF, DOCX, HTML)</Label>
+                  <div
+                    className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/50 px-4 py-3 cursor-pointer hover:bg-muted transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {file ? (
+                      <>
+                        <FileText className="size-5 text-primary shrink-0" />
+                        <span className="text-sm text-foreground truncate flex-1">{file.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {(file.size / (1024 * 1024)).toFixed(1)} MB
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="size-5 text-muted-foreground shrink-0" />
+                        <span className="text-sm text-muted-foreground">Click to choose a file (max 25 MB)</span>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ACCEPT}
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  {isDocx && (
+                    <p className="text-[11px] text-muted-foreground">DOCX will be converted to HTML for viewing.</p>
+                  )}
+                </div>
+
+                {/* Watermark toggle — PDF only */}
+                {isPdf && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={watermarkEnabled}
+                      onClick={() => setWatermarkEnabled((v) => !v)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                        watermarkEnabled ? "bg-primary" : "bg-muted"
+                      }`}
+                    >
+                      <span className={`pointer-events-none block size-4 rounded-full bg-white shadow transition-transform ${watermarkEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                    <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none" onClick={() => setWatermarkEnabled((v) => !v)}>
+                      <Stamp className="size-3.5" />
+                      Watermark PDF
+                    </label>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* URL mode */
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground text-xs">URL to share</Label>
+                <div className="relative">
+                  <ExternalLink className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={redirectUrl}
+                    onChange={(e) => setRedirectUrl(e.target.value)}
+                    placeholder="https://example.com/document"
+                    className="bg-muted border-border text-foreground h-8 text-sm pl-7 placeholder:text-muted-foreground"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Title */}
             <div className="space-y-1.5">
@@ -221,7 +311,7 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
           {!shareUrl && (
             <Button
               onClick={handleCreate}
-              disabled={!file || !title.trim() || submitting}
+              disabled={!canSubmit || submitting}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {submitting ? (
