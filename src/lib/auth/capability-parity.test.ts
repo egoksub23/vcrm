@@ -184,6 +184,7 @@ export const ROUTE_ROWS: readonly Row[] = [
   row("comments/[id]/action", "POST", "agent", "comments.moderate"),
   row("comments/[id]/action", "POST (action=delete)", "admin", "comments.delete", "was role !== admin/owner"),
   row("conversations/[id]/comments", "POST", "agent", "conversations.manage"),
+  row("conversations/[id]/extract-receipt", "POST", "agent", "conversations.manage", "new: AI receipt extraction posts the result as an internal note"),
   // Ticket mentions (migration 095): a comment with @people / @teams, and Cancel / Nudge on a request.
   // (Mark as done needs only membership: the person asked closes their own request.)
   row("tickets/[id]/comments", "POST", "agent", "tickets.work"),
