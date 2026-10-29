@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       const downloadEnabled = body.downloadEnabled !== false;
       const expiresAtRaw = String(body.expiresAt ?? "").trim();
       const expiresAt = expiresAtRaw ? new Date(expiresAtRaw).toISOString() : null;
+      const allowedEmails = parseAllowedEmails(body.allowedEmails);
 
       if (!["none", "email", "otp"].includes(gateType)) {
         return json({ error: "Invalid gate type.", code: "bad_request" }, 400);
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
         p_gate_type: gateType,
         p_download_enabled: downloadEnabled,
         p_expires_at: expiresAt,
+        p_allowed_emails: allowedEmails,
       });
 
       if (issueErr || !issued?.[0]) {
@@ -136,6 +138,8 @@ export async function POST(request: Request) {
     const downloadEnabled = formData.get("downloadEnabled") !== "false";
     const expiresAtRaw = String(formData.get("expiresAt") ?? "").trim();
     const expiresAt = expiresAtRaw ? new Date(expiresAtRaw).toISOString() : null;
+    const allowedEmailsRaw = formData.get("allowedEmails");
+    const allowedEmails = parseAllowedEmails(typeof allowedEmailsRaw === "string" ? allowedEmailsRaw.split(",") : null);
 
     if (!["none", "email", "otp"].includes(gateType)) {
       return json({ error: "Invalid gate type.", code: "bad_request" }, 400);
@@ -177,6 +181,7 @@ export async function POST(request: Request) {
       p_gate_type: gateType,
       p_download_enabled: downloadEnabled,
       p_expires_at: expiresAt,
+      p_allowed_emails: allowedEmails,
     });
 
     if (issueErr || !issued?.[0]) {
@@ -252,4 +257,14 @@ export async function GET(request: Request) {
   } catch (err) {
     return toErrorResponse(err);
   }
+}
+
+const VALID_EMAIL = /^[^@\s]{1,64}@[^@\s]{1,255}$/;
+
+function parseAllowedEmails(raw: unknown): string[] {
+  if (!raw) return [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+  return arr
+    .map((e) => String(e).trim().toLowerCase())
+    .filter((e) => VALID_EMAIL.test(e));
 }

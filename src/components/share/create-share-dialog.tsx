@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Check, Copy, ExternalLink, FileText, Lock, Mail, ShieldOff, Stamp, Upload } from "lucide-react";
+import { useRef, useState, KeyboardEvent } from "react";
+import { Check, Copy, ExternalLink, FileText, Lock, Mail, ShieldOff, Stamp, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,8 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
   const [redirectUrl, setRedirectUrl] = useState("");
   const [title, setTitle] = useState("");
   const [gateType, setGateType] = useState<GateType>("none");
+  const [allowedEmails, setAllowedEmails] = useState<string[]>([]);
+  const [emailInput, setEmailInput] = useState("");
   const [watermarkEnabled, setWatermarkEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); // 0-100
@@ -85,7 +87,7 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
         const res = await fetch("/api/share", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ redirectUrl: redirectUrl.trim(), title: title.trim(), gateType, contactId }),
+          body: JSON.stringify({ redirectUrl: redirectUrl.trim(), title: title.trim(), gateType, contactId, allowedEmails }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { toast.error(data?.error ?? "Could not create the share link."); return; }
@@ -115,6 +117,7 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
       form.append("gateType", gateType);
       if (contactId) form.append("contactId", contactId);
       if (watermarkEnabled) form.append("watermarkEnabled", "true");
+      if (allowedEmails.length) form.append("allowedEmails", allowedEmails.join(","));
 
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/share");
@@ -180,6 +183,8 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
       setRedirectUrl("");
       setTitle("");
       setGateType("none");
+      setAllowedEmails([]);
+      setEmailInput("");
       setWatermarkEnabled(false);
       setUploadProgress(0);
       setUploadPhase("uploading");
@@ -187,6 +192,23 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
       setCopied(false);
     }
     onOpenChange(next);
+  }
+
+  const VALID_EMAIL = /^[^@\s]{1,64}@[^@\s]{1,255}$/;
+
+  function addEmail() {
+    const e = emailInput.trim().toLowerCase();
+    if (!VALID_EMAIL.test(e)) return;
+    if (!allowedEmails.includes(e)) setAllowedEmails((prev) => [...prev, e]);
+    setEmailInput("");
+  }
+
+  function handleEmailKeyDown(ev: KeyboardEvent<HTMLInputElement>) {
+    if (ev.key === "Enter" || ev.key === ",") { ev.preventDefault(); addEmail(); }
+  }
+
+  function removeEmail(e: string) {
+    setAllowedEmails((prev) => prev.filter((x) => x !== e));
   }
 
   const canSubmit = mode === "url"
@@ -343,6 +365,55 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
                 ))}
               </div>
             </div>
+
+            {/* Allowed emails — shown when email or OTP gate is selected */}
+            {(gateType === "email" || gateType === "otp") && (
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground text-xs">
+                  Allowed emails <span className="opacity-60">(leave empty to allow anyone)</span>
+                </Label>
+                {allowedEmails.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-1">
+                    {allowedEmails.map((e) => (
+                      <span
+                        key={e}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[11px] px-2 py-0.5"
+                      >
+                        {e}
+                        <button
+                          type="button"
+                          onClick={() => removeEmail(e)}
+                          className="ml-0.5 hover:text-destructive"
+                          aria-label={`Remove ${e}`}
+                        >
+                          <X className="size-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-1.5">
+                  <Input
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    onKeyDown={handleEmailKeyDown}
+                    onBlur={addEmail}
+                    placeholder="name@example.com"
+                    className="bg-muted border-border text-foreground h-8 text-sm placeholder:text-muted-foreground"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addEmail}
+                    className="h-8 px-2.5 shrink-0"
+                  >
+                    Add
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Press Enter or comma to add. Only these addresses can pass the gate.</p>
+              </div>
+            )}
           </div>
         )}
 

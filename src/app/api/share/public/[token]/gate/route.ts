@@ -65,7 +65,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   // Load share + secrets
   const { data: share } = await admin
     .from("share_links")
-    .select("id, account_id, title, gate_type, status, expires_at")
+    .select("id, account_id, title, gate_type, status, expires_at, allowed_emails")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
 
@@ -79,6 +79,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   if (action === "submit_email") {
     if (share.gate_type !== "email") return badRequest("This link does not use an email gate.");
     if (typeof email !== "string" || !VALID_EMAIL.test(email)) return badRequest("Enter a valid email address.");
+    if (!isEmailAllowed(email, share.allowed_emails)) {
+      return NextResponse.json({ error: "You are not authorised to access this document." }, { status: 403 });
+    }
 
     await admin
       .from("share_link_secrets")
@@ -94,6 +97,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   if (action === "request_otp") {
     if (share.gate_type !== "otp") return badRequest("This link does not use an OTP gate.");
     if (typeof email !== "string" || !VALID_EMAIL.test(email)) return badRequest("Enter a valid email address.");
+    if (!isEmailAllowed(email, share.allowed_emails)) {
+      return NextResponse.json({ error: "You are not authorised to access this document." }, { status: 403 });
+    }
 
     const otp = generateOtp();
     const otpHash = hashOtp(otp, share.id);
@@ -185,4 +191,10 @@ async function sendOtpEmail({ to, otp, shareTitle, accountId }: { to: string; ot
 
 function escHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function isEmailAllowed(email: string, allowedEmails: string[] | null | undefined): boolean {
+  if (!allowedEmails || allowedEmails.length === 0) return true;
+  const lower = email.toLowerCase();
+  return allowedEmails.some((a) => a.toLowerCase() === lower);
 }
