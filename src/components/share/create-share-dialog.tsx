@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, Copy, ExternalLink, FileText, Loader2, Lock, Mail, ShieldOff, Stamp, Upload } from "lucide-react";
+import { Check, Copy, ExternalLink, FileText, Lock, Mail, ShieldOff, Stamp, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,8 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
   const [gateType, setGateType] = useState<GateType>("none");
   const [watermarkEnabled, setWatermarkEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // 0-100
+  const [uploadPhase, setUploadPhase] = useState<"uploading" | "processing">("uploading");
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -75,6 +77,10 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
       if (!title.trim()) { toast.error("Enter a title for the share."); return; }
 
       setSubmitting(true);
+      setUploadProgress(0);
+      setUploadPhase("uploading");
+      // JSON body is tiny — animate quickly to 100 while waiting
+      const ticker = setInterval(() => setUploadProgress((p) => Math.min(p + 20, 90)), 80);
       try {
         const res = await fetch("/api/share", {
           method: "POST",
@@ -83,11 +89,13 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { toast.error(data?.error ?? "Could not create the share link."); return; }
+        setUploadProgress(100);
         setShareUrl(data.shareUrl);
         onCreated?.(data.id, data.shareUrl);
       } catch {
         toast.error("Something went wrong. Please try again.");
       } finally {
+        clearInterval(ticker);
         setSubmitting(false);
       }
       return;
@@ -97,7 +105,10 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
     if (!title.trim()) { toast.error("Enter a title for the share."); return; }
 
     setSubmitting(true);
-    try {
+    setUploadProgress(0);
+    setUploadPhase("uploading");
+
+    await new Promise<void>((resolve) => {
       const form = new FormData();
       form.append("file", file);
       form.append("title", title.trim());
@@ -105,16 +116,45 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
       if (contactId) form.append("contactId", contactId);
       if (watermarkEnabled) form.append("watermarkEnabled", "true");
 
-      const res = await fetch("/api/share", { method: "POST", body: form });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(data?.error ?? "Could not create the share link."); return; }
-      setShareUrl(data.shareUrl);
-      onCreated?.(data.id, data.shareUrl);
-    } catch {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/share");
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (!e.lengthComputable) return;
+        // upload = 0–80%; server processing gets the last 20%
+        setUploadProgress(Math.round((e.loaded / e.total) * 80));
+      });
+
+      xhr.upload.addEventListener("loadend", () => {
+        setUploadPhase("processing");
+        setUploadProgress(80);
+      });
+
+      xhr.addEventListener("load", () => {
+        setUploadProgress(100);
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (xhr.status >= 400) {
+            toast.error(data?.error ?? "Could not create the share link.");
+          } else {
+            setShareUrl(data.shareUrl);
+            onCreated?.(data.id, data.shareUrl);
+          }
+        } catch {
+          toast.error("Could not read the server response.");
+        }
+        setSubmitting(false);
+        resolve();
+      });
+
+      xhr.addEventListener("error", () => {
+        toast.error("Something went wrong. Please try again.");
+        setSubmitting(false);
+        resolve();
+      });
+
+      xhr.send(form);
+    });
   }
 
   async function copyUrl() {
@@ -141,6 +181,8 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
       setTitle("");
       setGateType("none");
       setWatermarkEnabled(false);
+      setUploadProgress(0);
+      setUploadPhase("uploading");
       setShareUrl(null);
       setCopied(false);
     }
@@ -304,6 +346,24 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
           </div>
         )}
 
+        {submitting && (
+          <div className="space-y-1 pb-1">
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {uploadPhase === "uploading"
+                ? uploadProgress < 80
+                  ? `Uploading… ${uploadProgress}%`
+                  : "Uploading…"
+                : "Processing…"}
+            </p>
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => handleClose(false)} disabled={submitting}>
             {shareUrl ? "Close" : "Cancel"}
@@ -314,14 +374,7 @@ export function CreateShareDialog({ open, onOpenChange, contactId, onCreated }: 
               disabled={!canSubmit || submitting}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Creating…
-                </>
-              ) : (
-                "Create share link"
-              )}
+              {submitting ? "Creating…" : "Create share link"}
             </Button>
           )}
         </DialogFooter>

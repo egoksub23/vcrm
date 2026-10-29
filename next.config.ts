@@ -100,6 +100,13 @@ const nextConfig: NextConfig = {
   // Docker image can run without node_modules or the Next CLI.
   // Harmless outside Docker: `next start` keeps working as before.
   output: "standalone",
+
+  // The middleware.ts session refresh runs on every request. Next.js clones the body so
+  // both middleware and the route handler can read it; that clone is capped at 10 MB by
+  // default. Share uploads can be up to 25 MB, so we raise the cap to 30 MB.
+  experimental: {
+    middlewareClientMaxBodySize: "30mb",
+  },
   // The Docker image build skips Next's own type check (SKIP_TYPECHECK=1 in the Dockerfile): it needs more memory than a small server has
   // (the build was killed at ~2 GB), and `npx tsc --noEmit` already runs in CI and before every release.
   typescript: { ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1" },
