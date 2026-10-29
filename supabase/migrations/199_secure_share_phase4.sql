@@ -12,24 +12,34 @@
 -- (for DOCX→HTML converted shares stored as HTML).
 -- ============================================================
 
--- 1. Add columns
-ALTER TABLE public.share_links
-  ADD COLUMN kind             text    NOT NULL DEFAULT 'file'
-    CHECK (kind IN ('file', 'url')),
-  ADD COLUMN redirect_url     text,
-  ADD COLUMN watermark_enabled boolean NOT NULL DEFAULT false;
+-- 1. Add columns (idempotent)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='share_links' AND column_name='kind') THEN
+    ALTER TABLE public.share_links ADD COLUMN kind text NOT NULL DEFAULT 'file' CHECK (kind IN ('file', 'url'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='share_links' AND column_name='redirect_url') THEN
+    ALTER TABLE public.share_links ADD COLUMN redirect_url text;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='share_links' AND column_name='watermark_enabled') THEN
+    ALTER TABLE public.share_links ADD COLUMN watermark_enabled boolean NOT NULL DEFAULT false;
+  END IF;
+END $$;
 
 -- 2. Make file_path nullable (url shares have none)
 ALTER TABLE public.share_links
   ALTER COLUMN file_path DROP NOT NULL;
 
 -- 3. Per-kind integrity: file shares need file_path, url shares need redirect_url
-ALTER TABLE public.share_links
-  ADD CONSTRAINT share_links_kind_check CHECK (
-    (kind = 'file' AND file_path IS NOT NULL)
-    OR
-    (kind = 'url' AND redirect_url IS NOT NULL)
-  );
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'share_links_kind_check' AND conrelid = 'public.share_links'::regclass) THEN
+    ALTER TABLE public.share_links
+      ADD CONSTRAINT share_links_kind_check CHECK (
+        (kind = 'file' AND file_path IS NOT NULL)
+        OR
+        (kind = 'url' AND redirect_url IS NOT NULL)
+      );
+  END IF;
+END $$;
 
 -- 4. Allow text/html in the share-files bucket (DOCX→HTML output)
 UPDATE storage.buckets
