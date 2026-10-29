@@ -54,7 +54,8 @@
     "platform": "Platform",
     "sign": "Secure Sign",
     "kyc": "KYC review",
-    "compliance": "Compliance"
+    "compliance": "Compliance",
+    "share": "Secure Share"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -82,7 +83,8 @@
     "menuSignOut": "Sign out",
     "sign": "Secure Sign",
     "kyc": "KYC review",
-    "compliance": "Compliance requests"
+    "compliance": "Compliance requests",
+    "share": "Secure Share"
   },
   "Help": {
     "pageTitle": "User Guide",
@@ -7158,6 +7160,14 @@
       "kyc_decide": {
         "label": "Approve or reject ID checks",
         "description": "Approve or reject an ID check in KYC review. An approval sets the child's eKYC status to Verified; a rejection sets it to Rejected and the parent is emailed. Every decision is recorded with your name. Separate from viewing images and revealing values. Needs the KYC review menu. Default: Owner and Admin."
+      },
+      "menu_share": {
+        "label": "Menu: Secure Share",
+        "description": "Show Secure Share in the sidebar and allow opening its page to see the workspace's shared documents. Sending new share links also needs 'Send share links'. Default: Owner, Admin and Agent."
+      },
+      "share_send": {
+        "label": "Send share links",
+        "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
       }
     },
     "group": {
@@ -7176,7 +7186,8 @@
       "sign": "Secure Sign",
       "kyc": "KYC review",
       "compliance": "Compliance requests",
-      "incidents": "Incidents"
+      "incidents": "Incidents",
+      "share": "Secure Share"
     },
     "preset": {
       "support-manager": {
@@ -8679,7 +8690,9 @@
     "feature_kyc": "KYC review",
     "feature_kyc_desc": "Staff screen over the ID verification back end (children's ID images and validation records) where reviewers approve or reject ID checks, with an access log. Off for every workspace until the operator turns it on. Needs KYC_DOC_API_BASE_URL and KYC_DOC_API_KEY on the server.",
     "feature_compliance": "Compliance requests",
-    "feature_compliance_desc": "Account closures, withdrawals and phone number changes with an identity check, a Head of Compliance sign-off, a regulatory clock, encrypted bank details and a seven-year audit trail. Off for every workspace until the operator turns it on."
+    "feature_compliance_desc": "Account closures, withdrawals and phone number changes with an identity check, a Head of Compliance sign-off, a regulatory clock, encrypted bank details and a seven-year audit trail. Off for every workspace until the operator turns it on.",
+    "feature_share": "Secure Share",
+    "feature_share_desc": "Trackable document sharing: upload a PDF, create a shareable link, and see who opened it and how long they spent on each page. Optional email-capture or OTP gate. On for every workspace by default."
   },
   "Sign": {
     "admin": {
@@ -14129,6 +14142,45 @@
       "nameDiffers": "Bank holder name differs from the account holder name: check before paying.",
       "thirdParty": "Payout to a third party: authorization letter on file",
       "thirdPartyMissing": "Payout to a third party: the authorization letter is missing"
+    }
+  },
+  "Share": {
+    "tabLabel": "Shares",
+    "newShare": "New share",
+    "shareDocument": "Share a document",
+    "noShares": "No shared documents yet.",
+    "views": "{count, plural, one {# view} other {# views}}",
+    "firstOpened": "first opened {when}",
+    "copyLink": "Copy link",
+    "revoke": "Revoke",
+    "statusActive": "Active",
+    "statusRevoked": "Revoked",
+    "create": {
+      "title": "Share a document",
+      "description": "Upload a PDF to create a trackable share link.",
+      "fileLabel": "PDF file",
+      "filePlaceholder": "Click to choose a PDF (max 25 MB)",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Document title",
+      "submit": "Create share link",
+      "submitting": "Creating…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "errorNoFile": "Choose a PDF file to share.",
+      "errorNoTitle": "Enter a title for the share.",
+      "errorNotPdf": "Only PDF files are supported. Please convert PPTX to PDF first.",
+      "errorTooLarge": "File is too large. Maximum size is 25 MB.",
+      "errorGeneric": "Something went wrong. Please try again.",
+      "readyMessage": "Your share link is ready. Anyone with this link can view the document."
+    },
+    "viewer": {
+      "loading": "Loading document…",
+      "errorExpired": "Could not load the document. The link may have expired.",
+      "errorGeneric": "This document could not be opened.",
+      "download": "Download",
+      "page": "Page {current} of {total}",
+      "sharedVia": "Shared via {product}",
+      "tooManyRequests": "Too many requests. Please try again in a moment."
     }
   }
 }

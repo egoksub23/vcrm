@@ -38,7 +38,7 @@ export const DEFAULT_PLATFORM: AccountPlatform = {
 };
 
 /** The flags the operator console offers. Add a key here to add a toggle. */
-export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat", "sign", "sign_merchant", "kyc", "compliance"] as const;
+export const PLATFORM_FEATURES = ["incidents", "jira", "vircle_chat", "sign", "sign_merchant", "kyc", "compliance", "share"] as const;
 export type PlatformFeature = (typeof PLATFORM_FEATURES)[number];
 
 /** The limits the operator console offers (and the app enforces). */
@@ -141,6 +141,8 @@ const FEATURE_CAPABILITIES: Record<PlatformFeature, (capability: string) => bool
   // Compliance requests (migration 183): the menu, the area and every /api/compliance route. Off for every workspace until the operator turns it on
   // (an explicit false is written for each; the app also reads an absent key as off).
   compliance: (c) => c === "menu.compliance" || c.startsWith("compliance."),
+  // Secure Share (migration 198): tracked document sharing via /v/[token]. Missing key reads as on.
+  share: (c) => c === "menu.share" || c.startsWith("share."),
 };
 
 /** Remove the capabilities of every disabled feature. Returns the same set when nothing changes. */

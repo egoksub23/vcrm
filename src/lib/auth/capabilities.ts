@@ -151,6 +151,8 @@ export const MENU_CAPABILITIES = [
   // phone change). Owner and Admin only until an admin grants it (the owner defines Head of Compliance / Compliance Officer as custom roles). App tier:
   // the data is behind server routes; the table policies read it through has_capability(), but no browser writes.
   "menu.compliance",
+  // Secure Share (migration 198): see the Shares page and send trackable share links. App tier: the share_links table is already guarded by share.send.
+  "menu.share",
   // Not a real "menu" in the sense every other entry here is (see the
   // special-cased def() for it below, not the menu() helper) — it stays
   // in this array only so the CapabilityKey union and the PAGE_ACCESS
@@ -181,7 +183,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // 'database' tier and grantable down to Agent; the parity table in
   // capability-parity.test.ts pins each table's floor against the default.
   // ---- Menus (show/hide a sidebar item and block its page) ----
-  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign" && k !== "menu.kyc" && k !== "menu.compliance").map((k) =>
+  ...MENU_CAPABILITIES.filter((k) => k !== "menu.sembang" && k !== "menu.sign" && k !== "menu.kyc" && k !== "menu.compliance" && k !== "menu.share").map((k) =>
     menu(k.slice("menu.".length)),
   ),
   // Sembang (internal team chat) is the one "menu" capability that is
@@ -204,6 +206,8 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("menu.kyc", "menus", ADMIN_UP, "agent"),
   // Compliance requests: see the menu item and the area (migration 183). Owner and Admin by default, grantable down to Agent.
   def("menu.compliance", "menus", ADMIN_UP, "agent"),
+  // Secure Share: see the Shares page. App tier (share_links is behind share.send, not menu.share). Default Agent and above.
+  def("menu.share", "menus", AGENT_UP, "agent"),
 
   // ---- Inbox ----
   def("messages.send", "inbox", AGENT_UP, "agent", "database"),
@@ -278,6 +282,10 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   // switch, so a person can send documents without being able to read the numbers people entered. Server route only (the answers are read by
   // the service role), so app tier. Default: Owner and Admin. What the sealed PDF, the zip and the uploads show is a separate decision (F8).
   def("sign.reveal-sensitive", "sign", ADMIN_UP, "agent"),
+
+  // ---- Secure Share (migration 198) ----
+  // share.send: create and manage share links. Database tier: RLS on share_links checks has_capability(). Default: Agent and above.
+  def("share.send", "sign", AGENT_UP, "agent", "database"),
 
   // ---- KYC review (migration 182) ----
   // menu.kyc (above, in Menus) opens the screen and may look a person up. These two decide what a reviewer can do with what the ID verification
@@ -372,6 +380,7 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "sign.settings"
   | "sign.sign"
   | "sign.reveal-sensitive"
+  | "share.send"
   | "kyc.view"
   | "kyc.reveal"
   | "kyc.decide"

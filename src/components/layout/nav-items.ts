@@ -1,4 +1,4 @@
-import { BarChart3, Bell, Bot, BookMarked, BookOpen, Building2, FileSignature, GitBranch, LayoutDashboard, MessageCircle, MessageSquare, Radio, Settings, ShieldAlert, ShieldCheck, ClipboardCheck, Ticket, Users, Workflow, Zap } from "lucide-react";
+import { BarChart3, Bell, Bot, BookMarked, BookOpen, Building2, FileSignature, GitBranch, LayoutDashboard, Link2, MessageCircle, MessageSquare, Radio, Settings, ShieldAlert, ShieldCheck, ClipboardCheck, Ticket, Users, Workflow, Zap } from "lucide-react";
 
 // The sidebar's rows, in order. A plain module (no hooks), so the order and the capability of each row can be tested.
 
@@ -54,6 +54,8 @@ export const bottomNavItems: NavItem[] = [
   { href: "/compliance", labelKey: "compliance", icon: ClipboardCheck, capability: "menu.compliance" },
   // Secure Sign (the e-signing module): below Compliance. Same capability as before; the page and the feature flag still gate it.
   { href: "/sign", labelKey: "sign", icon: FileSignature, capability: "menu.sign" },
+  // Secure Share (migration 198): trackable document sharing. Below Secure Sign. Agent and above by default.
+  { href: "/share", labelKey: "share", icon: Link2, capability: "menu.share" },
 ];
 
 // Operator console (migration 132). Not capability-gated: platform admins

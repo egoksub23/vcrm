@@ -62,6 +62,7 @@ import { useTranslations } from 'next-intl';
 import { contactHandle } from '@/lib/whatsapp/wa-identity';
 import { CreateTicketDialog } from '@/components/tickets/create-ticket-dialog';
 import { ContactDocuments } from '@/components/sign/detail/contact-documents';
+import { ContactShares } from '@/components/share/contact-shares';
 
 interface ContactDetailViewProps {
   open: boolean;
@@ -88,6 +89,8 @@ export function ContactDetailView({
   const canMerge = useCapability('contacts.merge');
   // Doc Sign's Documents tab: only with menu.sign (which is also off when the workspace has Doc Sign off).
   const canSeeDocuments = useCapability('menu.sign');
+  // Secure Share tab: only with share.send capability.
+  const canShare = useCapability('share.send');
   const editHint = canEdit ? undefined : readOnlyTitle('edit contacts');
 
   const [contact, setContact] = useState<Contact | null>(null);
@@ -614,6 +617,14 @@ export function ContactDetailView({
                     {tSign('contactTab.tab')}
                   </TabsTrigger>
                 )}
+                {canShare && (
+                  <TabsTrigger
+                    value="shares"
+                    className="data-active:bg-muted data-active:text-primary text-muted-foreground"
+                  >
+                    Shares
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* Details Tab */}
@@ -902,6 +913,13 @@ export function ContactDetailView({
               {canSeeDocuments && (
                 <TabsContent value="documents" className="flex-1 overflow-y-auto px-4 py-3">
                   <ContactDocuments contactId={contact.id} />
+                </TabsContent>
+              )}
+
+              {/* Shares Tab (Secure Share) */}
+              {canShare && (
+                <TabsContent value="shares" className="flex-1 overflow-y-auto px-4 py-3">
+                  <ContactShares contactId={contact.id} />
                 </TabsContent>
               )}
             </Tabs>
