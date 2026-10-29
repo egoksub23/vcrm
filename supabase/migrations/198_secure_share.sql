@@ -170,12 +170,12 @@ CREATE POLICY share_links_select ON public.share_links
 -- share_links INSERT/UPDATE require share.send capability
 CREATE POLICY share_links_insert ON public.share_links
   FOR INSERT TO authenticated
-  WITH CHECK (has_capability(auth.uid(), account_id, 'share.send'));
+  WITH CHECK (has_capability(account_id, 'share.send'));
 
 CREATE POLICY share_links_update ON public.share_links
   FOR UPDATE TO authenticated
-  USING  (has_capability(auth.uid(), account_id, 'share.send'))
-  WITH CHECK (has_capability(auth.uid(), account_id, 'share.send'));
+  USING  (has_capability(account_id, 'share.send'))
+  WITH CHECK (has_capability(account_id, 'share.send'));
 
 -- share_link_secrets and share_views: service role only
 CREATE POLICY share_link_secrets_service ON public.share_link_secrets
