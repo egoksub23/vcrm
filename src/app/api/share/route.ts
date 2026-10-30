@@ -76,15 +76,14 @@ export async function POST(request: Request) {
         p_gate_type: gateType,
         p_download_enabled: downloadEnabled,
         p_expires_at: expiresAt,
-        p_allowed_emails: allowedEmails,
       });
 
       if (issueErr || !issued?.[0]) {
-        return json({ error: "Could not create the share link.", code: "internal_error", _dbg: { message: issueErr?.message, code: issueErr?.code, details: issueErr?.details, hint: issueErr?.hint } }, 500);
+        return json({ error: "Could not create the share link.", code: "internal_error" }, 500);
       }
 
       const { id: shareId, token } = issued[0] as { id: string; token: string };
-      await admin.from("share_links").update({ kind: "url", redirect_url: redirectUrl, file_path: null }).eq("id", shareId);
+      await admin.from("share_links").update({ kind: "url", redirect_url: redirectUrl, file_path: null, allowed_emails: allowedEmails }).eq("id", shareId);
 
       const origin = publicOrigin() || new URL(request.url).origin;
       return json({ id: shareId, token, shareUrl: `${origin}/v/${token}` }, 201);
@@ -181,11 +180,9 @@ export async function POST(request: Request) {
       p_gate_type: gateType,
       p_download_enabled: downloadEnabled,
       p_expires_at: expiresAt,
-      p_allowed_emails: allowedEmails,
     });
 
     if (issueErr || !issued?.[0]) {
-      console.error("[share] share_issue_token RPC error (file):", issueErr?.message, issueErr?.code, issueErr?.details, issueErr?.hint);
       return json({ error: "Could not create the share link.", code: "internal_error" }, 500);
     }
 
@@ -206,6 +203,7 @@ export async function POST(request: Request) {
       file_path: filePath,
       content_type: storedMime,
       watermark_enabled: watermarkEnabled,
+      allowed_emails: allowedEmails,
     }).eq("id", shareId);
 
     const origin = publicOrigin() || new URL(request.url).origin;
