@@ -80,8 +80,7 @@ export async function POST(request: Request) {
       });
 
       if (issueErr || !issued?.[0]) {
-        console.error("[share] share_issue_token RPC error (url):", issueErr?.message, issueErr?.code, issueErr?.details, issueErr?.hint);
-        return json({ error: "Could not create the share link.", code: "internal_error" }, 500);
+        return json({ error: "Could not create the share link.", code: "internal_error", _dbg: { message: issueErr?.message, code: issueErr?.code, details: issueErr?.details, hint: issueErr?.hint } }, 500);
       }
 
       const { id: shareId, token } = issued[0] as { id: string; token: string };
