@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       });
 
       if (issueErr || !issued?.[0]) {
-        console.error("[share] share_issue_token RPC error (url):", issueErr);
+        console.error("[share] share_issue_token RPC error (url):", issueErr?.message, issueErr?.code, issueErr?.details, issueErr?.hint);
         return json({ error: "Could not create the share link.", code: "internal_error" }, 500);
       }
 
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
     });
 
     if (issueErr || !issued?.[0]) {
-      console.error("[share] share_issue_token RPC error (file):", issueErr);
+      console.error("[share] share_issue_token RPC error (file):", issueErr?.message, issueErr?.code, issueErr?.details, issueErr?.hint);
       return json({ error: "Could not create the share link.", code: "internal_error" }, 500);
     }
 
