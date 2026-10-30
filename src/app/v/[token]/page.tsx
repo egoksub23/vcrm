@@ -10,7 +10,7 @@ import { notFound } from "next/navigation";
 import { HtmlViewer } from "@/components/share/viewer/html-viewer";
 import { ShareGate } from "@/components/share/viewer/share-gate";
 import { ShareViewer } from "@/components/share/viewer/share-viewer";
-import { UrlRedirect } from "@/components/share/viewer/url-redirect";
+import { UrlViewer } from "@/components/share/viewer/url-viewer";
 import { loadShare } from "./load";
 
 interface PageProps {
@@ -54,7 +54,7 @@ export default async function ShareViewPage({ params }: PageProps) {
 
   if (share.kind === "url" && share.redirectUrl) {
     return (
-      <UrlRedirect
+      <UrlViewer
         token={token}
         title={share.title}
         redirectUrl={share.redirectUrl}
