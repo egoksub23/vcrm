@@ -1,18 +1,28 @@
-// Server-side Supabase client — Phase 1 Auth.js migration.
+// Server-side data client — Phase D postgres.js migration.
 //
-// Replaces @supabase/ssr's createServerClient. Auth session management is
-// now handled by Auth.js; we only need a client for data queries.
-// The Auth.js session carries a Supabase-compatible JWT (signed with
-// SUPABASE_JWT_SECRET, role:"authenticated", sub:<uuid>) so PostgREST
-// sees auth.uid() and every RLS policy continues to work unchanged.
+// When DATABASE_URL is set, returns a PgDb instance (postgres.js backed)
+// cast as SupabaseClient so all 14 server-side call sites need no changes.
+// RLS is enforced by SET LOCAL role + jwt.claims in each query transaction.
+//
+// When DATABASE_URL is not set, falls back to the Supabase PostgREST client
+// using the Auth.js session JWT (backward-compat for environments without
+// a direct DB connection configured yet).
 
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { auth } from "@/auth";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-export async function createClient() {
+export async function createClient(): Promise<SupabaseClient> {
   const session = await auth();
-  const token = session?.supabaseAccessToken;
 
+  if (process.env.DATABASE_URL) {
+    const { createPgDb } = await import("@/lib/postgres/db");
+    const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
+    return createPgDb(userId) as unknown as SupabaseClient;
+  }
+
+  // Legacy Supabase PostgREST path (used when DATABASE_URL is not yet configured)
+  const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+  const token = session?.supabaseAccessToken;
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
