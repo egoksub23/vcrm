@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { DETECTED_MIME, detectFileKind } from "@/lib/net/file-kind";
 import { belongsToAccount, safeFileName } from "@/lib/sign/storage";
+import { appStorage } from "@/lib/storage/provider";
 
 import { ComplianceError, complianceError, fromDatabase } from "../errors";
 import { logEvent } from "./events";
@@ -62,7 +63,7 @@ export async function putEvidence(admin: SupabaseClient, accountId: string, requ
   const name = safeFileName(file.name, "file");
   const path = filePath(accountId, requestId, id, name);
   const sha256 = createHash("sha256").update(file.bytes).digest("hex");
-  const up = await admin.storage.from(COMPLIANCE_BUCKET).upload(path, file.bytes, { contentType: mime, upsert: false });
+  const up = await appStorage().from(COMPLIANCE_BUCKET).upload(path, file.bytes, { contentType: mime, upsert: false });
   if (up.error) throw complianceError("storage_failed");
   return { id, name, mime, size: file.bytes.byteLength, sha256, path };
 }
@@ -83,7 +84,7 @@ export async function recordEvidence(admin: SupabaseClient, accountId: string, r
   });
   if (ins.error) {
     // leave no object behind that nothing refers to
-    await admin.storage.from(COMPLIANCE_BUCKET).remove([stored.path]).catch(() => undefined);
+    await appStorage().from(COMPLIANCE_BUCKET).remove([stored.path]).catch(() => undefined);
     throw fromDatabase(ins.error);
   }
 }
@@ -137,7 +138,7 @@ export async function downloadFile(admin: SupabaseClient, caller: ComplianceCall
   const f = data as { id: string; name: string; mime: string; path: string };
   if (!belongsToAccount(f.path, caller.accountId)) throw complianceError("not_found");
   if (!(await logEvent(admin, { accountId: caller.accountId, requestId: row.id, actor: caller.userId, kind: "view", detail: { file: f.id, name: f.name } }))) throw complianceError("audit_failed");
-  const dl = await admin.storage.from(COMPLIANCE_BUCKET).download(f.path);
+  const dl = await appStorage().from(COMPLIANCE_BUCKET).download(f.path);
   if (dl.error || !dl.data) throw complianceError("storage_failed");
   return { bytes: new Uint8Array(await dl.data.arrayBuffer()), name: f.name, mime: f.mime };
 }

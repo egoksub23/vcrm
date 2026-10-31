@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { auth } from '@/auth'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
@@ -38,14 +39,13 @@ export async function GET() {
     return toErrorResponse(err)
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) {
+  const session = await auth()
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  const userId = session.user.id
+
+  const supabase = await createClient()
 
   // whatsapp_config is one-row-per-account post-017. Resolve the
   // caller's account_id so a teammate who joined an existing account
@@ -53,7 +53,7 @@ export async function GET() {
   const { data: profile } = await supabase
     .from('profiles')
     .select('account_id')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle()
   const accountId = profile?.account_id as string | undefined
   if (!accountId) {

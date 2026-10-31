@@ -16,6 +16,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { teardownWorkspaceChannels } from './teardown'
+import { appStorage } from '@/lib/storage/provider'
 
 const FILE_BATCH = 200
 /** More rounds than any workspace needs; a guard against a removal that never takes effect. */
@@ -42,7 +43,7 @@ async function removeByPrefix(db: SupabaseClient, prefix: string): Promise<numbe
     for (const o of objects) byBucket.set(o.bucket, [...(byBucket.get(o.bucket) ?? []), o.name])
     let progressed = false
     for (const [bucket, names] of byBucket) {
-      const { error: rmError } = await db.storage.from(bucket).remove(names)
+      const { error: rmError } = await appStorage().from(bucket).remove(names)
       if (rmError) throw new Error(`remove files from ${bucket}: ${rmError.message}`)
       removed += names.length
       progressed = true
@@ -52,11 +53,23 @@ async function removeByPrefix(db: SupabaseClient, prefix: string): Promise<numbe
   throw new Error('removing files did not finish')
 }
 
-async function deleteLogins(db: SupabaseClient, ids: string[]): Promise<void> {
+async function deleteLogins(_db: SupabaseClient, ids: string[]): Promise<void> {
   for (const id of ids) {
-    const { error } = await db.auth.admin.deleteUser(id)
-    // already gone is fine (a resumed run)
-    if (error && !/not.?found/i.test(error.message)) throw new Error(`delete login: ${error.message}`)
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        },
+      },
+    )
+    // 404 = already gone is fine (a resumed run)
+    if (!res.ok && res.status !== 404) {
+      const body = await res.json().catch(() => ({})) as { message?: string }
+      throw new Error(`delete login: ${body.message ?? res.statusText}`)
+    }
   }
 }
 

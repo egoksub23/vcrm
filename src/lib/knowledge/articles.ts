@@ -11,6 +11,7 @@ import {
 } from '@/lib/knowledge-types'
 import { planAttachmentChanges } from './attachments-input'
 import { PUBLIC_MEDIA_BUCKET } from '@/lib/storage/media-urls'
+import { appStorage } from '@/lib/storage/provider'
 
 // ============================================================
 // Shared plumbing for the knowledge API routes: reading an article's files,
@@ -142,7 +143,7 @@ export async function syncAttachments(
         kind: attachmentKindFor(a.mime_type),
         storage_path: a.storage_path,
         // Derived here rather than trusted from the client.
-        public_url: db.storage.from(KB_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+        public_url: appStorage().from(KB_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
         send_with_ai: a.send_with_ai,
         position: a.position,
         // Only an image can be shown inside the article.
@@ -212,7 +213,7 @@ export async function removeStoredFiles(
     const inUse = new Set(((still ?? []) as { storage_path: string }[]).map((r) => r.storage_path))
     const orphans = unique.filter((p) => !inUse.has(p))
     if (orphans.length === 0) return
-    const { error } = await db.storage.from(KB_BUCKET).remove(orphans)
+    const { error } = await appStorage().from(KB_BUCKET).remove(orphans)
     if (error) console.warn('[knowledge] stored file cleanup failed:', error.message)
   } catch (err) {
     console.warn('[knowledge] stored file cleanup failed:', err)

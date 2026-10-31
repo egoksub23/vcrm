@@ -1,28 +1,30 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+// Server-side Supabase client — Phase 1 Auth.js migration.
+//
+// Replaces @supabase/ssr's createServerClient. Auth session management is
+// now handled by Auth.js; we only need a client for data queries.
+// The Auth.js session carries a Supabase-compatible JWT (signed with
+// SUPABASE_JWT_SECRET, role:"authenticated", sub:<uuid>) so PostgREST
+// sees auth.uid() and every RLS policy continues to work unchanged.
+
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { auth } from "@/auth";
 
 export async function createClient() {
-  const cookieStore = await cookies()
+  const session = await auth();
+  const token = session?.supabaseAccessToken;
 
-  return createServerClient(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing sessions.
-          }
-        },
+      global: {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       },
-    }
-  )
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    },
+  );
 }

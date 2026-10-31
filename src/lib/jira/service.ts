@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { supabaseAdmin } from "@/lib/flows/admin-client";
 import { decrypt, encrypt } from "@/lib/whatsapp/encryption";
+import { appStorage } from "@/lib/storage/provider";
 
 import { CHAT_MEDIA_BUCKET, type AttachmentStorage } from "./attachments";
 import { JiraClient } from "./client";
@@ -25,24 +26,23 @@ export function jiraStore(db: SupabaseClient = supabaseAdmin()): JiraStore {
   return new SupabaseJiraStore(db);
 }
 
-/** The chat-media bucket on the service role (the bucket itself is not touched by Jira). */
-export function attachmentStorage(db: SupabaseClient = supabaseAdmin()): AttachmentStorage {
-  const bucket = () => db.storage.from(CHAT_MEDIA_BUCKET);
+/** The chat-media bucket via the storage provider (Supabase or MinIO). */
+export function attachmentStorage(_db?: SupabaseClient): AttachmentStorage {
   return {
     async download(path) {
-      const { data, error } = await bucket().download(path);
+      const { data, error } = await appStorage().from(CHAT_MEDIA_BUCKET).download(path);
       if (error || !data) return null;
       return new Uint8Array(await data.arrayBuffer());
     },
     async upload(path, data, contentType) {
-      const { error } = await bucket().upload(path, data, { contentType, cacheControl: "3600", upsert: false });
+      const { error } = await appStorage().from(CHAT_MEDIA_BUCKET).upload(path, data, { contentType, cacheControl: "3600", upsert: false });
       return { error: error?.message ?? null };
     },
     async remove(path) {
-      await bucket().remove([path]);
+      await appStorage().from(CHAT_MEDIA_BUCKET).remove([path]);
     },
     publicUrl(path) {
-      return bucket().getPublicUrl(path).data.publicUrl;
+      return appStorage().from(CHAT_MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
     },
   };
 }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, LogOut } from 'lucide-react';
 
-import { createClient } from '@/lib/supabase/client';
+import { signOut as nextAuthSignOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -25,26 +25,21 @@ import { useTranslations } from 'next-intl';
 
 export function SessionsCard() {
   const t = useTranslations('Settings.profile');
-  const supabase = createClient();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const onConfirm = async () => {
     setSigningOut(true);
     try {
-      // scope: 'global' revokes every refresh token for this user
-      // across all devices; the next auth-state change on this tab
-      // triggers the usual redirect.
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      if (error) {
-        toast.error(t('signOutFailed', { message: error.message }));
-        return;
-      }
+      // Phase 1: clear the Auth.js JWT cookie; the Supabase GoTrue session
+      // will be abandoned (it will expire on its own within 60 min).
+      // Full "revoke all devices" via GoTrue admin will be available in
+      // Phase 2 when we own the auth stack directly.
+      await nextAuthSignOut({ redirect: false });
       window.location.href = '/login';
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       toast.error(msg);
-    } finally {
       setSigningOut(false);
     }
   };

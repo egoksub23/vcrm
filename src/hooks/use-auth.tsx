@@ -10,8 +10,15 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+
+/** Minimal user object — replaces @supabase/supabase-js's User. */
+interface AuthUser {
+  id: string;
+  email: string | null;
+  created_at?: string;
+}
 import {
   CURRENCIES,
   DEFAULT_CURRENCY,
@@ -115,7 +122,7 @@ export type AccountStatus =
   | "error";
 
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   profile: Profile | null;
   /**
    * Session-level loading. Flips to false as soon as we know whether
@@ -245,12 +252,18 @@ interface ProfileRow {
  * component, avoiding internal lock contention in the Supabase client.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const { data: session, status: sessionStatus } = useSession();
+  const user: AuthUser | null =
+    session?.user?.id
+      ? { id: session.user.id, email: session.user.email ?? null }
+      : null;
+  // Derived loading flag — matches original semantics: false once we know
+  // whether a user is signed in (Auth.js "loading" → true, else false).
+  const [userLoading] = [sessionStatus === "loading"];
   const [profile, setProfile] = useState<Profile | null>(null);
   const [account, setAccount] = useState<AccountSummary | null>(null);
   const [platform, setPlatform] = useState<AccountPlatform>(DEFAULT_PLATFORM);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
   // Why the account/role couldn't be established, when it couldn't.
   // Null on the happy path.
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
@@ -274,8 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const capabilitiesLastRunRef = useRef(0);
 
   // Tracks the user ID we've successfully initiated/completed fetching
-  // a profile for. This prevents redundant re-fetches and toggling
-  // profileLoading back to true on window focus events/token refresh.
+  // a profile for. Prevents redundant re-fetches on focus events.
   const lastFetchedUserIdRef = useRef<string | null>(null);
 
   // Reads the caller's effective capabilities. Never throws. A failure
@@ -515,96 +527,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadCapabilities, resetCapabilities]);
 
+  // Watch the Auth.js session and trigger profile fetching when the
+  // user changes. Replaces the old Supabase onAuthStateChange listener.
+  const userId = user?.id ?? null;
   useEffect(() => {
-    const supabase = createClient();
-    let mounted = true;
+    if (userLoading) return;
 
-    const safetyTimer = setTimeout(() => {
-      if (mounted) {
-        console.warn("[AuthProvider] getSession() timed out after 3s");
-        setLoading(false);
-        setProfileLoading(false);
-        setCapabilitiesLoading(false);
+    if (userId) {
+      if (userId !== lastFetchedUserIdRef.current) {
+        fetchProfile(userId);
       }
-    }, 3000);
-
-    const init = async () => {
-      try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        if (error) console.error("[AuthProvider] getSession error:", error.message);
-
-        if (!mounted) return;
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          // Don't block session loading on profile fetch — chrome
-          // (header, sidebar) can render from the user object alone,
-          // profile enriches async. Callers that need to branch on
-          // profile data gate on `profileLoading` instead.
-          fetchProfile(currentUser.id);
-        } else {
-          // No user → no profile to load. Flip profileLoading off so
-          // pages that gate on it don't wait forever on the logged-out
-          // path (the route guard or redirect should fire instead).
-          setProfileLoading(false);
-          capabilitiesUserRef.current = null;
-          resetCapabilities(true);
-        }
-      } catch (err) {
-        console.error("[AuthProvider] init threw:", err);
-      } finally {
-        if (mounted) setLoading(false);
-        clearTimeout(safetyTimer);
-      }
-    };
-
-    init();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        if (currentUser.id !== lastFetchedUserIdRef.current) {
-          fetchProfile(currentUser.id);
-        }
-      } else {
-        lastFetchedUserIdRef.current = null;
-        capabilitiesUserRef.current = null;
-        resetCapabilities(true);
-        setProfile(null);
-        setAccount(null);
-        setProfileLoading(false);
-      }
-
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      clearTimeout(safetyTimer);
-      subscription.unsubscribe();
-    };
-  }, [fetchProfile, resetCapabilities]);
+    } else {
+      lastFetchedUserIdRef.current = null;
+      capabilitiesUserRef.current = null;
+      resetCapabilities(true);
+      setProfile(null);
+      setAccount(null);
+      setProfileLoading(false);
+      setCapabilitiesLoading(false);
+    }
+  }, [userId, userLoading, fetchProfile, resetCapabilities]);
 
   const signOut = useCallback(async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setAccount(null);
-    capabilitiesUserRef.current = null;
-    resetCapabilities(true);
+    await nextAuthSignOut({ redirect: false });
     window.location.href = "/login";
-  }, [resetCapabilities]);
+  }, []);
 
   const refreshCapabilities = useCallback(async () => {
     if (!capabilitiesUserRef.current) return;
@@ -685,7 +632,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         profile,
-        loading,
+        loading: userLoading,
         profileLoading,
         signOut,
         refreshProfile,

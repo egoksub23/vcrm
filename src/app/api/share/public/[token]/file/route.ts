@@ -118,8 +118,16 @@ async function notifyCreatorFirstOpen(shareId: string, shareTitle: string) {
 
   if (!link?.created_by) return;
 
-  const { data: userData } = await admin.auth.admin.getUserById(link.created_by);
-  const creatorEmail = userData?.user?.email;
+  const userRes = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${link.created_by}`,
+    {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+      },
+    },
+  );
+  const creatorEmail = userRes.ok ? ((await userRes.json()) as { email?: string }).email : undefined;
   if (!creatorEmail) return;
 
   const productName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Halo";

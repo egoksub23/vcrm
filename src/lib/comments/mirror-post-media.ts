@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { extensionForMime } from '@/lib/media/filename'
 import { buildMediaPath } from '@/lib/storage/upload-media'
+import { appStorage } from '@/lib/storage/provider'
 
 // ============================================================
 // A post's picture, kept in OUR storage.
@@ -52,7 +53,7 @@ export function postMediaFileName(provider: string, externalPostId: string, mime
 }
 
 export interface MirrorPostMediaArgs {
-  db: Pick<SupabaseClient, 'storage'>
+  db?: Pick<SupabaseClient, 'storage'>
   accountId: string
   provider: string
   externalPostId: string
@@ -77,13 +78,12 @@ export async function mirrorPostMedia(a: MirrorPostMediaArgs): Promise<string | 
     if (bytes.byteLength === 0 || bytes.byteLength > POST_MEDIA_MAX_BYTES) return null
 
     const path = buildMediaPath(accountId, postMediaFileName(provider, externalPostId, type), null, POST_MEDIA_FOLDER)
-    const bucket = db.storage.from(POST_MEDIA_BUCKET)
-    const { error } = await bucket.upload(path, bytes, { contentType: type, cacheControl: '31536000', upsert: true })
+    const { error } = await appStorage().from(POST_MEDIA_BUCKET).upload(path, bytes, { contentType: type, cacheControl: '31536000', upsert: true })
     if (error) {
       console.warn('[comments] post picture upload failed:', error.message)
       return null
     }
-    return bucket.getPublicUrl(path).data.publicUrl || null
+    return appStorage().from(POST_MEDIA_BUCKET).getPublicUrl(path).data.publicUrl || null
   } catch (err) {
     console.warn('[comments] could not keep a post picture:', err instanceof Error ? err.message : err)
     return null

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { auth as nextAuth } from '@/auth'
 import { assertCapability, requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { getTemplate } from '@/lib/automations/templates'
@@ -33,18 +34,16 @@ export async function POST(request: Request) {
   // Creating an automation is a write — the RLS automations_insert policy
   // requires `agent`, but this route inserts via the service-role client
   // which bypasses RLS, so the role must be enforced here.
-  let auth: CapabilityContext
+  let ctx: CapabilityContext
   try {
-    auth = await requireCapability('automations.manage')
+    ctx = await requireCapability('automations.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
 
+  const session = await nextAuth()
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Resolve the caller's account_id — `automations.account_id` is NOT
   // NULL post-017, so an INSERT without it trips the not-null constraint
@@ -52,7 +51,7 @@ export async function POST(request: Request) {
   const { data: profile } = await supabase
     .from('profiles')
     .select('account_id')
-    .eq('user_id', user.id)
+    .eq('user_id', session.user.id)
     .single()
   const accountId = profile?.account_id as string | undefined
   if (!accountId) {
@@ -95,7 +94,7 @@ export async function POST(request: Request) {
   // send documents themselves can build one.
   if (stepsUseSign(effectiveSteps as { step_type: string }[] | undefined)) {
     try {
-      assertCapability(auth, 'sign.send')
+      assertCapability(ctx, 'sign.send')
     } catch (err) {
       return toErrorResponse(err)
     }
@@ -127,7 +126,7 @@ export async function POST(request: Request) {
   const { data: automation, error: insertErr } = await admin
     .from('automations')
     .insert({
-      user_id: user.id,
+      user_id: session.user.id,
       account_id: accountId,
       name: effectiveName,
       description: effectiveDescription ?? null,

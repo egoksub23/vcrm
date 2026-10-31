@@ -128,9 +128,19 @@ async function loginAddresses(ctx: SignCtx, userId: string): Promise<string[]> {
   const profile = (p.data as { email?: string | null } | null)?.email;
   if (profile?.trim()) found.add(normalizeEmail(profile));
   try {
-    const u = await ctx.admin.auth.admin.getUserById(userId);
-    const email = u.data?.user?.email;
-    if (email) found.add(normalizeEmail(email));
+    const userRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${userId}`,
+      {
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        },
+      },
+    );
+    if (userRes.ok) {
+      const u = await userRes.json() as { email?: string };
+      if (u.email) found.add(normalizeEmail(u.email));
+    }
   } catch {
     // the profile's address is enough when the sign-in record cannot be read
   }

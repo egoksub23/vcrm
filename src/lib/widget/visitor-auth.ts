@@ -8,7 +8,7 @@
 // contract shape: `{ error: string, code?: string }`.
 // ============================================================
 import { NextResponse } from 'next/server'
-import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
+import { type SupabaseClient } from '@supabase/supabase-js'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { checkRateLimit, rateLimitResponse, type RateLimitOptions } from '@/lib/rate-limit'
@@ -54,13 +54,15 @@ export function bearerToken(request: Request): string {
 /** Verify the visitor's anonymous-auth JWT; returns the auth uid or null. */
 export async function verifyVisitorJwt(token: string): Promise<string | null> {
   if (!token) return null
-  const anonClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
-  const { data, error } = await anonClient.auth.getUser(token)
-  if (error || !data.user) return null
-  return data.user.id
+  const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    },
+  })
+  if (!res.ok) return null
+  const data = await res.json() as { id?: string }
+  return data.id ?? null
 }
 
 export interface WidgetVisitorContext {

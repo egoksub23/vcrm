@@ -37,6 +37,7 @@ import { ComplianceError } from "../errors";
 import { codeEmail } from "../messages";
 import { sendCustomerNotice, type NoticeDeps } from "../service/notices";
 import { COMPLIANCE_BUCKET, putEvidence, recordEvidence, type StoredEvidence } from "../service/files";
+import { appStorage } from "@/lib/storage/provider";
 import { loadType } from "../service/read";
 import { createComplianceRequest } from "../service/write";
 import type { RequestTypeRow, CustomerLocale } from "../types";
@@ -461,7 +462,7 @@ export async function submitPublicForm(env: PublicEnv, req: SubmitRequest): Prom
     return { kind: "ok", reference: created.reference };
   } catch (err) {
     // objects already stored for a case that was not made
-    if (stored.length > 0) await env.admin.storage.from(COMPLIANCE_BUCKET).remove(stored.map((s) => s.file.path)).catch(() => undefined);
+    if (stored.length > 0) await appStorage().from(COMPLIANCE_BUCKET).remove(stored.map((s) => s.file.path)).catch(() => undefined);
     if (isUniqueViolation(err) || (err instanceof ComplianceError && err.code === "duplicate_open")) {
       // two posts at the same moment: the other one made the case
       try {

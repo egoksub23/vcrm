@@ -11,6 +11,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+import { appStorage } from '@/lib/storage/provider'
 import {
   HANDOFF_URL_TTL_SECONDS,
   PRIVATE_MEDIA_BUCKET,
@@ -24,7 +25,7 @@ import {
  * returns null (never sign it); any other URL is returned as given.
  */
 export async function signMediaUrl(
-  admin: Pick<SupabaseClient, 'storage'>,
+  _admin: Pick<SupabaseClient, 'storage'>,
   url: string,
   accountId: string,
   ttlSeconds: number = HANDOFF_URL_TTL_SECONDS,
@@ -32,19 +33,19 @@ export async function signMediaUrl(
   const path = privateMediaPath(url)
   if (path === null) return url
   if (!pathInAccount(path, accountId)) return null
-  const { data, error } = await admin.storage.from(PRIVATE_MEDIA_BUCKET).createSignedUrl(path, ttlSeconds)
+  const { data, error } = await appStorage().from(PRIVATE_MEDIA_BUCKET).createSignedUrl(path, ttlSeconds)
   if (error || !data?.signedUrl) return null
   return data.signedUrl
 }
 
 /** `signMediaUrl` for a list, in one Storage round trip per private file (order and nulls kept). */
 export async function signMediaUrls(
-  admin: Pick<SupabaseClient, 'storage'>,
+  _admin: Pick<SupabaseClient, 'storage'>,
   urls: readonly string[],
   accountId: string,
   ttlSeconds: number = HANDOFF_URL_TTL_SECONDS,
 ): Promise<(string | null)[]> {
-  return Promise.all(urls.map((u) => signMediaUrl(admin, u, accountId, ttlSeconds)))
+  return Promise.all(urls.map((u) => signMediaUrl(_admin, u, accountId, ttlSeconds)))
 }
 
 /**
@@ -53,13 +54,13 @@ export async function signMediaUrls(
  * the template header sample. Null for a URL outside the workspace's folder.
  */
 export async function downloadPrivateMedia(
-  admin: Pick<SupabaseClient, 'storage'>,
+  _admin: Pick<SupabaseClient, 'storage'>,
   url: string,
   accountId: string,
 ): Promise<Blob | null> {
   const path = privateMediaPath(url)
   if (path === null || !pathInAccount(path, accountId)) return null
-  const { data, error } = await admin.storage.from(PRIVATE_MEDIA_BUCKET).download(path)
+  const { data, error } = await appStorage().from(PRIVATE_MEDIA_BUCKET).download(path)
   if (error || !data) return null
   return data
 }

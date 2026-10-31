@@ -33,6 +33,7 @@ import {
   type InboundMedia,
 } from '@/lib/widget/inbound'
 import { authenticateVisitorRequest, loadOwnedConversation, widgetError } from '@/lib/widget/visitor-auth'
+import { appStorage } from '@/lib/storage/provider'
 
 const TEXT_MAX_LEN = 4000
 const CAPTION_MAX_LEN = 1024
@@ -91,13 +92,13 @@ export async function POST(request: Request) {
         rawPath.startsWith(`account-${accountId}/widget/${conversationId}/`) &&
         !rawPath.includes('..')
       ) {
-        await admin.storage.from(WIDGET_MEDIA_BUCKET).remove([rawPath]).catch(() => undefined)
+        await appStorage().from(WIDGET_MEDIA_BUCKET).remove([rawPath]).catch(() => undefined)
       }
       return widgetError(declared.status, declared.error, declared.code, corsOrigin)
     }
     const m = declared.media
 
-    const { data: info, error: infoError } = await admin.storage.from(WIDGET_MEDIA_BUCKET).info(m.path)
+    const { data: info, error: infoError } = await appStorage().from(WIDGET_MEDIA_BUCKET).info(m.path)
     if (infoError || !info) {
       return widgetError(400, 'The uploaded file could not be found', 'bad_request', corsOrigin)
     }
@@ -106,11 +107,11 @@ export async function POST(request: Request) {
       contentType: info.contentType ?? (info as { content_type?: string }).content_type ?? null,
     })
     if (!stored.ok) {
-      await admin.storage.from(WIDGET_MEDIA_BUCKET).remove([m.path]).catch(() => undefined)
+      await appStorage().from(WIDGET_MEDIA_BUCKET).remove([m.path]).catch(() => undefined)
       return widgetError(stored.status, stored.error, stored.code, corsOrigin)
     }
 
-    const { data: pub } = admin.storage.from(WIDGET_MEDIA_BUCKET).getPublicUrl(m.path)
+    const { data: pub } = appStorage().from(WIDGET_MEDIA_BUCKET).getPublicUrl(m.path)
     media = { url: pub.publicUrl, kind: m.kind, mimeType: m.mimeType }
   }
 

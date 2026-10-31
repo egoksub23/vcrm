@@ -91,7 +91,16 @@ export async function POST(request: Request) {
     const accountId = (profile as { account_id?: string } | null)?.account_id;
     if (!accountId) {
       console.error("[POST /api/platform/accounts] no account was created for", userId);
-      await admin.auth.admin.deleteUser(userId).catch(() => {});
+      await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${userId}`,
+        {
+          method: "DELETE",
+          headers: {
+            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+          },
+        },
+      ).catch(() => {});
       return NextResponse.json({ error: "Could not create the workspace" }, { status: 500 });
     }
 

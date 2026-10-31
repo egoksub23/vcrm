@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,9 +23,8 @@ const MIN_PASSWORD_LENGTH = 8;
 // the visitor is signed in just long enough to choose a password.
 export default function ResetPasswordPage() {
   const t = useTranslations("ResetPasswordPage");
-  const supabase = createClient();
 
-  // null = still checking, false = no session (link expired / reused).
+  // null = still checking, false = no token (link expired / reused).
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -34,14 +32,12 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (active) setHasSession(Boolean(data.user));
-    });
-    return () => {
-      active = false;
-    };
-  }, [supabase]);
+    // /auth/confirm sets sb-access-token to the GoTrue access token
+    // after verifying the recovery OTP. Its presence means we have a
+    // valid (≤1h) recovery session.
+    const m = document.cookie.match(/(?:^|;\s*)sb-access-token=([^;]+)/);
+    setHasSession(Boolean(m));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,14 +52,18 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      setError(updateError.message);
+    const res = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const json = await res.json() as { error?: string };
+    if (!res.ok) {
+      setError(json.error ?? "Failed to save password");
       setLoading(false);
       return;
     }
-    // Full-page navigation so the middleware sees the refreshed cookies.
-    window.location.href = "/dashboard";
+    window.location.href = "/login";
   };
 
   return (

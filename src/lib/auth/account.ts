@@ -32,6 +32,7 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { hasMinRole, isAccountRole, type AccountRole } from "./roles";
 import {
@@ -134,20 +135,18 @@ const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
  * minimum-role check — it's a thin wrapper over this.
  */
 export async function getCurrentAccount(): Promise<AccountContext> {
-  const supabase = await createClient();
+  // Phase 1: read session from Auth.js instead of Supabase GoTrue.
+  const session = await auth();
+  if (!session?.user?.id) throw new UnauthorizedError();
+  const userId = session.user.id;
 
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabase.auth.getUser();
-  if (userErr || !user) {
-    throw new UnauthorizedError();
-  }
+  // Build the data client (injects Auth.js Supabase JWT → RLS works).
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("profiles")
     .select("account_id, account_role, custom_role_id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error) {
@@ -212,7 +211,7 @@ export async function getCurrentAccount(): Promise<AccountContext> {
 
   return {
     supabase,
-    userId: user.id,
+    userId,
     accountId: data.account_id,
     role: data.account_role,
     customRoleId: (data as { custom_role_id?: string | null }).custom_role_id ?? null,

@@ -37,6 +37,7 @@ import { hashIp } from "../public/session";
 import { PUBLIC_MAX_FILE_BYTES, fileFieldsFor, parsePublicSubmission, type PublicProblems } from "../public/validate";
 import { typeSupportsPublicForm, type PublicEnv, type RetryCode, type UploadedPart } from "../public/service";
 import { COMPLIANCE_BUCKET, putEvidence, recordEvidence, type StoredEvidence } from "../service/files";
+import { appStorage } from "@/lib/storage/provider";
 import { holdersOf, loadRow, loadType } from "../service/read";
 import type { RequestRow } from "../service/rows";
 import { openSensitive, sealSensitive } from "../secrets";
@@ -242,7 +243,7 @@ export async function submitLinkForm(env: PublicEnv, req: LinkSubmitRequest, det
   // 8. the files go into the private bucket under the case's folder first; the claim and the update are ONE database step
   const stored: { fieldKey: string; file: StoredEvidence }[] = [];
   const cleanup = async () => {
-    if (stored.length > 0) await env.admin.storage.from(COMPLIANCE_BUCKET).remove(stored.map((s) => s.file.path)).catch(() => undefined);
+    if (stored.length > 0) await appStorage().from(COMPLIANCE_BUCKET).remove(stored.map((s) => s.file.path)).catch(() => undefined);
   };
   try {
     for (const f of fileFieldsFor("closure")) {

@@ -54,9 +54,24 @@ export async function GET(request: Request) {
 
   if (tokenHash && type && OTP_TYPES.includes(type)) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash })
+    const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash })
     if (!error) {
-      return NextResponse.redirect(`${base}${next}`)
+      const response = NextResponse.redirect(`${base}${next}`)
+      // For recovery (password reset), set the GoTrue access token as
+      // sb-access-token so /reset-password can detect the session and
+      // /api/auth/reset-password can verify+use it. Non-HTTP-only so the
+      // page can check cookie presence client-side.
+      if (type === 'recovery' && data.session?.access_token) {
+        const secure = process.env.NODE_ENV === 'production'
+        response.cookies.set('sb-access-token', data.session.access_token, {
+          httpOnly: false,
+          secure,
+          sameSite: 'lax',
+          maxAge: 60 * 60,
+          path: '/',
+        })
+      }
+      return response
     }
     console.error('[GET /auth/confirm] verifyOtp error:', error.message)
   }

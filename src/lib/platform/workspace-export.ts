@@ -21,6 +21,7 @@ import { Zip, ZipDeflate, ZipPassThrough, strToU8 } from 'fflate'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { toCsv } from '@/lib/csv'
+import { appStorage } from '@/lib/storage/provider'
 
 const PAGE = 500
 const FILE_PAGE = 200
@@ -129,7 +130,7 @@ export async function* workspaceExportChunks(
       for (const o of objects) {
         const path = `files/${o.bucket}/${o.name.slice(prefix.length)}`
         try {
-          const { data: blob, error: dlError } = await db.storage.from(o.bucket).download(o.name)
+          const { data: blob, error: dlError } = await appStorage().from(o.bucket).download(o.name)
           if (dlError || !blob) throw new Error(dlError?.message ?? 'empty')
           // Files are already compressed (images, video, pdf): store them.
           const f = new ZipPassThrough(path)

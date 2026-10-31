@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { auth } from '@/auth'
 import { assertCapability, requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import {
@@ -15,11 +16,9 @@ import { aiSetupForActivation } from '@/lib/automations/ai/activation'
 import { signSetupForActivation, stepsUseSign } from '@/lib/automations/sign-activation'
 
 async function requireUser() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
+  const session = await auth()
+  if (!session?.user?.id) return null
+  return { id: session.user.id, email: session.user.email }
 }
 
 export async function GET(

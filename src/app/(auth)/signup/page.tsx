@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createClient } from "@/lib/supabase/client";
 import { AuthOAuthSection } from "@/components/auth/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,17 +55,20 @@ function SignupPageInner() {
   // while unknown; the database enforces the rule either way, this only
   // sets expectations before someone fills in the form.
   const [signupOpen, setSignupOpen] = useState<boolean | null>(null);
-  const supabase = createClient();
 
   useEffect(() => {
     let active = true;
-    void supabase.rpc("signup_is_open").then(({ data, error: rpcError }) => {
-      if (active && !rpcError && typeof data === "boolean") setSignupOpen(data);
+    // This RPC is public (anon key, no auth required) — the data client
+    // with no token works fine here.
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      void createClient().rpc("signup_is_open").then(({ data, error: rpcError }) => {
+        if (active && !rpcError && typeof data === "boolean") setSignupOpen(data);
+      });
     });
     return () => {
       active = false;
     };
-  }, [supabase]);
+  }, []);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,34 +86,24 @@ function SignupPageInner() {
 
     setLoading(true);
 
-    // If we have an invite token, point Supabase's verification
-    // email back at the join page so the user can accept after
-    // verifying. Without a token, Supabase uses its default
-    // redirect (the app root).
     const emailRedirectTo = inviteToken
       ? `${window.location.origin}/join/${encodeURIComponent(inviteToken)}`
       : undefined;
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          // Lets a link invitation through the invite-only gate (migration 134).
-          ...(inviteToken ? { invite_token: inviteToken } : {}),
-        },
-        ...(emailRedirectTo ? { emailRedirectTo } : {}),
-      },
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, fullName, inviteToken: inviteToken ?? null, emailRedirectTo }),
     });
+    const json = await res.json() as { error?: string };
 
-    if (error) {
+    if (!res.ok) {
       // Supabase reports a database-side refusal (the invite-only gate) as
       // a generic "Database error saving new user".
       setError(
-        signupOpen === false && /database error saving new user/i.test(error.message)
+        signupOpen === false && /database error saving new user/i.test(json.error ?? "")
           ? t("inviteOnlyBlocked")
-          : error.message,
+          : (json.error ?? "Account creation failed"),
       );
       setLoading(false);
       return;

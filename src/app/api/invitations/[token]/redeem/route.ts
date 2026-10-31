@@ -28,6 +28,7 @@ import {
 } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/net/client-ip";
 import { createClient } from "@/lib/supabase/server";
+import { auth } from "@/auth";
 
 function rpcErrorToResponse(err: PostgrestError): NextResponse {
   if (err.code === "42501") {
@@ -62,17 +63,15 @@ export async function POST(
     );
   }
 
-  const supabase = await createClient();
-
   // The RPC checks `auth.uid()` itself, but failing fast here
   // gives a cleaner 401 without a Supabase round trip on the
   // common "user clicked the link before logging in" path.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const supabase = await createClient();
 
   const { data: accountId, error } = await supabase.rpc("redeem_invitation", {
     p_token_hash: hashInviteToken(token),

@@ -1,25 +1,27 @@
 "use client";
 
 // "Continue with Google" / "Continue with Microsoft" — shared by
-// /login and /signup (Supabase Auth's signInWithOAuth() call is
-// identical for both cases; there's no separate "OAuth signup" flow to
-// build). Requires the Google/Azure providers to be configured in
-// Supabase Auth first (owner-side dashboard/env config, not app code —
-// see docs/sso-login-setup.md) and the new /auth/callback route to
-// exchange the returned code for a session.
+// /login and /signup. Phase 1: uses Auth.js signIn() instead of
+// Supabase's signInWithOAuth(); Auth.js handles the OAuth round-trip at
+// /api/auth/callback/* and then redirects to `callbackUrl`.
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 
 type OAuthProvider = "google" | "azure";
 
+const NEXTAUTH_PROVIDER: Record<OAuthProvider, string> = {
+  google: "google",
+  azure: "microsoft-entra-id",
+};
+
 interface AuthOAuthSectionProps {
   /** Where to land after a successful round-trip — e.g. "/dashboard" or
-   *  "/join/<token>" when arriving via an invite link (mirrors the
-   *  password-login flow's own `destination` choice). */
+   *  "/join/<token>" when arriving via an invite link. Passed as
+   *  `callbackUrl` to Auth.js, which sets it as the post-OAuth redirect. */
   next: string;
   onError: (message: string) => void;
 }
@@ -34,19 +36,15 @@ export function AuthOAuthSection({ next, onError }: AuthOAuthSectionProps) {
   const handleOAuth = async (provider: OAuthProvider) => {
     onError("");
     setLoadingProvider(provider);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-      },
-    });
-    if (error) {
-      onError(error.message);
+    try {
+      // Auth.js navigates the browser to the provider's consent page.
+      // On success it redirects to callbackUrl; the component never
+      // re-renders so there's no need to call setLoadingProvider(null).
+      await signIn(NEXTAUTH_PROVIDER[provider], { callbackUrl: next });
+    } catch {
+      onError(t("callbackFailed"));
       setLoadingProvider(null);
     }
-    // On success Supabase immediately navigates the browser to the
-    // provider's consent screen — there's nothing further to do here.
   };
 
   return (
