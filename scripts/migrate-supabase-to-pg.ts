@@ -149,6 +149,22 @@ async function getPrimaryKeys(pg: ReturnType<typeof postgres>, table: string): P
   return rows.map(r => r.column_name)
 }
 
+// ---- generated column detection ---------------------------------------------
+// Generated (ALWAYS) columns are computed by PostgreSQL; we must not INSERT into them.
+
+async function getGeneratedCols(pg: ReturnType<typeof postgres>, table: string): Promise<Set<string>> {
+  const rows = await pg<{ attname: string }[]>`
+    SELECT attname
+    FROM pg_attribute
+    WHERE attrelid = (SELECT oid FROM pg_class
+                      WHERE relname = ${table}
+                        AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public'))
+      AND attgenerated = 's'
+      AND NOT attisdropped
+  `
+  return new Set(rows.map(r => r.attname))
+}
+
 // ---- column type map (for JSON cast) ----------------------------------------
 
 async function getJsonbCols(pg: ReturnType<typeof postgres>, table: string): Promise<Set<string>> {
@@ -170,10 +186,12 @@ async function upsertBatch(
   rows: Record<string, unknown>[],
   pkCols: string[],
   jsonbCols: Set<string>,
+  generatedCols: Set<string> = new Set(),
 ): Promise<void> {
   if (rows.length === 0) return
 
-  const cols = Object.keys(rows[0])
+  // Strip generated columns — PostgreSQL computes them and refuses explicit values.
+  const cols = Object.keys(rows[0]).filter(c => !generatedCols.has(c))
   const colList = cols.map(ident).join(', ')
 
   // How many rows fit under the param limit?
@@ -233,6 +251,7 @@ async function migrateTable(
 ): Promise<{ read: number; upserted: number; errors: number }> {
   const pkCols = await getPrimaryKeys(pg, table)
   const jsonbCols = await getJsonbCols(pg, table)
+  const generatedCols = await getGeneratedCols(pg, table)
 
   // Clear any rows seeded by migration SQL files so Supabase data wins.
   // FK checks are already disabled via session_replication_role=replica.
@@ -267,7 +286,7 @@ async function migrateTable(
         if (data2.length === 0) break
         read += data2.length
         if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols)
+          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols)
         }
         upserted += data2.length
         if (data2.length < PAGE_SIZE) break
@@ -282,7 +301,7 @@ async function migrateTable(
     if (!data || data.length === 0) break
     read += data.length
     if (!DRY_RUN) {
-      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols)
+      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols)
     }
     upserted += data.length
 
