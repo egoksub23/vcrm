@@ -20,7 +20,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { getOAuthBaseUrl } from '@/lib/gmail/oauth'
 import { vircleChatGate } from '@/lib/vircle-chat/admin-gate'
 import {
@@ -44,7 +44,7 @@ const webhookUrlFor = (request: Request) => `${getOAuthBaseUrl(request)}/api/vir
 export async function GET(request: Request) {
   try {
     const ctx = await requireCapability('channels.manage')
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const webhookUrl = webhookUrlFor(request)
 
     if (!(await vircleChatEnabled(admin, ctx.accountId))) {
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     const ctx = await requireCapability('channels.manage')
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const refused = await vircleChatGate(admin, ctx, BUCKET)
     if (refused) return refused
 
@@ -148,7 +148,7 @@ export async function PUT(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const ctx = await requireCapability('channels.manage')
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const refused = await vircleChatGate(admin, ctx, BUCKET)
     if (refused) return refused
 
@@ -188,7 +188,7 @@ export async function PATCH(request: Request) {
 export async function DELETE() {
   try {
     const ctx = await requireCapability('channels.manage')
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const refused = await vircleChatGate(admin, ctx, BUCKET)
     if (refused) return refused
 

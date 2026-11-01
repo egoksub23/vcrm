@@ -19,6 +19,7 @@
 import { NextResponse, after } from 'next/server'
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { clientIp } from '@/lib/net/client-ip'
 import { checkRateLimit, isRateLimited, RATE_LIMITS } from '@/lib/rate-limit'
 import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
       ? ((body as Record<string, unknown>).workspace_key as string)
       : ''
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const row = workspaceKey ? await findConfigByKey(admin, workspaceKey) : null
   // An unknown workspace key and a wrong signature look the same from outside.
   if (!row) return reject(401, 'Invalid signature')
@@ -105,7 +106,8 @@ export async function POST(request: Request) {
   // retried. A failed broadcast is logged and still answered 200, because a late "typing..." is useless.
   if (event.kind === 'user.typing') {
     try {
-      await broadcastUserTyping(admin, row.account_id, event)
+      // typing.ts still needs a real Supabase client for the Realtime channel broadcast
+      await broadcastUserTyping(supabaseAdmin(), row.account_id, event)
     } catch (err) {
       console.error('[vircle-chat] typing broadcast failed:', err instanceof Error ? err.message : err)
     }

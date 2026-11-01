@@ -16,6 +16,8 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
+import { appStorage } from '@/lib/storage/provider'
 
 import { resolveAuditUserId } from '@/lib/api/v1/contacts'
 import { reopenClosedConversation } from '@/lib/conversations/reopen'
@@ -44,12 +46,12 @@ export const DROPPED_FILE_NOTE = '[Attachment not received]'
  * contact is folded into that one afterwards (the wallet id moves with the merge).
  */
 export async function resolveVircleContact(
-  admin: SupabaseClient,
+  admin: PgDb,
   accountId: string,
   ownerUserId: string,
   user: InboundEvent['user'],
 ): Promise<{ contactId: string; created: boolean }> {
-  const store = createSupabaseIdentityStore(admin)
+  const store = createSupabaseIdentityStore(admin as unknown as SupabaseClient)
   const walletContact = await store.findByWallet(accountId, user.walletId)
   const result = await resolveIdentityContact(store, {
     accountId,
@@ -85,7 +87,7 @@ export type InboundResult =
   | { status: 'duplicate'; messageId: string | null }
 
 export async function ingestInbound(
-  admin: SupabaseClient,
+  admin: PgDb,
   cfg: VircleChatConfigRow,
   ev: InboundEvent,
 ): Promise<InboundResult> {
@@ -97,10 +99,10 @@ export async function ingestInbound(
   const existing = await findMessageByServerId(admin, accountId, m.serverId)
   if (existing) return { status: 'duplicate', messageId: existing.id }
 
-  const ownerUserId = await resolveAuditUserId(admin, accountId)
+  const ownerUserId = await resolveAuditUserId(admin as unknown as SupabaseClient, accountId)
   const identity = await resolveVircleContact(admin, accountId, ownerUserId, ev.user)
 
-  const resolved = await findOrCreateConversation(admin, accountId, ownerUserId, identity.contactId)
+  const resolved = await findOrCreateConversation(admin as unknown as SupabaseClient, accountId, ownerUserId, identity.contactId)
   if (!resolved) throw new Error('Could not resolve the conversation for a Vircle Chat message')
   const conversation = resolved.conversation as { id: string; status?: string | null; vircle_conversation_id?: string | null }
 
@@ -116,7 +118,7 @@ export async function ingestInbound(
   let text = m.text
   if (m.type !== 'text' && m.media) {
     mediaUrl = await mirrorUserFile({
-      storage: admin.storage as never,
+      storage: appStorage(),
       accountId,
       serverId: m.serverId,
       kind: m.type,
@@ -135,7 +137,7 @@ export async function ingestInbound(
   // An id Halo does not know is ignored: the message is stored without a link.
   const replyToMessageId = m.replyToServerId ? await findReplyTarget(admin, conversation.id, m.replyToServerId) : null
 
-  const isFirst = await isFirstCustomerMessage(admin, conversation.id)
+  const isFirst = await isFirstCustomerMessage(admin as unknown as SupabaseClient, conversation.id)
   const { data, error } = await admin
     .from('messages')
     .insert({
@@ -163,15 +165,15 @@ export async function ingestInbound(
   }
 
   const fanOut = async () => {
-    await reopenClosedConversation(admin, conversation).catch((err) =>
+    await reopenClosedConversation(admin as unknown as SupabaseClient, conversation).catch((err) =>
       console.error('[vircle-chat] reopen failed:', err),
     )
-    await runWidgetInboundFanout(admin, {
+    await runWidgetInboundFanout(admin as unknown as SupabaseClient, {
       accountId,
       contactId: identity.contactId,
       conversation,
       ownerUserId,
-      messageId: data.id as string,
+      messageId: (data as { id: string }).id,
       text: text ?? '',
       media: mediaUrl
         ? { url: mediaUrl, kind: contentType as 'image' | 'video' | 'audio' | 'document', mimeType: mediaType ?? 'application/octet-stream' }
@@ -181,11 +183,11 @@ export async function ingestInbound(
     })
   }
 
-  return { status: 'stored', messageId: data.id as string, contactId: identity.contactId, conversationId: conversation.id, fanOut }
+  return { status: 'stored', messageId: (data as { id: string }).id, contactId: identity.contactId, conversationId: conversation.id, fanOut }
 }
 
 /** Halo's message for a gateway id, in THIS conversation only (a quote never reaches into another chat). */
-async function findReplyTarget(admin: SupabaseClient, conversationId: string, serverId: string): Promise<string | null> {
+async function findReplyTarget(admin: PgDb, conversationId: string, serverId: string): Promise<string | null> {
   const { data, error } = await admin
     .from('messages')
     .select('id')
@@ -195,10 +197,10 @@ async function findReplyTarget(admin: SupabaseClient, conversationId: string, se
     .limit(1)
   // A lookup that fails only costs the quote, never the message.
   if (error) return null
-  return ((data ?? [])[0] as { id: string } | undefined)?.id ?? null
+  return ((data as unknown[] | null ?? [])[0] as { id: string } | undefined)?.id ?? null
 }
 
-async function findMessageByServerId(admin: SupabaseClient, accountId: string, serverId: string) {
+async function findMessageByServerId(admin: PgDb, accountId: string, serverId: string) {
   const { data, error } = await admin
     .from('messages')
     .select('id, status, conversation_id, conversations!inner(account_id)')
@@ -207,7 +209,7 @@ async function findMessageByServerId(admin: SupabaseClient, accountId: string, s
     .eq('conversations.account_id', accountId)
     .limit(1)
   if (error) throw error
-  return ((data ?? [])[0] as { id: string; status: string; conversation_id: string } | undefined) ?? null
+  return ((data as unknown[] | null ?? [])[0] as { id: string; status: string; conversation_id: string } | undefined) ?? null
 }
 
 // ------------------------------------------------------------
@@ -227,7 +229,7 @@ export function canMoveStatus(current: string, incoming: ReceiptEvent['status'])
 
 export type ReceiptResult = { status: 'updated' | 'ignored' | 'unknown_message' }
 
-export async function applyReceipt(admin: SupabaseClient, cfg: VircleChatConfigRow, ev: ReceiptEvent): Promise<ReceiptResult> {
+export async function applyReceipt(admin: PgDb, cfg: VircleChatConfigRow, ev: ReceiptEvent): Promise<ReceiptResult> {
   const msg = await findMessageByServerId(admin, cfg.account_id, ev.serverId)
   if (!msg) return { status: 'unknown_message' }
   if (!canMoveStatus(msg.status, ev.status)) return { status: 'ignored' }
@@ -245,7 +247,7 @@ export async function applyReceipt(admin: SupabaseClient, cfg: VircleChatConfigR
     .select('id')
   if (error) throw new Error(`Could not update the message status: ${error.message}`)
   // A message the app reported as not delivered raises the same "Not sent" marker a failed send does.
-  if (ev.status === 'failed' && (changed ?? []).length > 0) {
+  if (ev.status === 'failed' && ((changed as unknown[] | null) ?? []).length > 0) {
     await admin.from('conversations').update({ last_message_failed: true }).eq('id', msg.conversation_id)
   }
   return { status: 'updated' }

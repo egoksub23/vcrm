@@ -13,7 +13,7 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { clientIp } from '@/lib/net/client-ip'
 import { checkRateLimit, isRateLimited, RATE_LIMITS } from '@/lib/rate-limit'
 import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       ? ((body as Record<string, unknown>).workspace_key as string)
       : ''
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const row = workspaceKey ? await findConfigByKey(admin, workspaceKey) : null
   // An unknown workspace key and a wrong signature look the same from outside.
   if (!row) return reject(401, 'Invalid signature')

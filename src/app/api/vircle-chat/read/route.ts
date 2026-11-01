@@ -13,7 +13,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { findVircleTarget } from '@/lib/vircle-chat/connection'
 import { notifyVircleReads } from '@/lib/vircle-chat/read-receipts'
 
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const target = await findVircleTarget(supabase, accountId, conversationId)
     if (!target) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
 
-    const notified = await notifyVircleReads(supabaseAdmin(), accountId, conversationId)
+    const notified = await notifyVircleReads(createAdminPgDb(), accountId, conversationId)
     return NextResponse.json({ ok: true, notified })
   } catch (err) {
     return toErrorResponse(err)

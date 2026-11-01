@@ -8,7 +8,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { vircleChatGate } from '@/lib/vircle-chat/admin-gate'
 import { findConfigForAccount, openConfig } from '@/lib/vircle-chat/config'
 import { simulatorUrl } from '@/lib/vircle-chat/simulator'
@@ -16,7 +16,7 @@ import { simulatorUrl } from '@/lib/vircle-chat/simulator'
 export async function POST() {
   try {
     const ctx = await requireCapability('channels.manage')
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const refused = await vircleChatGate(admin, ctx, 'vircleChatSimulator')
     if (refused) return refused
 

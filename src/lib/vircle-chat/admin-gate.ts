@@ -7,7 +7,7 @@
 // ============================================================
 
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
@@ -25,7 +25,7 @@ export function vircleChatDisabledResponse(): NextResponse {
  * names the rate-limit bucket; leave it out for a read that needs no limit.
  */
 export async function vircleChatGate(
-  admin: SupabaseClient,
+  admin: PgDb,
   ctx: { userId: string; accountId: string },
   bucket?: string,
 ): Promise<NextResponse | null> {

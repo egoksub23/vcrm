@@ -14,6 +14,7 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { signMediaUrl } from '@/lib/storage/sign-media'
 import { createSupabaseIdentityStore } from '@/lib/widget/identity-resolve'
@@ -88,8 +89,8 @@ export function parseHistoryRequest(body: unknown): ParsedHistoryRequest {
 // ------------------------------------------------------------
 
 /** The conversations of the contact that owns this wallet id, in this workspace. Empty when there is no such contact. */
-async function conversationIdsOf(admin: SupabaseClient, accountId: string, walletId: string): Promise<string[]> {
-  const contact = await createSupabaseIdentityStore(admin).findByWallet(accountId, walletId)
+async function conversationIdsOf(admin: PgDb, accountId: string, walletId: string): Promise<string[]> {
+  const contact = await createSupabaseIdentityStore(admin as unknown as SupabaseClient).findByWallet(accountId, walletId)
   if (!contact) return []
   const { data, error } = await admin.from('conversations').select('id').eq('account_id', accountId).eq('contact_id', contact.id)
   if (error) throw error
@@ -115,7 +116,7 @@ const COLUMNS =
   'id, message_id, conversation_id, sender_type, sender_id, content_type, content_text, media_url, media_type, media_animated, status, reply_to_message_id, created_at'
 
 /** What every history answer is drawn from: the person's own messages the app may see. */
-function shownMessages(admin: SupabaseClient, conversationIds: string[]) {
+function shownMessages(admin: PgDb, conversationIds: string[]) {
   return admin
     .from('messages')
     .select(COLUMNS)
@@ -142,7 +143,7 @@ export interface HistoryPageAnswer {
 const nextMillisecond = (iso: string) => new Date(Date.parse(iso) + 1).toISOString()
 
 export async function answerHistoryPage(
-  admin: SupabaseClient,
+  admin: PgDb,
   cfg: { account_id: string; history_days?: number | null },
   req: Extract<HistoryRequest, { kind: 'page' }>,
   now: number = Date.now(),
@@ -180,14 +181,14 @@ export async function answerHistoryPage(
       // Is there anything beyond Halo's limit? Then the app is told the conversation goes further back than it may show.
       const { data: older, error: olderError } = await shownMessages(admin, ids).lte('created_at', new Date(windowStart).toISOString()).limit(1)
       if (olderError) throw olderError
-      if ((older ?? []).length > 0) end = 'window'
+      if (((older as unknown[] | null) ?? []).length > 0) end = 'window'
     }
   }
   return { messages: await toMessages(admin, cfg.account_id, rows), more, end }
 }
 
 /** The rows as the contract lists them: who wrote (the agent's name), the quoted message, the file's description (never its address). */
-async function toMessages(admin: SupabaseClient, accountId: string, rows: MessageRow[]): Promise<Record<string, unknown>[]> {
+async function toMessages(admin: PgDb, accountId: string, rows: MessageRow[]): Promise<Record<string, unknown>[]> {
   if (rows.length === 0) return []
   const agentIds = [...new Set(rows.filter((r) => r.sender_type === 'agent' && r.sender_id).map((r) => r.sender_id as string))]
   const names = new Map<string, string>()
@@ -244,7 +245,7 @@ export interface HistoryFileAnswer {
 
 /** A fresh address for the file of one message of this person, or null when there is no such message or file. */
 export async function answerHistoryFile(
-  admin: SupabaseClient,
+  admin: PgDb,
   cfg: { account_id: string },
   req: Extract<HistoryRequest, { kind: 'file' }>,
 ): Promise<HistoryFileAnswer | null> {
@@ -252,9 +253,9 @@ export async function answerHistoryFile(
   if (ids.length === 0) return null
   const { data, error } = await shownMessages(admin, ids).eq('message_id', req.serverId).limit(1)
   if (error) throw error
-  const row = ((data ?? [])[0] as MessageRow | undefined) ?? null
+  const row = ((data as unknown[] | null ?? [])[0] as MessageRow | undefined) ?? null
   if (!row || !row.media_url || row.content_type === 'text') return null
-  const url = await signMediaUrl(admin, row.media_url, cfg.account_id, HISTORY_FILE_LINK_SECONDS)
+  const url = await signMediaUrl(null, row.media_url, cfg.account_id, HISTORY_FILE_LINK_SECONDS)
   if (!url || !/^https:\/\//.test(url)) return null
   return {
     media: {

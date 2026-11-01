@@ -5,6 +5,7 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { findConfigForAccount, openConfig } from './config'
 import { vircleChatEnabled } from './feature'
@@ -50,7 +51,7 @@ export async function findVircleTarget(
  * The connection to call the gateway with, or null when the workspace has none, has paused it,
  * or the operator has switched Vircle Chat off. Needs the service role (the secrets are encrypted).
  */
-export async function openGatewayConnection(admin: SupabaseClient, accountId: string): Promise<GatewayConnection | null> {
+export async function openGatewayConnection(admin: PgDb, accountId: string): Promise<GatewayConnection | null> {
   const cfg = await findConfigForAccount(admin, accountId)
   if (!cfg || cfg.enabled === false) return null
   if (!(await vircleChatEnabled(admin, accountId))) return null

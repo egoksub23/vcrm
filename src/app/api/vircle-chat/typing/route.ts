@@ -12,7 +12,7 @@
 import { NextResponse, after } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { findVircleTarget, openGatewayConnection } from '@/lib/vircle-chat/connection'
 import { sendTyping } from '@/lib/vircle-chat/gateway'
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     after(async () => {
       try {
-        const conn = await openGatewayConnection(supabaseAdmin(), accountId)
+        const conn = await openGatewayConnection(createAdminPgDb(), accountId)
         if (conn) await sendTyping(conn, target.walletId)
       } catch (err) {
         console.error('[vircle-chat] typing signal failed:', err instanceof Error ? err.message : err)

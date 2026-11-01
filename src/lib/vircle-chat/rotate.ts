@@ -5,7 +5,7 @@
 // team must be given the new one).
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { generateApiToken, generateSigningSecret, sealSecret } from './config'
 
@@ -13,7 +13,7 @@ export type RotatableSecret = 'signing_secret' | 'api_token'
 
 /** The new plaintext secret, or null when the workspace has no connection. Throws on a database error. */
 export async function rotateConnectionSecret(
-  admin: SupabaseClient,
+  admin: PgDb,
   accountId: string,
   column: RotatableSecret,
 ): Promise<string | null> {

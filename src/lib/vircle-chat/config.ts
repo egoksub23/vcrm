@@ -10,7 +10,7 @@
 // ============================================================
 
 import { randomBytes } from 'node:crypto'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
 
@@ -87,14 +87,14 @@ export function openConfig(row: VircleChatConfigRow): OpenConfig {
 }
 
 /** The connection a webhook names, by workspace key. Null when there is none. */
-export async function findConfigByKey(admin: SupabaseClient, workspaceKey: string): Promise<VircleChatConfigRow | null> {
+export async function findConfigByKey(admin: PgDb, workspaceKey: string): Promise<VircleChatConfigRow | null> {
   if (!WORKSPACE_KEY_PATTERN.test(workspaceKey)) return null
   const { data, error } = await admin.from('vircle_chat_config').select('*').eq('workspace_key', workspaceKey).maybeSingle()
   if (error) throw error
   return (data as VircleChatConfigRow | null) ?? null
 }
 
-export async function findConfigForAccount(admin: SupabaseClient, accountId: string): Promise<VircleChatConfigRow | null> {
+export async function findConfigForAccount(admin: PgDb, accountId: string): Promise<VircleChatConfigRow | null> {
   const { data, error } = await admin.from('vircle_chat_config').select('*').eq('account_id', accountId).maybeSingle()
   if (error) throw error
   return (data as VircleChatConfigRow | null) ?? null

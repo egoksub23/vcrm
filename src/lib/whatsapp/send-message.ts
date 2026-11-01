@@ -38,6 +38,7 @@ import {
 } from '@/lib/whatsapp/interactive';
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { pinnedFetch } from '@/lib/net/safe-fetch';
 import { downloadPrivateMedia, signMediaUrl } from '@/lib/storage/sign-media';
 import {
@@ -1202,7 +1203,7 @@ export async function sendMessageToConversation(
     if (!contact.wallet_id) {
       throw new SendMessageError('bad_request', 'Contact has no Vircle identity', 400);
     }
-    const admin = supabaseAdmin();
+    const admin = createAdminPgDb();
     // The connection holds encrypted secrets, so it is read with the service role.
     const cfgRow = await findConfigForAccount(admin, accountId);
     if (!cfgRow) {
@@ -1321,7 +1322,7 @@ export async function sendMessageToConversation(
   // Vircle Chat: an agent reply means the agent has read what the user wrote, so any "read" tick
   // an earlier notification failed to deliver goes now. Best-effort and never throws (contract 4.1).
   if (isVircleConversation && senderType === 'agent') {
-    await notifyVircleReads(supabaseAdmin(), accountId, conversationId);
+    await notifyVircleReads(createAdminPgDb(), accountId, conversationId);
   }
 
   // Best-effort "you have a new reply" email for a widget visitor who
