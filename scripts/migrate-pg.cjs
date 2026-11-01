@@ -26860,7 +26860,7 @@ async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /
     }).join(", ");
     if (pkCols.length > 0) {
       const conflictCols = pkCols.map(ident).join(", ");
-      const updateSet = cols.filter((c2) => !pkCols.includes(c2)).map((c2) => `${ident(c2)} = EXCLUDED.${ident(c2)}`).join(", ");
+      const updateSet = cols.filter((c2) => !pkCols.includes(c2) && !identityCols.has(c2)).map((c2) => `${ident(c2)} = EXCLUDED.${ident(c2)}`).join(", ");
       const onConflict = updateSet ? `ON CONFLICT (${conflictCols}) DO UPDATE SET ${updateSet}` : `ON CONFLICT (${conflictCols}) DO NOTHING`;
       try {
         const overriding = identityCols.size > 0 ? "OVERRIDING SYSTEM VALUE" : "";
@@ -26906,27 +26906,39 @@ async function migrateTable(sb, pg, table) {
   let upserted = 0;
   let errors = 0;
   let from = 0;
+  let pageSize = PAGE_SIZE;
   for (; ; ) {
-    const { data, error: error2 } = await sb.from(table).select("*").order("id", { ascending: true }).range(from, from + PAGE_SIZE - 1);
-    if (error2) {
-      if (error2.message?.includes('"id"') || error2.message?.includes("column")) {
-        const { data: data2, error: error22 } = await sb.from(table).select("*").range(from, from + PAGE_SIZE - 1);
-        if (error22 || !data2) {
-          console.error(red(`  \u2717 ${table} page @${from}: ${(error22 ?? error2).message}`));
-          errors++;
+    let data = null;
+    let fetchError = null;
+    let triedNoOrder = false;
+    for (; ; ) {
+      const { data: d2, error: e } = await sb.from(table).select("*").order("id", { ascending: true }).range(from, from + pageSize - 1);
+      if (!e) {
+        data = d2;
+        break;
+      }
+      if (!triedNoOrder && (e.message?.includes('"id"') || e.message?.includes("column"))) {
+        triedNoOrder = true;
+        const { data: d22, error: e2 } = await sb.from(table).select("*").range(from, from + pageSize - 1);
+        if (!e2) {
+          data = d22;
           break;
         }
-        if (data2.length === 0) break;
-        read2 += data2.length;
-        if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols, identityCols);
-        }
-        upserted += data2.length;
-        if (data2.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
-        continue;
+        fetchError = e2;
+        break;
       }
-      console.error(red(`  \u2717 ${table} page @${from}: ${error2.message}`));
+      if (e.message?.includes("timeout") || e.message?.includes("canceling")) {
+        if (pageSize > 50) {
+          pageSize = Math.max(50, Math.floor(pageSize / 2));
+          console.warn(yellow(`  \u26A0 timeout at page @${from}, retrying with pageSize=${pageSize}`));
+          continue;
+        }
+      }
+      fetchError = e;
+      break;
+    }
+    if (fetchError) {
+      console.error(red(`  \u2717 ${table} page @${from}: ${fetchError.message}`));
       errors++;
       break;
     }
@@ -26937,8 +26949,8 @@ async function migrateTable(sb, pg, table) {
     }
     upserted += data.length;
     process.stdout.write(`\r  ${dim(`${upserted.toLocaleString()} rows\u2026`)}`);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+    if (data.length < pageSize) break;
+    from += pageSize;
   }
   return { read: read2, upserted, errors };
 }
@@ -26970,26 +26982,16 @@ async function main() {
       END LOOP; END $$
   `);
   console.log(green("\u2713 Dropped check constraints"));
-  const genColsToRestore = await pg`
-    SELECT
-      c.relname                                       AS table_name,
-      a.attname                                       AS col_name,
-      pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type,
-      pg_get_expr(d.adbin, d.adrelid)                 AS expr
-    FROM pg_attribute a
-    JOIN pg_class     c ON c.oid = a.attrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
-    WHERE n.nspname = 'public'
-      AND a.attgenerated = 's'
-      AND NOT a.attisdropped
-  `;
-  for (const col of genColsToRestore) {
-    await pg.unsafe(`ALTER TABLE public.${ident(col.table_name)} DROP COLUMN IF EXISTS ${ident(col.col_name)} CASCADE`);
+  const STORED_GEN_COLS = [
+    { table: "contacts", col: "phone_normalized", type: "text", expr: `regexp_replace(phone, '\\D', '', 'g')` },
+    { table: "ai_knowledge_documents", col: "fts", type: "tsvector", expr: `to_tsvector('simple', content)` },
+    { table: "knowledge_document_versions", col: "fts", type: "tsvector", expr: `to_tsvector('simple', public.kb_cjk_split(content))` },
+    { table: "sign_option_lists", col: "item_count", type: "integer", expr: `jsonb_array_length(items)` }
+  ];
+  for (const c2 of STORED_GEN_COLS) {
+    await pg.unsafe(`ALTER TABLE public.${ident(c2.table)} DROP COLUMN IF EXISTS ${ident(c2.col)} CASCADE`);
   }
-  if (genColsToRestore.length > 0) {
-    console.log(green(`\u2713 Dropped ${genColsToRestore.length} STORED generated column(s) (will restore after migration)`));
-  }
+  console.log(green(`\u2713 Dropped ${STORED_GEN_COLS.length} STORED generated column(s) (will restore after migration)`));
   await pg.unsafe(`
     DO $$ DECLARE r RECORD; BEGIN
       FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
@@ -27065,14 +27067,12 @@ async function main() {
     END $$
   `);
   console.log(green("\u2713 Reset identity sequences"));
-  for (const col of genColsToRestore) {
+  for (const c2 of STORED_GEN_COLS) {
     await pg.unsafe(
-      `ALTER TABLE public.${ident(col.table_name)} ADD COLUMN IF NOT EXISTS ${ident(col.col_name)} ${col.data_type} GENERATED ALWAYS AS (${col.expr}) STORED`
+      `ALTER TABLE public.${ident(c2.table)} ADD COLUMN IF NOT EXISTS ${ident(c2.col)} ${c2.type} GENERATED ALWAYS AS (${c2.expr}) STORED`
     );
   }
-  if (genColsToRestore.length > 0) {
-    console.log(green(`\u2713 Restored ${genColsToRestore.length} STORED generated column(s)`));
-  }
+  console.log(green(`\u2713 Restored ${STORED_GEN_COLS.length} STORED generated column(s)`));
   await pg.unsafe(`
     DO $$ DECLARE r RECORD; BEGIN
       FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'

@@ -286,7 +286,7 @@ async function upsertBatch(
     if (pkCols.length > 0) {
       const conflictCols = pkCols.map(ident).join(', ')
       const updateSet = cols
-        .filter(c => !pkCols.includes(c))
+        .filter(c => !pkCols.includes(c) && !identityCols.has(c))
         .map(c => `${ident(c)} = EXCLUDED.${ident(c)}`)
         .join(', ')
       const onConflict = updateSet
@@ -353,36 +353,48 @@ async function migrateTable(
   let errors = 0
   let from = 0
 
-  for (;;) {
-    const { data, error } = await sb
-      .from(table)
-      .select('*')
-      .order('id' as never, { ascending: true } as never)
-      .range(from, from + PAGE_SIZE - 1)
+  let pageSize = PAGE_SIZE
 
-    if (error) {
-      // Some tables don't have an 'id' column — retry without order
-      if (error.message?.includes('"id"') || error.message?.includes('column')) {
-        const { data: data2, error: error2 } = await sb
+  for (;;) {
+    // Fetch one page from Supabase, retrying with smaller pages on statement timeout
+    let data: Record<string, unknown>[] | null = null
+    let fetchError: { message?: string } | null = null
+    let triedNoOrder = false
+
+    for (;;) {
+      const { data: d, error: e } = await sb
+        .from(table)
+        .select('*')
+        .order('id' as never, { ascending: true } as never)
+        .range(from, from + pageSize - 1)
+
+      if (!e) { data = d; break }
+
+      // No 'id' column — retry without ordering (once)
+      if (!triedNoOrder && (e.message?.includes('"id"') || e.message?.includes('column'))) {
+        triedNoOrder = true
+        const { data: d2, error: e2 } = await sb
           .from(table)
           .select('*')
-          .range(from, from + PAGE_SIZE - 1)
-        if (error2 || !data2) {
-          console.error(red(`  ✗ ${table} page @${from}: ${(error2 ?? error).message}`))
-          errors++
-          break
-        }
-        if (data2.length === 0) break
-        read += data2.length
-        if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols, identityCols)
-        }
-        upserted += data2.length
-        if (data2.length < PAGE_SIZE) break
-        from += PAGE_SIZE
-        continue
+          .range(from, from + pageSize - 1)
+        if (!e2) { data = d2; break }
+        fetchError = e2; break
       }
-      console.error(red(`  ✗ ${table} page @${from}: ${error.message}`))
+
+      // Statement timeout — halve page size and retry
+      if (e.message?.includes('timeout') || e.message?.includes('canceling')) {
+        if (pageSize > 50) {
+          pageSize = Math.max(50, Math.floor(pageSize / 2))
+          console.warn(yellow(`  ⚠ timeout at page @${from}, retrying with pageSize=${pageSize}`))
+          continue
+        }
+      }
+
+      fetchError = e; break
+    }
+
+    if (fetchError) {
+      console.error(red(`  ✗ ${table} page @${from}: ${fetchError.message}`))
       errors++
       break
     }
@@ -396,8 +408,8 @@ async function migrateTable(
 
     process.stdout.write(`\r  ${dim(`${upserted.toLocaleString()} rows…`)}`)
 
-    if (data.length < PAGE_SIZE) break
-    from += PAGE_SIZE
+    if (data.length < pageSize) break
+    from += pageSize
   }
 
   return { read, upserted, errors }
@@ -447,29 +459,21 @@ async function main() {
   console.log(green('✓ Dropped check constraints'))
 
   // Drop all STORED generated columns before migration. PostgreSQL evaluates the
-  // generation expression on every INSERT, which causes failures when the expression
-  // references JSONB functions (e.g. jsonb_array_length). We re-add them after migration
-  // and PostgreSQL recomputes the values from the migrated data.
-  const genColsToRestore = await pg<{ table_name: string; col_name: string; data_type: string; expr: string }[]>`
-    SELECT
-      c.relname                                       AS table_name,
-      a.attname                                       AS col_name,
-      pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type,
-      pg_get_expr(d.adbin, d.adrelid)                 AS expr
-    FROM pg_attribute a
-    JOIN pg_class     c ON c.oid = a.attrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
-    WHERE n.nspname = 'public'
-      AND a.attgenerated = 's'
-      AND NOT a.attisdropped
-  `
-  for (const col of genColsToRestore) {
-    await pg.unsafe(`ALTER TABLE public.${ident(col.table_name)} DROP COLUMN IF EXISTS ${ident(col.col_name)} CASCADE`)
+  // generation expression on every INSERT, which causes failures (e.g. jsonb_array_length
+  // on a JSONB column). We re-add them after migration; PostgreSQL recomputes the values.
+  //
+  // This list is derived from supabase/migrations/*.sql — update it if new generated
+  // columns are added. DROP COLUMN IF EXISTS is idempotent so re-runs are safe.
+  const STORED_GEN_COLS: Array<{ table: string; col: string; type: string; expr: string }> = [
+    { table: 'contacts',              col: 'phone_normalized', type: 'text',    expr: `regexp_replace(phone, '\\D', '', 'g')` },
+    { table: 'ai_knowledge_documents', col: 'fts',            type: 'tsvector', expr: `to_tsvector('simple', content)` },
+    { table: 'knowledge_document_versions', col: 'fts',       type: 'tsvector', expr: `to_tsvector('simple', public.kb_cjk_split(content))` },
+    { table: 'sign_option_lists',     col: 'item_count',      type: 'integer',  expr: `jsonb_array_length(items)` },
+  ]
+  for (const c of STORED_GEN_COLS) {
+    await pg.unsafe(`ALTER TABLE public.${ident(c.table)} DROP COLUMN IF EXISTS ${ident(c.col)} CASCADE`)
   }
-  if (genColsToRestore.length > 0) {
-    console.log(green(`✓ Dropped ${genColsToRestore.length} STORED generated column(s) (will restore after migration)`))
-  }
+  console.log(green(`✓ Dropped ${STORED_GEN_COLS.length} STORED generated column(s) (will restore after migration)`))
 
   // Disable ALL triggers on every public-schema table so migration-blocking guards
   // (audit triggers, validation triggers, etc.) don't interrupt bulk import.
@@ -562,15 +566,13 @@ async function main() {
   console.log(green('✓ Reset identity sequences'))
 
   // Restore all STORED generated columns. PostgreSQL computes the values from the
-  // migrated data as part of the ALTER TABLE — no manual computation needed.
-  for (const col of genColsToRestore) {
+  // migrated data as part of the ALTER TABLE. ADD COLUMN IF NOT EXISTS is idempotent.
+  for (const c of STORED_GEN_COLS) {
     await pg.unsafe(
-      `ALTER TABLE public.${ident(col.table_name)} ADD COLUMN IF NOT EXISTS ${ident(col.col_name)} ${col.data_type} GENERATED ALWAYS AS (${col.expr}) STORED`
+      `ALTER TABLE public.${ident(c.table)} ADD COLUMN IF NOT EXISTS ${ident(c.col)} ${c.type} GENERATED ALWAYS AS (${c.expr}) STORED`
     )
   }
-  if (genColsToRestore.length > 0) {
-    console.log(green(`✓ Restored ${genColsToRestore.length} STORED generated column(s)`))
-  }
+  console.log(green(`✓ Restored ${STORED_GEN_COLS.length} STORED generated column(s)`))
 
   // Re-enable triggers now that the bulk import is done.
   await pg.unsafe(`
