@@ -7,7 +7,7 @@
 // in the zip beside the signed file; an older one carries its certificate pages inside the signed file and has nothing more to add.
 // ============================================================
 
-import { safeFileName } from "../storage";
+import { safeFileName } from "../path-utils";
 
 /** The most documents one zip holds. */
 export const ZIP_MAX_DOCUMENTS = 50;

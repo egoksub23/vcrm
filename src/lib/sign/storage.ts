@@ -10,33 +10,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { appStorage } from "@/lib/storage/provider";
 import { SIGN_BUCKET } from "./types";
 
-export type FileKind = "source" | "base" | "annex" | "upload" | "final" | "certificate";
-
-/** A name safe to keep in a storage path. */
-export function safeFileName(name: string, fallback = "file"): string {
-  const base = name.split(/[\\/]/).pop() ?? "";
-  const cleaned = base
-    .normalize("NFKD")
-    .replace(/[^\w.\- ]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^\.+/, "")
-    .slice(0, 80);
-  return cleaned || fallback;
-}
-
-export function documentPath(accountId: string, documentId: string, kind: FileKind, name: string): string {
-  return `account-${accountId}/${documentId}/${kind}/${name}`;
-}
-
-export function templatePath(accountId: string, templateId: string, name: string): string {
-  return `account-${accountId}/templates/${templateId}/${name}`;
-}
-
-/** The workspace folder a path must sit in; used to refuse a stored path that points somewhere else. */
-export function belongsToAccount(path: string, accountId: string): boolean {
-  return path.startsWith(`account-${accountId}/`) && !path.includes("..");
-}
+// Re-exported so existing callers of this module keep working without changes.
+export type { FileKind } from "./path-utils";
+export { safeFileName, documentPath, templatePath, belongsToAccount } from "./path-utils";
 
 export class StorageError extends Error {
   readonly code: "storage_write_failed" | "storage_read_failed" | "storage_forbidden_path";
