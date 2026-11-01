@@ -26817,6 +26817,9 @@ async function upsertBatch(pg, table, rows, pkCols, jsonbCols) {
 async function migrateTable(sb, pg, table) {
   const pkCols = await getPrimaryKeys(pg, table);
   const jsonbCols = await getJsonbCols(pg, table);
+  if (!DRY_RUN) {
+    await pg.unsafe(`DELETE FROM public.${ident(table)}`);
+  }
   let read2 = 0;
   let upserted = 0;
   let errors = 0;

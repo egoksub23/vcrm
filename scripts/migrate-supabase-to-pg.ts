@@ -234,6 +234,12 @@ async function migrateTable(
   const pkCols = await getPrimaryKeys(pg, table)
   const jsonbCols = await getJsonbCols(pg, table)
 
+  // Clear any rows seeded by migration SQL files so Supabase data wins.
+  // FK checks are already disabled via session_replication_role=replica.
+  if (!DRY_RUN) {
+    await pg.unsafe(`DELETE FROM public.${ident(table)}`)
+  }
+
   let read = 0
   let upserted = 0
   let errors = 0
