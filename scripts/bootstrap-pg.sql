@@ -22,16 +22,26 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE SCHEMA IF NOT EXISTS auth;
 
--- Minimal auth.users table — holds user UUIDs referenced by public.* FKs.
+-- auth.users stub — mirrors enough of Supabase's auth.users schema so that
+-- FK constraints and migration-created triggers compile without errors.
 -- Populated by scripts/migrate-auth-users.ts before the data migration.
 CREATE TABLE IF NOT EXISTS auth.users (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  email       TEXT,
-  phone       TEXT,
-  created_at  TIMESTAMPTZ DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ DEFAULT NOW(),
-  deleted_at  TIMESTAMPTZ,
-  is_anonymous BOOLEAN    DEFAULT FALSE
+  id                        UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  email                     TEXT,
+  phone                     TEXT,
+  role                      TEXT        DEFAULT 'authenticated',
+  encrypted_password        TEXT,
+  email_confirmed_at        TIMESTAMPTZ,
+  confirmed_at              TIMESTAMPTZ,
+  last_sign_in_at           TIMESTAMPTZ,
+  raw_app_meta_data         JSONB,
+  raw_user_meta_data        JSONB,
+  is_super_admin            BOOLEAN     DEFAULT FALSE,
+  is_sso_user               BOOLEAN     DEFAULT FALSE,
+  is_anonymous              BOOLEAN     DEFAULT FALSE,
+  created_at                TIMESTAMPTZ DEFAULT NOW(),
+  updated_at                TIMESTAMPTZ DEFAULT NOW(),
+  deleted_at                TIMESTAMPTZ
 );
 
 -- ── auth helper functions (mirror Supabase's built-ins) ───
