@@ -114,7 +114,7 @@ const nextConfig: NextConfig = {
   // Knowledge-base file import reads .docx (mammoth) and PDF (unpdf) on the
   // server. Both are plain Node packages that are loaded lazily; keeping them
   // out of the bundle avoids bundler trouble with their internal requires.
-  serverExternalPackages: ["mammoth", "unpdf"],
+  serverExternalPackages: ["mammoth", "unpdf", "minio"],
 
   // The in-CRM User Guide (/help) reads Markdown from content/help at request
   // time, and checks public/help/img for screenshots. Neither is imported, so
