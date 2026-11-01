@@ -9,10 +9,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { appStorage } from "@/lib/storage/provider";
 import { SIGN_BUCKET } from "./types";
+import { belongsToAccount, safeFileName, documentPath, templatePath } from "./path-utils";
 
 // Re-exported so existing callers of this module keep working without changes.
 export type { FileKind } from "./path-utils";
-export { safeFileName, documentPath, templatePath, belongsToAccount } from "./path-utils";
+export { safeFileName, documentPath, templatePath, belongsToAccount };
 
 export class StorageError extends Error {
   readonly code: "storage_write_failed" | "storage_read_failed" | "storage_forbidden_path";
