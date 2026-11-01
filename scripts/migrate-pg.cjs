@@ -27011,7 +27011,14 @@ async function main() {
     { table: "contacts", col: "phone_normalized", type: "text", expr: `regexp_replace(phone, '\\D', '', 'g')` },
     { table: "ai_knowledge_documents", col: "fts", type: "tsvector", expr: `to_tsvector('simple', content)` },
     { table: "knowledge_document_versions", col: "fts", type: "tsvector", expr: `to_tsvector('simple', public.kb_cjk_split(content))` },
-    { table: "sign_option_lists", col: "item_count", type: "integer", expr: `jsonb_array_length(items)` }
+    {
+      table: "sign_option_lists",
+      col: "item_count",
+      type: "integer",
+      expr: `jsonb_array_length(items)`,
+      // Coerce any non-array items to [] before adding the generated column
+      sanitize: `UPDATE public.sign_option_lists SET items = '[]'::jsonb WHERE jsonb_typeof(items) != 'array'`
+    }
   ];
   for (const c2 of STORED_GEN_COLS) {
     await pg.unsafe(`ALTER TABLE public.${ident(c2.table)} DROP COLUMN IF EXISTS ${ident(c2.col)} CASCADE`);
@@ -27104,12 +27111,22 @@ async function main() {
     END $$
   `);
   console.log(green("\u2713 Reset identity sequences"));
+  let restoredCount = 0;
   for (const c2 of STORED_GEN_COLS) {
-    await pg.unsafe(
-      `ALTER TABLE public.${ident(c2.table)} ADD COLUMN IF NOT EXISTS ${ident(c2.col)} ${c2.type} GENERATED ALWAYS AS (${c2.expr}) STORED`
-    );
+    try {
+      if (c2.sanitize) {
+        await pg.unsafe(c2.sanitize);
+      }
+      await pg.unsafe(
+        `ALTER TABLE public.${ident(c2.table)} ADD COLUMN IF NOT EXISTS ${ident(c2.col)} ${c2.type} GENERATED ALWAYS AS (${c2.expr}) STORED`
+      );
+      restoredCount++;
+    } catch (e) {
+      console.warn(yellow(`  \u26A0 Could not restore ${c2.table}.${c2.col}: ${String(e).split("\n")[0]}`));
+      console.warn(yellow(`    Run manually: ALTER TABLE public."${c2.table}" ADD COLUMN IF NOT EXISTS "${c2.col}" ${c2.type} GENERATED ALWAYS AS (${c2.expr}) STORED`));
+    }
   }
-  console.log(green(`\u2713 Restored ${STORED_GEN_COLS.length} STORED generated column(s)`));
+  console.log(green(`\u2713 Restored ${restoredCount}/${STORED_GEN_COLS.length} STORED generated column(s)`));
   await pg.unsafe(`
     DO $$ DECLARE r RECORD; BEGIN
       FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'

@@ -488,11 +488,15 @@ async function main() {
   //
   // This list is derived from supabase/migrations/*.sql — update it if new generated
   // columns are added. DROP COLUMN IF EXISTS is idempotent so re-runs are safe.
-  const STORED_GEN_COLS: Array<{ table: string; col: string; type: string; expr: string }> = [
+  const STORED_GEN_COLS: Array<{ table: string; col: string; type: string; expr: string; sanitize?: string }> = [
     { table: 'contacts',              col: 'phone_normalized', type: 'text',    expr: `regexp_replace(phone, '\\D', '', 'g')` },
     { table: 'ai_knowledge_documents', col: 'fts',            type: 'tsvector', expr: `to_tsvector('simple', content)` },
     { table: 'knowledge_document_versions', col: 'fts',       type: 'tsvector', expr: `to_tsvector('simple', public.kb_cjk_split(content))` },
-    { table: 'sign_option_lists',     col: 'item_count',      type: 'integer',  expr: `jsonb_array_length(items)` },
+    {
+      table: 'sign_option_lists', col: 'item_count', type: 'integer', expr: `jsonb_array_length(items)`,
+      // Coerce any non-array items to [] before adding the generated column
+      sanitize: `UPDATE public.sign_option_lists SET items = '[]'::jsonb WHERE jsonb_typeof(items) != 'array'`,
+    },
   ]
   for (const c of STORED_GEN_COLS) {
     await pg.unsafe(`ALTER TABLE public.${ident(c.table)} DROP COLUMN IF EXISTS ${ident(c.col)} CASCADE`)
@@ -604,12 +608,23 @@ async function main() {
 
   // Restore all STORED generated columns. PostgreSQL computes the values from the
   // migrated data as part of the ALTER TABLE. ADD COLUMN IF NOT EXISTS is idempotent.
+  // Each column is restored independently so one failure doesn't block the rest.
+  let restoredCount = 0
   for (const c of STORED_GEN_COLS) {
-    await pg.unsafe(
-      `ALTER TABLE public.${ident(c.table)} ADD COLUMN IF NOT EXISTS ${ident(c.col)} ${c.type} GENERATED ALWAYS AS (${c.expr}) STORED`
-    )
+    try {
+      if (c.sanitize) {
+        await pg.unsafe(c.sanitize)
+      }
+      await pg.unsafe(
+        `ALTER TABLE public.${ident(c.table)} ADD COLUMN IF NOT EXISTS ${ident(c.col)} ${c.type} GENERATED ALWAYS AS (${c.expr}) STORED`
+      )
+      restoredCount++
+    } catch (e) {
+      console.warn(yellow(`  ⚠ Could not restore ${c.table}.${c.col}: ${String(e).split('\n')[0]}`))
+      console.warn(yellow(`    Run manually: ALTER TABLE public."${c.table}" ADD COLUMN IF NOT EXISTS "${c.col}" ${c.type} GENERATED ALWAYS AS (${c.expr}) STORED`))
+    }
   }
-  console.log(green(`✓ Restored ${STORED_GEN_COLS.length} STORED generated column(s)`))
+  console.log(green(`✓ Restored ${restoredCount}/${STORED_GEN_COLS.length} STORED generated column(s)`))
 
   // Re-enable triggers now that the bulk import is done.
   await pg.unsafe(`
