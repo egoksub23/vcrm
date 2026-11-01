@@ -26941,6 +26941,26 @@ async function main() {
       END LOOP; END $$
   `);
   console.log(green("\u2713 Dropped check constraints"));
+  const genColsToRestore = await pg`
+    SELECT
+      c.relname                                       AS table_name,
+      a.attname                                       AS col_name,
+      pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type,
+      pg_get_expr(d.adbin, d.adrelid)                 AS expr
+    FROM pg_attribute a
+    JOIN pg_class     c ON c.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+    WHERE n.nspname = 'public'
+      AND a.attgenerated = 's'
+      AND NOT a.attisdropped
+  `;
+  for (const col of genColsToRestore) {
+    await pg.unsafe(`ALTER TABLE public.${ident(col.table_name)} DROP COLUMN IF EXISTS ${ident(col.col_name)} CASCADE`);
+  }
+  if (genColsToRestore.length > 0) {
+    console.log(green(`\u2713 Dropped ${genColsToRestore.length} STORED generated column(s) (will restore after migration)`));
+  }
   await pg.unsafe(`
     DO $$ DECLARE r RECORD; BEGIN
       FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
@@ -26996,6 +27016,14 @@ async function main() {
   }
   if (totalErrors > 0) {
     console.log(`  Tables with errors: ${red(errorTables.join(", "))}`);
+  }
+  for (const col of genColsToRestore) {
+    await pg.unsafe(
+      `ALTER TABLE public.${ident(col.table_name)} ADD COLUMN IF NOT EXISTS ${ident(col.col_name)} ${col.data_type} GENERATED ALWAYS AS (${col.expr}) STORED`
+    );
+  }
+  if (genColsToRestore.length > 0) {
+    console.log(green(`\u2713 Restored ${genColsToRestore.length} STORED generated column(s)`));
   }
   await pg.unsafe(`
     DO $$ DECLARE r RECORD; BEGIN

@@ -411,6 +411,31 @@ async function main() {
   `)
   console.log(green('✓ Dropped check constraints'))
 
+  // Drop all STORED generated columns before migration. PostgreSQL evaluates the
+  // generation expression on every INSERT, which causes failures when the expression
+  // references JSONB functions (e.g. jsonb_array_length). We re-add them after migration
+  // and PostgreSQL recomputes the values from the migrated data.
+  const genColsToRestore = await pg<{ table_name: string; col_name: string; data_type: string; expr: string }[]>`
+    SELECT
+      c.relname                                       AS table_name,
+      a.attname                                       AS col_name,
+      pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type,
+      pg_get_expr(d.adbin, d.adrelid)                 AS expr
+    FROM pg_attribute a
+    JOIN pg_class     c ON c.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+    WHERE n.nspname = 'public'
+      AND a.attgenerated = 's'
+      AND NOT a.attisdropped
+  `
+  for (const col of genColsToRestore) {
+    await pg.unsafe(`ALTER TABLE public.${ident(col.table_name)} DROP COLUMN IF EXISTS ${ident(col.col_name)} CASCADE`)
+  }
+  if (genColsToRestore.length > 0) {
+    console.log(green(`✓ Dropped ${genColsToRestore.length} STORED generated column(s) (will restore after migration)`))
+  }
+
   // Disable ALL triggers on every public-schema table so migration-blocking guards
   // (audit triggers, validation triggers, etc.) don't interrupt bulk import.
   await pg.unsafe(`
@@ -477,6 +502,17 @@ async function main() {
   }
   if (totalErrors > 0) {
     console.log(`  Tables with errors: ${red(errorTables.join(', '))}`)
+  }
+
+  // Restore all STORED generated columns. PostgreSQL computes the values from the
+  // migrated data as part of the ALTER TABLE — no manual computation needed.
+  for (const col of genColsToRestore) {
+    await pg.unsafe(
+      `ALTER TABLE public.${ident(col.table_name)} ADD COLUMN IF NOT EXISTS ${ident(col.col_name)} ${col.data_type} GENERATED ALWAYS AS (${col.expr}) STORED`
+    )
+  }
+  if (genColsToRestore.length > 0) {
+    console.log(green(`✓ Restored ${genColsToRestore.length} STORED generated column(s)`))
   }
 
   // Re-enable triggers now that the bulk import is done.
