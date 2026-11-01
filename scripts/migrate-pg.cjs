@@ -26780,7 +26780,7 @@ async function getGeneratedCols(pg, table) {
       AND NOT a.attisdropped
   `;
   const cols = new Set(rows.map((r) => r.attname));
-  const hasJsonbArrayLength = rows.some((r) => r.expr?.includes("jsonb_array_length"));
+  const hasJsonbArrayLength = cols.size > 0;
   return { cols, hasJsonbArrayLength };
 }
 async function getJsonbCols(pg, table) {

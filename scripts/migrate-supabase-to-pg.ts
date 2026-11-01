@@ -167,10 +167,11 @@ async function getGeneratedCols(pg: ReturnType<typeof postgres>, table: string):
       AND NOT a.attisdropped
   `
   const cols = new Set(rows.map(r => r.attname))
-  // If any generated column expression uses jsonb_array_length, scalar JSONB values in
-  // this table's JSONB columns must be coerced to [] before INSERT or PostgreSQL will
-  // throw "cannot get array length of a scalar" when computing the generated column.
-  const hasJsonbArrayLength = rows.some(r => r.expr?.includes('jsonb_array_length'))
+  // Coerce scalar JSONB values for ANY table that has generated columns.
+  // A generated column that calls jsonb_array_length() on a JSONB column will throw
+  // "cannot get array length of a scalar" if that column contains a scalar value.
+  // pg_get_expr may return NULL for some PG builds, so don't rely on expression parsing.
+  const hasJsonbArrayLength = cols.size > 0
   return { cols, hasJsonbArrayLength }
 }
 
