@@ -20,6 +20,7 @@ set -a; source .env.local; set +a
 PG_USER="${PG_USER:-wacrm}"
 PG_DB="${PG_DB:-wacrm}"
 POSTGRES_CONTAINER="wacrm-postgres-1"
+APP_CONTAINER="wacrm-app-1"
 
 psql_exec() {
   docker exec -i "$POSTGRES_CONTAINER" \
@@ -51,22 +52,22 @@ echo "✓ Migrations applied"
 
 echo ""
 echo "━━ Step 4: Migrate auth.users from Supabase ━━"
-docker cp scripts/migrate-auth-users.cjs "$POSTGRES_CONTAINER":/tmp/migrate-auth-users.cjs
+docker cp scripts/migrate-auth-users.cjs "$APP_CONTAINER":/tmp/migrate-auth-users.cjs
 docker exec -e "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" \
             -e "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY" \
             -e "DATABASE_URL=$DATABASE_URL" \
             -e "DATABASE_SSL=false" \
-            "$POSTGRES_CONTAINER" \
+            "$APP_CONTAINER" \
   node /tmp/migrate-auth-users.cjs
 
 echo ""
 echo "━━ Step 5: Migrate all public-schema data ━━"
-docker cp scripts/migrate-pg.cjs "$POSTGRES_CONTAINER":/tmp/migrate-pg.cjs
+docker cp scripts/migrate-pg.cjs "$APP_CONTAINER":/tmp/migrate-pg.cjs
 docker exec -e "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" \
             -e "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY" \
             -e "DATABASE_URL=$DATABASE_URL" \
             -e "DATABASE_SSL=false" \
-            "$POSTGRES_CONTAINER" \
+            "$APP_CONTAINER" \
   node /tmp/migrate-pg.cjs
 
 echo ""
