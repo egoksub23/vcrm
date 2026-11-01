@@ -188,6 +188,22 @@ async function getJsonbCols(pg: ReturnType<typeof postgres>, table: string): Pro
   return new Set(rows.map(r => r.column_name))
 }
 
+// Returns columns declared GENERATED ALWAYS AS IDENTITY (attidentity = 'a').
+// Inserting explicit values into these requires OVERRIDING SYSTEM VALUE.
+async function getIdentityAlwaysCols(pg: ReturnType<typeof postgres>, table: string): Promise<Set<string>> {
+  const rows = await pg<{ attname: string }[]>`
+    SELECT a.attname
+    FROM pg_attribute   a
+    JOIN pg_class       c ON c.oid = a.attrelid
+    JOIN pg_namespace   n ON n.oid = c.relnamespace
+    WHERE n.nspname     = 'public'
+      AND c.relname     = ${table}
+      AND a.attidentity = 'a'
+      AND NOT a.attisdropped
+  `
+  return new Set(rows.map(r => r.attname))
+}
+
 async function getTargetCols(pg: ReturnType<typeof postgres>, table: string): Promise<Set<string>> {
   const rows = await pg<{ attname: string }[]>`
     SELECT a.attname
@@ -213,6 +229,7 @@ async function upsertBatch(
   generatedCols: Set<string> = new Set(),
   hasJsonbArrayLength = false,
   targetCols: Set<string> = new Set(),
+  identityCols: Set<string> = new Set(),
 ): Promise<void> {
   if (rows.length === 0) return
 
@@ -278,8 +295,9 @@ async function upsertBatch(
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const overriding = identityCols.size > 0 ? 'OVERRIDING SYSTEM VALUE' : ''
         await pg.unsafe(
-          `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ${onConflict}`,
+          `INSERT INTO public.${ident(table)} (${colList}) ${overriding} VALUES ${valuePlaceholders} ${onConflict}`,
           params as any[],
         )
       } catch (e: unknown) {
@@ -301,8 +319,9 @@ async function upsertBatch(
     } else {
       // No PK: blind insert, skip duplicates
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const overridingNoPk = identityCols.size > 0 ? 'OVERRIDING SYSTEM VALUE' : ''
       await pg.unsafe(
-        `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ON CONFLICT DO NOTHING`,
+        `INSERT INTO public.${ident(table)} (${colList}) ${overridingNoPk} VALUES ${valuePlaceholders} ON CONFLICT DO NOTHING`,
         params as any[],
       )
     }
@@ -321,6 +340,7 @@ async function migrateTable(
   const jsonbCols = await getJsonbCols(pg, table)
   const { cols: generatedCols, hasJsonbArrayLength } = await getGeneratedCols(pg, table)
   const targetCols = await getTargetCols(pg, table)
+  const identityCols = await getIdentityAlwaysCols(pg, table)
 
   // Clear any rows seeded by migration SQL files so Supabase data wins.
   // FK checks are already disabled via session_replication_role=replica.
@@ -355,7 +375,7 @@ async function migrateTable(
         if (data2.length === 0) break
         read += data2.length
         if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols)
+          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols, identityCols)
         }
         upserted += data2.length
         if (data2.length < PAGE_SIZE) break
@@ -370,7 +390,7 @@ async function migrateTable(
     if (!data || data.length === 0) break
     read += data.length
     if (!DRY_RUN) {
-      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols)
+      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols, identityCols)
     }
     upserted += data.length
 
@@ -518,6 +538,28 @@ async function main() {
   if (totalErrors > 0) {
     console.log(`  Tables with errors: ${red(errorTables.join(', '))}`)
   }
+
+  // Reset sequences for all GENERATED ALWAYS AS IDENTITY columns so future
+  // inserts get values higher than the max migrated value.
+  await pg.unsafe(`
+    DO $$ DECLARE r RECORD; sv BIGINT; BEGIN
+      FOR r IN
+        SELECT c.relname AS tbl, a.attname AS col
+        FROM pg_attribute   a
+        JOIN pg_class       c ON c.oid = a.attrelid
+        JOIN pg_namespace   n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND a.attidentity IN ('a', 'd')
+          AND NOT a.attisdropped
+      LOOP
+        EXECUTE format('SELECT COALESCE(MAX(%I), 0) FROM public.%I', r.col, r.tbl) INTO sv;
+        IF sv > 0 THEN
+          PERFORM setval(pg_get_serial_sequence('public.' || r.tbl, r.col), sv, true);
+        END IF;
+      END LOOP;
+    END $$
+  `)
+  console.log(green('✓ Reset identity sequences'))
 
   // Restore all STORED generated columns. PostgreSQL computes the values from the
   // migrated data as part of the ALTER TABLE — no manual computation needed.

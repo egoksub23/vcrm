@@ -26793,6 +26793,19 @@ async function getJsonbCols(pg, table) {
   `;
   return new Set(rows.map((r) => r.column_name));
 }
+async function getIdentityAlwaysCols(pg, table) {
+  const rows = await pg`
+    SELECT a.attname
+    FROM pg_attribute   a
+    JOIN pg_class       c ON c.oid = a.attrelid
+    JOIN pg_namespace   n ON n.oid = c.relnamespace
+    WHERE n.nspname     = 'public'
+      AND c.relname     = ${table}
+      AND a.attidentity = 'a'
+      AND NOT a.attisdropped
+  `;
+  return new Set(rows.map((r) => r.attname));
+}
 async function getTargetCols(pg, table) {
   const rows = await pg`
     SELECT a.attname
@@ -26806,7 +26819,7 @@ async function getTargetCols(pg, table) {
   `;
   return new Set(rows.map((r) => r.attname));
 }
-async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /* @__PURE__ */ new Set(), hasJsonbArrayLength = false, targetCols = /* @__PURE__ */ new Set()) {
+async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /* @__PURE__ */ new Set(), hasJsonbArrayLength = false, targetCols = /* @__PURE__ */ new Set(), identityCols = /* @__PURE__ */ new Set()) {
   if (rows.length === 0) return;
   if (hasJsonbArrayLength) {
     for (const col of jsonbCols) {
@@ -26850,8 +26863,9 @@ async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /
       const updateSet = cols.filter((c2) => !pkCols.includes(c2)).map((c2) => `${ident(c2)} = EXCLUDED.${ident(c2)}`).join(", ");
       const onConflict = updateSet ? `ON CONFLICT (${conflictCols}) DO UPDATE SET ${updateSet}` : `ON CONFLICT (${conflictCols}) DO NOTHING`;
       try {
+        const overriding = identityCols.size > 0 ? "OVERRIDING SYSTEM VALUE" : "";
         await pg.unsafe(
-          `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ${onConflict}`,
+          `INSERT INTO public.${ident(table)} (${colList}) ${overriding} VALUES ${valuePlaceholders} ${onConflict}`,
           params
         );
       } catch (e) {
@@ -26871,8 +26885,9 @@ async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /
         throw e;
       }
     } else {
+      const overridingNoPk = identityCols.size > 0 ? "OVERRIDING SYSTEM VALUE" : "";
       await pg.unsafe(
-        `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ON CONFLICT DO NOTHING`,
+        `INSERT INTO public.${ident(table)} (${colList}) ${overridingNoPk} VALUES ${valuePlaceholders} ON CONFLICT DO NOTHING`,
         params
       );
     }
@@ -26883,6 +26898,7 @@ async function migrateTable(sb, pg, table) {
   const jsonbCols = await getJsonbCols(pg, table);
   const { cols: generatedCols, hasJsonbArrayLength } = await getGeneratedCols(pg, table);
   const targetCols = await getTargetCols(pg, table);
+  const identityCols = await getIdentityAlwaysCols(pg, table);
   if (!DRY_RUN) {
     await pg.unsafe(`DELETE FROM public.${ident(table)}`);
   }
@@ -26903,7 +26919,7 @@ async function migrateTable(sb, pg, table) {
         if (data2.length === 0) break;
         read2 += data2.length;
         if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols);
+          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols, identityCols);
         }
         upserted += data2.length;
         if (data2.length < PAGE_SIZE) break;
@@ -26917,7 +26933,7 @@ async function migrateTable(sb, pg, table) {
     if (!data || data.length === 0) break;
     read2 += data.length;
     if (!DRY_RUN) {
-      await upsertBatch(pg, table, data, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols);
+      await upsertBatch(pg, table, data, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols, identityCols);
     }
     upserted += data.length;
     process.stdout.write(`\r  ${dim(`${upserted.toLocaleString()} rows\u2026`)}`);
@@ -27030,6 +27046,25 @@ async function main() {
   if (totalErrors > 0) {
     console.log(`  Tables with errors: ${red(errorTables.join(", "))}`);
   }
+  await pg.unsafe(`
+    DO $$ DECLARE r RECORD; sv BIGINT; BEGIN
+      FOR r IN
+        SELECT c.relname AS tbl, a.attname AS col
+        FROM pg_attribute   a
+        JOIN pg_class       c ON c.oid = a.attrelid
+        JOIN pg_namespace   n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND a.attidentity IN ('a', 'd')
+          AND NOT a.attisdropped
+      LOOP
+        EXECUTE format('SELECT COALESCE(MAX(%I), 0) FROM public.%I', r.col, r.tbl) INTO sv;
+        IF sv > 0 THEN
+          PERFORM setval(pg_get_serial_sequence('public.' || r.tbl, r.col), sv, true);
+        END IF;
+      END LOOP;
+    END $$
+  `);
+  console.log(green("\u2713 Reset identity sequences"));
   for (const col of genColsToRestore) {
     await pg.unsafe(
       `ALTER TABLE public.${ident(col.table_name)} ADD COLUMN IF NOT EXISTS ${ident(col.col_name)} ${col.data_type} GENERATED ALWAYS AS (${col.expr}) STORED`
