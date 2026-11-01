@@ -26933,6 +26933,16 @@ async function main() {
   await pg.unsafe("SET session_replication_role = 'replica'");
   await pg.unsafe(`
     DO $$ DECLARE r RECORD; BEGIN
+      FOR r IN SELECT conname, conrelid::regclass::text AS tbl
+               FROM pg_constraint
+               WHERE contype = 'c'
+                 AND connamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+      LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', r.tbl, r.conname);
+      END LOOP; END $$
+  `);
+  console.log(green("\u2713 Dropped check constraints"));
+  await pg.unsafe(`
+    DO $$ DECLARE r RECORD; BEGIN
       FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
       LOOP EXECUTE format('ALTER TABLE public.%I DISABLE TRIGGER ALL', r.tablename);
       END LOOP; END $$

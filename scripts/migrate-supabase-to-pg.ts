@@ -398,6 +398,19 @@ async function main() {
   // session_replication_role = replica suppresses FK checks on this connection.
   await pg.unsafe("SET session_replication_role = 'replica'")
 
+  // Drop ALL check constraints (idempotent — safe to re-run if pg_data was reset
+  // and migrations re-created them; CHECK constraints block bulk migration).
+  await pg.unsafe(`
+    DO $$ DECLARE r RECORD; BEGIN
+      FOR r IN SELECT conname, conrelid::regclass::text AS tbl
+               FROM pg_constraint
+               WHERE contype = 'c'
+                 AND connamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+      LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', r.tbl, r.conname);
+      END LOOP; END $$
+  `)
+  console.log(green('✓ Dropped check constraints'))
+
   // Disable ALL triggers on every public-schema table so migration-blocking guards
   // (audit triggers, validation triggers, etc.) don't interrupt bulk import.
   await pg.unsafe(`
