@@ -23,7 +23,7 @@
 // reply" to it would leak that a conversation exists to whoever typed
 // it. See src/lib/widget/identity-resolve.ts's trust tiers.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 import { canSendWorkspaceEmail, realWorkspaceMailDeps, sendWorkspaceEmail, type WorkspaceMailDeps } from '@/lib/email/workspace-mail';
 
@@ -41,7 +41,7 @@ function escapeHtml(value: string): string {
 }
 
 export async function notifyWidgetVisitorOfReply(
-  admin: SupabaseClient,
+  admin: PgDb,
   args: {
     accountId: string;
     conversationId: string;
@@ -60,9 +60,9 @@ export async function notifyWidgetVisitorOfReply(
     if (!visitors || visitors.length === 0) return;
 
     // Only a verified browser's email is trusted enough to notify.
-    if (!visitors.some((v) => v.identity_level === 'verified')) return;
+    if (!(visitors as any[]).some((v: any) => v.identity_level === 'verified')) return;
 
-    const mostRecentSeen = visitors.reduce<number>((max, v) => {
+    const mostRecentSeen = (visitors as any[]).reduce((max: number, v: any) => {
       const seen = v.last_seen_at ? new Date(v.last_seen_at).getTime() : 0;
       return Math.max(max, seen);
     }, 0);

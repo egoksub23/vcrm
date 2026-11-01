@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 const notifyVircleRead = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/vircle-chat/client', () => ({ notifyVircleRead }))
@@ -34,7 +34,7 @@ function fakeDb(opts: { updateError?: boolean; failRpcFor?: string[] } = {}) {
       const fail = opts.failRpcFor?.includes(args.p_conversation_id as string)
       return Promise.resolve({ error: fail ? { message: 'nope' } : null })
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
   return { db, updates, rpcs }
 }
 

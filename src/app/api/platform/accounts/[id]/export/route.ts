@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 
 import { toErrorResponse } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { requirePlatformAdmin } from "@/lib/platform/auth";
 import { exportFileName, workspaceExportStream } from "@/lib/platform/workspace-export";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const { id } = await params;
     if (!UUID_RE.test(id)) return NextResponse.json({ error: "Invalid workspace id" }, { status: 400 });
 
-    const db = supabaseAdmin();
+    const db = createAdminPgDb();
     const { data: platform } = await db.from("account_platform").select("deletion_due_at").eq("account_id", id).maybeSingle();
     if (!platform?.deletion_due_at) {
       return NextResponse.json(

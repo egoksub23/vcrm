@@ -20,7 +20,7 @@ import { escapeLike } from '@/lib/security/safe-compare'
 import { NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { exchangeCodeForTokens, getUserEmailAddress, getOAuthBaseUrl } from '@/lib/gmail/oauth'
 import { inboxIsOff } from '@/lib/email/mailbox-types'
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     return settingsRedirect(baseUrl, { oauth_error: oauthError || 'invalid_state' })
   }
 
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   const pending = await findPendingGmailConnectionByState(db, state)
   // Single-use, and only the person who started it (same workspace) can finish it.
   if (!pending || pending.status !== 'pending' || !(await sessionOwnsPending(pending))) {

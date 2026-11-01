@@ -42,7 +42,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     const messages = (messageRows ?? []) as MessageRow[]
     const withLinks = messages.flatMap((m) =>
-      extractLinks(m.body).map((url) => ({
+      extractLinks(m.body) .map((url: any) => ({
         url,
         messageId: m.id,
         authorId: m.author_id,
@@ -52,7 +52,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     if (withLinks.length === 0) return NextResponse.json({ links: [] })
 
-    const authorIds = Array.from(new Set(withLinks.map((l) => l.authorId)))
+    const authorIds = Array.from(new Set(withLinks .map((l: any) => l.authorId)))
     const { data: profileRows } = await ctx.supabase
       .from('profiles')
       .select('user_id, full_name')
@@ -60,14 +60,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const nameByUser = new Map<string, string>()
     for (const p of profileRows ?? []) nameByUser.set(p.user_id, p.full_name ?? '')
 
-    const messageIds = Array.from(new Set(withLinks.map((l) => l.messageId)))
+    const messageIds = Array.from(new Set(withLinks .map((l: any) => l.messageId)))
     const { data: previewRows } = await ctx.supabase
       .from('sembang_link_previews')
       .select('message_id, url, title, description, image_url, domain')
       .in('message_id', messageIds)
-    const previewByMessage = new Map((previewRows ?? []).map((p) => [p.message_id as string, p]))
+    const previewByMessage = new Map(((previewRows ?? []) as any[]) .map((p: any) => [p.message_id as string, p]))
 
-    const links: SembangLinkItem[] = withLinks.map((l) => {
+    const links: SembangLinkItem[] = withLinks .map((l: any) => {
       const p = previewByMessage.get(l.messageId)
       const preview = p && p.url === l.url
         ? { title: p.title, description: p.description, imageUrl: p.image_url, domain: p.domain }

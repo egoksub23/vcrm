@@ -9,7 +9,7 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { getOAuthBaseUrl } from '@/lib/meta/oauth'
 import { exchangeTikTokCode, getTikTokAccountInfo } from '@/lib/comments/tiktok/api'
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     return settingsRedirect(baseUrl, { oauth_error: oauthError === 'access_denied' ? 'denied' : 'invalid_state' })
   }
 
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   // One use only: read and delete in one go.
   const { data: pending } = await db
     .from('tiktok_oauth_states')

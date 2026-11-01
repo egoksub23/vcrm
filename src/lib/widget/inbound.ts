@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Web Widget v2 — persisting a visitor's message and running the inbound
 // fan-out. Shared by POST /api/widget/message and POST /api/widget/enquiry
@@ -8,7 +9,6 @@
 // conversations: its send nodes call Meta directly and would error against
 // a contact with no phone (see docs/web-chat-widget.md).
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { reopenClosedConversation } from '@/lib/conversations/reopen'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
@@ -33,7 +33,7 @@ export interface InsertedWidgetMessage {
 }
 
 /** True when this conversation has no customer message yet (BEFORE the insert). */
-export async function isFirstCustomerMessage(admin: SupabaseClient, conversationId: string): Promise<boolean> {
+export async function isFirstCustomerMessage(admin: PgDb, conversationId: string): Promise<boolean> {
   const { count } = await admin
     .from('messages')
     .select('id', { count: 'exact', head: true })
@@ -57,7 +57,7 @@ export function clientMessageKey(raw: unknown): string | null {
  * (conversation_id, message_id) unique index (migration 037) enforces it.
  */
 export async function insertWidgetCustomerMessage(
-  admin: SupabaseClient,
+  admin: PgDb,
   args: { conversationId: string; text: string; media?: InboundMedia | null; clientMessageId?: unknown },
 ): Promise<(InsertedWidgetMessage & { duplicate: boolean }) | null> {
   const { conversationId, text, media } = args
@@ -123,7 +123,7 @@ export interface FanoutArgs {
 }
 
 /** Everything that happens after a customer message row exists. */
-export async function runWidgetInboundFanout(admin: SupabaseClient, args: FanoutArgs): Promise<void> {
+export async function runWidgetInboundFanout(admin: PgDb, args: FanoutArgs): Promise<void> {
   const { accountId, contactId, conversation, ownerUserId, messageId, text, media, isFirstInboundMessage } = args
   const conversationId = conversation.id
 

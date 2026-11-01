@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { auth } from '@/auth'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { getFlowTemplate } from '@/lib/flows/templates'
 
 /**
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
 
   // -------- Template clone path --------
   if (body.template_slug) {

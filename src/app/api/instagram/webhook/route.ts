@@ -33,7 +33,7 @@ export const maxDuration = 60
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _adminClient: any = null
-function supabaseAdmin() {
+function createAdminPgDb() {
   if (!_adminClient) {
     _adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing verification parameters' }, { status: 400 })
     }
 
-    const { data: configs, error: configError } = await supabaseAdmin()
+    const { data: configs, error: configError } = await createAdminPgDb()
       .from('instagram_config')
       .select('id, verify_token')
 
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
 
     if (matchedConfig) {
       if (isLegacyFormat(matchedConfig.verify_token)) {
-        void supabaseAdmin()
+        void createAdminPgDb()
           .from('instagram_config')
           .update({ verify_token: encrypt(verifyToken) })
           .eq('id', matchedConfig.id)
@@ -161,13 +161,13 @@ async function processWebhook(body: { entry?: InstagramWebhookEntry[] }) {
   for (const entry of body.entry) {
     // Post comments arrive as `changes` (field "comments" / "live_comments").
     if (hasCommentChanges(entry as unknown as MetaEntryWithChanges)) {
-      await processMetaCommentChanges(supabaseAdmin(), 'instagram', entry as unknown as MetaEntryWithChanges)
+      await processMetaCommentChanges(createAdminPgDb(), 'instagram', entry as unknown as MetaEntryWithChanges)
     }
     if (!entry.messaging || entry.messaging.length === 0) continue
 
     const igBusinessAccountId = entry.id
 
-    const { data: configRows, error: configError } = await supabaseAdmin()
+    const { data: configRows, error: configError } = await createAdminPgDb()
       .from('instagram_config')
       .select('*')
       .eq('ig_business_account_id', igBusinessAccountId)
@@ -224,7 +224,7 @@ async function processMessagingEvent(
   const configOwnerUserId = config.connected_by_user_id
   const igsid = event.sender.id
 
-  const contactOutcome = await findOrCreateContactByExternalId(supabaseAdmin(), {
+  const contactOutcome = await findOrCreateContactByExternalId(createAdminPgDb(), {
     accountId,
     configOwnerUserId,
     column: 'instagram_igsid',
@@ -235,7 +235,7 @@ async function processMessagingEvent(
   const contactRecord = contactOutcome.contact
 
   const convResult = await findOrCreateConversation(
-    supabaseAdmin(),
+    createAdminPgDb(),
     accountId,
     configOwnerUserId,
     contactRecord.id as string,
@@ -258,7 +258,7 @@ async function processMessagingEvent(
 
     if (contentType !== 'text') {
       const mirrored = await mirrorInboundMedia({
-        storage: supabaseAdmin().storage,
+        storage: createAdminPgDb().storage,
         accountId,
         mediaId: message.mid,
         downloadUrl: attachment.payload.url,
@@ -272,14 +272,14 @@ async function processMessagingEvent(
     }
   }
 
-  const { count: priorCustomerMsgCount } = await supabaseAdmin()
+  const { count: priorCustomerMsgCount } = await createAdminPgDb()
     .from('messages')
     .select('id', { count: 'exact', head: true })
     .eq('conversation_id', conversation.id)
     .eq('sender_type', 'customer')
   const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
 
-  const { data: insertedRows, error: msgError } = await supabaseAdmin()
+  const { data: insertedRows, error: msgError } = await createAdminPgDb()
     .from('messages')
     .upsert(
       {
@@ -306,7 +306,7 @@ async function processMessagingEvent(
     return
   }
 
-  const { error: convError } = await supabaseAdmin().rpc('bump_conversation_on_inbound', {
+  const { error: convError } = await createAdminPgDb().rpc('bump_conversation_on_inbound', {
     p_conversation_id: conversation.id,
     p_last_message_text: contentText || `[${contentType}]`,
     p_channel_type: 'instagram',
@@ -315,7 +315,7 @@ async function processMessagingEvent(
     console.error('[instagram webhook] error updating conversation:', convError)
   }
 
-  await reopenClosedConversation(supabaseAdmin(), conversation)
+  await reopenClosedConversation(createAdminPgDb(), conversation)
 
   const inboundText = contentText ?? ''
   const automationTriggers: (
@@ -359,7 +359,7 @@ async function processMessagingEvent(
     })
   }
 
-  await dispatchWebhookEvent(supabaseAdmin(), accountId, 'message.received', {
+  await dispatchWebhookEvent(createAdminPgDb(), accountId, 'message.received', {
     conversation_id: conversation.id,
     contact_id: contactRecord.id,
     whatsapp_message_id: message.mid,

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { isUniqueViolation } from '@/lib/contacts/dedupe'
 
 /**
@@ -18,7 +18,7 @@ import { isUniqueViolation } from '@/lib/contacts/dedupe'
  * `contacts.email` has no uniqueness constraint to lean on here.
  */
 export async function findOrCreateContactByExternalId(
-  db: SupabaseClient,
+  db: PgDb,
   args: {
     accountId: string
     configOwnerUserId: string

@@ -10,7 +10,6 @@
 // agent reply).
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PgDb } from '@/lib/postgres/db'
 
 import { findVircleTarget, openGatewayConnection } from './connection'
@@ -28,7 +27,7 @@ export const RECEIPT_BATCH_MAX = 200
  */
 export async function notifyVircleReads(admin: PgDb, accountId: string, conversationId: string): Promise<number> {
   try {
-    const target = await findVircleTarget(admin as unknown as SupabaseClient, accountId, conversationId, { requireVircleChannel: false })
+    const target = await findVircleTarget(admin, accountId, conversationId, { requireVircleChannel: false })
     if (!target) return 0
 
     const { data, error } = await admin

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { findOrCreateConversation } from './find-or-create'
 
 /**
@@ -48,7 +48,7 @@ function stubClient(script: Script) {
     },
   }
 
-  return { client: client as unknown as SupabaseClient, inserts }
+  return { client: client as unknown as PgDb, inserts }
 }
 
 describe('findOrCreateConversation', () => {

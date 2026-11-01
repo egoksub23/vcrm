@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Web Widget v2 — turning an offered identity (a typed claim, a signed
 // token, an enquiry form) into ONE contact.
@@ -20,7 +21,6 @@
 // runs it against an `IdentityStore` (Supabase in production, a fake in
 // tests).
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 
@@ -168,7 +168,7 @@ export function escapeLikeExact(value: string): string {
   return value.replace(/[\\%_]/g, (c) => `\\${c}`)
 }
 
-export function createSupabaseIdentityStore(admin: SupabaseClient): IdentityStore {
+export function createSupabaseIdentityStore(admin: PgDb): IdentityStore {
   return {
     async findByPhone(accountId, phone) {
       return (await findExistingContact(admin, accountId, phone)) as StoreContact | null

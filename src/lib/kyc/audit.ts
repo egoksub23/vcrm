@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // KYC review: the access log (migration 182, kyc_access_log). Server only; the service role writes, nothing else does.
 //
@@ -8,7 +9,6 @@
 // The log is append-only in the database (a trigger), is not trimmed by any job, and is read by workspace admins and owners only.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { toCsv } from "@/lib/csv";
 
@@ -40,7 +40,7 @@ export function logValidationId(v: string | null | undefined): string | null {
 }
 
 /** Write one row. Returns false when it could not be written (the caller then refuses to show anything: the log is never skipped). */
-export async function writeAccessLog(admin: SupabaseClient, input: AccessLogInput): Promise<boolean> {
+export async function writeAccessLog(admin: PgDb, input: AccessLogInput): Promise<boolean> {
   try {
     const { error } = await admin.from("kyc_access_log").insert({
       account_id: input.accountId,
@@ -118,7 +118,7 @@ export interface AccessLogPerson {
   name: string;
 }
 
-async function peopleOf(admin: SupabaseClient, accountId: string): Promise<AccessLogPerson[]> {
+async function peopleOf(admin: PgDb, accountId: string): Promise<AccessLogPerson[]> {
   const { data } = await admin.from("profiles").select("user_id, full_name, email").eq("account_id", accountId).limit(500);
   return ((data ?? []) as { user_id: string; full_name: string | null; email: string | null }[])
     .map((p) => ({ id: p.user_id, name: (p.full_name?.trim() || p.email || "").trim() }))
@@ -128,7 +128,7 @@ async function peopleOf(admin: SupabaseClient, accountId: string): Promise<Acces
 
 /** A page of the log, newest first, with the people's names. */
 export async function listAccessLog(
-  admin: SupabaseClient,
+  admin: PgDb,
   accountId: string,
   filters: AccessLogFilters,
   limit: number = PAGE_DEFAULT,
@@ -142,7 +142,7 @@ export async function listAccessLog(
   return { rows: page, people, hasMore: rows.length > size };
 }
 
-async function selectRows(admin: SupabaseClient, accountId: string, f: AccessLogFilters, max: number): Promise<LogDbRow[] | null> {
+async function selectRows(admin: PgDb, accountId: string, f: AccessLogFilters, max: number): Promise<LogDbRow[] | null> {
   let q = admin
     .from("kyc_access_log")
     .select("id, created_at, user_id, action, friend_id, validation_id, outcome, decision")
@@ -175,7 +175,7 @@ function toRow(r: LogDbRow, names: Map<string, string>): KycAccessRow {
 export const CSV_HEADER = ["Time (UTC)", "Person", "Person ID", "Action", "Friend ID", "Validation ID", "Outcome", "Decision"] as const;
 
 /** The CSV of the log under the same filters, newest first, at most EXPORT_MAX_ROWS rows. Cells that start with = + - @ are guarded by toCsv. */
-export async function exportAccessLogCsv(admin: SupabaseClient, accountId: string, filters: AccessLogFilters): Promise<{ csv: string; rows: number; truncated: boolean } | null> {
+export async function exportAccessLogCsv(admin: PgDb, accountId: string, filters: AccessLogFilters): Promise<{ csv: string; rows: number; truncated: boolean } | null> {
   const rows = await selectRows(admin, accountId, { ...filters, before: filters.before ?? null }, EXPORT_MAX_ROWS + 1);
   if (rows === null) return null;
   const people = await peopleOf(admin, accountId);

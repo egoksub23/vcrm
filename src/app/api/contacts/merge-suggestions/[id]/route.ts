@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "action must be 'merge' or 'dismiss'" }, { status: 400 })
     }
 
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const { data: suggestion, error } = await admin
       .from('contact_merge_suggestions')
       .select('id, account_id, contact_a_id, contact_b_id, status')

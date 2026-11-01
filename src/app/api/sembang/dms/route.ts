@@ -21,7 +21,7 @@
 // `memberRole`), with `isDm: true`, `name: null`.
 // ============================================================
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { isUuid } from '@/lib/teams/team-ids'
@@ -46,7 +46,7 @@ interface ChannelRow {
 }
 
 async function selectExistingDm(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   accountId: string,
   dmKey: string,
 ): Promise<ChannelRow | null> {
@@ -126,8 +126,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to validate participants' }, { status: 500 })
     }
 
-    const validIds = new Set((profileRows ?? []).map((p) => p.user_id as string))
-    const invalidIds = otherIds.filter((id) => !validIds.has(id))
+    const validIds = new Set((profileRows ?? []) .map((p: any) => p.user_id as string))
+    const invalidIds = otherIds .filter((id: any) => !validIds.has(id))
     if (invalidIds.length > 0) {
       return NextResponse.json(
         { error: 'One or more selected people are not part of this account' },

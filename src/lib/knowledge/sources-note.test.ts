@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 const h = vi.hoisted(() => ({ post: vi.fn() }))
 vi.mock('@/lib/conversations/comment-write', () => ({ postInternalComment: h.post }))
 
 import { postSourcesNote, sourcesNoteText } from './sources-note'
 
-const db = {} as SupabaseClient
+const db = {} as unknown as PgDb
 
 beforeEach(() => {
   h.post.mockReset()

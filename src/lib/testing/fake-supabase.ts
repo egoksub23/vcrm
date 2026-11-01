@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PgDb } from "@/lib/postgres/db";
 
 /**
  * Test helper: a chainable stand-in for the Supabase client. It records every
@@ -102,7 +102,7 @@ export function fakeSupabase(handlers: Record<string, FakeHandler>) {
     },
   };
 
-  return { client: client as unknown as SupabaseClient, calls };
+  return { client: client as unknown as PgDb, calls };
 }
 
 export const ok = (data: unknown): FakeResult => ({ data, error: null });

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { validateAiCredentials } from './validate'
 import { listModels } from './models'
 import { AiError, type AiProvider } from './types'
@@ -60,7 +60,7 @@ export async function probeConnection(a: {
 
 /** Store the outcome of a test on the connection (null id = the default). */
 export async function recordConnectionHealth(
-  db: SupabaseClient,
+  db: PgDb,
   args: { accountId: string; connectionId: string | null; probe: ProbeResult },
 ): Promise<void> {
   const update = {

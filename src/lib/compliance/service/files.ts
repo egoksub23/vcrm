@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: evidence files (an authorization letter, proof of a transaction). Server only.
 //
@@ -10,7 +11,6 @@
 
 import { createHash, randomUUID } from "node:crypto";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { DETECTED_MIME, detectFileKind } from "@/lib/net/file-kind";
 import { belongsToAccount, safeFileName } from "@/lib/sign/storage";
@@ -57,7 +57,7 @@ export interface StoredEvidence {
 }
 
 /** Put the bytes in the private bucket under the case's folder. Nothing is recorded yet; `recordEvidence` does that once the case exists. */
-export async function putEvidence(admin: SupabaseClient, accountId: string, requestId: string, file: { bytes: Uint8Array; name: string }): Promise<StoredEvidence> {
+export async function putEvidence(admin: PgDb, accountId: string, requestId: string, file: { bytes: Uint8Array; name: string }): Promise<StoredEvidence> {
   const { mime } = checkEvidence(file.bytes);
   const id = randomUUID();
   const name = safeFileName(file.name, "file");
@@ -69,7 +69,7 @@ export async function putEvidence(admin: SupabaseClient, accountId: string, requ
 }
 
 /** The row for a stored file (its trigger writes the 'attachment' event in the same transaction). Removes the object when the row cannot be written. */
-export async function recordEvidence(admin: SupabaseClient, accountId: string, requestId: string, stored: StoredEvidence, fieldKey: string | null, uploadedBy: string | null): Promise<void> {
+export async function recordEvidence(admin: PgDb, accountId: string, requestId: string, stored: StoredEvidence, fieldKey: string | null, uploadedBy: string | null): Promise<void> {
   const ins = await admin.from("compliance_request_files").insert({
     id: stored.id,
     account_id: accountId,
@@ -90,7 +90,7 @@ export async function recordEvidence(admin: SupabaseClient, accountId: string, r
 }
 
 export async function uploadFile(
-  admin: SupabaseClient,
+  admin: PgDb,
   caller: ComplianceCaller,
   requestId: string,
   file: { bytes: Uint8Array; name: string },
@@ -123,7 +123,7 @@ export interface DownloadedFile {
 }
 
 /** The bytes of one file of a case. The 'view' event (with the file's id) is written FIRST; when it cannot be written nothing is returned. */
-export async function downloadFile(admin: SupabaseClient, caller: ComplianceCaller, requestId: string, fileId: string): Promise<DownloadedFile> {
+export async function downloadFile(admin: PgDb, caller: ComplianceCaller, requestId: string, fileId: string): Promise<DownloadedFile> {
   if (!(caller.viewer.canReview || caller.viewer.canApprove || caller.viewer.canReveal)) throw complianceError("forbidden");
   const row = await loadRow(admin, caller.accountId, requestId);
   const { data, error } = await admin

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { type PgDb } from '@/lib/postgres/db'
 import { normalizePhone, phonesMatch } from "@/lib/whatsapp/phone-utils";
 
 /**
@@ -37,7 +37,7 @@ export interface ExistingContact {
  * doesn't just match itself.
  */
 export async function findExistingContact(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   phone: string,
   excludeContactId?: string,

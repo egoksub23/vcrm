@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { MetaApiError } from '@/lib/meta/errors'
 import { getGrantedPermissions, subscribePageFields } from './meta-comments'
@@ -22,7 +22,7 @@ export type EnableCommentsResult =
  * "Allow comments".
  */
 export async function enableChannelComments(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   provider: 'facebook' | 'instagram',
 ): Promise<EnableCommentsResult> {

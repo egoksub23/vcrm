@@ -13,7 +13,7 @@
 import { getCurrentAccount, loadCapabilities } from "@/lib/auth/account";
 import { answer, failure, json, rateLimited, UUID_RE } from "@/lib/compliance/http";
 import { linkedRequests } from "@/lib/compliance/service/linked";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { isFeatureEnabled } from "@/lib/platform/features";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     if (!conversationId || !UUID_RE.test(conversationId)) return failure("invalid_request");
     const caps = await loadCapabilities(ctx);
     const sees = WORK.some((c) => caps.has(c));
-    const items = await linkedRequests(supabaseAdmin(), { accountId: ctx.accountId, userId: ctx.userId, userDb: ctx.supabase, sees }, conversationId);
+    const items = await linkedRequests(createAdminPgDb(), { accountId: ctx.accountId, userId: ctx.userId, userDb: ctx.supabase, sees }, conversationId);
     return json({ enabled: true, items });
   } catch (err) {
     return answer(err);

@@ -16,7 +16,7 @@
 // in P3).
 // ============================================================
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { hydrateMessages, type SembangMessageRow } from '@/lib/sembang/hydrate-messages'
@@ -37,7 +37,7 @@ interface ChannelContextRow {
  *  — kept local rather than shared, matching this codebase's per-route
  *  convention. */
 async function loadChannelContexts(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   channelIds: string[],
   callerUserId: string,
 ): Promise<Map<string, SembangThreadSummary['channel']>> {
@@ -55,7 +55,7 @@ async function loadChannelContexts(
   }
 
   const rows = (channelRows ?? []) as ChannelContextRow[]
-  const dmChannelIds = rows.filter((r) => r.is_dm).map((r) => r.id)
+  const dmChannelIds = rows .filter((r: any) => r.is_dm) .map((r: any) => r.id)
 
   const namesByChannel = new Map<string, string[]>()
   if (dmChannelIds.length > 0) {
@@ -65,7 +65,7 @@ async function loadChannelContexts(
       .in('channel_id', dmChannelIds)
       .neq('user_id', callerUserId)
 
-    const otherUserIds = Array.from(new Set((memberRows ?? []).map((m) => m.user_id as string)))
+    const otherUserIds = Array.from(new Set((memberRows ?? []) .map((m: any) => m.user_id as string)))
     const nameByUser = new Map<string, string>()
     if (otherUserIds.length > 0) {
       const { data: profileRows } = await supabase
@@ -164,7 +164,7 @@ export async function GET() {
 
     const [messages, channelContexts] = await Promise.all([
       hydrateMessages(ctx.supabase, rows, ctx.userId),
-      loadChannelContexts(ctx.supabase, Array.from(new Set(rows.map((r) => r.channel_id))), ctx.userId),
+      loadChannelContexts(ctx.supabase, Array.from(new Set(rows .map((r: any) => r.channel_id))), ctx.userId),
     ])
 
     const results: SembangThreadSummary[] = messages

@@ -31,7 +31,7 @@ import {
   RESUME_SCOPES,
   type ResumeScope,
 } from '@/lib/whatsapp/broadcast-resume';
-import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { createAdminPgDb } from '@/lib/postgres/db';
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -105,7 +105,7 @@ export async function POST(
     // Service-role client for the fan-out: it outlives the request, and
     // every id in the plan was already resolved through an
     // account-scoped read above.
-    const admin = supabaseAdmin();
+    const admin = createAdminPgDb();
     after(async () => {
       try {
         await deliverBroadcast(admin, plan);
@@ -139,7 +139,7 @@ export async function POST(
     // Planning failed after the claim — release it, or the campaign is
     // locked out of resuming until the staleness window expires.
     if (claimedId) {
-      await releaseBroadcastDelivery(supabaseAdmin(), claimedId).catch(() => {});
+      await releaseBroadcastDelivery(createAdminPgDb(), claimedId).catch(() => {});
     }
     if (error instanceof BroadcastError) {
       return NextResponse.json(

@@ -1,5 +1,5 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { notifyIncidentEmail } from '@/lib/email/incident-notification-email'
 
 interface SweepNotified {
@@ -27,14 +27,15 @@ interface SweepNotified {
  *   * * * * * curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/incidents/escalation-cron
  */
 export const GET = cronRoute('incident-escalation', CRON_INTERVALS['incident-escalation'], async () => {
-  const { data, error } = await supabaseAdmin().rpc('incident_escalation_sweep', { p_limit: 200 })
+  const { data, error } = await createAdminPgDb().rpc('incident_escalation_sweep', { p_limit: 200 })
   if (error) {
     console.error('[incidents-escalation-cron] sweep failed:', error.message)
     return { status: 500, body: { error: error.message } }
   }
 
   const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL
-  const notified = (data?.notified ?? []) as SweepNotified[]
+  const rpcData = data as { notified?: SweepNotified[]; escalated?: number; notifications?: number } | null
+  const notified = (rpcData?.notified ?? []) as SweepNotified[]
   if (appBaseUrl && notified.length > 0) {
     await Promise.allSettled(
       notified.map((n) =>
@@ -53,5 +54,5 @@ export const GET = cronRoute('incident-escalation', CRON_INTERVALS['incident-esc
   }
 
   // The per-recipient detail stays out of the stored heartbeat result.
-  return { body: { escalated: data?.escalated ?? 0, notifications: data?.notifications ?? 0 } }
+  return { body: { escalated: rpcData?.escalated ?? 0, notifications: rpcData?.notifications ?? 0 } }
 })

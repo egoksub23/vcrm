@@ -24,7 +24,7 @@
 import { NextResponse } from 'next/server'
 
 import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { mailboxSendProblem } from '@/lib/email/mailbox-types'
 import { getValidAccessToken } from '@/lib/gmail/token'
 import { stopWatch } from '@/lib/gmail/gmail-api'
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
 export async function DELETE() {
   try {
     const ctx = await requireCapability('channels.manage')
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
 
     const { data: config } = await admin
       .from('gmail_config')

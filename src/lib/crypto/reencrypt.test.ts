@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { decrypt, encrypt, keyIdOf } from '@/lib/whatsapp/encryption'
@@ -51,7 +51,7 @@ function fakeDb(tables: Record<string, Row[]>, hooks: { beforeUpdate?: (table: s
       return builder
     },
   }
-  return db as unknown as SupabaseClient
+  return db as unknown as PgDb
 }
 
 beforeEach(() => setEnv({ ENCRYPTION_KEY: ORIGINAL }))

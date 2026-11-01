@@ -142,7 +142,7 @@ describe("replacing the file of a draft", () => {
           return realFrom(table);
         },
         rpc: ctx.admin.rpc.bind(ctx.admin),
-        storage: ctx.admin.storage,
+        storage: (ctx.admin as any).storage,
       } as unknown as SignCtx["admin"],
     };
     const before = new Set(db.files.keys());

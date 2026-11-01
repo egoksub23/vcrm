@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 // ============================================================
 // Closing a conversation, and telling the `conversation_closed` automations.
@@ -33,9 +33,9 @@ export type ClosedBy =
 export interface CloseInput {
   /** Client whose session authorises the close: the agent's own (the database
    *  checks `conversations.manage`), or the service role for an automation. */
-  rpcClient: SupabaseClient
+  rpcClient: PgDb
   /** Service-role client for the reads and the dispatch. */
-  admin: SupabaseClient
+  admin: PgDb,
   accountId: string
   conversationId: string
   note: string
@@ -133,7 +133,7 @@ export async function closeConversation(input: CloseInput): Promise<CloseResult>
   return { closed: true, wasClosed, dispatched: true }
 }
 
-async function closerName(admin: SupabaseClient, accountId: string, by: ClosedBy): Promise<string> {
+async function closerName(admin: PgDb, accountId: string, by: ClosedBy): Promise<string> {
   if (by.type === 'automation') return by.automationName
   const { data } = await admin
     .from('profiles')

@@ -1,5 +1,5 @@
+import { type PgDb } from '@/lib/postgres/db'
 import { randomBytes } from 'node:crypto'
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { encrypt } from '@/lib/whatsapp/encryption'
 import type { MetaOAuthChannel, MetaPage } from './oauth'
 
@@ -15,7 +15,7 @@ export function generateOAuthState(): string {
 }
 
 export async function createPendingConnection(
-  db: SupabaseClient,
+  db: PgDb,
   args: { accountId: string; userId: string; channel: MetaOAuthChannel },
 ): Promise<{ id: string; state: string }> {
   const state = generateOAuthState()
@@ -49,7 +49,7 @@ export interface PendingConnectionRow {
 }
 
 export async function findPendingConnectionByState(
-  db: SupabaseClient,
+  db: PgDb,
   state: string,
 ): Promise<PendingConnectionRow | null> {
   const { data, error } = await db
@@ -63,7 +63,7 @@ export async function findPendingConnectionByState(
 }
 
 export async function findPendingConnectionById(
-  db: SupabaseClient,
+  db: PgDb,
   id: string,
 ): Promise<PendingConnectionRow | null> {
   const { data, error } = await db
@@ -77,7 +77,7 @@ export async function findPendingConnectionById(
 }
 
 export async function storeLongLivedToken(
-  db: SupabaseClient,
+  db: PgDb,
   id: string,
   accessToken: string,
 ): Promise<void> {
@@ -88,7 +88,7 @@ export async function storeLongLivedToken(
 }
 
 export async function markAwaitingPageSelection(
-  db: SupabaseClient,
+  db: PgDb,
   id: string,
   pages: MetaPage[],
 ): Promise<void> {
@@ -98,10 +98,10 @@ export async function markAwaitingPageSelection(
     .eq('id', id)
 }
 
-export async function markCompleted(db: SupabaseClient, id: string): Promise<void> {
+export async function markCompleted(db: PgDb, id: string): Promise<void> {
   await db.from('oauth_pending_connections').update({ status: 'completed' }).eq('id', id)
 }
 
-export async function markFailed(db: SupabaseClient, id: string): Promise<void> {
+export async function markFailed(db: PgDb, id: string): Promise<void> {
   await db.from('oauth_pending_connections').update({ status: 'failed' }).eq('id', id)
 }

@@ -110,7 +110,7 @@ export async function updateAddon(ctx: SignCtx, key: string, opts: InstallOption
   const all = await ctx.admin.from("sign_templates").select("id, name, addon_version, current_version_id, created_at").eq("account_id", ctx.accountId).eq("addon_key", manifest.key);
   if (all.error) raiseDatabaseError(all.error, "load add-on templates");
   const rows = ((all.data ?? []) as TemplateRow[]).sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""));
-  const taken = new Set(((await ctx.admin.from("sign_templates").select("name").eq("account_id", ctx.accountId)).data ?? ([] as { name: string }[])).map((r: { name: string }) => norm(r.name)));
+  const taken = new Set<string>(((await ctx.admin.from("sign_templates").select("name").eq("account_id", ctx.accountId)).data ?? ([] as { name: string }[])).map((r: { name: string }) => norm(r.name)));
 
   const outcomes: TemplateOutcome[] = [];
   for (const def of installableTemplates(manifest)) {

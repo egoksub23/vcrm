@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 import { resolveImportTagIds } from './resolve-import-tags';
 
@@ -36,7 +36,7 @@ function fakeDb(existing: { id: string; name: string }[]) {
       b.then = (resolve: (v: unknown) => unknown) => resolve({ data: existing, error: null });
       return b;
     },
-  } as unknown as SupabaseClient;
+  } as unknown as PgDb;
   return { db, eqCalls, isCalls, inserted };
 }
 

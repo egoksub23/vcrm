@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: the event trail (compliance_request_events, migration 183). Server only. The service role writes; the table is append-only.
 //
@@ -5,7 +6,6 @@
 // ciphertext, never a bank detail. `safeDetail` enforces the shape so a caller cannot slip a secret in by passing a bigger object.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { EventKind } from "../types";
 
@@ -34,7 +34,7 @@ export interface LogEventInput {
 }
 
 /** Write one event. False when it could not be written (the caller then refuses to show or do what the event records: the trail is never skipped). */
-export async function logEvent(admin: SupabaseClient, input: LogEventInput): Promise<boolean> {
+export async function logEvent(admin: PgDb, input: LogEventInput): Promise<boolean> {
   try {
     const { error } = await admin.from("compliance_request_events").insert({
       account_id: input.accountId,

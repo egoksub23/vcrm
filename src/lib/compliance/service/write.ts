@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: creating and editing a case. Server only.
 //
@@ -9,7 +10,6 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { BANK_OWN_KEY, NAME_DIFFERS_KEY, nameDiffersFlag } from "../bank-own";
 import { complianceError, fromDatabase, ComplianceError } from "../errors";
@@ -78,7 +78,7 @@ function cleanCustomer(input: { customerName: string; customerEmail?: string | n
   return { name, email: email === "" ? null : email, phone };
 }
 
-export async function createComplianceRequest(admin: SupabaseClient, input: CreateRequestInput): Promise<{ id: string; reference: string }> {
+export async function createComplianceRequest(admin: PgDb, input: CreateRequestInput): Promise<{ id: string; reference: string }> {
   if (!(SOURCES as readonly string[]).includes(input.source)) throw complianceError("invalid_request");
   const type = await loadType(admin, input.accountId, input.typeKey);
   if (!type || !type.active) throw complianceError("type_unavailable");
@@ -149,7 +149,7 @@ export interface EditRequestInput {
   assignedTo?: string | null;
 }
 
-export async function editRequest(admin: SupabaseClient, caller: ComplianceCaller, id: string, input: EditRequestInput): Promise<{ changed: string[] }> {
+export async function editRequest(admin: PgDb, caller: ComplianceCaller, id: string, input: EditRequestInput): Promise<{ changed: string[] }> {
   if (!(caller.viewer.canReview || caller.viewer.canApprove)) throw complianceError("forbidden");
   const row = await loadRow(admin, caller.accountId, id);
   const type = await loadType(admin, caller.accountId, row.type_key);
@@ -223,7 +223,7 @@ export async function editRequest(admin: SupabaseClient, caller: ComplianceCalle
 
 export const NOTE_MAX = 2000;
 
-export async function addNote(admin: SupabaseClient, caller: ComplianceCaller, id: string, text: string): Promise<void> {
+export async function addNote(admin: PgDb, caller: ComplianceCaller, id: string, text: string): Promise<void> {
   if (!(caller.viewer.canReview || caller.viewer.canApprove)) throw complianceError("forbidden");
   const note = (text ?? "").trim();
   if (note === "") throw complianceError("note_required");

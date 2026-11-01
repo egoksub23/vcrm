@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { SupabaseClient } from '@supabase/supabase-js'
+
 import { extensionForMime } from '@/lib/media/filename'
 import { buildMediaPath } from '@/lib/storage/upload-media'
 import { appStorage } from '@/lib/storage/provider'
@@ -53,7 +53,6 @@ export function postMediaFileName(provider: string, externalPostId: string, mime
 }
 
 export interface MirrorPostMediaArgs {
-  db?: Pick<SupabaseClient, 'storage'>
   accountId: string
   provider: string
   externalPostId: string
@@ -65,7 +64,7 @@ export interface MirrorPostMediaArgs {
 
 /** Copy a post's picture into storage. Returns the stored link, or null when it was skipped or failed. */
 export async function mirrorPostMedia(a: MirrorPostMediaArgs): Promise<string | null> {
-  const { db, accountId, provider, externalPostId, sourceUrl, fetchImpl = fetch } = a
+  const { accountId, provider, externalPostId, sourceUrl, fetchImpl = fetch } = a
   if (!sourceUrl || !isAllowedPostMediaUrl(sourceUrl)) return null
   try {
     const res = await fetchImpl(sourceUrl, { redirect: 'error', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })

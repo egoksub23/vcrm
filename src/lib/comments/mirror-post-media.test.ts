@@ -67,7 +67,7 @@ describe('the name of a copy', () => {
 describe('keeping a copy', () => {
   it('stores the picture under the workspace, in the public bucket, overwriting any earlier copy, and returns the stored link', async () => {
     const s = storage()
-    const url = await mirrorPostMedia({ db: s.db, accountId: ACCT, provider: 'instagram', externalPostId: '1789', sourceUrl: SOURCE, fetchImpl: reply(JPEG) })
+    const url = await mirrorPostMedia({ accountId: ACCT, provider: 'instagram', externalPostId: '1789', sourceUrl: SOURCE, fetchImpl: reply(JPEG) })
     expect(s.uploads).toHaveLength(1)
     expect(s.uploads[0]).toMatchObject({ bucket: 'public-assets', type: 'image/jpeg', upsert: true, bytes: JPEG.byteLength })
     expect(s.uploads[0].path).toMatch(new RegExp(`^account-${ACCT}/comment-posts/instagram-[0-9a-f]{24}\\.jpg$`))
@@ -81,7 +81,7 @@ describe('keeping a copy', () => {
 
   it('does not follow a redirect, so a link on an allowed host cannot send the server somewhere else', async () => {
     const f = reply(JPEG)
-    await mirrorPostMedia({ db: storage().db, accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: f })
+    await mirrorPostMedia({ accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: f })
     expect((f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0][1].redirect).toBe('error')
   })
 
@@ -96,27 +96,27 @@ describe('keeping a copy', () => {
       vi.fn(async () => { throw new Error('network down') }) as unknown as typeof fetch,
     ]) {
       const s = storage()
-      expect(await mirrorPostMedia({ db: s.db, accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: f })).toBeNull()
+      expect(await mirrorPostMedia({ accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: f })).toBeNull()
       expect(s.uploads).toHaveLength(0)
     }
   })
 
   it('returns null, and never throws, when the upload is refused or the storage is missing', async () => {
     const s = storage({ uploadError: { message: 'mime type not allowed' } })
-    expect(await mirrorPostMedia({ db: s.db, accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: reply(JPEG) })).toBeNull()
-    expect(await mirrorPostMedia({ db: {} as never, accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: reply(JPEG) })).toBeNull()
+    expect(await mirrorPostMedia({ accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: reply(JPEG) })).toBeNull()
+    expect(await mirrorPostMedia({ accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: reply(JPEG) })).toBeNull()
   })
 
   it('never fetches a link from a host that is not Meta, nor when there is no link', async () => {
     const f = reply(JPEG)
-    expect(await mirrorPostMedia({ db: storage().db, accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: 'https://evil.example.com/a.jpg', fetchImpl: f })).toBeNull()
-    expect(await mirrorPostMedia({ db: storage().db, accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: null, fetchImpl: f })).toBeNull()
+    expect(await mirrorPostMedia({ accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: 'https://evil.example.com/a.jpg', fetchImpl: f })).toBeNull()
+    expect(await mirrorPostMedia({ accountId: ACCT, provider: 'facebook', externalPostId: 'p', sourceUrl: null, fetchImpl: f })).toBeNull()
     expect(f).not.toHaveBeenCalled()
   })
 
   it("falls back to Meta's own link when a copy cannot be made, so a webhook never ends up with less than it had", async () => {
     const down = vi.fn(async () => { throw new Error('down') }) as unknown as typeof fetch
-    expect(await keepPostMedia({ db: storage().db, accountId: ACCT, provider: 'instagram', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: down })).toBe(SOURCE)
-    expect(await keepPostMedia({ db: storage().db, accountId: ACCT, provider: 'instagram', externalPostId: 'p', sourceUrl: null })).toBeNull()
+    expect(await keepPostMedia({ accountId: ACCT, provider: 'instagram', externalPostId: 'p', sourceUrl: SOURCE, fetchImpl: down })).toBe(SOURCE)
+    expect(await keepPostMedia({ accountId: ACCT, provider: 'instagram', externalPostId: 'p', sourceUrl: null })).toBeNull()
   })
 })

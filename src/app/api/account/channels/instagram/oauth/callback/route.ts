@@ -8,7 +8,7 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { sessionOwnsPending } from '@/lib/oauth/session-binding'
 import { encrypt } from '@/lib/whatsapp/encryption'
 import {
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     return settingsRedirect(baseUrl, { oauth_error: oauthError || 'invalid_state' })
   }
 
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   const pending = await findPendingConnectionByState(db, state)
   // A state is single-use and only the person who started the connection, signed in to
   // the same workspace, can finish it (a forwarded callback link does nothing).

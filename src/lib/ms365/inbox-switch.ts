@@ -1,7 +1,5 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-
 import { inboxIsOff } from '@/lib/email/mailbox-types'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { deleteSubscription } from '@/lib/ms365/mail-api'
 import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
 import { getValidAccessToken, type EmailConfigRow } from '@/lib/ms365/token'
@@ -55,18 +53,18 @@ export type InboxSwitchResult =
 export function realInboxSwitchDeps(setFlag: InboxSwitchDeps['setFlag']): InboxSwitchDeps {
   return {
     loadConfig: async (accountId) => {
-      const { data } = await supabaseAdmin().from('email_config').select('*').eq('account_id', accountId).maybeSingle()
+      const { data } = await createAdminPgDb().from('email_config').select('*').eq('account_id', accountId).maybeSingle()
       return (data as InboxRow | null) ?? null
     },
     setFlag,
     saveSubscription: async (configId, patch) => {
-      const { error } = await supabaseAdmin().from('email_config').update(patch).eq('id', configId)
+      const { error } = await createAdminPgDb().from('email_config').update(patch).eq('id', configId)
       return error ? { message: error.message } : null
     },
     getAccessToken: (config) => getValidAccessToken(config),
     deleteSubscription,
     startSubscription: async (config, baseUrl) => {
-      await renewMailboxSubscription({ admin: supabaseAdmin() as SupabaseClient, config, baseUrl })
+      await renewMailboxSubscription({ admin: createAdminPgDb(), config, baseUrl })
     },
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 const h = vi.hoisted(() => ({
   addLabel: vi.fn(),
@@ -21,7 +21,7 @@ interface Fixture {
   existingLabels?: number
 }
 
-function fakeDb(f: Fixture): SupabaseClient {
+function fakeDb(f: Fixture): PgDb {
   return {
     from(table: string) {
       const b: Record<string, unknown> = {}
@@ -40,7 +40,7 @@ function fakeDb(f: Fixture): SupabaseClient {
       })
       return b
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
 }
 
 const ARGS = { accountId: 'acct', conversationId: 'conv' }

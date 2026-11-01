@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PgDb } from "@/lib/postgres/db";
 import { describe, expect, it } from "vitest";
 
 import type { MailboxState, OutgoingEmail } from "@/lib/email/mailbox-types";
@@ -33,7 +33,7 @@ const env: EnvelopeFacts = { accountId: "acct", title: "Onboarding pack", refere
 const ws: Workspace = { name: "Vircle", senderName: "Gokula", settings: null };
 const to = { name: "Ali", email: "ali@example.com", channel: "email" as const, locale: "en" as const };
 const inv: Invitation = { signer_id: "s1", token: "t".repeat(64), name: "Ali", email: "ali@example.com", phone: null, channel: "email", role_key: "merchant", kind: "signer", order_no: 1 };
-const admin = {} as SupabaseClient;
+const admin = {} as unknown as PgDb;
 const pdf = (mb: number, filename = "signed.pdf") => ({ bytes: new Uint8Array(Math.floor(mb * MB)).fill(1), filename });
 
 interface World {

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 /**
  * Handlers for Meta's template-lifecycle webhook events.
  *
@@ -103,7 +104,7 @@ export async function handleTemplateWebhookChange(
   // SupabaseClient typed loosely — the webhook route lazy-initialises
   // the admin client and exposes it as `any`. Type as the generic
   // SupabaseClient here so this module is testable in isolation.
-  supabase: SupabaseClient,
+  supabase: PgDb
 ): Promise<void> {
   switch (change.field) {
     case 'message_template_status_update':
@@ -130,7 +131,7 @@ export async function handleTemplateWebhookChange(
 
 async function handleStatusUpdate(
   value: TemplateStatusUpdateValue,
-  supabase: SupabaseClient,
+  supabase: PgDb,
   wabaId: string | undefined,
 ): Promise<void> {
   const metaTemplateId =
@@ -199,7 +200,7 @@ async function handleStatusUpdate(
 
 async function handleQualityUpdate(
   value: TemplateQualityUpdateValue,
-  supabase: SupabaseClient,
+  supabase: PgDb,
   wabaId: string | undefined,
 ): Promise<void> {
   const metaTemplateId =
@@ -269,7 +270,7 @@ interface StubParams {
     data: { id: string }[] | null
     error: { message: string } | null
   }>
-  supabase: SupabaseClient
+  supabase: PgDb
 }
 
 /**

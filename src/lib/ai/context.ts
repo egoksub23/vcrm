@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import type { ChatMessage } from './types'
 import { aiContextMessageLimit } from './defaults'
 
@@ -45,7 +45,7 @@ function describe(m: DbMessage): string | null {
  * never block a draft or an auto-reply, so errors resolve to null.
  */
 export async function getPreferredLanguage(
-  db: SupabaseClient,
+  db: PgDb,
   conversationId: string,
 ): Promise<string | null> {
   try {
@@ -75,7 +75,7 @@ export async function getPreferredLanguage(
  * naturally and the most recent customer message lands last.
  */
 export async function buildConversationContext(
-  db: SupabaseClient,
+  db: PgDb,
   conversationId: string,
   limit: number = aiContextMessageLimit(),
 ): Promise<ChatMessage[]> {

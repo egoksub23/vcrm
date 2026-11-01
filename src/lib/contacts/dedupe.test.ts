@@ -1,3 +1,4 @@
+import type { PgDb } from '@/lib/postgres/db'
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -70,14 +71,14 @@ describe("dedupeByPhone", () => {
 describe("findExistingContact", () => {
   // Minimal SupabaseClient stub: resolves the .from().select().eq().like()
   // chain to a fixed candidate set.
-  function stubDb(rows: Array<{ id: string; phone: string }>): SupabaseClient {
+  function stubDb(rows: Array<{ id: string; phone: string }>): PgDb {
     const builder = {
       select: () => builder,
       eq: () => builder,
       is: () => builder,
       like: () => Promise.resolve({ data: rows, error: null }),
     };
-    return { from: () => builder } as unknown as SupabaseClient;
+    return { from: () => builder } as unknown as PgDb;
   }
 
   it("returns a trunk-variant match via phonesMatch", async () => {
@@ -113,7 +114,7 @@ describe("findExistingContact", () => {
         return Promise.resolve({ data: rows, error: null });
       },
     };
-    const db = { from: () => builder } as unknown as SupabaseClient;
+    const db = { from: () => builder } as unknown as PgDb;
     const hit = await findExistingContact(db, "acct", "+1 555 123 4567", "self");
     expect(hit?.id).toBe("c1");
   });

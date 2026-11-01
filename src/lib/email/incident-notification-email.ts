@@ -1,5 +1,5 @@
 import { realWorkspaceMailDeps, sendWorkspaceEmail, type WorkspaceMailDeps } from './workspace-mail';
-import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { createAdminPgDb } from '@/lib/postgres/db';
 
 function escapeHtml(value: string): string {
   return value
@@ -64,7 +64,7 @@ export interface IncidentEmailDeps {
 export const realIncidentEmailDeps: IncidentEmailDeps = {
   mail: realWorkspaceMailDeps,
   loadRecipients: async (userIds) => {
-    const { data } = await supabaseAdmin().from('profiles').select('user_id, email, account_id').in('user_id', userIds as string[]);
+    const { data } = await createAdminPgDb().from('profiles').select('user_id, email, account_id').in('user_id', userIds as string[]);
     return (data ?? []) as { email: string | null; account_id: string | null }[];
   },
 };

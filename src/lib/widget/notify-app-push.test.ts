@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 import { notifyAppUserOfReplyViaPush } from './notify-app-push';
 
@@ -11,7 +11,7 @@ const admin = new Proxy(
       throw new Error('notifyAppUserOfReplyViaPush must not touch the admin client yet');
     },
   }
-) as SupabaseClient;
+) as unknown as PgDb;
 
 describe('notifyAppUserOfReplyViaPush', () => {
   it('resolves without throwing when there is no wallet id', async () => {

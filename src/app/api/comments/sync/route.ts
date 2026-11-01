@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { syncTikTokComments, TikTokReauthRequired } from '@/lib/comments/tiktok/connection'
 import { TikTokApiError } from '@/lib/comments/tiktok/api'
@@ -20,7 +20,7 @@ export async function POST() {
     if (!limit.success) return rateLimitResponse(limit)
 
     try {
-      const r = await syncTikTokComments(supabaseAdmin(), accountId)
+      const r = await syncTikTokComments(createAdminPgDb(), accountId)
       return NextResponse.json({ success: true, ...r })
     } catch (err) {
       if (err instanceof TikTokReauthRequired) {

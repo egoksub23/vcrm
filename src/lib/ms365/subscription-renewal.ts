@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 import { getValidAccessToken, type EmailConfigRow } from '@/lib/ms365/token'
 import { createSubscription, deleteSubscription, renewSubscription } from '@/lib/ms365/mail-api'
@@ -23,7 +23,7 @@ export function subscriptionAddressChanged(recorded: string | null | undefined, 
  * (subscription-heartbeat) so both paths agree on exactly what "renew" means.
  */
 export async function renewMailboxSubscription(args: {
-  admin: SupabaseClient
+  admin: PgDb,
   config: EmailConfigRow & {
     subscription_id: string | null
     client_state: string

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
 import { claimWebhookEvent, ingestComment, setCommentStatusByExternalId, type IncomingPost } from '../ingest'
 import {
@@ -38,7 +38,7 @@ export interface TikTokAccess {
  * (access tokens only live a day). A failed refresh flags the connection
  * for reconnect instead of retrying forever.
  */
-export async function getTikTokAccess(db: SupabaseClient, accountId: string): Promise<TikTokAccess | null> {
+export async function getTikTokAccess(db: PgDb, accountId: string): Promise<TikTokAccess | null> {
   const { data: cfg } = await db
     .from('tiktok_config')
     .select('open_id, access_token, refresh_token, access_expires_at, refresh_expires_at, needs_reauth, status, enabled')
@@ -90,7 +90,7 @@ function videoToPost(openId: string, v: TikTokVideo): IncomingPost {
 }
 
 /** Save a batch of videos as posts (without touching last_comment_at). */
-async function upsertVideos(db: SupabaseClient, accountId: string, openId: string, videos: TikTokVideo[]) {
+async function upsertVideos(db: PgDb, accountId: string, openId: string, videos: TikTokVideo[]) {
   if (videos.length === 0) return
   const rows = videos.map((v) => {
     const p = videoToPost(openId, v)
@@ -112,7 +112,7 @@ async function upsertVideos(db: SupabaseClient, accountId: string, openId: strin
 }
 
 async function ingestTikTokComment(
-  db: SupabaseClient,
+  db: PgDb,
   a: TikTokAccess,
   videoId: string,
   c: TikTokComment,
@@ -139,7 +139,7 @@ async function ingestTikTokComment(
  * 40 calls a minute per endpoint.
  */
 export async function syncTikTokComments(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   opts: { videoLimit?: number } = {},
 ): Promise<{ videos: number; comments: number; newComments: number }> {
@@ -193,7 +193,7 @@ export async function syncTikTokComments(
  * an anonymous id, so a new comment is looked up for the commenter's name
  * and the video's details.
  */
-export async function applyTikTokCommentEvent(db: SupabaseClient, event: TikTokCommentEvent): Promise<void> {
+export async function applyTikTokCommentEvent(db: PgDb, event: TikTokCommentEvent): Promise<void> {
   const { data: cfg } = await db
     .from('tiktok_config')
     .select('account_id')

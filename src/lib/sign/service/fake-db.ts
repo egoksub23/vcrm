@@ -5,7 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PgDb } from "@/lib/postgres/db";
 
 type Row = Record<string, unknown>;
 type Result = { data: unknown; error: { message: string; details?: string } | null; count?: number };
@@ -94,7 +94,7 @@ export class FakeDb {
     return this.tables[table] ?? [];
   }
 
-  client(): SupabaseClient {
+  client(): PgDb {
     return {
       from: (t: string) => new Query(this, t),
       rpc: async (name: string, args: Record<string, unknown> = {}) => {
@@ -127,7 +127,7 @@ export class FakeDb {
           },
         }),
       },
-    } as unknown as SupabaseClient;
+    } as unknown as PgDb;
   }
 }
 

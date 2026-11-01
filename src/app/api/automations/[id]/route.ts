@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { auth } from '@/auth'
 import { assertCapability, requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import {
   loadStepsTree,
   replaceSteps,
@@ -36,7 +36,7 @@ export async function GET(
     return toErrorResponse(err)
   }
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const { data: automation, error } = await admin
     .from('automations')
     .select('*')
@@ -85,7 +85,7 @@ export async function PATCH(
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
 
   // Ownership check before we touch anything. Load the fields we need
   // to compute the post-patch "effective" state for validation.
@@ -181,7 +181,7 @@ export async function DELETE(
   const user = await requireUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabaseAdmin()
+  const { error } = await createAdminPgDb()
     .from('automations')
     .delete()
     .eq('id', id)

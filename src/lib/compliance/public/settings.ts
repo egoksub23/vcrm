@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests, Settings > Compliance > Public forms (compliance.manage). Server only.
 //
@@ -7,7 +8,6 @@
 // while the workspace's `compliance` flag is on AND the form is on; the flag is the operator's, not this screen's.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { turnstileEnabled } from "@/lib/sign/registration/turnstile";
 import { makeSlug, regenerateSlug } from "@/lib/sign/registration/slug";
@@ -26,7 +26,7 @@ export type { PublicFormPatch, PublicFormSettings, PublicFormsAnswer } from "./s
 const DEFAULT_MAX = 10_000;
 export const NOTICE_MAX = 2000;
 
-export async function listPublicForms(admin: SupabaseClient, caller: ComplianceCaller): Promise<PublicFormsAnswer> {
+export async function listPublicForms(admin: PgDb, caller: ComplianceCaller): Promise<PublicFormsAnswer> {
   if (!caller.viewer.canManage) throw complianceError("forbidden");
   const { data, error } = await admin.from("compliance_public_forms").select(FORM_COLUMNS).eq("account_id", caller.accountId);
   if (error) throw complianceError("server_error");
@@ -52,7 +52,7 @@ export async function listPublicForms(admin: SupabaseClient, caller: ComplianceC
 
 const isUnique = (e: { code?: string; message?: string } | null | undefined) => !!e && (e.code === "23505" || /duplicate key|unique constraint/i.test(e.message ?? ""));
 
-export async function savePublicForm(admin: SupabaseClient, caller: ComplianceCaller, typeKey: string, patch: PublicFormPatch, now: () => Date = () => new Date()): Promise<PublicFormsAnswer> {
+export async function savePublicForm(admin: PgDb, caller: ComplianceCaller, typeKey: string, patch: PublicFormPatch, now: () => Date = () => new Date()): Promise<PublicFormsAnswer> {
   if (!caller.viewer.canManage) throw complianceError("forbidden");
   if (!(PUBLIC_TYPES as readonly string[]).includes(typeKey)) throw complianceError("invalid_request");
   const kind = typeKey as PublicType;

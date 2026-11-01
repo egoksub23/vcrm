@@ -26,7 +26,7 @@
 // ============================================================
 import { NextResponse } from 'next/server'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   const widgetToken = typeof raw?.widgetToken === 'string' ? raw.widgetToken.trim() : ''
   if (!widgetToken) return widgetError(400, 'widgetToken is required', 'bad_request')
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
 
   const { data: config, error: configError } = await admin
     .from('web_widget_config')

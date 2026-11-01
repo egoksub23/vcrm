@@ -12,7 +12,7 @@
 // Returns `{ results: SembangStarredMessage[] }`.
 // ============================================================
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { hydrateMessages, type SembangMessageRow } from '@/lib/sembang/hydrate-messages'
@@ -37,7 +37,7 @@ interface ChannelContextRow {
  *  identically-named helper in `/api/sembang/search` — kept local rather
  *  than shared, matching this codebase's per-route convention. */
 async function loadChannelContexts(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   channelIds: string[],
   callerUserId: string,
 ): Promise<Map<string, SembangStarredMessage['channel']>> {
@@ -55,7 +55,7 @@ async function loadChannelContexts(
   }
 
   const rows = (channelRows ?? []) as ChannelContextRow[]
-  const dmChannelIds = rows.filter((r) => r.is_dm).map((r) => r.id)
+  const dmChannelIds = rows .filter((r: any) => r.is_dm) .map((r: any) => r.id)
 
   const namesByChannel = new Map<string, string[]>()
   if (dmChannelIds.length > 0) {
@@ -65,7 +65,7 @@ async function loadChannelContexts(
       .in('channel_id', dmChannelIds)
       .neq('user_id', callerUserId)
 
-    const otherUserIds = Array.from(new Set((memberRows ?? []).map((m) => m.user_id as string)))
+    const otherUserIds = Array.from(new Set((memberRows ?? []) .map((m: any) => m.user_id as string)))
     const nameByUser = new Map<string, string>()
     if (otherUserIds.length > 0) {
       const { data: profileRows } = await supabase
@@ -115,7 +115,7 @@ export async function GET() {
       return NextResponse.json({ results: [] })
     }
 
-    const messageIds = Array.from(new Set(stars.map((s) => s.message_id)))
+    const messageIds = Array.from(new Set(stars .map((s: any) => s.message_id)))
     const { data: messageRows, error: msgErr } = await ctx.supabase
       .from('sembang_messages')
       .select('*')
@@ -131,12 +131,12 @@ export async function GET() {
       hydrateMessages(ctx.supabase, rows, ctx.userId),
       loadChannelContexts(
         ctx.supabase,
-        Array.from(new Set(rows.map((r) => r.channel_id))),
+        Array.from(new Set(rows .map((r: any) => r.channel_id))),
         ctx.userId,
       ),
     ])
 
-    const messageById = new Map(messages.map((m) => [m.id, m]))
+    const messageById = new Map(messages .map((m: any) => [m.id, m]))
 
     // Preserve `starred_at DESC` order — the message/channel-context
     // fetches above are unordered `.in()` lookups.

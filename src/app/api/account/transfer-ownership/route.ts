@@ -19,7 +19,6 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { PostgrestError } from "@supabase/supabase-js";
 
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
 import {
@@ -28,7 +27,7 @@ import {
   RATE_LIMITS,
 } from "@/lib/rate-limit";
 
-function rpcErrorToResponse(err: PostgrestError): NextResponse {
+function rpcErrorToResponse(err: { message: string; code?: string | null }): NextResponse {
   if (err.code === "42501") {
     return NextResponse.json({ error: err.message }, { status: 403 });
   }

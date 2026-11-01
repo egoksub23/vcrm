@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { isMirroredPostMedia, mirrorPostMedia } from './mirror-post-media'
 import { getFacebookPost, getInstagramMedia } from './meta-comments'
@@ -23,7 +23,7 @@ interface PostRow {
 }
 
 /** The post's own page token: Facebook posts belong to a Messenger page, Instagram posts to the Instagram business account. */
-async function tokenFor(db: SupabaseClient, accountId: string, post: PostRow): Promise<string | null> {
+async function tokenFor(db: PgDb, accountId: string, post: PostRow): Promise<string | null> {
   if (!post.channel_ref_id) return null
   const [table, column] = post.provider === 'facebook' ? ['messenger_config', 'page_id'] : ['instagram_config', 'ig_business_account_id']
   const { data } = await db
@@ -42,7 +42,7 @@ async function tokenFor(db: SupabaseClient, accountId: string, post: PostRow): P
   }
 }
 
-export async function refreshPostMedia(db: SupabaseClient, accountId: string, postId: string): Promise<RefreshResult> {
+export async function refreshPostMedia(db: PgDb, accountId: string, postId: string): Promise<RefreshResult> {
   const { data } = await db
     .from('comment_posts')
     .select('id, provider, channel_ref_id, external_post_id, media_url')
@@ -68,7 +68,7 @@ export async function refreshPostMedia(db: SupabaseClient, accountId: string, po
   if (!fresh) return { ok: false, reason: 'unavailable' }
 
   // A copy of our own when it can be made; otherwise the fresh link, which is at least good for a while.
-  const kept = (await mirrorPostMedia({ db, accountId, provider: post.provider, externalPostId: post.external_post_id, sourceUrl: fresh })) ?? fresh
+  const kept = (await mirrorPostMedia({ accountId, provider: post.provider, externalPostId: post.external_post_id, sourceUrl: fresh })) ?? fresh
   const { error } = await db.from('comment_posts').update({ media_url: kept }).eq('account_id', accountId).eq('id', post.id)
   if (error) return { ok: false, reason: 'unavailable' }
   return { ok: true, mediaUrl: kept, changed: kept !== post.media_url }

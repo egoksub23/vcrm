@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     const { data, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     // A pending edit is only for its proposer and for reviewers.
-    const rows = (data ?? []).map((r) => stripPendingEdit(r, ctx.userId, canReview))
+    const rows = (data ?? []) .map((r: any) => stripPendingEdit(r, ctx.userId, canReview))
     return NextResponse.json({ quick_replies: rows })
   } catch (err) {
     return toErrorResponse(err)

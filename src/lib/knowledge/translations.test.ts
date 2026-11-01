@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { makeFakeDb } from '@/lib/comments/fake-db'
 
 vi.mock('@/lib/whatsapp/send-message', () => ({ sendMessageToConversation: vi.fn() }))
@@ -82,7 +82,7 @@ describe('loadEffectiveAttachments', () => {
         chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: null, error: { message: 'down' } })
         return chain
       },
-    } as unknown as SupabaseClient
+    } as unknown as PgDb
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(ids(await loadEffectiveAttachments(db, ACCT, ['ms']))).toEqual({ ms: ['s1'] })
     spy.mockRestore()
@@ -134,7 +134,7 @@ describe('keepTranslationsCurrent', () => {
       }
     }
     chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: null, error: null })
-    const db = { from: () => chain } as unknown as SupabaseClient
+    const db = { from: () => chain } as unknown as PgDb
     return { db, calls }
   }
 
@@ -160,7 +160,7 @@ describe('keepTranslationsCurrent', () => {
       from: () => {
         throw new Error('down')
       },
-    } as unknown as SupabaseClient
+    } as unknown as PgDb
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await expect(keepTranslationsCurrent(db, ACCT, 'b', 'a', 'c')).resolves.toBeUndefined()
     spy.mockRestore()

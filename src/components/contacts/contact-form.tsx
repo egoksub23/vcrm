@@ -107,7 +107,7 @@ export function ContactForm({
     }
     setCheckingDup(true);
     try {
-      const existing = await findExistingContact(supabase, accountId, value, contact?.id);
+      const existing = await findExistingContact(supabase as any, accountId, value, contact?.id);
       setDupMatch(
         existing
           ? { contact: existing, exact: isExactMatch(existing, value) }
@@ -228,7 +228,7 @@ export function ContactForm({
       // and, for new contacts, point the user at the existing record.
       if (isUniqueViolation(err)) {
         const existing = accountId
-          ? await findExistingContact(supabase, accountId, phone.trim(), contact?.id)
+          ? await findExistingContact(supabase as any, accountId, phone.trim(), contact?.id)
           : null;
         if (existing) {
           setDupMatch({ contact: existing, exact: true });

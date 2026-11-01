@@ -122,7 +122,7 @@ export async function GET() {
     const roleSets: Record<string, Set<string>> = {};
     for (const role of ACCOUNT_ROLES) {
       const overrides = overridesFromRows(
-        overrideRows.filter((r) => r.role === role),
+        overrideRows .filter((r: any) => r.role === role),
       );
       roleSets[role] = resolveCapabilities(
         role,
@@ -135,7 +135,7 @@ export async function GET() {
     // the literal role, for members whose access diverges from their
     // bare base tier.
     const customRoleRows = customRolesRes.error ? [] : (customRolesRes.data ?? []);
-    const customRoleIds = customRoleRows.map((r) => r.id);
+    const customRoleIds = customRoleRows .map((r: any) => r.id);
     const customOverridesRes =
       customRoleIds.length > 0
         ? await ctx.supabase
@@ -150,8 +150,8 @@ export async function GET() {
       if (!isAccountRole(role.base_role)) continue;
       const overrides = overridesFromRows(
         customOverrideRows
-          .filter((r) => r.account_role_id === role.id)
-          .map((r) => ({ capability: r.capability, granted: r.granted })),
+           .filter((r: any) => r.account_role_id === role.id)
+           .map((r: any) => ({ capability: r.capability, granted: r.granted })),
       );
       customRoleSets[role.id] = resolveCapabilities(role.base_role, overrides);
       customRoleCapabilityCounts[role.id] = customRoleSets[role.id].size;

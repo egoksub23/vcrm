@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import type { AiConfig } from './types'
 import { chunkText } from './chunk'
 import { embedTexts, toVectorLiteral } from './embeddings'
@@ -96,7 +96,7 @@ export interface IngestDoc {
  * the route can warn.
  */
 export async function ingestDocument(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   config: Partial<EmbeddingsSettings>,
   doc: IngestDoc,
@@ -158,7 +158,7 @@ export interface SearchOptions {
  * never throws into the draft / auto-reply / inbox path.
  */
 export async function searchKnowledge(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   config: Partial<EmbeddingsSettings>,
   queryText: string,
@@ -324,7 +324,7 @@ function fuse(
  * the sources matter (citations, gaps).
  */
 export async function retrieveKnowledge(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   config: Partial<EmbeddingsSettings>,
   queryText: string,
@@ -342,7 +342,7 @@ export async function retrieveKnowledge(
 /** Record which articles were used (feeds "AI uses" on the library page).
  *  Fire-and-forget safe: swallows its own errors. */
 export async function logKnowledgeUse(
-  db: SupabaseClient,
+  db: PgDb,
   args: {
     accountId: string
     conversationId: string | null
@@ -373,7 +373,7 @@ export async function logKnowledgeUse(
 
 /** Record a question the AI had no article for (service-role only). */
 export async function logKnowledgeGap(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   question: string,
   conversationId: string | null,

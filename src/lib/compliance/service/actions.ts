@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: the steps of a case. Server only. Each one checks the caller's permission, checks the case is in this workspace, then calls
 // the database function that is the real rule (compliance_transition, compliance_tick_step, compliance_set_standing, compliance_clock): the function
@@ -5,7 +6,6 @@
 // What is here only answers early, with a clear code, and keeps the browser away from the database's words.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ComplianceError, complianceError, fromDatabase } from "../errors";
 import { openSensitive, revealedFields } from "../secrets";
@@ -47,7 +47,7 @@ export interface TransitionResult {
 const NOTE_MAX = 2000;
 const oneOf = <T extends string>(list: readonly T[], v: unknown): v is T => typeof v === "string" && (list as readonly string[]).includes(v);
 
-export async function transitionRequest(admin: SupabaseClient, caller: ComplianceCaller, id: string, input: TransitionInput, deps: NoticeDeps = realNoticeDeps): Promise<TransitionResult> {
+export async function transitionRequest(admin: PgDb, caller: ComplianceCaller, id: string, input: TransitionInput, deps: NoticeDeps = realNoticeDeps): Promise<TransitionResult> {
   const row = await loadRow(admin, caller.accountId, id);
   const to = input.to;
   if (!canMove(row.status, to)) throw complianceError("invalid_transition");
@@ -109,7 +109,7 @@ export async function transitionRequest(admin: SupabaseClient, caller: Complianc
   return { from: row.status, to, ...(notice ? { notice } : {}) };
 }
 
-export async function tickStep(admin: SupabaseClient, caller: ComplianceCaller, id: string, stepKey: string, done: boolean, note?: string | null): Promise<void> {
+export async function tickStep(admin: PgDb, caller: ComplianceCaller, id: string, stepKey: string, done: boolean, note?: string | null): Promise<void> {
   if (!caller.viewer.canExecute) throw complianceError("forbidden");
   if (!/^[a-z][a-z0-9_]{0,39}$/.test(stepKey)) throw complianceError("invalid_request");
   const text = (note ?? "").trim();
@@ -119,7 +119,7 @@ export async function tickStep(admin: SupabaseClient, caller: ComplianceCaller, 
   if (error) throw fromDatabase(error);
 }
 
-export async function setStanding(admin: SupabaseClient, caller: ComplianceCaller, id: string, duesOutstanding: boolean, notes?: string | null): Promise<void> {
+export async function setStanding(admin: PgDb, caller: ComplianceCaller, id: string, duesOutstanding: boolean, notes?: string | null): Promise<void> {
   if (!(caller.viewer.canReview || caller.viewer.canApprove)) throw complianceError("forbidden");
   if (typeof duesOutstanding !== "boolean") throw complianceError("invalid_request");
   const text = (notes ?? "").trim();
@@ -129,7 +129,7 @@ export async function setStanding(admin: SupabaseClient, caller: ComplianceCalle
   if (error) throw fromDatabase(error);
 }
 
-export async function clockAction(admin: SupabaseClient, caller: ComplianceCaller, id: string, action: "pause" | "resume", note: string): Promise<void> {
+export async function clockAction(admin: PgDb, caller: ComplianceCaller, id: string, action: "pause" | "resume", note: string): Promise<void> {
   if (!caller.viewer.canApprove) throw complianceError("forbidden");
   if (action !== "pause" && action !== "resume") throw complianceError("invalid_request");
   const text = (note ?? "").trim();
@@ -144,7 +144,7 @@ export async function clockAction(admin: SupabaseClient, caller: ComplianceCalle
  * Reveal the sensitive answers of ONE case. Needs compliance.reveal. The 'reveal' event is written FIRST: when the trail cannot be written nothing is
  * returned. The route rate limits per person. The browser hides the values again after two minutes.
  */
-export async function revealSensitive(admin: SupabaseClient, caller: ComplianceCaller, id: string): Promise<{ fields: { key: string; label: { en: string; ms?: string; zh?: string; ko?: string }; value: string }[]; expiresInSeconds: number }> {
+export async function revealSensitive(admin: PgDb, caller: ComplianceCaller, id: string): Promise<{ fields: { key: string; label: { en: string; ms?: string; zh?: string; ko?: string }; value: string }[]; expiresInSeconds: number }> {
   if (!caller.viewer.canReveal) {
     // a refused attempt is part of the trail too
     const row = await loadRow(admin, caller.accountId, id).catch(() => null);

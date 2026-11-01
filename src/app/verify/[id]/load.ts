@@ -8,7 +8,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isDocumentId, loadVerification, type VerifyView } from "@/lib/sign/service/verify";
@@ -19,6 +19,6 @@ export const loadVerifyPage = cache(async (id: string): Promise<VerifyLoad> => {
   const ip = clientIp(await headers());
   if (!checkRateLimit(`sign-verify:${ip}`, { limit: 60, windowMs: 60_000 }).success) return { kind: "busy" };
   if (!isDocumentId(id)) return { kind: "invalid" };
-  const view = await loadVerification(supabaseAdmin(), id);
+  const view = await loadVerification(createAdminPgDb(), id);
   return view ? { kind: "ok", view } : { kind: "invalid" };
 });

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // The Fields tab's server side: Jira field metadata for a project and issue
 // type (cached 24 h, refreshable) and the field mappings themselves. Server
@@ -5,7 +6,6 @@
 // field-mapping.ts.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { CreateField, JiraClient } from "./client";
 import {
@@ -30,7 +30,7 @@ export interface FieldMeta {
 
 /** Create-metadata fields of a project and issue type: from the cache, or from Jira (then cached). */
 export async function getFieldMeta(args: {
-  db: SupabaseClient;
+  db: PgDb,
   client: Pick<JiraClient, "listCreateFields">;
   connectionId: string;
   accountId: string;
@@ -94,7 +94,7 @@ export function validateMapping(
 
 /** Save (insert or replace) one mapping; the unique key is connection + project + ticket field. */
 export async function saveMapping(args: {
-  db: SupabaseClient;
+  db: PgDb,
   connectionId: string;
   accountId: string;
   input: MappingInput;

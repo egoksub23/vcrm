@@ -6,7 +6,8 @@
 // `vircle-typing:<haloConversationId>` that an open Inbox thread listens to.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { createSupabaseIdentityStore } from '@/lib/widget/identity-resolve'
 
@@ -21,7 +22,7 @@ export type TypingResult = { status: 'broadcast'; conversationId: string } | { s
  * when the broadcast itself fails; the caller answers 200 either way, because a typing signal is
  * never retried.
  */
-export async function broadcastUserTyping(admin: SupabaseClient, accountId: string, ev: TypingEvent): Promise<TypingResult> {
+export async function broadcastUserTyping(admin: PgDb, accountId: string, ev: TypingEvent): Promise<TypingResult> {
   const contact = await createSupabaseIdentityStore(admin).findByWallet(accountId, ev.walletId)
   if (!contact) return { status: 'unknown_user' }
 
@@ -37,11 +38,13 @@ export async function broadcastUserTyping(admin: SupabaseClient, accountId: stri
   if (!conversationId) return { status: 'unknown_user' }
 
   // A REST broadcast: the server never subscribes, so there is no socket to open or leave behind.
-  const channel = admin.channel(typingChannelName(conversationId))
+  // Supabase Realtime requires the Supabase JS client; PgDb has no Realtime API.
+  const rt = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  const channel = rt.channel(typingChannelName(conversationId))
   try {
     await channel.httpSend(TYPING_EVENT, { at: new Date().toISOString() })
   } finally {
-    await admin.removeChannel(channel)
+    await rt.removeChannel(channel)
   }
   return { status: 'broadcast', conversationId }
 }

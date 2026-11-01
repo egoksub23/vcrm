@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { KB_LANGUAGES, type KbLanguage } from '@/lib/ai/knowledge-query'
 import type { ImportItem } from './import-extract'
 
@@ -41,7 +41,7 @@ export type SaveResult =
   | { ok: false; error: string; status: number }
 
 export async function saveImportedDrafts(
-  db: SupabaseClient,
+  db: PgDb,
   ctx: { accountId: string; userId: string },
   items: ImportItem[],
   opts: ImportOptions & { sourceId?: string | null },
@@ -73,7 +73,7 @@ export async function saveImportedDrafts(
 
 /** Record where imported articles came from (a file name or a web address). */
 export async function createSource(
-  db: SupabaseClient,
+  db: PgDb,
   ctx: { accountId: string; userId: string },
   source: { kind: 'file' | 'url'; name: string | null; url?: string | null; checksum: string | null },
 ): Promise<string | null> {

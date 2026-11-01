@@ -1,9 +1,9 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests, the personal closure form link in a chat (migration 185): who may act on it, and reading it (the case page's list, the Inbox
 // cards' status). SERVER ONLY, but with no send pipeline in it, so the case's detail can read it cheaply.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { complianceError } from "../errors";
 import { loadPeople, personRef, type RequestRow } from "../service/rows";
@@ -43,7 +43,7 @@ export interface LinkDbRow {
 }
 
 /** The links of one case, newest first, for the case page (menu.compliance). */
-export async function linksOfRequest(admin: SupabaseClient, accountId: string, requestId: string, now: Date = new Date()): Promise<FormLinkView[]> {
+export async function linksOfRequest(admin: PgDb, accountId: string, requestId: string, now: Date = new Date()): Promise<FormLinkView[]> {
   const { data, error } = await admin.from("compliance_form_links").select(LINK_COLUMNS).eq("account_id", accountId).eq("request_id", requestId).order("created_at", { ascending: false }).limit(50);
   if (error) throw complianceError("server_error");
   const people = await loadPeople(admin, accountId);
@@ -66,7 +66,7 @@ export async function linksOfRequest(admin: SupabaseClient, accountId: string, r
  * The status of the cards in one conversation, for the Inbox thread: for each link (named by `ids` or all of the conversation's) its state and whether this
  * person may resend or withdraw it. Nothing about the customer. The conversation is one the caller's own session was able to open (the route checks).
  */
-export async function cardStatuses(admin: SupabaseClient, actor: LinkActor, conversationId: string, ids: readonly string[] | null, now: Date = new Date()): Promise<CardStatus[]> {
+export async function cardStatuses(admin: PgDb, actor: LinkActor, conversationId: string, ids: readonly string[] | null, now: Date = new Date()): Promise<CardStatus[]> {
   let q = admin.from("compliance_form_links").select(LINK_COLUMNS).eq("account_id", actor.accountId).eq("conversation_id", conversationId);
   if (ids && ids.length > 0) q = q.in("id", ids.slice(0, 100));
   const { data, error } = await q.order("created_at", { ascending: false }).limit(100);

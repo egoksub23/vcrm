@@ -75,15 +75,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .from('sembang_channel_members')
       .select('user_id')
       .eq('channel_id', channelId)
-    const memberIds = (memberRows ?? [])
-      .map((m) => m.user_id as string)
-      .filter((userId) => userId !== ctx.userId)
+    const memberIds = ((memberRows ?? []) as any[])
+      .map((m: any) => m.user_id as string)
+      .filter((userId: string) => userId !== ctx.userId)
     const { data: profileRows } =
       memberIds.length > 0
         ? await ctx.supabase.from('profiles').select('email').in('user_id', memberIds)
         : { data: [] as { email: string | null }[] }
     const attendeeEmails = Array.from(
-      new Set((profileRows ?? []).map((p) => p.email).filter((e): e is string => !!e)),
+      new Set(((profileRows ?? []) as any[]).map((p: any) => p.email as string | null).filter((e): e is string => !!e)),
     )
 
     let created: { eventId: string; htmlLink: string; meetingUrl: string | null }

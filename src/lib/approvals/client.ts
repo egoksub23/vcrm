@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Browser-side calls for propose and approve.
 //
@@ -7,7 +8,6 @@
 // friendly `{ ok, code }` so the screens can toast a translated message.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { approvalErrorCode } from "./rules";
 import type { ApprovalErrorCode, ApprovalItem, TagValues } from "./types";
@@ -27,7 +27,7 @@ function toResult(
 
 /** Propose a new contact tag or conversation label (or create it when the caller can manage tags). */
 export async function proposeTag(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   input: {
     kind: "tag" | "label";
     name: string;
@@ -48,7 +48,7 @@ export async function proposeTag(
 
 /** Propose an edit of a tag or label (or apply it when the caller can manage tags). */
 export async function proposeTagEdit(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   id: string,
   patch: Partial<TagValues>,
 ): Promise<ProposalResult> {

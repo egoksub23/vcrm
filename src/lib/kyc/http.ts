@@ -9,11 +9,10 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { hasMinRole } from "@/lib/auth/roles";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db';
 import { checkRateLimit } from "@/lib/rate-limit";
 
 import { kycRuntime, type KycRuntime } from "./runtime";
@@ -23,7 +22,7 @@ import type { KycErrorCode } from "./types";
 export const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 export interface KycCall {
-  admin: SupabaseClient;
+  admin: PgDb,
   caller: KycCaller;
   runtime: KycRuntime;
 }
@@ -67,7 +66,7 @@ export async function kycStaff(opts: StaffOptions, handler: (call: KycCall) => P
       canDecide: auth.capabilities.has("kyc.decide"),
       isAdmin,
     };
-    return await handler({ admin: supabaseAdmin(), caller, runtime: kycRuntime() });
+    return await handler({ admin: createAdminPgDb(), caller, runtime: kycRuntime() });
   } catch (err) {
     return toErrorResponse(err);
   }

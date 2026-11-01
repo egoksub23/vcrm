@@ -1,5 +1,5 @@
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { refreshAccessToken } from './oauth'
 import { GraphApiError } from './errors'
 
@@ -45,7 +45,7 @@ export async function getValidAccessToken(config: EmailConfigRow): Promise<strin
     return decrypt(config.access_token)
   }
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const refreshToken = decrypt(config.refresh_token)
   try {
     const tokens = await refreshAccessToken({ refreshToken })

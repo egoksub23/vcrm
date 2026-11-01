@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Address pinning has its own tests (lib/net/safe-fetch.test.ts); here the global fetch stub stands in.
 vi.mock('@/lib/net/safe-fetch', () => ({ pinnedFetch: (...a: Parameters<typeof fetch>) => fetch(...a) }));
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 vi.mock('@/lib/whatsapp/encryption', () => ({
   decrypt: (s: string) => s,
@@ -54,7 +54,7 @@ function makeDb(rows: Row[], calls: Calls) {
     calls.rpcs.push({ name, args });
     return Promise.resolve({ data: null, error: null });
   };
-  return { from, rpc } as unknown as SupabaseClient;
+  return { from, rpc } as unknown as PgDb;
 }
 
 const emptyCalls = (): Calls => ({ updates: [], rpcs: [] });

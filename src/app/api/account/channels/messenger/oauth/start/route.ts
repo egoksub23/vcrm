@@ -9,7 +9,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { buildMetaOAuthUrl, getOAuthBaseUrl } from '@/lib/meta/oauth'
 import { createPendingConnection } from '@/lib/meta/oauth-connect'
 
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   try {
     const ctx = await requireCapability('channels.manage')
 
-    const { state } = await createPendingConnection(supabaseAdmin(), {
+    const { state } = await createPendingConnection(createAdminPgDb(), {
       accountId: ctx.accountId,
       userId: ctx.userId,
       channel: 'messenger',

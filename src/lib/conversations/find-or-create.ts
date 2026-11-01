@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { isUniqueViolation } from '@/lib/contacts/dedupe'
 
 /**
@@ -12,7 +12,7 @@ import { isUniqueViolation } from '@/lib/contacts/dedupe'
  * every channel a contact has messaged on since migration 048's merge.
  */
 export async function findOrCreateConversation(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   configOwnerUserId: string,
   contactId: string,

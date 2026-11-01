@@ -124,7 +124,7 @@ export function TagEditDialog({
     if (mode === 'propose') {
       const result = tag
         ? await proposeTagEdit(
-            supabase,
+            supabase as any,
             tag.id,
             // Only what differs from the live tag; a pending creation is
             // edited in place, so it sends every field.
@@ -132,7 +132,7 @@ export function TagEditDialog({
               ? fields
               : buildEditPatch(tag as unknown as Record<string, unknown>, fields),
           )
-        : await proposeTag(supabase, {
+        : await proposeTag(supabase as any, {
             kind,
             name: trimmed,
             color,

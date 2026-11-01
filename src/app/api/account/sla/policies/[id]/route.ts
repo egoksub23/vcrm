@@ -32,7 +32,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const { data, error } = await ctx.supabase
       .from("ticket_sla_policies")
-      .update(checked.value)
+      .update(checked.value as Record<string, unknown>)
       .eq("id", id)
       .eq("account_id", ctx.accountId)
       .select("*")

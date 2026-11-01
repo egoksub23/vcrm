@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { TicketCommentError, postTicketComment } from '@/lib/tickets/comment-write'
 
 // POST /api/tickets/[id]/comments
@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       kind?: unknown
     } | null
 
-    const result = await postTicketComment(ctx.supabase, supabaseAdmin(), {
+    const result = await postTicketComment(ctx.supabase, createAdminPgDb(), {
       accountId: ctx.accountId,
       userId: ctx.userId,
       ticketId,

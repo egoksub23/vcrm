@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { reopenClosedConversation } from './reopen'
 
 /**
@@ -68,7 +68,7 @@ function stubClient(opts: StubOptions = {}) {
     },
   }
 
-  return { client: client as unknown as SupabaseClient, calls }
+  return { client: client as unknown as PgDb, calls }
 }
 
 describe('reopenClosedConversation', () => {

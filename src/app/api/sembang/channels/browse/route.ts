@@ -49,7 +49,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to load channels' }, { status: 500 })
     }
 
-    const myChannelIds = new Set((myMemberRows ?? []).map((m) => m.channel_id as string))
+    const myChannelIds = new Set((myMemberRows ?? []) .map((m: any) => m.channel_id as string))
 
     const { data: channelRows, error } = await ctx.supabase
       .from('sembang_channels')
@@ -71,12 +71,12 @@ export async function GET() {
     // a security boundary (RLS already permits a non-member to see any
     // non-private channel row) so there's no correctness cost to doing
     // it client-side-of-the-query.
-    const rows = ((channelRows ?? []) as BrowseChannelRow[]).filter((r) => !myChannelIds.has(r.id))
+    const rows = ((channelRows ?? []) as BrowseChannelRow[]) .filter((r: any) => !myChannelIds.has(r.id))
     if (rows.length === 0) {
       return NextResponse.json({ channels: [] })
     }
 
-    const channelIds = rows.map((r) => r.id)
+    const channelIds = rows .map((r: any) => r.id)
     const { data: memberRows, error: memberErr } = await ctx.supabase
       .from('sembang_channel_members')
       .select('channel_id')
@@ -93,7 +93,7 @@ export async function GET() {
       countByChannel.set(id, (countByChannel.get(id) ?? 0) + 1)
     }
 
-    const channels: SembangBrowseChannel[] = rows.map((r) => ({
+    const channels: SembangBrowseChannel[] = rows .map((r: any) => ({
       id: r.id,
       name: r.name ?? '',
       topic: r.topic,

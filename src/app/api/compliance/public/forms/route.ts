@@ -32,7 +32,7 @@ export async function GET() {
 
     if (!rows?.length) return NextResponse.json({ forms: [] })
 
-    const typeKeys = rows.map((r) => r.type_key as string)
+    const typeKeys = rows .map((r: any) => r.type_key as string)
     const { data: types } = await ctx.supabase
       .from('compliance_request_types')
       .select('key, label')
@@ -40,11 +40,11 @@ export async function GET() {
       .in('key', typeKeys)
       .eq('active', true)
 
-    const labelMap = new Map((types ?? []).map((t) => [t.key as string, t.label as string]))
+    const labelMap = new Map((types ?? []) .map((t: any) => [t.key as string, t.label as string]))
 
     const forms: PublicFormItem[] = rows
-      .filter((r) => r.slug && labelMap.has(r.type_key as string))
-      .map((r) => ({
+       .filter((r: any) => r.slug && labelMap.has(r.type_key as string))
+       .map((r: any) => ({
         typeKey: r.type_key as string,
         slug: r.slug as string,
         label: labelMap.get(r.type_key as string) ?? (r.type_key as string),

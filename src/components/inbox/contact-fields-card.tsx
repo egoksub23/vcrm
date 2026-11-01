@@ -72,7 +72,7 @@ export function ContactFieldsCard({
         // Name the conflicting contact instead of a generic "taken" message,
         // same as the contact form / detail sheet already do.
         const phone = typeof patch.phone === "string" ? patch.phone : contact.phone;
-        const existing = await findExistingContact(supabase, contact.account_id, phone, contact.id);
+        const existing = await findExistingContact(supabase as any, contact.account_id, phone, contact.id);
         setSavingKey(null);
         return existing
           ? t("errors.phone_taken_named", { name: existing.name || existing.phone })

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Registration pages and the contact: find or make the one contact for a person who submitted a form.
 //
@@ -18,7 +19,6 @@
 // Every read and write is scoped to the workspace. Returns the contact's id and whether it was created.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { resolveAuditUserId } from "@/lib/api/v1/contacts";
 import { findExistingContact, isUniqueViolation } from "@/lib/contacts/dedupe";
@@ -55,7 +55,7 @@ function isPlaceholderName(c: ContactRow): boolean {
   return !n || n === PLACEHOLDER_NAME || n === (c.phone ?? "").trim();
 }
 
-async function fillEmptyFields(admin: SupabaseClient, accountId: string, existing: ContactRow, who: ApplicantDetails): Promise<void> {
+async function fillEmptyFields(admin: PgDb, accountId: string, existing: ContactRow, who: ApplicantDetails): Promise<void> {
   const patch: Record<string, unknown> = {};
   if (who.fullName && isPlaceholderName(existing)) patch.name = who.fullName;
   if (who.company && !(existing.company ?? "").trim()) patch.company = who.company;
@@ -71,7 +71,7 @@ async function fillEmptyFields(admin: SupabaseClient, accountId: string, existin
 }
 
 /** Find the contact for this email, or make one. Throws UsageLimitError at the workspace's contact limit. */
-export async function upsertApplicantContact(admin: SupabaseClient, accountId: string, who: ApplicantDetails): Promise<ApplicantContact> {
+export async function upsertApplicantContact(admin: PgDb, accountId: string, who: ApplicantDetails): Promise<ApplicantContact> {
   const found = await admin
     .from("contacts")
     .select("id, name, phone, email, company")

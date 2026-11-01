@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 import { addContactTagIfAbsent } from './tag-write';
 
@@ -14,7 +14,7 @@ function fakeDb(
   options: FakeOptions = {},
   isCalls: [string, string, unknown][] = [],
   eqCalls: [string, string, unknown][] = []
-): SupabaseClient {
+): PgDb {
   const contact =
     options.contact === undefined ? { id: 'contact-1' } : options.contact;
   const tag = options.tag === undefined ? { id: 'tag-1' } : options.tag;
@@ -57,7 +57,7 @@ function fakeDb(
       };
       return builder;
     },
-  } as unknown as SupabaseClient;
+  } as unknown as PgDb;
 }
 
 const input = {

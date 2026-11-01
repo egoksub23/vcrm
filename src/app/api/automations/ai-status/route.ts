@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { checkAiAvailability } from '@/lib/automations/ai/caller'
 
 /**
@@ -14,7 +14,7 @@ import { checkAiAvailability } from '@/lib/automations/ai/caller'
 export async function GET() {
   try {
     const { accountId } = await requireCapability('menu.automations')
-    const a = await checkAiAvailability(supabaseAdmin(), accountId)
+    const a = await checkAiAvailability(createAdminPgDb(), accountId)
     return NextResponse.json(a.ok ? { available: true } : { available: false, code: a.code })
   } catch (err) {
     return toErrorResponse(err)

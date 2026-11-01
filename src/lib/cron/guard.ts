@@ -16,7 +16,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 export interface CronResult {
   /** JSON body returned to the caller and kept as the run's last result. */
@@ -51,7 +51,7 @@ async function recordHeartbeat(
   result: Record<string, unknown>,
 ): Promise<void> {
   try {
-    await supabaseAdmin().rpc('cron_heartbeat', {
+    await createAdminPgDb().rpc('cron_heartbeat', {
       p_job: job,
       p_expected_seconds: expectedSeconds,
       p_duration_ms: Math.min(Math.round(durationMs), 2_000_000_000),

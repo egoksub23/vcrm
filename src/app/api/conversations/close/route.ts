@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { closeConversation } from '@/lib/conversations/close'
 
 const MAX_IDS = 200
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     }
     if (!note) return NextResponse.json({ error: 'A closure note is required to close a conversation' }, { status: 400 })
 
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const succeeded: string[] = []
     const failed: { id: string; error: string }[] = []
     for (const id of ids) {

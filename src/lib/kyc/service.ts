@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // KYC review: what each route does, apart from the HTTP. Server only.
 //
@@ -9,7 +10,6 @@
 //   5. the access log row is written; if it cannot be written NOTHING is returned (the log is never skipped)
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { buildValidation, extractItems, parseValidations, statusTone } from "./adapter";
 import { writeAccessLog, type AccessLogInput, type KycAction } from "./audit";
@@ -109,7 +109,7 @@ export function validValidationId(v: string): boolean {
   return VALIDATION_ID_RE.test(v);
 }
 
-export async function lookupValidations(admin: SupabaseClient, caller: KycCaller, rt: KycRuntime, input: LookupInput): Promise<ServiceResult<KycValidationList>> {
+export async function lookupValidations(admin: PgDb, caller: KycCaller, rt: KycRuntime, input: LookupInput): Promise<ServiceResult<KycValidationList>> {
   const revealing = input.revealValidationId !== null;
   const action: KycAction = revealing ? "reveal" : input.reload ? "list" : "lookup";
   const record = (outcome: AccessLogInput["outcome"], as: KycAction = action) =>
@@ -198,7 +198,7 @@ export function normaliseNote(raw: string): string {
 }
 
 /** Approve or reject one ID check. See the order in the header of this file; the extra rules for a write are in the numbered comments. */
-export async function decideValidation(admin: SupabaseClient, caller: KycCaller, rt: KycRuntime, input: DecisionInput): Promise<ServiceResult<KycDecisionResult>> {
+export async function decideValidation(admin: PgDb, caller: KycCaller, rt: KycRuntime, input: DecisionInput): Promise<ServiceResult<KycDecisionResult>> {
   // An amendment is logged as an 'amend', never as a 'decision', so an audit can tell it from a first decision without reading the order of two rows.
   const act: KycAction = input.amend ? "amend" : "decision";
   const record = (outcome: AccessLogInput["outcome"], as: KycAction = act) =>
@@ -297,7 +297,7 @@ export interface ImageInput {
   friendId: string | null;
 }
 
-export async function fetchValidationImage(admin: SupabaseClient, caller: KycCaller, rt: KycRuntime, input: ImageInput): Promise<ServiceResult<FetchedImage>> {
+export async function fetchValidationImage(admin: PgDb, caller: KycCaller, rt: KycRuntime, input: ImageInput): Promise<ServiceResult<FetchedImage>> {
   const record = (outcome: AccessLogInput["outcome"], as: KycAction = "view_image") =>
     writeAccessLog(admin, { accountId: caller.accountId, userId: caller.userId, action: as, friendId: input.friendId, validationId: input.validationId, outcome });
 

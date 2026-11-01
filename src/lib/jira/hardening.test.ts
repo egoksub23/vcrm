@@ -1,3 +1,4 @@
+import type { PgDb } from '@/lib/postgres/db'
 import { createHmac } from "node:crypto";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -117,7 +118,7 @@ function fakeDb(rows: Record<string, unknown[]> = {}) {
       return chain;
     },
   };
-  return db as unknown as SupabaseClient;
+  return db as unknown as PgDb;
 }
 
 function deps(store: MemoryStore, client: unknown, over: Partial<CronDeps> = {}): CronDeps {

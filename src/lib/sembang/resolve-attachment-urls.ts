@@ -1,3 +1,5 @@
+import { appStorage } from '@/lib/storage/provider'
+
 // ============================================================
 // Shared signed-URL resolution for Sembang attachments — extracted out
 // of hydrate-messages.ts so the new channel-wide Files listing
@@ -5,7 +7,6 @@
 // going through full message hydration (reactions, threads, etc. that
 // a Files list doesn't need).
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** Matches `SEMBANG_SIGNED_URL_TTL_SECONDS` in `@/lib/storage/upload-sembang-file`
  *  (kept as a plain literal here rather than imported — that module pulls
@@ -17,7 +18,6 @@ export const SEMBANG_SIGNED_URL_TTL_SECONDS = 60 * 60
  *  etc.) does not throw — that attachment is just left with `url: ''`,
  *  same as every existing caller already tolerates. */
 export async function resolveAttachmentUrls<T extends { id: string; url: string }>(
-  supabase: SupabaseClient,
   attachments: T[],
   pathById: Map<string, string>,
 ): Promise<void> {
@@ -25,7 +25,7 @@ export async function resolveAttachmentUrls<T extends { id: string; url: string 
     attachments.map(async (a) => {
       const path = pathById.get(a.id)
       if (!path) return
-      const { data, error } = await supabase.storage
+      const { data, error } = await appStorage()
         .from('sembang-files')
         .createSignedUrl(path, SEMBANG_SIGNED_URL_TTL_SECONDS)
       if (error) {

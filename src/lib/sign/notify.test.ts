@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PgDb } from "@/lib/postgres/db";
 import { describe, expect, it, vi } from "vitest";
 
 import { deliverCode, deliverCompleted, deliverInvitation, deliverOutcome, deliverReminder, signerLink, verifyLink, type DocFacts, type NotifyDeps, type Workspace } from "./notify";
@@ -7,7 +7,7 @@ import type { Invitation } from "./types";
 const doc: DocFacts = { accountId: "acct", title: "Merchant Application", reference: "SGN-2026-000001", locale: "en", expiresAt: new Date("2026-10-20T00:00:00Z"), codeRequired: false, message: null };
 const ws: Workspace = { name: "Vircle", senderName: "Gokula", settings: { sender_name: null, whatsapp_template_name: "sign_invite", whatsapp_template_language: "ms" } };
 const inv = (over: Partial<Invitation> = {}): Invitation => ({ signer_id: "s1", token: "t".repeat(64), name: "Ali", email: "ali@example.invalid", phone: "+60123456789", channel: "email", role_key: "merchant", kind: "signer", order_no: 1, ...over });
-const admin = {} as SupabaseClient;
+const admin = {} as unknown as PgDb;
 
 function deps(over: Partial<NotifyDeps> = {}): NotifyDeps & { sentEmails: Parameters<NotifyDeps["sendEmail"]>[0][]; sentWa: unknown[] } {
   const sentEmails: Parameters<NotifyDeps["sendEmail"]>[0][] = [];

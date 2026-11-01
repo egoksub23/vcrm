@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import type { CommentProvider, CommentStatus } from './types'
 
 // ============================================================
@@ -49,7 +49,7 @@ function defined<T extends Record<string, unknown>>(o: T): Partial<T> {
 
 /** The contact this commenter already is, when we have their DM identity. */
 async function matchContact(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   provider: CommentProvider,
   authorExternalId: string | null | undefined,
@@ -72,7 +72,7 @@ async function matchContact(
  * resets the agent's handled status or assignee.
  */
 export async function ingestComment(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   post: IncomingPost,
   comment: IncomingComment,
@@ -203,7 +203,7 @@ export async function ingestComment(
 
 /** A provider told us a comment was removed or its visibility changed. */
 export async function setCommentStatusByExternalId(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   provider: CommentProvider,
   externalCommentId: string,
@@ -223,7 +223,7 @@ export async function setCommentStatusByExternalId(
  * the first time a key is seen.
  */
 export async function claimWebhookEvent(
-  db: SupabaseClient,
+  db: PgDb,
   provider: string,
   dedupeKey: string,
 ): Promise<boolean> {

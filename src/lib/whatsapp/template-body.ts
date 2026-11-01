@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Template body resolution — the local `message_templates` row for a
 // send, and the substituted body text we persist alongside it.
@@ -14,7 +15,6 @@
 // sends landed in the Inbox as empty bubbles.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard';
 import type { MessageTemplate } from '@/types';
@@ -89,7 +89,7 @@ export interface ResolvedTemplate {
  * exact → same base language → a sensible default.
  */
 export async function resolveTemplateRow(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   templateName: string,
   requestedLanguage?: string | null

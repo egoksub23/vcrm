@@ -1,9 +1,9 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: reading. The list (filters, counts, paging), one case's detail (masked; a 'view' event is written first) and the
 // definitions. Server only. Every query is scoped to the caller's workspace; the routes have already required menu.compliance.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { linksOfRequest } from "../chat-link/read";
 import { DUE_FILTERS, computeClock, inDueBucket, isFinished, type DueFilter } from "../clock";
@@ -158,7 +158,7 @@ export function countOpen(rows: readonly Pick<RequestRow, "status" | "received_a
   return c;
 }
 
-export async function listRequests(admin: SupabaseClient, caller: ComplianceCaller, f: ListFilters, now: () => number = Date.now): Promise<RequestList> {
+export async function listRequests(admin: PgDb, caller: ComplianceCaller, f: ListFilters, now: () => number = Date.now): Promise<RequestList> {
   const nowMs = now();
   let q = admin.from("compliance_requests").select(LIST_COLUMNS).eq("account_id", caller.accountId);
   if (f.type) q = q.eq("type_key", f.type);
@@ -203,7 +203,7 @@ export async function listRequests(admin: SupabaseClient, caller: ComplianceCall
 }
 
 /** The people of the workspace who hold a capability (one database call). */
-export async function holdersOf(admin: SupabaseClient, accountId: string, cap: string): Promise<string[]> {
+export async function holdersOf(admin: PgDb, accountId: string, cap: string): Promise<string[]> {
   const { data, error } = await admin.rpc("compliance_holders", { p_account: accountId, p_cap: cap });
   if (error || !Array.isArray(data)) return [];
   return data as string[];
@@ -211,7 +211,7 @@ export async function holdersOf(admin: SupabaseClient, accountId: string, cap: s
 
 // ---- one case --------------------------------------------------------------------------------------------------------
 
-async function linksOf(admin: SupabaseClient, accountId: string, r: RequestRow): Promise<RequestLinks> {
+async function linksOf(admin: PgDb, accountId: string, r: RequestRow): Promise<RequestLinks> {
   const [contact, ticket, incident] = await Promise.all([
     r.contact_id ? admin.from("contacts").select("id, name").eq("id", r.contact_id).eq("account_id", accountId).maybeSingle() : Promise.resolve({ data: null }),
     r.ticket_id ? admin.from("tickets").select("id, ticket_number, subject").eq("id", r.ticket_id).eq("account_id", accountId).maybeSingle() : Promise.resolve({ data: null }),
@@ -229,14 +229,14 @@ async function linksOf(admin: SupabaseClient, accountId: string, r: RequestRow):
   };
 }
 
-export async function loadRow(admin: SupabaseClient, accountId: string, id: string): Promise<RequestRow> {
+export async function loadRow(admin: PgDb, accountId: string, id: string): Promise<RequestRow> {
   const { data, error } = await admin.from("compliance_requests").select(REQUEST_COLUMNS).eq("id", id).eq("account_id", accountId).maybeSingle();
   if (error) throw complianceError("server_error");
   if (!data) throw complianceError("not_found");
   return data as unknown as RequestRow;
 }
 
-export async function loadType(admin: SupabaseClient, accountId: string, key: string): Promise<RequestTypeRow | undefined> {
+export async function loadType(admin: PgDb, accountId: string, key: string): Promise<RequestTypeRow | undefined> {
   return (await loadTypes(admin, accountId)).find((t) => t.key === key);
 }
 
@@ -244,7 +244,7 @@ export async function loadType(admin: SupabaseClient, accountId: string, key: st
  * One case for the screen. Writes a 'view' event FIRST: when the trail cannot be written nothing is returned (the same rule as the KYC access log).
  * The sensitive answers come back as masks only.
  */
-export async function getRequestDetail(admin: SupabaseClient, caller: ComplianceCaller, id: string, opts: { logView?: boolean } = {}): Promise<RequestDetail> {
+export async function getRequestDetail(admin: PgDb, caller: ComplianceCaller, id: string, opts: { logView?: boolean } = {}): Promise<RequestDetail> {
   const row = await loadRow(admin, caller.accountId, id);
   if (opts.logView !== false && !(await logEvent(admin, { accountId: caller.accountId, requestId: row.id, actor: caller.userId, kind: "view" }))) {
     throw complianceError("audit_failed");

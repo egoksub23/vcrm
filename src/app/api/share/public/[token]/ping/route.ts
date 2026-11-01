@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { hashToken, isPlausibleToken } from "@/lib/share/tokens";
@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     return new NextResponse(null, { status: 204 });
   }
 
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
   const { data: share } = await admin
     .from("share_links")
     .select("id, status")

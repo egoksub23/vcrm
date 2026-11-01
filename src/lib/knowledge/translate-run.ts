@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { loadAiConfig } from '@/lib/ai/config'
 import { generateReply } from '@/lib/ai/generate'
 import { logAiUsage } from '@/lib/ai/usage'
@@ -30,9 +30,9 @@ import {
 
 export interface TranslateContext {
   /** The signed-in user's client: reads and writes run under RLS. */
-  db: SupabaseClient
+  db: PgDb
   /** Service role: the token budget check and the usage log. */
-  admin: SupabaseClient
+  admin: PgDb,
   accountId: string
   userId: string
   isAdmin: boolean

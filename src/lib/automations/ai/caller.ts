@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { loadAiConfig } from '@/lib/ai/config'
 import { generateReply } from '@/lib/ai/generate'
 import { logAiUsage } from '@/lib/ai/usage'
@@ -43,7 +43,7 @@ export const NOTICE_MESSAGE =
  * switch on, the `automation` job not switched off, and (for an
  * OpenAI-compatible host) the data notice confirmed.
  */
-export async function checkAiAvailability(db: SupabaseClient, accountId: string): Promise<AiAvailability> {
+export async function checkAiAvailability(db: PgDb, accountId: string): Promise<AiAvailability> {
   let config: AiConfig | null
   try {
     config = await loadAiConfig(db, accountId, { task: 'automation' })
@@ -64,7 +64,7 @@ export async function checkAiAvailability(db: SupabaseClient, accountId: string)
  * Anthropic are the account's own BYO key and never had it. Same rule as
  * Settings > AI Agents > Setup.
  */
-export async function noticeConfirmed(db: SupabaseClient, accountId: string, config: AiConfig): Promise<boolean> {
+export async function noticeConfirmed(db: PgDb, accountId: string, config: AiConfig): Promise<boolean> {
   if (config.provider !== 'openai_compatible') return true
   const q = config.connectionId
     ? db.from('ai_connections').select('data_notice_ack_at').eq('id', config.connectionId).eq('account_id', accountId)
@@ -79,7 +79,7 @@ export async function noticeConfirmed(db: SupabaseClient, accountId: string, con
  * fake caller replaces this whole object in tests.
  */
 export function createAiCaller(opts: {
-  db: SupabaseClient
+  db: PgDb,
   accountId: string
   conversationId: string | null
   logUsage?: boolean

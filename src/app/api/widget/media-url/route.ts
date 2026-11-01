@@ -77,12 +77,12 @@ export async function POST(request: Request) {
     console.error('[widget/media-url] message lookup error:', error)
     return widgetError(500, 'Internal server error', undefined, corsOrigin)
   }
-  const attached = new Set((rows ?? []).map((r) => (r as { media_url: string | null }).media_url))
+  const attached = new Set((rows ?? []) .map((r: any) => (r as { media_url: string | null }).media_url))
 
   const signed: Record<string, string> = {}
   await Promise.all(
     urls
-      .filter((u) => attached.has(u))
+       .filter((u: any) => attached.has(u))
       .map(async (u) => {
         const link = await signMediaUrl(admin, u, accountId, VIEW_URL_TTL_SECONDS).catch(() => null)
         if (link) signed[u] = link

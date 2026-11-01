@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Failed to load members' }, { status: 500 })
     }
 
-    const userIds = (memberRows ?? []).map((m) => m.user_id)
+    const userIds = (memberRows ?? []) .map((m: any) => m.user_id)
     const profileByUser = new Map<string, { full_name: string | null; avatar_url: string | null }>()
 
     if (userIds.length > 0) {
@@ -46,7 +46,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       for (const p of profileRows ?? []) profileByUser.set(p.user_id, p)
     }
 
-    const members: SembangMember[] = (memberRows ?? []).map((m) => {
+    const members: SembangMember[] = (memberRows ?? []) .map((m: any) => {
       const profile = profileByUser.get(m.user_id)
       return {
         userId: m.user_id,

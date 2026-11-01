@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { postInternalComment } from '@/lib/conversations/comment-write'
 
 // ============================================================
@@ -26,7 +26,7 @@ export function sourcesNoteText(sources: SourceRef[]): string {
 
 /** Best-effort: a failed note must never affect the reply the customer got. */
 export async function postSourcesNote(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   conversationId: string,
   sources: SourceRef[],

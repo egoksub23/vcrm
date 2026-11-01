@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { publicOrigin } from "@/lib/site-url";
 
@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const rate = checkRateLimit(`share-get:${auth.userId}`, { limit: 120, windowMs: 60_000 });
     if (!rate.success) return rateLimitResponse(rate);
 
-    const admin = supabaseAdmin();
+    const admin = createAdminPgDb();
     const { data: share, error } = await admin
       .from("share_links")
       .select("*")
@@ -89,7 +89,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return json({ error: "Invalid JSON.", code: "bad_request" }, 400);
     }
 
-    const admin = supabaseAdmin();
+    const admin = createAdminPgDb();
     const updates: Record<string, unknown> = {};
     if (body.status === "revoked") updates.status = "revoked";
     if (typeof body.downloadEnabled === "boolean") updates.download_enabled = body.downloadEnabled;

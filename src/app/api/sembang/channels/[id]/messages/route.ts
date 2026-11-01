@@ -51,7 +51,7 @@ import { extractLinks } from '@/lib/sembang/extract-links'
 import { fetchLinkPreview } from '@/lib/sembang/link-preview'
 import { loadJiraContext } from '@/lib/jira/http'
 import { matchJiraIssueKey } from '@/lib/jira/issue-url'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
@@ -283,7 +283,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               'updated',
             ])
             if (!issue) return
-            const { error: previewErr } = await supabaseAdmin().from('sembang_link_previews').insert({
+            const { error: previewErr } = await createAdminPgDb().from('sembang_link_previews').insert({
               message_id: messageId,
               account_id: accountId,
               kind: 'jira',
@@ -310,7 +310,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         try {
           const preview = await fetchLinkPreview(firstLink)
           if (!preview) return
-          const { error: previewErr } = await supabaseAdmin().from('sembang_link_previews').insert({
+          const { error: previewErr } = await createAdminPgDb().from('sembang_link_previews').insert({
             message_id: messageId,
             account_id: accountId,
             url: preview.url,

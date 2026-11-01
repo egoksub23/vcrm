@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Who should be notified about something that needs a capability?
 //
@@ -12,7 +13,6 @@
 // it is given (the service role in practice).
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   overridesFromRows,
@@ -91,7 +91,7 @@ export function candidateRoles(
  * not fail closed. Never throws on a read error.
  */
 export async function loadCapabilityRecipients(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   capability: string,
   options: { roles?: readonly AccountRole[] } = {},

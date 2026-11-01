@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { BULK_MAX_IDS, BULK_OPS, runBulkOp } from '@/lib/comments/bulk'
 import type { BulkOp } from '@/lib/comments/threads'
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     const results = await runBulkOp({
       userDb: supabase,
-      adminDb: supabaseAdmin(),
+      adminDb: createAdminPgDb(),
       ctx: { accountId, userId },
       op,
       ids: ids as string[],

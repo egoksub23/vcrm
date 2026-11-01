@@ -35,7 +35,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    const notified = (data?.notified ?? []) as EscalateNotified[];
+    const notified = ((data as { notified?: EscalateNotified[] } | null)?.notified ?? []) as EscalateNotified[];
     if (appBaseUrl && notified.length > 0) {
       await Promise.allSettled(
         notified.map((n) =>

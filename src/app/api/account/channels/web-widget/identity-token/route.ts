@@ -16,7 +16,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { decryptIdentitySecret } from '@/lib/widget/identity-secret'
 import {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     if (rawEmail && !email) return NextResponse.json({ error: 'Enter a valid email address' }, { status: 400 })
     const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 120) : ''
 
-    const { data: config, error } = await supabaseAdmin()
+    const { data: config, error } = await createAdminPgDb()
       .from('web_widget_config')
       .select('identity_secret_enc')
       .eq('account_id', ctx.accountId)

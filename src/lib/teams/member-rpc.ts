@@ -8,13 +8,12 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { PostgrestError } from "@supabase/supabase-js";
 
 import type { CapabilityContext } from "@/lib/auth/account";
 import { isUuid } from "@/lib/teams/team-ids";
 
 export function rpcErrorToResponse(
-  err: PostgrestError,
+  err: { message: string; code?: string | null },
   fallback = "Failed to update member",
 ): NextResponse {
   if (err.code === "42501") {

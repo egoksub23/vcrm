@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { auth } from '@/auth'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { validateFlowForActivation } from '@/lib/flows/validate'
 
 /**
@@ -62,7 +62,7 @@ export async function POST(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
 
   if (status === 'active') {
     // Re-load with the full payload the validator needs.

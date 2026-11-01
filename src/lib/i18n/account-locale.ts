@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 import { resolveLocale, type SupportedLocale } from './locales'
 
@@ -8,7 +8,7 @@ import { resolveLocale, type SupportedLocale } from './locales'
  * setting (migration 144), else the deployment default, else English. Never
  * throws; any read problem means the deployment default.
  */
-export async function loadAccountLocale(db: SupabaseClient, accountId: string): Promise<SupportedLocale> {
+export async function loadAccountLocale(db: PgDb, accountId: string): Promise<SupportedLocale> {
   const deployment = process.env.NEXT_PUBLIC_APP_LOCALE
   try {
     const { data } = await db.from('accounts').select('locale').eq('id', accountId).maybeSingle()

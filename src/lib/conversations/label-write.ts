@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { type PgDb } from '@/lib/postgres/db'
 
 import { isConversationLabel } from '@/lib/tags/scope';
 
@@ -21,7 +21,7 @@ interface ConversationLabelWriteInput {
 }
 
 async function assertConversationAndTagOwnership(
-  db: SupabaseClient,
+  db: PgDb,
   input: ConversationLabelWriteInput
 ): Promise<void> {
   const [conversationResult, tagResult] = await Promise.all([
@@ -63,7 +63,7 @@ async function assertConversationAndTagOwnership(
  * a duplicate insert is a no-op.
  */
 export async function addConversationLabelIfAbsent(
-  db: SupabaseClient,
+  db: PgDb,
   input: ConversationLabelWriteInput
 ): Promise<boolean> {
   await assertConversationAndTagOwnership(db, input);
@@ -88,7 +88,7 @@ export async function addConversationLabelIfAbsent(
 }
 
 export async function removeConversationLabel(
-  db: SupabaseClient,
+  db: PgDb,
   input: ConversationLabelWriteInput
 ): Promise<void> {
   await assertConversationAndTagOwnership(db, input);
@@ -115,7 +115,7 @@ export async function removeConversationLabel(
  * unapproved tag is left to `addConversationLabelIfAbsent`, which answers 404.
  */
 export async function assertTagIsConversationLabel(
-  db: SupabaseClient,
+  db: PgDb,
   input: { accountId: string; tagId: string }
 ): Promise<void> {
   const { data, error } = await db

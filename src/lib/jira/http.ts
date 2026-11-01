@@ -8,7 +8,7 @@
 import { NextResponse } from "next/server";
 
 import { type CapabilityContext, toErrorResponse } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db';
 import { getOAuthBaseUrl } from "@/lib/gmail/oauth";
 
 import type { JiraClient } from "./client";
@@ -105,7 +105,7 @@ export function jiraAppUrl(request?: Request): string {
 }
 
 export interface JiraRouteContext {
-  db: ReturnType<typeof supabaseAdmin>;
+  db: PgDb;
   store: JiraStore;
   connection: JiraConnectionRow;
   /** The full client (metadata, users, webhooks); `sync.client` is the same object. */
@@ -123,7 +123,7 @@ export async function loadJiraContext(
   opts: { requireActive?: boolean } = {},
 ): Promise<JiraRouteContext> {
   if (!isJiraConfigured()) throw new ApiError(503, "jira_not_configured", "Jira is not configured on this server");
-  const db = supabaseAdmin();
+  const db = createAdminPgDb();
   const store = jiraStore(db);
   const connection = await store.getConnectionByAccount(ctx.accountId);
   if (!connection || connection.status === "revoked") throw new ApiError(409, "no_connection", "Jira is not connected");

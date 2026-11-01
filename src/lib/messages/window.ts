@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 // WhatsApp only lets a business send free-form messages within 24 hours of
 // the customer's last message; after that only an approved template goes out.
@@ -18,7 +18,7 @@ export function isWhatsappWindowOpen(
 
 /** Reads the customer's last WhatsApp message time for a conversation and applies the rule. */
 export async function loadWhatsappWindowOpen(
-  db: SupabaseClient,
+  db: PgDb,
   conversationId: string,
   now: Date = new Date(),
 ): Promise<boolean> {

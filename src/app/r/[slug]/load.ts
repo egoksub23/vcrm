@@ -9,7 +9,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { turnstileSiteKey } from "@/lib/sign/registration/turnstile";
@@ -21,7 +21,7 @@ export type RegisterLoad = { kind: "invalid" } | { kind: "busy" } | { kind: "una
 export const loadRegisterPage = cache(async (slug: string): Promise<RegisterLoad> => {
   const ip = clientIp(await headers());
   if (!checkRateLimit(`sign-register-page:${ip}`, { limit: 60, windowMs: 60_000 }).success) return { kind: "busy" };
-  const found = await loadPublicForm(supabaseAdmin(), slug, publicOrigin());
+  const found = await loadPublicForm(createAdminPgDb(), slug, publicOrigin());
   if (!found) return { kind: "invalid" };
   // no key to sign the page's token with: the page could not be submitted, so it does not pretend
   const token = issuePageToken(found.form);

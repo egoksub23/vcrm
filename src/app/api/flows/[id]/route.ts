@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { auth } from '@/auth'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 /**
  * GET   /api/flows/[id]  — fetch one flow with its nodes.
@@ -121,7 +121,7 @@ export async function PUT(
     )
   }
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
 
   // Update the flow row first — the body may not include `nodes` (a
   // header-only save for editing the trigger config without touching
@@ -210,7 +210,7 @@ export async function DELETE(
   // mechanism in v1, but that's intentional: deleting a flow is a
   // deliberate destructive action and the partial unique index will
   // free up the contact for new triggers immediately.
-  const { error } = await supabaseAdmin().from('flows').delete().eq('id', id)
+  const { error } = await createAdminPgDb().from('flows').delete().eq('id', id)
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

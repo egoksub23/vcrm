@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { stepsUseAi, type ActivationOptions } from '../validate'
 import { checkAiAvailability } from './caller'
 
@@ -9,7 +9,7 @@ import { checkAiAvailability } from './caller'
  * Returns undefined when there is nothing to check.
  */
 export async function aiSetupForActivation(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   steps: Parameters<typeof stepsUseAi>[0],
 ): Promise<ActivationOptions['aiSetup'] | undefined> {

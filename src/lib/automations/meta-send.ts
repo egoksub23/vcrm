@@ -16,7 +16,7 @@ import {
 } from '@/lib/whatsapp/template-body'
 import { sendMessageToConversation } from '@/lib/whatsapp/send-message'
 import { insertFailedMessageRow } from '@/lib/messages/persist-failed'
-import { supabaseAdmin } from './admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 // ------------------------------------------------------------
 // Automation-side Meta sender.
@@ -63,7 +63,7 @@ interface SendTemplateArgs {
  * by `assertWhatsappChannel` before the engine ever calls them.
  */
 export async function engineSendText(args: SendTextArgs): Promise<{ whatsapp_message_id: string }> {
-  const result = await sendMessageToConversation(supabaseAdmin(), args.accountId, {
+  const result = await sendMessageToConversation(createAdminPgDb(), args.accountId, {
     conversationId: args.conversationId,
     messageType: 'text',
     contentText: args.text,
@@ -126,7 +126,7 @@ type SendInput =
   | (SendTemplateArgs & { kind: 'template' })
 
 async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: string }> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
 
   // Scope the contact + config lookups by account_id, not user_id.
   // The engine uses the service-role client (bypassing RLS); without

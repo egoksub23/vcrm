@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests, the public parent forms, the server side (Part B). What happens when a stranger opens /c/<slug>: they have no login, so this is
 // where the guards are. SERVER ONLY.
@@ -24,7 +25,6 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { sendWorkspaceEmail } from "@/lib/email/workspace-mail";
 import { detectFileKind } from "@/lib/net/file-kind";
@@ -100,7 +100,7 @@ export interface PublicForm {
 }
 
 /** The form behind an address, or null for every reason a visitor must not be told apart. */
-export async function loadPublicForm(admin: SupabaseClient, rawSlug: string): Promise<PublicForm | null> {
+export async function loadPublicForm(admin: PgDb, rawSlug: string): Promise<PublicForm | null> {
   const slug = normalizeSlug(rawSlug);
   if (!slug) return null;
   const { data, error } = await admin.from("compliance_public_forms").select(FORM_COLUMNS).eq("slug", slug).eq("enabled", true).maybeSingle();
@@ -153,7 +153,7 @@ export type { PublicView } from "./settings-types";
 // ---- the environment the routes run with ------------------------------------------------------------------------------------
 
 export interface PublicEnv {
-  admin: SupabaseClient;
+  admin: PgDb,
   now: () => Date;
   /** true when the call is within the limit (the shared limiter in production). */
   limit: (key: string, limit: number, windowMs: number) => Promise<boolean>;
@@ -332,7 +332,7 @@ export type SubmitOutcome =
 const OPEN_STATUSES = ["received", "identity_check", "officer_review", "awaiting_signoff", "approved", "executing"];
 
 /** The reference of an OPEN request of this type for this address (any source), or null. */
-async function findOpenRequest(admin: SupabaseClient, accountId: string, typeKey: string, email: string): Promise<string | null> {
+async function findOpenRequest(admin: PgDb, accountId: string, typeKey: string, email: string): Promise<string | null> {
   const { data, error } = await admin.from("compliance_requests").select("reference, customer_email, status").eq("account_id", accountId).eq("type_key", typeKey).ilike("customer_email", email.replace(/[\\%_]/g, (m) => `\\${m}`)).in("status", OPEN_STATUSES).limit(20);
   if (error) throw new Error("repeat check failed");
   const hit = ((data ?? []) as { reference: string; customer_email: string | null }[]).find((r) => (r.customer_email ?? "").trim().toLowerCase() === email);
@@ -340,7 +340,7 @@ async function findOpenRequest(admin: SupabaseClient, accountId: string, typeKey
 }
 
 /** The contact of THIS workspace that is plainly this person: exactly one by email, else exactly one by phone. Never creates one. */
-export async function matchContact(admin: SupabaseClient, accountId: string, email: string, phone: string): Promise<string | null> {
+export async function matchContact(admin: PgDb, accountId: string, email: string, phone: string): Promise<string | null> {
   const byEmail = await admin.from("contacts").select("id, email").eq("account_id", accountId).is("deleted_at", null).ilike("email", email.replace(/[\\%_]/g, (m) => `\\${m}`)).limit(5);
   const emailHits = ((byEmail.data ?? []) as { id: string; email: string | null }[]).filter((c) => (c.email ?? "").trim().toLowerCase() === email);
   if (emailHits.length === 1) return emailHits[0].id;

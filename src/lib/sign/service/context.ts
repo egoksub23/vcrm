@@ -1,8 +1,8 @@
+import { type PgDb } from '@/lib/postgres/db'
 // Shared plumbing for the Doc Sign services: the context every call carries, and the small reads
 // nearly every operation starts with. Everything here runs with the service-role client, so each read is
 // scoped to an account explicitly: a service never touches a row it did not check belongs to `accountId`.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { NotifyDeps } from "../notify";
 import { SignError, raiseDatabaseError } from "./errors";
@@ -10,7 +10,7 @@ import { assertCanSeeDocument } from "./privacy";
 import type { SignDocumentRow, SignSettingsRow, SignSignerRow } from "../types";
 
 export interface SignCtx {
-  admin: SupabaseClient;
+  admin: PgDb,
   accountId: string;
   /** The signed-in person acting, or null for the system (jobs) and for a signer. */
   userId: string | null;

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { generateReply } from './generate'
@@ -29,9 +29,9 @@ export function formatTranscript(messages: ChatMessage[]): string {
 
 export async function runWrapUpJob(args: {
   /** The signed-in user's client: reads run under RLS. */
-  db: SupabaseClient
+  db: PgDb
   /** Service-role client: usage log and the budget alert. */
-  admin: SupabaseClient
+  admin: PgDb,
   accountId: string
   conversationId: string
   task: Extract<AiTask, 'closing_note' | 'summary'>

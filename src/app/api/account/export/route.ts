@@ -9,7 +9,7 @@
 // The workspace's owner only: it is all of the workspace's customer data.
 // ============================================================
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { exportFileName, workspaceExportStream } from "@/lib/platform/workspace-export";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     if (!limit.success) return rateLimitResponse(limit);
 
     const withFiles = new URL(request.url).searchParams.get("files") !== "0";
-    const db = supabaseAdmin();
+    const db = createAdminPgDb();
     const { data: account } = await db.from("accounts").select("name").eq("id", ctx.accountId).maybeSingle();
     const name = (account?.name as string | undefined) ?? null;
 

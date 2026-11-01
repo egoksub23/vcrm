@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Workspace teardown outside the database (part of workspace deletion, migration 153).
 //
@@ -18,7 +19,6 @@
 // TikTok has no per-workspace registration to remove; Vircle Chat's side (the
 // gateway) is removed with the gateway's own command (see docs).
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { unsubscribePage } from '@/lib/comments/meta-comments'
 import { stopWatch } from '@/lib/gmail/gmail-api'
@@ -43,7 +43,7 @@ async function step(results: TeardownResults, name: string, run: () => Promise<s
 }
 
 /** Switch off every external registration for the workspace. Never throws. */
-export async function teardownWorkspaceChannels(db: SupabaseClient, accountId: string): Promise<TeardownResults> {
+export async function teardownWorkspaceChannels(db: PgDb, accountId: string): Promise<TeardownResults> {
   const results: TeardownResults = {}
 
   await step(results, 'whatsapp', async () => {

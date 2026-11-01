@@ -5,7 +5,7 @@
 // the route file stays a thin edge and the tests can pass their own.
 // ============================================================
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 
 import { publicOrigin } from "@/lib/site-url";
 
@@ -21,7 +21,7 @@ import type { SubmitEnv } from "./registration";
  */
 export function registrationEnv(): SubmitEnv {
   return {
-    admin: supabaseAdmin(),
+    admin: createAdminPgDb(),
     origin: publicOrigin(),
     deps: realDeps,
     now: () => new Date(),

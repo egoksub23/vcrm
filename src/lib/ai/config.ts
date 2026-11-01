@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import type { AiConfig, AiProvider } from './types'
 import type { AiTask } from './tasks'
@@ -34,7 +34,7 @@ const CONFIG_COLUMNS =
  * dashboard route, or the service-role admin client from the webhook.
  */
 export async function loadAiConfig(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   opts: { requireActive?: boolean; task?: AiTask } = {},
 ): Promise<AiConfig | null> {
@@ -102,7 +102,7 @@ export async function loadAiConfig(
  * to the previous behaviour rather than to no AI at all.
  */
 async function applyTaskRouting(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   task: AiTask,
   base: AiConfig,
@@ -156,7 +156,7 @@ async function applyTaskRouting(
  * lexical-only and reporting success.
  */
 export async function loadEmbeddingsKey(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
 ): Promise<{ key: string | null; corrupt: boolean }> {
   const { data, error } = await db
@@ -181,7 +181,7 @@ export async function loadEmbeddingsKey(
  * handling as `loadEmbeddingsKey`.
  */
 export async function loadEmbeddingsConfig(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
 ): Promise<{
   config: Pick<AiConfig, 'embeddingsApiKey' | 'embeddingsBaseUrl' | 'embeddingsModel'>

@@ -15,7 +15,6 @@
 // unique per conversation and a status only ever moves forward.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PgDb } from '@/lib/postgres/db'
 import { appStorage } from '@/lib/storage/provider'
 
@@ -51,7 +50,7 @@ export async function resolveVircleContact(
   ownerUserId: string,
   user: InboundEvent['user'],
 ): Promise<{ contactId: string; created: boolean }> {
-  const store = createSupabaseIdentityStore(admin as unknown as SupabaseClient)
+  const store = createSupabaseIdentityStore(admin)
   const walletContact = await store.findByWallet(accountId, user.walletId)
   const result = await resolveIdentityContact(store, {
     accountId,
@@ -99,10 +98,10 @@ export async function ingestInbound(
   const existing = await findMessageByServerId(admin, accountId, m.serverId)
   if (existing) return { status: 'duplicate', messageId: existing.id }
 
-  const ownerUserId = await resolveAuditUserId(admin as unknown as SupabaseClient, accountId)
+  const ownerUserId = await resolveAuditUserId(admin, accountId)
   const identity = await resolveVircleContact(admin, accountId, ownerUserId, ev.user)
 
-  const resolved = await findOrCreateConversation(admin as unknown as SupabaseClient, accountId, ownerUserId, identity.contactId)
+  const resolved = await findOrCreateConversation(admin, accountId, ownerUserId, identity.contactId)
   if (!resolved) throw new Error('Could not resolve the conversation for a Vircle Chat message')
   const conversation = resolved.conversation as { id: string; status?: string | null; vircle_conversation_id?: string | null }
 
@@ -137,7 +136,7 @@ export async function ingestInbound(
   // An id Halo does not know is ignored: the message is stored without a link.
   const replyToMessageId = m.replyToServerId ? await findReplyTarget(admin, conversation.id, m.replyToServerId) : null
 
-  const isFirst = await isFirstCustomerMessage(admin as unknown as SupabaseClient, conversation.id)
+  const isFirst = await isFirstCustomerMessage(admin, conversation.id)
   const { data, error } = await admin
     .from('messages')
     .insert({
@@ -165,10 +164,10 @@ export async function ingestInbound(
   }
 
   const fanOut = async () => {
-    await reopenClosedConversation(admin as unknown as SupabaseClient, conversation).catch((err) =>
+    await reopenClosedConversation(admin, conversation).catch((err) =>
       console.error('[vircle-chat] reopen failed:', err),
     )
-    await runWidgetInboundFanout(admin as unknown as SupabaseClient, {
+    await runWidgetInboundFanout(admin, {
       accountId,
       contactId: identity.contactId,
       conversation,

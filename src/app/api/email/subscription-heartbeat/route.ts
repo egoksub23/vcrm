@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentAccount, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { getOAuthBaseUrl } from '@/lib/ms365/oauth'
 import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     return toErrorResponse(err)
   }
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const { data: config } = await admin
     .from('email_config')
     .select('*')

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Sending what Secure Sign sends: invitations, reminders, codes, the signed copy and outcomes. Email goes
 // out through the workspace's own connected mailbox (Microsoft 365, else Gmail: Settings > Channels) when it
@@ -9,7 +10,6 @@
 // and record, not a reason to fail a signature.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { loadMailboxState } from "@/lib/email/mailbox";
 import type { MailboxProvider } from "@/lib/email/mailbox-types";
@@ -37,7 +37,7 @@ export interface Delivery {
 
 /** What Secure Sign needs to send: the shared workspace mail dependencies (the connected mailbox, the platform sender, the workspace's identity), and WhatsApp. */
 export interface NotifyDeps extends WorkspaceMailDeps {
-  sendWhatsApp: (admin: SupabaseClient, args: { accountId: string; to: string; templateName: string; language: string; params: string[] }) => Promise<void>;
+  sendWhatsApp: (admin: PgDb, args: { accountId: string; to: string; templateName: string; language: string; params: string[] }) => Promise<void>;
 }
 
 /**
@@ -74,7 +74,7 @@ export function verifyLink(origin: string, documentId: string): string {
 }
 
 async function sendWhatsAppTemplate(
-  admin: SupabaseClient,
+  admin: PgDb,
   args: { accountId: string; to: string; templateName: string; language: string; params: string[] },
 ): Promise<void> {
   const { data, error } = await admin.from("whatsapp_config").select("phone_number_id, access_token, enabled").eq("account_id", args.accountId).maybeSingle();
@@ -154,7 +154,7 @@ const displayFrom = (w: Workspace) => w.settings?.sender_name?.trim() || null;
 
 /** Invite someone: by the channel the sender chose. */
 export async function deliverInvitation(
-  admin: SupabaseClient,
+  admin: PgDb,
   deps: NotifyDeps,
   origin: string,
   doc: DocFacts,
@@ -222,7 +222,7 @@ export async function deliverForwardNotice(deps: NotifyDeps, doc: DocFacts, w: W
 }
 
 /** `partsLeft` (forms): the titles of the parts this person has not finished, named in an email reminder. */
-export async function deliverReminder(admin: SupabaseClient, deps: NotifyDeps, origin: string, doc: DocFacts, w: Workspace, inv: Invitation, partsLeft?: string[]): Promise<Delivery> {
+export async function deliverReminder(admin: PgDb, deps: NotifyDeps, origin: string, doc: DocFacts, w: Workspace, inv: Invitation, partsLeft?: string[]): Promise<Delivery> {
   const link = signerLink(origin, inv.token);
   if (inv.channel === "whatsapp") return deliverInvitation(admin, deps, origin, doc, w, inv);
   const m = reminderEmail({ locale: doc.locale, workspace: w.name, sender: w.senderName, signerName: inv.name, title: doc.title, link, expiresAt: doc.expiresAt, codeRequired: doc.codeRequired, mode: doc.mode, timeZone: w.timeZone, partsLeft });
@@ -292,7 +292,7 @@ export interface EnvelopeFacts {
 }
 
 /** Invite a person of an envelope: by the channel the sender chose, with ONE link that opens every document of theirs. */
-export async function deliverEnvelopeInvitation(admin: SupabaseClient, deps: NotifyDeps, origin: string, env: EnvelopeFacts, w: Workspace, inv: Invitation, opts: { fill?: boolean } = {}): Promise<Delivery> {
+export async function deliverEnvelopeInvitation(admin: PgDb, deps: NotifyDeps, origin: string, env: EnvelopeFacts, w: Workspace, inv: Invitation, opts: { fill?: boolean } = {}): Promise<Delivery> {
   const link = signerLink(origin, inv.token);
   if (inv.channel === "whatsapp") {
     const to = normalizePhone(inv.phone);
@@ -325,7 +325,7 @@ export async function deliverEnvelopeInvitation(admin: SupabaseClient, deps: Not
 }
 
 /** A reminder for a person of an envelope; `env.documents` are the titles of what they have not finished. The earlier link no longer works. */
-export async function deliverEnvelopeReminder(admin: SupabaseClient, deps: NotifyDeps, origin: string, env: EnvelopeFacts, w: Workspace, inv: Invitation): Promise<Delivery> {
+export async function deliverEnvelopeReminder(admin: PgDb, deps: NotifyDeps, origin: string, env: EnvelopeFacts, w: Workspace, inv: Invitation): Promise<Delivery> {
   if (inv.channel === "whatsapp") return deliverEnvelopeInvitation(admin, deps, origin, env, w, inv);
   const m = envelopeReminderEmail({
     locale: env.locale,

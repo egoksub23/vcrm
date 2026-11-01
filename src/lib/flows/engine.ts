@@ -32,7 +32,7 @@
  *     INSERT raises 23505 and the runner catches & exits.
  */
 
-import { supabaseAdmin } from "./admin-client";
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db';
 import {
   engineSendInteractiveButtons,
   engineSendInteractiveList,
@@ -193,7 +193,7 @@ export function evaluateConditionPredicate(args: {
 // readable. Errors surface as thrown — the entry point catches.
 // ============================================================
 
-type AdminClient = ReturnType<typeof supabaseAdmin>;
+type AdminClient = PgDb;
 
 async function loadActiveRunForContact(
   db: AdminClient,
@@ -321,7 +321,7 @@ async function isDuplicateInbound(
     .eq("account_id", accountId)
     .eq("contact_id", contactId);
   if (!runs?.length) return false;
-  const runIds = runs.map((r) => (r as { id: string }).id);
+  const runIds = (runs as any[]).map((r: any) => (r as { id: string }).id);
 
   const { count } = await db
     .from("flow_run_events")
@@ -921,7 +921,7 @@ async function advanceCurrentNodeKey(
 export async function dispatchInboundToFlows(
   input: DispatchInboundInput & { isFirstInboundMessage: boolean },
 ): Promise<DispatchInboundResult> {
-  const db = supabaseAdmin();
+  const db = createAdminPgDb();
   try {
     const activeRun = await loadActiveRunForContact(
       db,

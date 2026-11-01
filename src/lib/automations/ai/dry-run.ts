@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import type { CreateTicketStepConfig } from '@/types'
 import { usesAi } from '../step-kinds'
 import { planCreateTicket } from './create-ticket'
@@ -84,7 +84,7 @@ function wouldDo(effects: AiEffect[]): WouldDo[] {
 
 /** Run a step in dry-run mode. Never writes, never throws for a model failure. */
 export async function dryRunStep(args: {
-  db: SupabaseClient
+  db: PgDb,
   ai: AiCaller
   accountId: string
   conversationId: string

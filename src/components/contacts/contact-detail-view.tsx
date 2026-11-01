@@ -269,7 +269,7 @@ export function ContactDetailView({
       if (isUniqueViolation(error) && accountId) {
         // Another contact already owns this exact number: say which one
         // instead of a generic failure.
-        const other = await findExistingContact(supabase, accountId, nextPhone, contactId);
+        const other = await findExistingContact(supabase as any, accountId, nextPhone, contactId);
         if (other) {
           setDuplicateConflict(other);
         } else {
@@ -290,7 +290,7 @@ export function ContactDetailView({
       // email thread and wants the WhatsApp/other-channel history
       // that number already has attached to this contact).
       if (phoneChanged && accountId) {
-        const existing = await findExistingContact(supabase, accountId, nextPhone, contactId);
+        const existing = await findExistingContact(supabase as any, accountId, nextPhone, contactId);
         if (existing) setMergeCandidate(existing);
       }
     }

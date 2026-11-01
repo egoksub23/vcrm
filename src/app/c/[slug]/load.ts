@@ -10,7 +10,7 @@ import { cookies, headers } from "next/headers";
 
 import { buildPublicView, issuePageToken, loadPublicForm, type PublicView } from "@/lib/compliance/public/service";
 import { publicFormsConfigured, readSession, sessionCookieName } from "@/lib/compliance/public/session";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { turnstileSiteKey } from "@/lib/sign/registration/turnstile";
@@ -20,7 +20,7 @@ export type PublicLoad = { kind: "invalid" } | { kind: "busy" } | { kind: "unava
 export const loadPublicPage = cache(async (slug: string): Promise<PublicLoad> => {
   const ip = clientIp(await headers());
   if (!checkRateLimit(`cmp-page:${ip}`, { limit: 60, windowMs: 60_000 }).success) return { kind: "busy" };
-  const found = await loadPublicForm(supabaseAdmin(), slug);
+  const found = await loadPublicForm(createAdminPgDb(), slug);
   if (!found) return { kind: "invalid" };
   // no key to sign with: the form could not be submitted, so it does not pretend
   if (!publicFormsConfigured()) return { kind: "unavailable" };

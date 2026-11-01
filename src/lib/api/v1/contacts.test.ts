@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 // Mock the two collaborators `setContactTags` writes through so the
 // tests can assert exactly which joins it adds and removes.
@@ -65,7 +65,7 @@ describe('serializeContact', () => {
 });
 
 describe('findOrCreateContact', () => {
-  const noopDb = {} as SupabaseClient;
+  const noopDb = {} as unknown as PgDb;
 
   it('rejects a non-E.164 phone with a 400 ContactError', async () => {
     await expect(
@@ -106,7 +106,7 @@ describe('setContactTags', () => {
         expect(table).toBe('contact_tags');
         return builder;
       },
-    } as unknown as SupabaseClient;
+    } as unknown as PgDb;
     return { db, removed };
   }
 

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { logKnowledgeGap, logKnowledgeUse } from '@/lib/ai/knowledge'
 import { sendSourcesAfterReply } from '@/lib/ai/auto-reply'
 import { postInternalComment } from '@/lib/conversations/comment-write'
@@ -12,7 +12,7 @@ import type { AiEffect } from './types'
 
 export interface ApplyContext {
   /** Service-role client. */
-  db: SupabaseClient
+  db: PgDb,
   accountId: string
   conversationId: string | null
   contactId: string | null

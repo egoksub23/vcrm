@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { auth } from '@/auth'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin as _sharedAdmin } from '@/lib/supabase/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import {
   getSubscribedApps,
   listWabaPhoneNumbers,
@@ -45,11 +45,6 @@ async function resolveAccountId(
     .maybeSingle()
   if (error || !data?.account_id) return null
   return data.account_id as string
-}
-
-// Service-role client — reuses the shared singleton from admin-client.ts.
-function supabaseAdmin() {
-  return _sharedAdmin()
 }
 
 /**
@@ -307,7 +302,7 @@ export async function POST(request: Request) {
     // inbound message. See issue #136. Post-multi-user we key on
     // account_id (not user_id) since teammates inside the same account
     // all share one config; the conflict is between accounts.
-    const { data: claimed, error: claimedError } = await supabaseAdmin()
+    const { data: claimed, error: claimedError } = await createAdminPgDb()
       .from('whatsapp_config')
       .select('account_id')
       .eq('phone_number_id', phone_number_id)

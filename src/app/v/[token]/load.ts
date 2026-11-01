@@ -7,7 +7,7 @@
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { shareEnabled } from "@/lib/share/feature";
@@ -40,7 +40,7 @@ export const loadShare = cache(async (token: string): Promise<ShareLoad> => {
   if (!checkRateLimit(`share-public:${ip}`, { limit: 120, windowMs: 60_000 }).success) return { kind: "busy" };
   if (!isPlausibleToken(token)) return { kind: "invalid" };
 
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
   const { data: share } = await admin
     .from("share_links")
     .select("id, account_id, title, file_name, file_size, gate_type, download_enabled, status, expires_at, kind, redirect_url, content_type, watermark_enabled")

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { createSource, parseImportOptions, saveImportedDrafts } from './import-save'
 
 const COLL = '0f8fad5b-d9cb-469f-a165-70867728950e'
@@ -32,7 +32,7 @@ function insertDb(result: { data?: unknown; error?: { code?: string } | null }) 
       },
     }),
   }
-  return { db: db as unknown as SupabaseClient, state }
+  return { db: db as unknown as PgDb, state }
 }
 
 const CTX = { accountId: 'acct', userId: 'user' }

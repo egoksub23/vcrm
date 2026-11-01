@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Persist a failed send as a `status:'failed'` messages row — the
 // shared core `sendMessageToConversation()`'s own `failSend()` uses,
@@ -8,7 +9,6 @@
 // conversation would think to check.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { failureFromError } from './failure-reason';
 
 /**
@@ -17,7 +17,7 @@ import { failureFromError } from './failure-reason';
  * the message.
  */
 export async function insertMessageRowCompat(
-  db: SupabaseClient,
+  db: PgDb,
   row: Record<string, unknown>,
 ): Promise<{ data: { id: string } | null; error: { message: string } | null }> {
   const first = await db.from('messages').insert(row).select().single();
@@ -40,7 +40,7 @@ export async function insertMessageRowCompat(
  * caller's own error handling, so this never throws.
  */
 export async function insertFailedMessageRow(
-  db: SupabaseClient,
+  db: PgDb,
   row: Record<string, unknown> & { conversation_id: string },
   cause: unknown,
 ): Promise<string | null> {

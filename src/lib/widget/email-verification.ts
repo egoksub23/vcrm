@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Starting an email-code verification (migration 110) for a typed
 // claim on POST /api/widget/session, when
@@ -12,7 +13,6 @@
 // contact is otherwise untouched until POST /api/widget/verify-code
 // actually confirms it.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { sendVerificationCodeEmail } from '@/lib/email/widget-verification-email';
 import { createSupabaseIdentityStore } from './identity-resolve';
@@ -27,7 +27,7 @@ export type StartEmailCodeResult =
   { ok: true; maskedEmail: string } | { ok: false };
 
 export async function startEmailCodeVerification(
-  admin: SupabaseClient,
+  admin: PgDb,
   args: {
     accountId: string;
     widgetConfigId: string;

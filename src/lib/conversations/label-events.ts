@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { type PgDb } from '@/lib/postgres/db'
 
 import {
   runAutomationsForTrigger,
@@ -8,7 +8,7 @@ import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
 import { addConversationLabelIfAbsent } from './label-write';
 
 interface AddConversationLabelAndDispatchInput {
-  db: SupabaseClient;
+  db: PgDb,
   accountId: string;
   conversationId: string;
   tagId: string;

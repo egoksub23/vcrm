@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/ai/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { AiError } from '@/lib/ai/types'
 import { buildSummaryPrompt, cleanSummary } from '@/lib/ai/wrap-up'
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     const text = await runWrapUpJob({
       db: supabase,
-      admin: supabaseAdmin(),
+      admin: createAdminPgDb(),
       accountId,
       conversationId,
       task: 'summary',

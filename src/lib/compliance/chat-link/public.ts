@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests, the personal closure form (/c/link/<token>), the server side (migration 185). What happens when the parent taps the button in their
 // chat. SERVER ONLY.
@@ -21,7 +22,6 @@
 // What the page shows back: the case's reference and the words of what happens next. Everything the parent typed is never displayed back.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { postInternalComment } from "@/lib/conversations/comment-write";
 import { RATE_LIMITS } from "@/lib/rate-limit";
@@ -75,7 +75,7 @@ interface Found {
  * The link behind a token, only when it is genuine and can still be used: the token matches its keyed hash (constant time), the link is not used, withdrawn,
  * replaced or expired, the workspace has Compliance on, and the case is still a closure that can take the form. Null for every other reason.
  */
-export async function findLink(admin: SupabaseClient, token: unknown, now: Date): Promise<Found | null> {
+export async function findLink(admin: PgDb, token: unknown, now: Date): Promise<Found | null> {
   if (!linkTokensConfigured()) return null;
   const id = linkIdOf(token);
   if (!id) return null;
@@ -286,7 +286,7 @@ export async function submitLinkForm(env: PublicEnv, req: LinkSubmitRequest, det
 }
 
 /** Best effort, never an error for the parent: tell the people who review closures, and leave a line on the conversation. */
-async function afterSubmit(admin: SupabaseClient, a: { accountId: string; requestId: string; reference: string; conversationId: string | null; author: string | null }): Promise<void> {
+async function afterSubmit(admin: PgDb, a: { accountId: string; requestId: string; reference: string; conversationId: string | null; author: string | null }): Promise<void> {
   try {
     const holders = await holdersOf(admin, a.accountId, "compliance.review");
     if (holders.length > 0) {

@@ -20,6 +20,7 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 import { assertCanSendMessage, UsageLimitError } from '@/lib/platform/usage';
 
 import {
@@ -37,7 +38,6 @@ import {
   type InteractiveMessagePayload,
 } from '@/lib/whatsapp/interactive';
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption';
-import { supabaseAdmin } from '@/lib/flows/admin-client';
 import { createAdminPgDb } from '@/lib/postgres/db';
 import { pinnedFetch } from '@/lib/net/safe-fetch';
 import { downloadPrivateMedia, signMediaUrl } from '@/lib/storage/sign-media';
@@ -314,7 +314,7 @@ export function validateSendMessageParams(params: {
  * any other URL is passed on as given. The stored `media_url` stays the
  * identifier, so a resend signs a fresh link.
  */
-async function linkForPlatform(db: SupabaseClient, accountId: string, mediaUrl: string): Promise<string> {
+async function linkForPlatform(db: PgDb, accountId: string, mediaUrl: string): Promise<string> {
   const link = await signMediaUrl(db, mediaUrl, accountId);
   if (!link) {
     throw new SendMessageError('bad_request', 'That attachment is not available to this workspace.', 400);
@@ -324,7 +324,7 @@ async function linkForPlatform(db: SupabaseClient, accountId: string, mediaUrl: 
 
 /** The bytes of a file to attach to an email: read by path from the private bucket, or fetched from a public address. */
 async function attachmentFile(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   mediaUrl: string,
   label: string,
@@ -356,7 +356,7 @@ const KNOWN_CHANNELS: ReadonlySet<string> = new Set([
 ]);
 
 export async function sendMessageToConversation(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   params: SendMessageParams
 ): Promise<SendMessageResult> {
@@ -1330,7 +1330,7 @@ export async function sendMessageToConversation(
   // Never awaited: a slow or failing email must not add latency to, or
   // fail, the agent's own reply.
   if (isWidgetConversation) {
-    notifyWidgetVisitorOfReply(supabaseAdmin(), {
+    notifyWidgetVisitorOfReply(createAdminPgDb(), {
       accountId,
       conversationId,
       contactId: contact.id,
@@ -1340,7 +1340,7 @@ export async function sendMessageToConversation(
     // src/lib/widget/notify-app-push.ts) — provisioned now so a future
     // mobile-app chat user's wallet id is already flowing to the one spot
     // that call will go.
-    notifyAppUserOfReplyViaPush(supabaseAdmin(), {
+    notifyAppUserOfReplyViaPush(createAdminPgDb(), {
       accountId,
       conversationId,
       contactId: contact.id,
@@ -1351,7 +1351,7 @@ export async function sendMessageToConversation(
   // Pause any active Flow run for this contact — the agent stepping in
   // is the strongest "yield, human is here" signal. Best-effort.
   try {
-    const { error: pauseErr } = await supabaseAdmin()
+    const { error: pauseErr } = await createAdminPgDb()
       .from('flow_runs')
       .update({
         status: 'paused_by_agent',

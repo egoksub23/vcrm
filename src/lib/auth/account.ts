@@ -3,21 +3,18 @@
 // components. Reads the caller's profile + account in one round
 // trip and verifies role on demand.
 //
-// IMPORTANT: this module is server-only. It imports the Supabase
-// SSR client (`@/lib/supabase/server`), which reads `next/headers`
-// cookies. Importing it from a client component will fail at
-// build time with the standard Next.js "You're importing a
-// component that needs `next/headers`" error — that's the
-// boundary check; we don't need the `server-only` package.
+// IMPORTANT: this module is server-only. It reads `next/headers`
+// cookies via Auth.js. Importing it from a client component will
+// fail at build time.
 //
 // Calling convention
 // ------------------
-// API routes don't need to redo `supabase.auth.getUser()` — they
+// API routes don't need to redo auth.getUser() — they
 // receive a fully-loaded context from `requireRole`:
 //
 //   try {
 //     const ctx = await requireRole("admin");
-//     // ctx.supabase — the SSR client (RLS scoped to this user)
+//     // ctx.supabase — user-scoped PgDb (RLS via SET LOCAL)
 //     // ctx.userId  — auth.uid()
 //     // ctx.accountId / ctx.role / ctx.account
 //   } catch (err) {
@@ -30,10 +27,9 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { auth } from "@/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminPgDb, createPgDb, type PgDb } from "@/lib/postgres/db";
 import { hasMinRole, isAccountRole, type AccountRole } from "./roles";
 import {
   getCapability,
@@ -98,7 +94,7 @@ export function toErrorResponse(err: unknown): NextResponse {
 
 export interface AccountContext {
   /** Supabase SSR client, RLS scoped to the calling user. */
-  supabase: SupabaseClient;
+  supabase: PgDb
   /** `auth.uid()` for the caller. Always defined when this resolves. */
   userId: string;
   /** Caller's account_id from their profile row. */
@@ -140,10 +136,9 @@ export async function getCurrentAccount(): Promise<AccountContext> {
   if (!session?.user?.id) throw new UnauthorizedError();
   const userId = session.user.id;
 
-  // Build the data client (injects Auth.js Supabase JWT → RLS works).
-  const supabase = await createClient();
+  const adminDb = createAdminPgDb();
 
-  const { data, error } = await supabase
+  const { data, error } = await adminDb
     .from("profiles")
     .select("account_id, account_role, custom_role_id")
     .eq("user_id", userId)
@@ -182,8 +177,8 @@ export async function getCurrentAccount(): Promise<AccountContext> {
     { data: account, error: accountErr },
     { data: platformRow, error: platformErr },
   ] = await Promise.all([
-    supabase.from("accounts").select("id, name").eq("id", data.account_id).maybeSingle(),
-    supabase.from("account_platform").select("status, plan, limits, features, suspended_reason, deletion_due_at")
+    adminDb.from("accounts").select("id, name").eq("id", data.account_id).maybeSingle(),
+    adminDb.from("account_platform").select("status, plan, limits, features, suspended_reason, deletion_due_at")
       .eq("account_id", data.account_id).maybeSingle(),
   ]);
 
@@ -210,7 +205,7 @@ export async function getCurrentAccount(): Promise<AccountContext> {
   }
 
   return {
-    supabase,
+    supabase: createPgDb(userId),
     userId,
     accountId: data.account_id,
     role: data.account_role,

@@ -1,3 +1,4 @@
+import type { PgDb } from '@/lib/postgres/db'
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
@@ -26,10 +27,10 @@ function fakeDb(tables: Record<string, unknown[]> = {}) {
       return chain;
     },
   };
-  return { db: db as unknown as SupabaseClient, ops };
+  return { db: db as unknown as PgDb, ops };
 }
 
-function deps(store: MemoryStore, client: ReturnType<typeof fakeClient>["client"], over: Partial<CronDeps> = {}, db: SupabaseClient = fakeDb().db): CronDeps {
+function deps(store: MemoryStore, client: ReturnType<typeof fakeClient>["client"], over: Partial<CronDeps> = {}, db: PgDb = fakeDb().db): CronDeps {
   return {
     db,
     store,

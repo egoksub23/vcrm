@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests, the reports: reading the cases for them and the export. Server only. The figures themselves are pure (../reports.ts).
 //
@@ -6,7 +7,6 @@
 // many rows): when the log cannot be written nothing is returned, the same rule as the KYC access log and as revealing a bank detail.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { complianceError } from "../errors";
 import { REPORT_CAP, buildCsv, buildReport, type ComplianceReport, type ReportFilters, type ReportRow } from "../reports";
@@ -29,7 +29,7 @@ export function parseReportFilters(params: URLSearchParams): ReportFilters {
 
 const mayRead = (caller: ComplianceCaller) => caller.viewer.canReview || caller.viewer.canApprove;
 
-async function readRows(admin: SupabaseClient, caller: ComplianceCaller, f: ReportFilters): Promise<{ rows: ReportRow[]; truncated: boolean }> {
+async function readRows(admin: PgDb, caller: ComplianceCaller, f: ReportFilters): Promise<{ rows: ReportRow[]; truncated: boolean }> {
   let q = admin.from("compliance_requests").select(COLUMNS).eq("account_id", caller.accountId);
   if (f.type) q = q.eq("type_key", f.type);
   if (f.from) q = q.gte("received_at", f.from);
@@ -40,7 +40,7 @@ async function readRows(admin: SupabaseClient, caller: ComplianceCaller, f: Repo
   return { rows: all.slice(0, REPORT_CAP), truncated: all.length > REPORT_CAP };
 }
 
-export async function loadReport(admin: SupabaseClient, caller: ComplianceCaller, filters: ReportFilters, now: () => number = Date.now): Promise<ComplianceReport> {
+export async function loadReport(admin: PgDb, caller: ComplianceCaller, filters: ReportFilters, now: () => number = Date.now): Promise<ComplianceReport> {
   if (!mayRead(caller)) throw complianceError("forbidden");
   const [{ rows, truncated }, types, people] = await Promise.all([readRows(admin, caller, filters), loadTypes(admin, caller.accountId), loadPeople(admin, caller.accountId)]);
   const report = buildReport(rows, now(), { filters, truncated });
@@ -59,7 +59,7 @@ export interface ExportResult {
 }
 
 /** The CSV of the cases in the range. The exports log is written first; if it cannot be, nothing is returned. */
-export async function exportReportCsv(admin: SupabaseClient, caller: ComplianceCaller, filters: ReportFilters): Promise<ExportResult> {
+export async function exportReportCsv(admin: PgDb, caller: ComplianceCaller, filters: ReportFilters): Promise<ExportResult> {
   if (!mayRead(caller)) throw complianceError("forbidden");
   const { rows, truncated } = await readRows(admin, caller, filters);
   const logged = await admin.from("compliance_exports").insert({
@@ -83,7 +83,7 @@ export async function exportReportCsv(admin: SupabaseClient, caller: ComplianceC
  * (not one whose identity check they recorded); a holder of compliance.review counts the cases waiting for an identity check or an officer's review.
  * A person with both counts both. Zero for anyone else.
  */
-export async function badgeCount(admin: SupabaseClient, caller: ComplianceCaller): Promise<number> {
+export async function badgeCount(admin: PgDb, caller: ComplianceCaller): Promise<number> {
   const { canApprove, canReview } = caller.viewer;
   if (!canApprove && !canReview) return 0;
   const statuses = [...(canApprove ? ["awaiting_signoff"] : []), ...(canReview ? ["received", "identity_check", "officer_review"] : [])];

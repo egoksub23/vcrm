@@ -185,7 +185,8 @@ function parseOrStr(
 
 // ---- main builder --------------------------------------------------------
 
-export class PgQueryBuilder<T = unknown> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export class PgQueryBuilder<T = any> {
   private _sql: Sql
   private _schema: string
   private _table: string

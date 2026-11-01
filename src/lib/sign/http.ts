@@ -12,7 +12,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse, type CapabilityContext } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { bytesForChars, readBodyCapped } from "@/lib/net/read-capped";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
@@ -82,7 +82,7 @@ export async function staff(
     const auth = await requireCapability(capability);
     const rate = checkRateLimit(`sign-staff:${auth.userId}:${capability}`, opts.rate ?? { limit: 120, windowMs: 60_000 });
     if (!rate.success) return rateLimitResponse(rate);
-    const ctx: SignCtx = { admin: supabaseAdmin(), accountId: auth.accountId, userId: auth.userId, origin: originOf(request), deps: realDeps, now: () => new Date() };
+    const ctx: SignCtx = { admin: createAdminPgDb(), accountId: auth.accountId, userId: auth.userId, origin: originOf(request), deps: realDeps, now: () => new Date() };
     return await handler({ ctx, auth });
   } catch (err) {
     return failure(err);
@@ -137,7 +137,7 @@ export async function publicLink(
     if (!rate.success) return rateLimitResponse(rate);
     const { token } = await params;
     if (!isPlausibleToken(token)) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);
-    const admin = supabaseAdmin();
+    const admin = createAdminPgDb();
     const own = await lookupByToken(admin, token);
     // A workspace whose Doc Sign is switched off (or that is suspended) shows no document at all.
     if (!own || !(await signEnabled(admin, own.signer.account_id))) return json({ error: "This link is not valid.", code: "link_not_found" }, 404);

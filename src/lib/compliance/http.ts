@@ -16,10 +16,9 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireAnyCapability, requireCapability, toErrorResponse } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db';
 import { readBodyCapped } from "@/lib/net/read-capped";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -32,7 +31,7 @@ import type { ErrorCode } from "./types";
 export const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 export interface ComplianceCall {
-  admin: SupabaseClient;
+  admin: PgDb,
   caller: ComplianceCaller;
 }
 
@@ -82,7 +81,7 @@ export async function complianceStaff(opts: StaffOptions, handler: (call: Compli
         canManage: caps.has("compliance.manage"),
       },
     };
-    return await handler({ admin: supabaseAdmin(), caller });
+    return await handler({ admin: createAdminPgDb(), caller });
   } catch (err) {
     return answer(err);
   }
@@ -117,7 +116,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 // ---- raising from the Inbox and from tickets (migration 184) ----------------------------------------------------------------------------
 
 export interface RaiserCall {
-  admin: SupabaseClient;
+  admin: PgDb,
   caller: RaiseCaller;
 }
 
@@ -128,7 +127,7 @@ export async function complianceRaiser(opts: { bucket: string; perMinute?: numbe
     if (!rate.success) return rateLimited(rate.reset);
     const caps = auth.capabilities;
     const sees = caps.has("menu.compliance") || ["compliance.review", "compliance.approve", "compliance.reveal", "compliance.execute", "compliance.manage"].some((c) => caps.has(c));
-    return await handler({ admin: supabaseAdmin(), caller: { accountId: auth.accountId, userId: auth.userId, userDb: auth.supabase, sees } });
+    return await handler({ admin: createAdminPgDb(), caller: { accountId: auth.accountId, userId: auth.userId, userDb: auth.supabase, sees } });
   } catch (err) {
     return answer(err);
   }
@@ -137,10 +136,10 @@ export async function complianceRaiser(opts: { bucket: string; perMinute?: numbe
 // ---- the personal closure form link in a chat (migration 185) ---------------------------------------------------------------------------------
 
 export interface LinkCall {
-  admin: SupabaseClient;
+  admin: PgDb,
   actor: LinkActor;
   /** The person's own session: what they may open is decided by row level security. */
-  userDb: SupabaseClient;
+  userDb: PgDb
 }
 
 export async function complianceLinkActor(opts: { bucket: string; perMinute?: number }, handler: (call: LinkCall) => Promise<Response>): Promise<Response> {
@@ -155,7 +154,7 @@ export async function complianceLinkActor(opts: { bucket: string; perMinute?: nu
       canReview: caps.has("compliance.review") || caps.has("compliance.approve"),
       canRaise: caps.has("compliance.raise"),
     };
-    return await handler({ admin: supabaseAdmin(), actor, userDb: auth.supabase });
+    return await handler({ admin: createAdminPgDb(), actor, userDb: auth.supabase });
   } catch (err) {
     return answer(err);
   }

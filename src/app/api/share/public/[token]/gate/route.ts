@@ -12,7 +12,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { realWorkspaceMailDeps, sendWorkspaceEmail } from "@/lib/email/workspace-mail";
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
   if (typeof action !== "string") return badRequest("action is required.");
 
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
 
   // Load share + secrets
   const { data: share } = await admin

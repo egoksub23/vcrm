@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 import {
   renderTemplateBody,
@@ -30,7 +30,7 @@ function row(over: Partial<MessageTemplate>): MessageTemplate {
 function dbReturning(
   rows: unknown[],
   filters: Record<string, unknown> = {}
-): SupabaseClient {
+): PgDb {
   const builder = {
     select: () => builder,
     eq: (col: string, val: unknown) => {
@@ -40,7 +40,7 @@ function dbReturning(
     then: (resolve: (r: { data: unknown[] }) => unknown) =>
       resolve({ data: rows }),
   };
-  return { from: () => builder } as unknown as SupabaseClient;
+  return { from: () => builder } as unknown as PgDb;
 }
 
 describe('renderTemplateBody', () => {

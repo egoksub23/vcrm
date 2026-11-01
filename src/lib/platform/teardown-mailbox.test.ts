@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Workspace teardown switches off what the app registered on other services. A mailbox that is not used for the customer care inbox (migration 179) has
@@ -24,7 +24,7 @@ vi.mock('@/lib/whatsapp/meta-api', () => ({ unsubscribeWabaFromApp: async () => 
 
 import { teardownWorkspaceChannels } from './teardown'
 
-function db(): SupabaseClient {
+function db(): PgDb {
   return {
     from: (table: string) => {
       const data = table === 'gmail_config' ? h.gmail : table === 'email_config' ? h.email : null
@@ -36,7 +36,7 @@ function db(): SupabaseClient {
       }
       return b
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
 }
 
 beforeEach(() => {

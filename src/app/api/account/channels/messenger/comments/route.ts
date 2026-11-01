@@ -7,13 +7,13 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { enableChannelComments } from '@/lib/comments/enable-comments'
 
 export async function POST() {
   try {
     const ctx = await requireCapability('channels.manage')
-    const r = await enableChannelComments(supabaseAdmin(), ctx.accountId, 'facebook')
+    const r = await enableChannelComments(createAdminPgDb(), ctx.accountId, 'facebook')
     if (!r.ok) {
       return NextResponse.json({ error: r.error, reconnect: r.reconnect ?? false }, { status: r.status })
     }

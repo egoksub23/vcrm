@@ -6,7 +6,6 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { PostgrestError } from "@supabase/supabase-js";
 
 import { isCapabilityKey } from "./capabilities";
 import type { AccountRole } from "./roles";
@@ -89,7 +88,7 @@ export function parseAddonRoleIds(raw: unknown): Parsed<string[]> {
 }
 
 /** The database's refusals, in the statuses the other role routes use: 42501 forbidden, 22023 bad input, 23505 the name is taken. */
-export function rpcErrorToResponse(err: PostgrestError, what = "save the add-on role"): NextResponse {
+export function rpcErrorToResponse(err: { message: string; code?: string | null }, what = "save the add-on role"): NextResponse {
   if (err.code === "42501") return NextResponse.json({ error: err.message }, { status: 403 });
   if (err.code === "22023") return NextResponse.json({ error: err.message }, { status: 400 });
   if (err.code === "23505") return NextResponse.json({ error: "There is already a role with that name" }, { status: 409 });

@@ -13,7 +13,6 @@
 // The wallet id in the request names the person; the signature proves the gateway of THIS workspace asked.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PgDb } from '@/lib/postgres/db'
 
 import { signMediaUrl } from '@/lib/storage/sign-media'
@@ -90,7 +89,7 @@ export function parseHistoryRequest(body: unknown): ParsedHistoryRequest {
 
 /** The conversations of the contact that owns this wallet id, in this workspace. Empty when there is no such contact. */
 async function conversationIdsOf(admin: PgDb, accountId: string, walletId: string): Promise<string[]> {
-  const contact = await createSupabaseIdentityStore(admin as unknown as SupabaseClient).findByWallet(accountId, walletId)
+  const contact = await createSupabaseIdentityStore(admin).findByWallet(accountId, walletId)
   if (!contact) return []
   const { data, error } = await admin.from('conversations').select('id').eq('account_id', accountId).eq('contact_id', contact.id)
   if (error) throw error

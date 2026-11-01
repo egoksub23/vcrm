@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { claimWebhookEvent, ingestComment, setCommentStatusByExternalId, type IncomingPost } from './ingest'
 import { getFacebookPost, getInstagramMedia } from './meta-comments'
@@ -40,7 +40,7 @@ export function hasCommentChanges(entry: MetaEntryWithChanges): boolean {
 }
 
 export async function processMetaCommentChanges(
-  db: SupabaseClient,
+  db: PgDb,
   object: 'page' | 'instagram',
   entry: MetaEntryWithChanges,
 ): Promise<void> {
@@ -52,7 +52,7 @@ export async function processMetaCommentChanges(
   }
 }
 
-async function postExists(db: SupabaseClient, accountId: string, provider: string, externalPostId: string) {
+async function postExists(db: PgDb, accountId: string, provider: string, externalPostId: string) {
   const { data } = await db
     .from('comment_posts')
     .select('id')
@@ -63,7 +63,7 @@ async function postExists(db: SupabaseClient, accountId: string, provider: strin
   return !!data
 }
 
-async function processFacebook(db: SupabaseClient, entry: MetaEntryWithChanges) {
+async function processFacebook(db: PgDb, entry: MetaEntryWithChanges) {
   const { data: cfg } = await db
     .from('messenger_config')
     .select('account_id, page_id, page_access_token, comments_enabled_at')
@@ -116,7 +116,7 @@ async function processFacebook(db: SupabaseClient, entry: MetaEntryWithChanges) 
           post.message = info.message ?? null
           post.permalinkUrl = info.permalink_url ?? null
           // Meta's picture links expire in about a week: keep a copy of our own (the link as sent is only the fallback).
-          post.mediaUrl = await keepPostMedia({ db, accountId, provider: 'facebook', externalPostId: postId, sourceUrl: info.full_picture })
+          post.mediaUrl = await keepPostMedia({ accountId, provider: 'facebook', externalPostId: postId, sourceUrl: info.full_picture })
           post.postedAt = info.created_time ? new Date(info.created_time) : null
           if (info.is_published === false) post.source = 'ad'
         }
@@ -139,7 +139,7 @@ async function processFacebook(db: SupabaseClient, entry: MetaEntryWithChanges) 
   }
 }
 
-async function processInstagram(db: SupabaseClient, entry: MetaEntryWithChanges) {
+async function processInstagram(db: PgDb, entry: MetaEntryWithChanges) {
   const { data: cfg } = await db
     .from('instagram_config')
     .select('account_id, ig_business_account_id, page_access_token')
@@ -177,7 +177,7 @@ async function processInstagram(db: SupabaseClient, entry: MetaEntryWithChanges)
         if (info) {
           post.message = info.caption ?? null
           post.permalinkUrl = info.permalink ?? null
-          post.mediaUrl = await keepPostMedia({ db, accountId, provider: 'instagram', externalPostId: mediaId, sourceUrl: info.thumbnail_url ?? info.media_url })
+          post.mediaUrl = await keepPostMedia({ accountId, provider: 'instagram', externalPostId: mediaId, sourceUrl: info.thumbnail_url ?? info.media_url })
           post.postedAt = info.timestamp ? new Date(info.timestamp) : null
         }
       } catch (err) {

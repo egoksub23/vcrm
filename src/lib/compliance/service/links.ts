@@ -1,10 +1,10 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: finding what to link a case to (a contact, a ticket, an incident). Server only. The browser never types an id: it searches here,
 // gets at most five choices from the caller's own workspace, and sends the chosen id back through the edit route (the database then checks, once more,
 // that the id belongs to the same workspace).
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { complianceError } from "../errors";
 import type { ComplianceCaller } from "./rows";
@@ -19,7 +19,7 @@ export interface LinkChoice {
 export const LINK_KINDS = ["contact", "ticket", "incident"] as const;
 const MAX = 5;
 
-export async function lookupLinks(admin: SupabaseClient, caller: ComplianceCaller, kind: LinkChoice["kind"], q: string): Promise<LinkChoice[]> {
+export async function lookupLinks(admin: PgDb, caller: ComplianceCaller, kind: LinkChoice["kind"], q: string): Promise<LinkChoice[]> {
   if (!(caller.viewer.canReview || caller.viewer.canApprove)) throw complianceError("forbidden");
   const term = searchTerm(q);
   if (term.length < 2 && !/^\d+$/.test(term)) return [];

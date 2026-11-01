@@ -6,7 +6,8 @@ import { loadAiConfig } from '@/lib/ai/config'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { privateMediaPath, PRIVATE_MEDIA_BUCKET } from '@/lib/storage/media-urls'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { appStorage } from '@/lib/storage/provider'
+import type { PgDb } from '@/lib/postgres/db'
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
@@ -17,7 +18,7 @@ const EXTRACT_PROMPT =
   'This is a transaction receipt screenshot. Extract all visible transaction details and format them as a structured summary. For each field you can see (such as amount, currency, date, time, transaction reference or ID, sender details, recipient details, payment method, bank, status, description), write it on its own line as "Field: value". If a field is not visible, omit it. Be precise — copy numbers and references exactly.'
 
 async function fetchImageBytes(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   accountId: string,
   mediaUrl: string,
 ): Promise<{ buffer: Buffer; contentType: string }> {
@@ -36,7 +37,7 @@ async function fetchImageBytes(
 
   const path = privateMediaPath(mediaUrl)
   if (path) {
-    const { data, error } = await supabase.storage
+    const { data, error } = await appStorage()
       .from(PRIVATE_MEDIA_BUCKET)
       .createSignedUrl(path, 60)
     if (error || !data?.signedUrl) throw new Error('sign_failed')

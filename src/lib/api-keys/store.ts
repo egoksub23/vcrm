@@ -11,7 +11,7 @@
 // and read-only here makes it easy to audit.
 // ============================================================
 
-import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { createAdminPgDb } from '@/lib/postgres/db';
 
 /** Shape of an `api_keys` row as the auth path consumes it. */
 export interface ApiKeyRow {
@@ -34,7 +34,7 @@ export interface ApiKeyRow {
 export async function findActiveKeyByHash(
   hash: string
 ): Promise<ApiKeyRow | null> {
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('api_keys')
     .select('id, account_id, created_by, name, scopes, expires_at, revoked_at')
     .eq('key_hash', hash)
@@ -64,7 +64,7 @@ export async function findActiveKeyByHash(
 export async function getAccountName(
   accountId: string
 ): Promise<string | null> {
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('accounts')
     .select('name')
     .eq('id', accountId)
@@ -79,7 +79,7 @@ export async function getAccountName(
  * it must never fail the request the caller is actually making.
  */
 export function touchLastUsed(id: string): void {
-  void supabaseAdmin()
+  void createAdminPgDb()
     .from('api_keys')
     .update({ last_used_at: new Date().toISOString() })
     .eq('id', id)

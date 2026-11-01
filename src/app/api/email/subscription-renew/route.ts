@@ -1,10 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
-
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { CRON_INTERVALS, cronRoute, forEachWithinBudget } from '@/lib/cron/guard'
 import { suspendedAccountIds } from '@/lib/platform/active'
 
 import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { getOAuthBaseUrl } from '@/lib/ms365/oauth'
+import type { InboxRow } from '@/lib/ms365/inbox-switch'
 import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
 
 /**
@@ -24,10 +24,7 @@ import { renewMailboxSubscription } from '@/lib/ms365/subscription-renewal'
  * Graph deleted the subscription outright.
  */
 export const GET = cronRoute('mailbox-renew', CRON_INTERVALS['mailbox-renew'], async (request) => {
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  const admin = createAdminPgDb()
 
   // Renew anything expiring within the next 24 hours, plus anything
   // already lapsed or never set. Soonest-to-expire first and capped, so a
@@ -47,7 +44,7 @@ export const GET = cronRoute('mailbox-renew', CRON_INTERVALS['mailbox-renew'], a
 
   if (error) return { status: 500, body: { error: error.message } }
   const suspended = await suspendedAccountIds(admin)
-  const eligible = (configs ?? []).filter((c) => !suspended.has(c.account_id as string) && !inboxIsOff(c))
+  const eligible = ((configs ?? []) as InboxRow[]).filter((c) => !suspended.has(c.account_id) && !inboxIsOff(c))
   if (eligible.length === 0) return { body: { renewed: 0 } }
 
   let renewed = 0

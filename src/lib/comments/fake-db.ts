@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 // A tiny in-memory stand-in for the parts of supabase-js the comments
 // module uses, so the ingest / webhook / action logic can be tested
@@ -9,7 +9,7 @@ type Row = Record<string, unknown>
 type Filter = (r: Row) => boolean
 
 export interface FakeDb {
-  db: SupabaseClient
+  db: PgDb
   tables: Record<string, Row[]>
   rpcCalls: { name: string; args: Record<string, unknown> }[]
 }
@@ -134,6 +134,6 @@ export function makeFakeDb(seed: Record<string, Row[]> = {}): FakeDb {
       rpcCalls.push({ name, args })
       return { data: null, error: null }
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
   return { db, tables, rpcCalls }
 }

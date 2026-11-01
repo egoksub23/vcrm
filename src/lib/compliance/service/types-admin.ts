@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: the request type definitions and their settings (compliance.manage). Server only.
 //
@@ -6,7 +7,6 @@
 // withdrawal, phone_change) are fixed (the public form and the staff form are built on them); a custom type's fields are editable through this API.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ComplianceError, complianceError, fromDatabase } from "../errors";
 import { validateChecklist, validateFieldDefs } from "../fields";
@@ -80,7 +80,7 @@ function dbPatch(p: TypePatch, current: RequestTypeRow | null): Record<string, u
   return out;
 }
 
-export async function updateType(admin: SupabaseClient, caller: ComplianceCaller, key: string, patch: TypePatch): Promise<RequestTypeRow> {
+export async function updateType(admin: PgDb, caller: ComplianceCaller, key: string, patch: TypePatch): Promise<RequestTypeRow> {
   if (!caller.viewer.canManage) throw complianceError("forbidden");
   const current = (await loadTypes(admin, caller.accountId)).find((t) => t.key === key) ?? null;
   if (!current) throw complianceError("not_found");
@@ -97,7 +97,7 @@ export interface NewType extends TypePatch {
   fields: unknown;
 }
 
-export async function createType(admin: SupabaseClient, caller: ComplianceCaller, input: NewType): Promise<RequestTypeRow> {
+export async function createType(admin: PgDb, caller: ComplianceCaller, input: NewType): Promise<RequestTypeRow> {
   if (!caller.viewer.canManage) throw complianceError("forbidden");
   if (!/^[a-z][a-z0-9_]{1,39}$/.test(input.key)) throw new ComplianceError("validation_failed", "The key is not valid.", 400, [{ field: "key", code: "invalid" }]);
   const existing = await loadTypes(admin, caller.accountId);

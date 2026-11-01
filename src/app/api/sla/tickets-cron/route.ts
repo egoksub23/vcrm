@@ -1,5 +1,5 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 /**
  * Sweep ticket SLAs (migration 086).
@@ -27,7 +27,7 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
  * unchanged.
  */
 export const GET = cronRoute('sla-tickets', CRON_INTERVALS['sla-tickets'], async () => {
-  const { data, error } = await supabaseAdmin().rpc('sla_sweep', { p_limit: 200 })
+  const { data, error } = await (createAdminPgDb() as any).rpc('sla_sweep', { p_limit: 200 })
   if (error) {
     console.error('[tickets-sla-cron] sweep failed:', error.message)
     return { status: 500, body: { error: error.message } }

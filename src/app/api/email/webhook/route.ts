@@ -47,7 +47,7 @@ export const maxDuration = 60
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _adminClient: any = null
-function supabaseAdmin() {
+function createAdminPgDb() {
   if (!_adminClient) {
     _adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,7 +98,7 @@ async function processNotifications(body: { value?: GraphNotification[] }) {
   for (const notification of body.value) {
     if (!notification.resourceData?.id || !notification.clientState) continue
 
-    const { data: configRows, error: configError } = await supabaseAdmin()
+    const { data: configRows, error: configError } = await createAdminPgDb()
       .from('email_config')
       .select('*')
       .eq('subscription_id', notification.subscriptionId)
@@ -145,7 +145,7 @@ async function processNotifications(body: { value?: GraphNotification[] }) {
 }
 
 async function processMessage(config: Record<string, unknown>, graphMessageId: string) {
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const accountId = config.account_id as string
   const configOwnerUserId = config.connected_by_user_id as string
   const mailboxAddress = (config.mailbox_address as string).toLowerCase()

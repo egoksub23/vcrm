@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import {
   ForbiddenError,
   UnauthorizedError,
@@ -62,7 +62,7 @@ function buildUpsertRow(
 }
 
 async function upsertTemplateRow(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   row: ReturnType<typeof buildUpsertRow>,
 ) {
   // TODO(account-sharing): conflict target is still scoped to

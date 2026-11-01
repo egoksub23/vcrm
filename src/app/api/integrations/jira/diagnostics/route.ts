@@ -15,7 +15,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { catchupStall } from "@/lib/jira/catchup";
 import { runCatchup, runWeekly } from "@/lib/jira/cron";
 import { describeError, isJiraError } from "@/lib/jira/errors";
@@ -28,7 +28,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 export async function GET() {
   try {
     const ctx = await requireCapability("jira.connect");
-    const db = supabaseAdmin();
+    const db = createAdminPgDb();
     const store = jiraStore(db);
     const connection = await store.getConnectionByAccount(ctx.accountId);
     if (!connection) return NextResponse.json({ connection: null });

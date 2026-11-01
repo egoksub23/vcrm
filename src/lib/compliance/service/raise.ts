@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: raising a request from an Inbox conversation or a ticket (Part B). Server only.
 //
@@ -16,7 +17,6 @@
 // only to a person who holds a compliance permission, so it cannot be used to find out whether someone has a case.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { postInternalComment } from "@/lib/conversations/comment-write";
 
@@ -37,7 +37,7 @@ export interface RaiseCaller {
   accountId: string;
   userId: string;
   /** The person's own session: what they may open is decided by row level security. */
-  userDb: SupabaseClient;
+  userDb: PgDb
   /** They hold a compliance permission (menu.compliance or a compliance.* work capability): they may be told a reference that exists, and given the case's id. */
   sees: boolean;
 }
@@ -77,14 +77,14 @@ async function resolveTarget(caller: RaiseCaller, target: RaiseTarget): Promise<
   return { kind: "ticket", id: t.id, contactId: t.contact_id, channel: null };
 }
 
-async function loadContact(admin: SupabaseClient, accountId: string, contactId: string | null) {
+async function loadContact(admin: PgDb, accountId: string, contactId: string | null) {
   if (!contactId) return null;
   const { data } = await admin.from("contacts").select("id, name, phone, email, language").eq("id", contactId).eq("account_id", accountId).maybeSingle();
   return (data as { id: string; name: string | null; phone: string | null; email: string | null; language: string | null } | null) ?? null;
 }
 
 /** The open request of this type for this customer (the same contact, email address or phone number), or null. */
-async function findOpen(admin: SupabaseClient, accountId: string, typeKey: string, who: { contactId: string | null; email: string | null; phone: string | null }): Promise<{ reference: string } | null> {
+async function findOpen(admin: PgDb, accountId: string, typeKey: string, who: { contactId: string | null; email: string | null; phone: string | null }): Promise<{ reference: string } | null> {
   const open = await admin.from("compliance_requests").select("reference, contact_id, customer_email, customer_phone, status").eq("account_id", accountId).eq("type_key", typeKey).in("status", OPEN_STATUSES).limit(500);
   if (open.error) throw complianceError("server_error");
   const email = who.email?.trim().toLowerCase() || null;
@@ -97,7 +97,7 @@ async function findOpen(admin: SupabaseClient, accountId: string, typeKey: strin
 }
 
 /** What the dialog needs: the contact (to prefill), the channel, the types with the fields a person fills, and which types already have an open request. */
-export async function raiseContext(admin: SupabaseClient, caller: RaiseCaller, target: RaiseTarget, chat: ChatLinkDeps = realChatLinkDeps): Promise<RaiseContext> {
+export async function raiseContext(admin: PgDb, caller: RaiseCaller, target: RaiseTarget, chat: ChatLinkDeps = realChatLinkDeps): Promise<RaiseContext> {
   const t = await resolveTarget(caller, target);
   const contact = await loadContact(admin, caller.accountId, t.contactId);
   // can the closure form go into this chat as a card? (a ticket has no chat)
@@ -149,7 +149,7 @@ export interface RaiseInput {
 
 const NOTE_MAX = 1000;
 
-export async function raiseRequest(admin: SupabaseClient, caller: RaiseCaller, input: RaiseInput, deps: NoticeDeps = realNoticeDeps, chat: ChatLinkDeps = realChatLinkDeps): Promise<RaiseResult> {
+export async function raiseRequest(admin: PgDb, caller: RaiseCaller, input: RaiseInput, deps: NoticeDeps = realNoticeDeps, chat: ChatLinkDeps = realChatLinkDeps): Promise<RaiseResult> {
   const type = await loadType(admin, caller.accountId, input.typeKey);
   if (!type || !type.active) throw complianceError("type_unavailable");
   const t = await resolveTarget(caller, input.target);
@@ -220,7 +220,7 @@ export async function raiseRequest(admin: SupabaseClient, caller: RaiseCaller, i
 }
 
 /** The line left on the conversation (an internal note) or the ticket (a comment): "Compliance request CMP-2026-000014 raised". Never fails the raise. */
-async function writeRaisedNote(admin: SupabaseClient, caller: RaiseCaller, t: Resolved, reference: string): Promise<void> {
+async function writeRaisedNote(admin: PgDb, caller: RaiseCaller, t: Resolved, reference: string): Promise<void> {
   const text = raisedNoteText(reference);
   try {
     if (t.kind === "conversation") {
@@ -236,7 +236,7 @@ async function writeRaisedNote(admin: SupabaseClient, caller: RaiseCaller, t: Re
 
 // ---- what a raiser sees ---------------------------------------------------------------------------------------------------
 
-export async function raisedByMe(admin: SupabaseClient, caller: RaiseCaller, scope: { conversationId?: string | null; ticketId?: string | null; limit?: number } = {}): Promise<RaisedItem[]> {
+export async function raisedByMe(admin: PgDb, caller: RaiseCaller, scope: { conversationId?: string | null; ticketId?: string | null; limit?: number } = {}): Promise<RaisedItem[]> {
   if (scope.conversationId && !UUID_RE.test(scope.conversationId)) throw complianceError("invalid_request");
   if (scope.ticketId && !UUID_RE.test(scope.ticketId)) throw complianceError("invalid_request");
   let q = admin.from("compliance_requests").select("id, reference, type_key, status, created_at").eq("account_id", caller.accountId).eq("created_by", caller.userId);

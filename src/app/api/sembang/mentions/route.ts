@@ -18,7 +18,7 @@
 // Returns `{ results: SembangMentionItem[] }`.
 // ============================================================
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { hydrateMessages, type SembangMessageRow } from '@/lib/sembang/hydrate-messages'
@@ -43,7 +43,7 @@ interface ChannelContextRow {
  *  ids — identical shape to the helper in `/api/sembang/stars` and
  *  `/api/sembang/search`. */
 async function loadChannelContexts(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   channelIds: string[],
   callerUserId: string,
 ): Promise<Map<string, SembangMentionItem['channel']>> {
@@ -61,7 +61,7 @@ async function loadChannelContexts(
   }
 
   const rows = (channelRows ?? []) as ChannelContextRow[]
-  const dmChannelIds = rows.filter((r) => r.is_dm).map((r) => r.id)
+  const dmChannelIds = rows .filter((r: any) => r.is_dm) .map((r: any) => r.id)
 
   const namesByChannel = new Map<string, string[]>()
   if (dmChannelIds.length > 0) {
@@ -71,7 +71,7 @@ async function loadChannelContexts(
       .in('channel_id', dmChannelIds)
       .neq('user_id', callerUserId)
 
-    const otherUserIds = Array.from(new Set((memberRows ?? []).map((m) => m.user_id as string)))
+    const otherUserIds = Array.from(new Set((memberRows ?? []) .map((m: any) => m.user_id as string)))
     const nameByUser = new Map<string, string>()
     if (otherUserIds.length > 0) {
       const { data: profileRows } = await supabase
@@ -124,10 +124,10 @@ export async function GET() {
     }
 
     const messageIds = Array.from(
-      new Set(notifications.map((n) => n.sembang_message_id).filter((id): id is string => !!id)),
+      new Set(notifications .map((n: any) => n.sembang_message_id).filter((id): id is string => !!id)),
     )
     const channelIds = Array.from(
-      new Set(notifications.map((n) => n.sembang_channel_id).filter((id): id is string => !!id)),
+      new Set(notifications .map((n: any) => n.sembang_channel_id).filter((id): id is string => !!id)),
     )
 
     const { data: messageRows, error: msgErr } = await ctx.supabase
@@ -145,7 +145,7 @@ export async function GET() {
       loadChannelContexts(ctx.supabase, channelIds, ctx.userId),
     ])
 
-    const messageById = new Map(messages.map((m) => [m.id, m]))
+    const messageById = new Map(messages .map((m: any) => [m.id, m]))
 
     // A notification whose channel no longer resolves (shouldn't normally
     // happen — sembang_channel_id cascades on delete) is dropped rather

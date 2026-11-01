@@ -25,7 +25,8 @@ export class PgDb {
     this.userId = userId
   }
 
-  from<T = unknown>(table: string): PgQueryBuilder<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from<T = any>(table: string): PgQueryBuilder<T> {
     return new PgQueryBuilder<T>(this.sql, this.schema, table, this.userId)
   }
 

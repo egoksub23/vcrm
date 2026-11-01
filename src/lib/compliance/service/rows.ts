@@ -1,9 +1,9 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: database rows as the server reads them, and their mappers. Server only (it is imported by the services; the browser gets the
 // mapped shapes from ../types).
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { validateChecklist, validateFieldDefs } from "../fields";
 import type {
@@ -124,7 +124,7 @@ export function typeFromRow(r: TypeDbRow): RequestTypeRow {
   };
 }
 
-export async function loadTypes(admin: SupabaseClient, accountId: string): Promise<RequestTypeRow[]> {
+export async function loadTypes(admin: PgDb, accountId: string): Promise<RequestTypeRow[]> {
   const { data } = await admin.from("compliance_request_types").select(TYPE_COLUMNS).eq("account_id", accountId).order("position", { ascending: true }).limit(100);
   return ((data ?? []) as unknown as TypeDbRow[]).map(typeFromRow);
 }
@@ -134,7 +134,7 @@ export async function loadTypes(admin: SupabaseClient, accountId: string): Promi
 export type PeopleMap = Map<string, string | null>;
 
 /** The names of the workspace's members (profiles), by login id. A person who left is not here: the screens show "Former member". */
-export async function loadPeople(admin: SupabaseClient, accountId: string): Promise<PeopleMap> {
+export async function loadPeople(admin: PgDb, accountId: string): Promise<PeopleMap> {
   const { data } = await admin.from("profiles").select("user_id, full_name, email").eq("account_id", accountId).limit(500);
   const map: PeopleMap = new Map();
   for (const p of (data ?? []) as { user_id: string; full_name: string | null; email: string | null }[]) map.set(p.user_id, (p.full_name?.trim() || p.email || "").trim() || null);

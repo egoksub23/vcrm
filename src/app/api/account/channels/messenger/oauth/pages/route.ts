@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { findPendingConnectionById } from '@/lib/meta/oauth-connect'
 
 export async function GET(request: Request) {
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'connection_id is required' }, { status: 400 })
     }
 
-    const pending = await findPendingConnectionById(supabaseAdmin(), connectionId)
+    const pending = await findPendingConnectionById(createAdminPgDb(), connectionId)
     if (!pending || pending.account_id !== ctx.accountId || pending.channel !== 'messenger') {
       return NextResponse.json({ error: 'Connection not found or expired' }, { status: 404 })
     }

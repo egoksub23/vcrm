@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 // POST /api/contacts/merge
 //
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Cannot merge a contact into itself' }, { status: 400 })
   }
 
-  const { error } = await supabaseAdmin().rpc('merge_contacts', {
+  const { error } = await createAdminPgDb().rpc('merge_contacts', {
     p_account_id: ctx.accountId,
     p_primary_contact_id: primaryContactId,
     p_secondary_contact_id: secondaryContactId,

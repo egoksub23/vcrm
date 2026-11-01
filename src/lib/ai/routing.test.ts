@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { makeFakeDb } from '@/lib/comments/fake-db'
 
 vi.mock('@/lib/whatsapp/encryption', () => ({
@@ -111,7 +111,7 @@ describe('budgetState', () => {
 function dbWithUsage(used: number | 'error', tables: Parameters<typeof makeFakeDb>[0] = {}) {
   const f = makeFakeDb({ ai_configs: [{ account_id: ACCT, budget_alert_month: null }], ...tables })
   const rpc = vi.fn(async () => (used === 'error' ? { data: null, error: { message: 'boom' } } : { data: used, error: null }))
-  return { ...f, db: { from: f.db.from.bind(f.db), rpc } as unknown as SupabaseClient, rpc }
+  return { ...f, db: { from: f.db.from.bind(f.db), rpc } as unknown as PgDb, rpc }
 }
 
 describe('ensureWithinBudget', () => {
@@ -127,10 +127,10 @@ describe('ensureWithinBudget', () => {
     const f = makeFakeDb({ ai_configs: [{ account_id: 'acct-plan', budget_alert_month: null }] })
     const usage = { contacts: 0, members: 1, conversations: 0, messages_month: 0, ai_tokens_month: 500, storage_bytes: 0, storage_measured_at: null }
     const rpc = vi.fn(async (name: string) => (name === 'account_usage' ? { data: { ...usage, limits: { ai_tokens_per_month: 500 } }, error: null } : { data: 0, error: null }))
-    const db = { from: f.db.from.bind(f.db), rpc } as unknown as SupabaseClient
+    const db = { from: f.db.from.bind(f.db), rpc } as unknown as PgDb
     await expect(ensureWithinBudget(db, 'acct-plan', { monthlyTokenBudget: null })).rejects.toMatchObject({ code: 'budget_exceeded', status: 429 })
     // room left: allowed
-    const roomy = { from: f.db.from.bind(f.db), rpc: vi.fn(async () => ({ data: { ...usage, ai_tokens_month: 100, limits: { ai_tokens_per_month: 500 } }, error: null })) } as unknown as SupabaseClient
+    const roomy = { from: f.db.from.bind(f.db), rpc: vi.fn(async () => ({ data: { ...usage, ai_tokens_month: 100, limits: { ai_tokens_per_month: 500 } }, error: null })) } as unknown as PgDb
     await expect(ensureWithinBudget(roomy, 'acct-plan-2', { monthlyTokenBudget: null })).resolves.toBeUndefined()
   })
 

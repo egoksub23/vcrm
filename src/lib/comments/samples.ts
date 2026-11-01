@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { ingestComment, type IncomingComment, type IncomingPost } from './ingest'
 
 // ============================================================
@@ -83,7 +83,7 @@ function samples(): Sample[] {
 }
 
 /** Create (or refresh) the sample comments. Returns how many exist now. */
-export async function createSampleComments(db: SupabaseClient, accountId: string): Promise<number> {
+export async function createSampleComments(db: PgDb, accountId: string): Promise<number> {
   let n = 0
   for (const s of samples()) {
     for (const c of s.comments) {
@@ -95,6 +95,6 @@ export async function createSampleComments(db: SupabaseClient, accountId: string
 }
 
 /** Remove every sample post (and, by cascade, its comments). */
-export async function clearSampleComments(db: SupabaseClient, accountId: string): Promise<void> {
+export async function clearSampleComments(db: PgDb, accountId: string): Promise<void> {
   await db.from('comment_posts').delete().eq('account_id', accountId).like('external_post_id', 'test-%')
 }

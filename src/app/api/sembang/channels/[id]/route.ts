@@ -11,7 +11,7 @@
 // Both return `{ channel: SembangChannel }` (camelCase — see @/types).
 // ============================================================
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import type { SembangChannel, SembangMemberRole } from '@/types'
@@ -37,7 +37,7 @@ interface ChannelRow {
 }
 
 async function resolveMemberRole(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   channelId: string,
   userId: string,
 ): Promise<MemberRoleAndMute> {

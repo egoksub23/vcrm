@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { apiErrorResponse, ApiError, jiraAppUrl } from "@/lib/jira/http";
 import { buildAuthorizeUrl, createOAuthState, isJiraConfigured, readOAuthConfig, redirectUri, stateSecret } from "@/lib/jira/oauth";
 import { createPending } from "@/lib/jira/pending";
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     if (!isJiraConfigured()) throw new ApiError(503, "jira_not_configured", "Jira is not configured on this server");
 
     const { state } = createOAuthState({ accountId: ctx.accountId, userId: ctx.userId }, stateSecret());
-    await createPending(supabaseAdmin(), { accountId: ctx.accountId, userId: ctx.userId, state });
+    await createPending(createAdminPgDb(), { accountId: ctx.accountId, userId: ctx.userId, state });
 
     const url = buildAuthorizeUrl({
       clientId: readOAuthConfig().clientId,

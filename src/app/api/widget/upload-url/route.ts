@@ -33,6 +33,7 @@ import {
   WIDGET_MEDIA_BUCKET,
 } from '@/lib/widget/media'
 import { authenticateVisitorRequest, loadOwnedConversation, widgetError } from '@/lib/widget/visitor-auth'
+import { appStorage } from '@/lib/storage/provider'
 
 export async function OPTIONS(request: Request) {
   return corsPreflight(request.headers.get('origin'))
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
   if (!conversation) return widgetError(404, 'Conversation not found', 'not_found', corsOrigin)
 
   const path = buildWidgetMediaPath(accountId, conversationId, randomUUID(), fileName)
-  const { data, error } = await admin.storage.from(WIDGET_MEDIA_BUCKET).createSignedUploadUrl(path)
+  const { data, error } = await appStorage().from(WIDGET_MEDIA_BUCKET).createSignedUploadUrl(path)
   if (error || !data) {
     console.error('[widget/upload-url] createSignedUploadUrl failed:', error)
     return widgetError(500, 'Could not prepare the upload', undefined, corsOrigin)

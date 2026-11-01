@@ -11,7 +11,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { decrypt, encrypt } from '@/lib/whatsapp/encryption'
 import { getPageAccessToken } from '@/lib/meta/oauth'
 import { findPendingConnectionById, markCompleted } from '@/lib/meta/oauth-connect'
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'connection_id and page_id are required' }, { status: 400 })
     }
 
-    const db = supabaseAdmin()
+    const db = createAdminPgDb()
     const pending = await findPendingConnectionById(db, connectionId)
     if (
       !pending ||

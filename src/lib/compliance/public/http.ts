@@ -6,9 +6,9 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { readBodyCapped } from "@/lib/net/read-capped";
 import { checkSharedRateLimit } from "@/lib/rate-limit-shared";
 import { turnstileEnabled, verifyTurnstile } from "@/lib/sign/registration/turnstile";
@@ -27,7 +27,7 @@ export function publicJson(body: unknown, status = 200, extraHeaders: Record<str
 /** What the public routes run with: the service-role client (a stranger has no login; every read and write is scoped to the form's workspace), the shared limiter, Turnstile and the real sender. */
 export function publicEnv(): PublicEnv {
   return {
-    admin: supabaseAdmin() as SupabaseClient,
+    admin: createAdminPgDb(),
     now: () => new Date(),
     limit: async (key, limit, windowMs) => (await checkSharedRateLimit(key, { limit, windowMs })).success,
     captcha: { enabled: turnstileEnabled(), verify: (token, ip) => verifyTurnstile(token, ip) },

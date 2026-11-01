@@ -12,7 +12,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { completeConnection, ConnectError, ensureWebhooks } from "@/lib/jira/connection";
 import { JiraClient } from "@/lib/jira/client";
 import { ApiError, apiErrorResponse, jiraAppUrl } from "@/lib/jira/http";
@@ -23,7 +23,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 async function loadPending(id: string | null, ctx: { userId: string; accountId: string }) {
   if (!id) throw new ApiError(400, "invalid_state", "Missing sign-in");
-  const pending = await findPendingById(supabaseAdmin(), id);
+  const pending = await findPendingById(createAdminPgDb(), id);
   if (!pending || pending.status !== "awaiting_page_selection" || pending.account_id !== ctx.accountId || pending.initiated_by_user_id !== ctx.userId) {
     throw new ApiError(410, "invalid_state", "This sign-in expired. Start again.");
   }
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     const site = pending.sites.find((s) => s.id === (body.cloudId as string).toLowerCase());
     if (!site) throw new ApiError(400, "invalid_site", "Pick one of the listed sites");
 
-    const db = supabaseAdmin();
+    const db = createAdminPgDb();
     const tokens = await readPendingTokens(db, pending.id);
     if (!tokens) throw new ApiError(410, "invalid_state", "This sign-in expired. Start again.");
 

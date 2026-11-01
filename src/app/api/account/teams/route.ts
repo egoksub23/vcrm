@@ -46,7 +46,7 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to load teams" }, { status: 500 });
     }
 
-    const teamIds = (teams ?? []).map((t) => t.id);
+    const teamIds = (teams ?? []) .map((t: any) => t.id);
     const membersByTeam = new Map<string, TeamMember[]>();
 
     if (teamIds.length > 0) {
@@ -60,7 +60,7 @@ export async function GET() {
         return NextResponse.json({ error: "Failed to load team members" }, { status: 500 });
       }
 
-      const userIds = Array.from(new Set((memberRows ?? []).map((m) => m.user_id)));
+      const userIds = Array.from(new Set((memberRows ?? []) .map((m: any) => m.user_id)));
       const profileByUser = new Map<
         string,
         { full_name: string | null; email: string | null; avatar_url: string | null }
@@ -111,7 +111,7 @@ export async function GET() {
       }
     }
 
-    const result: Team[] = (teams ?? []).map((t) => ({
+    const result: Team[] = (teams ?? []) .map((t: any) => ({
       ...t,
       members: membersByTeam.get(t.id) ?? [],
       open_conversations: openByTeam.get(t.id) ?? 0,

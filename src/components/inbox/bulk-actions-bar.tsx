@@ -104,7 +104,7 @@ export function BulkActionsBar({
 
   const handleAssign = (agent: Profile | null) =>
     run(async () => {
-      const res = await bulkAssign(createClient(), ids, agent?.user_id ?? null);
+      const res = await bulkAssign(createClient() as any, ids, agent?.user_id ?? null);
       finish(
         res,
         { assigned_agent_id: agent?.user_id },
@@ -116,7 +116,7 @@ export function BulkActionsBar({
 
   const handleRead = (read: boolean) =>
     run(async () => {
-      const db = createClient();
+      const db = createClient() as any;
       const res = read ? await bulkMarkRead(db, selected) : await bulkMarkUnread(db, selected);
       finish(
         res,

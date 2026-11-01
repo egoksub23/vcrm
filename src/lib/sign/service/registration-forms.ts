@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Registration forms, the admin side (Settings > Doc Sign > Registration forms, migration 164): list, create,
 // change, switch on and off, regenerate the address, and read what came of the submissions.
@@ -12,7 +13,6 @@
 // switched off, never silently broken.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Issue } from "../rules";
 import { formSendProblems } from "../forms";
@@ -25,7 +25,7 @@ import type { SignCtx } from "./context";
 import { SignError, raiseDatabaseError } from "./errors";
 
 /** The same context with the signed-in person's own client, so the database checks the capability and records who changed a form. */
-export const withUserClient = (ctx: SignCtx, supabase: SupabaseClient): SignCtx => ({ ...ctx, admin: supabase });
+export const withUserClient = (ctx: SignCtx, supabase: PgDb): SignCtx => ({ ...ctx, admin: supabase });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const COUNT_WINDOW_DAYS = 30;

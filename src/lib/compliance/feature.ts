@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Is Compliance requests on for this workspace? The operator's `compliance` flag (account_platform.features, migration 183), read the way the platform
 // layer reads every flag (lib/platform/features.ts). `compliance` is one of the DEFAULT_OFF_FEATURES: a missing row, a missing key or a row that could
@@ -8,11 +9,10 @@
 // read the flag here.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { isFeatureEnabled, parsePlatformRow } from "@/lib/platform/features";
 
-export async function complianceEnabled(admin: SupabaseClient, accountId: string): Promise<boolean> {
+export async function complianceEnabled(admin: PgDb, accountId: string): Promise<boolean> {
   const { data, error } = await admin.from("account_platform").select("status, features").eq("account_id", accountId).maybeSingle();
   if (error || !data) return false;
   const platform = parsePlatformRow(data);

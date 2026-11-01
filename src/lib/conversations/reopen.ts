@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 /**
  * Re-open a closed conversation because the customer wrote again
@@ -17,7 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  * gets the same behaviour for free.
  */
 export async function reopenClosedConversation(
-  db: SupabaseClient,
+  db: PgDb,
   conversation: { id: string; status?: string | null },
 ): Promise<boolean> {
   // Nothing to do for open/pending threads, which is the common case —

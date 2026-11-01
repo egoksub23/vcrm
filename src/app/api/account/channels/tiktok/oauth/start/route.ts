@@ -9,7 +9,7 @@ import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { getOAuthBaseUrl } from '@/lib/meta/oauth'
 import { buildTikTokAuthUrl, tiktokConfigured } from '@/lib/comments/tiktok/api'
 
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     }
 
     const state = randomBytes(32).toString('base64url')
-    const { error } = await supabaseAdmin()
+    const { error } = await createAdminPgDb()
       .from('tiktok_oauth_states')
       .insert({ state, account_id: ctx.accountId, user_id: ctx.userId })
     if (error) {

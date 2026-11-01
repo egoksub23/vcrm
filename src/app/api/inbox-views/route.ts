@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { assertCapability, getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 // Saved inbox views (P1 gap-analysis item) — a named ConversationList
 // filter combination. GET lists everything the caller can see (their own
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('inbox_views')
     .insert({
       account_id: ctx.accountId,

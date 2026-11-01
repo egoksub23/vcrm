@@ -1,5 +1,5 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { resolveFallbackPolicy } from '@/lib/flows/fallback'
 import { suspendedAccountIds } from '@/lib/platform/active'
 
@@ -40,7 +40,7 @@ type Row = {
  * per hour is acceptable for low-volume deployments.
  */
 export const GET = cronRoute('flows', CRON_INTERVALS.flows, async () => {
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const now = new Date()
   const deadline = Date.now() + BUDGET_MS
 

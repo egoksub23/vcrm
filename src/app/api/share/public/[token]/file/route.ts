@@ -10,7 +10,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { isResendConfigured, sendEmail } from "@/lib/email/resend";
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   const { token } = await params;
   if (!isPlausibleToken(token)) return new NextResponse("Not found.", { status: 404 });
 
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
   const { data: share } = await admin
     .from("share_links")
     .select("id, account_id, title, file_path, file_name, content_type, status, expires_at, download_enabled, first_opened_at, view_count, watermark_enabled")
@@ -109,7 +109,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
 async function notifyCreatorFirstOpen(shareId: string, shareTitle: string) {
   if (!isResendConfigured()) return;
 
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
   const { data: link } = await admin
     .from("share_links")
     .select("created_by")

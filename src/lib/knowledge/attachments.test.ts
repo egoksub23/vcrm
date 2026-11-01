@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 const h = vi.hoisted(() => ({ send: vi.fn() }))
 vi.mock('@/lib/whatsapp/send-message', async () => {
@@ -93,7 +93,7 @@ function fakeDb(opts: { sentRows?: { media_url: string | null; content_text: str
         table === 'messages'
           ? chain(table, opts.sentRows ?? [])
           : chain(table, opts.channel === null ? null : { last_channel_type: opts.channel ?? 'whatsapp' }),
-    } as unknown as SupabaseClient,
+    } as unknown as PgDb,
   }
 }
 
@@ -232,7 +232,7 @@ describe('loadSendableAttachments', () => {
     const chain: Record<string, unknown> = {}
     for (const m of ['select', 'eq', 'in', 'order']) chain[m] = () => chain
     chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: rows, error: null })
-    const db = { from: () => chain } as unknown as SupabaseClient
+    const db = { from: () => chain } as unknown as PgDb
     const out = await loadSendableAttachments(db, 'acct', ['A', 'B'])
     expect(out.map((a) => a.id)).toEqual(['x1', 'x2'])
     expect(out[0]).toMatchObject({ url: 'https://u/a', size_bytes: 7, kind: 'document' })

@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { readBodyCapped } from "@/lib/net/read-capped";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const rate = checkRateLimit(`share-create:${auth.userId}`, { limit: 30, windowMs: 60_000 });
     if (!rate.success) return rateLimitResponse(rate);
 
-    const admin = supabaseAdmin();
+    const admin = createAdminPgDb();
     if (!(await shareEnabled(admin, auth.accountId))) {
       return json({ error: "Secure Share is not enabled for this workspace.", code: "share_disabled" }, 403);
     }
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         return json({ error: "Invalid gate type.", code: "bad_request" }, 400);
       }
 
-      const { data: issued, error: issueErr } = await admin.rpc("share_issue_token", {
+      const { data: issued, error: issueErr } = await (admin as any).rpc("share_issue_token", {
         p_account_id: auth.accountId,
         p_created_by: auth.userId,
         p_title: title,
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
 
     const safeName = safeFileName(storedName);
 
-    const { data: issued, error: issueErr } = await admin.rpc("share_issue_token", {
+    const { data: issued, error: issueErr } = await (admin as any).rpc("share_issue_token", {
       p_account_id: auth.accountId,
       p_created_by: auth.userId,
       p_title: title,
@@ -223,7 +223,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const contactId = url.searchParams.get("contactId");
 
-    const admin = supabaseAdmin();
+    const admin = createAdminPgDb();
     let q = admin
       .from("share_links")
       .select("id, title, file_name, file_size, status, gate_type, download_enabled, view_count, created_at, updated_at, first_opened_at, contact_id")
@@ -237,7 +237,7 @@ export async function GET(request: Request) {
     if (error) return json({ error: "Could not load shares.", code: "internal_error" }, 500);
 
     const origin = publicOrigin() || new URL(request.url).origin;
-    const shares = (data ?? []).map((row) => ({
+    const shares = (data ?? []) .map((row: any) => ({
       id: row.id,
       title: row.title,
       fileName: row.file_name,
@@ -264,6 +264,6 @@ function parseAllowedEmails(raw: unknown): string[] {
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw : [raw];
   return arr
-    .map((e) => String(e).trim().toLowerCase())
-    .filter((e) => VALID_EMAIL.test(e));
+     .map((e: any) => String(e).trim().toLowerCase())
+     .filter((e: any) => VALID_EMAIL.test(e));
 }

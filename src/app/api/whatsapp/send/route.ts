@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import type { PgDb } from '@/lib/postgres/db'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import {
   checkRateLimit,
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
   }
 }
 
-type SendSupabase = Awaited<ReturnType<typeof createClient>>
+type SendSupabase = PgDb
 
 /**
  * Return the contact's conversation id in this account, creating one if

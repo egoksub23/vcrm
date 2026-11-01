@@ -13,8 +13,7 @@
 // unexpected failure (a bug, the database down) is thrown, like any other step.
 // ------------------------------------------------------------
 
-import type { SupabaseClient } from '@supabase/supabase-js'
-
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { getSignChainDepth } from './sign-event'
 import { copiesOf, signersOf } from './sign-step'
 import type { SendSignDocumentStepConfig } from '@/types'
@@ -50,8 +49,8 @@ const skip = (detail: string, outcome = 'skipped'): SendSignDocumentResult => ({
 async function automationCtx(accountId: string, userId: string | null, depth: number): Promise<SignCtx | null> {
   const origin = (await import('@/lib/site-url')).publicOrigin()
   if (!origin) return null
-  const [{ supabaseAdmin }, { realDeps }] = await Promise.all([import('./admin-client'), import('@/lib/sign/notify')])
-  return { admin: supabaseAdmin() as SupabaseClient, accountId, userId, origin, deps: realDeps, now: () => new Date(), chainDepth: depth }
+  const { realDeps } = await import('@/lib/sign/notify')
+  return { admin: createAdminPgDb(), accountId, userId, origin, deps: realDeps, now: () => new Date(), chainDepth: depth }
 }
 
 /** The step's idempotency key: the same contact and template in one run are one document. */

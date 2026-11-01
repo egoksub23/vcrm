@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import type { KnowledgeAttachment, KnowledgeTranslationBase } from '@/lib/knowledge-types'
 import type { KbLanguage } from '@/lib/ai/knowledge-query'
 import type { KbStatus } from '@/lib/ai/knowledge-doc'
@@ -27,7 +27,7 @@ import { pickEffectiveAttachments, planAttachmentSources, type TranslationRow } 
  * translations", i.e. each article's own files.
  */
 export async function loadEffectiveAttachments(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   documentIds: string[],
 ): Promise<Map<string, KnowledgeAttachment[]>> {
@@ -68,7 +68,7 @@ interface TranslationDbRow {
 
 /** The translations of one base article. */
 export async function loadTranslationsOf(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   baseId: string,
 ): Promise<TranslationRow[]> {
@@ -86,7 +86,7 @@ export async function loadTranslationsOf(
 
 /** The base of a translation, with its last-change time. */
 export async function loadBaseOf(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   baseId: string,
 ): Promise<(KnowledgeTranslationBase & { updated_at: string }) | null> {
@@ -107,7 +107,7 @@ export async function loadBaseOf(
  * translation shows "out of date" a little early.
  */
 export async function keepTranslationsCurrent(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   baseId: string,
   previousUpdatedAt: string,

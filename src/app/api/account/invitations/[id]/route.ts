@@ -43,10 +43,11 @@ export async function DELETE(
     // filter would be redundant; omitting it surfaces a
     // cross-account attempt as a silent 0-row delete (which is
     // exactly what we want for a revocation endpoint).
-    const { error, count } = await ctx.supabase
+    const { data: deleted, error } = await ctx.supabase
       .from("account_invitations")
-      .delete({ count: "exact" })
-      .eq("id", id);
+      .delete()
+      .eq("id", id)
+      .select("id");
 
     if (error) {
       console.error("[DELETE /api/account/invitations/[id]] error:", error);
@@ -56,7 +57,7 @@ export async function DELETE(
       );
     }
 
-    if (count === 0) {
+    if ((deleted ?? []).length === 0) {
       // Either the id doesn't exist or RLS hid it (different
       // account). 404 either way — surfacing "exists but not
       // yours" would leak existence.

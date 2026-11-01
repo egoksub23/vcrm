@@ -1,5 +1,5 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 /**
  * Daily usage snapshot (migration 152): one row per active workspace per day
@@ -14,7 +14,7 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
  *   15 1 * * * curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/usage/snapshot-cron
  */
 export const GET = cronRoute('usage-snapshot', CRON_INTERVALS['usage-snapshot'], async () => {
-  const { data, error } = await supabaseAdmin().rpc('usage_snapshot_run', { p_limit: 200 })
+  const { data, error } = await createAdminPgDb().rpc('usage_snapshot_run', { p_limit: 200 })
   if (error) {
     console.error('[usage-snapshot-cron] failed:', error.message)
     return { status: 500, body: { error: error.message } }

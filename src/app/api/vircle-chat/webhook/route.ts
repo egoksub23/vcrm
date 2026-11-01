@@ -18,7 +18,6 @@
 // ============================================================
 import { NextResponse, after } from 'next/server'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { createAdminPgDb } from '@/lib/postgres/db'
 import { clientIp } from '@/lib/net/client-ip'
 import { checkRateLimit, isRateLimited, RATE_LIMITS } from '@/lib/rate-limit'
@@ -107,7 +106,7 @@ export async function POST(request: Request) {
   if (event.kind === 'user.typing') {
     try {
       // typing.ts still needs a real Supabase client for the Realtime channel broadcast
-      await broadcastUserTyping(supabaseAdmin(), row.account_id, event)
+      await broadcastUserTyping(admin, row.account_id, event)
     } catch (err) {
       console.error('[vircle-chat] typing broadcast failed:', err instanceof Error ? err.message : err)
     }

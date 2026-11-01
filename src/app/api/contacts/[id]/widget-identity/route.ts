@@ -16,7 +16,7 @@
 import { NextResponse } from 'next/server'
 
 import { getCurrentAccount, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { strongestIdentity } from '@/lib/widget/identity-summary'
 
 interface OtherContact {
@@ -43,7 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
     if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
 
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const { data: visitors, error: visitorError } = await admin
       .from('widget_visitors')
       .select('identity_level, identity_source')

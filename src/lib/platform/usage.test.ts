@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import {
   __resetUsageCacheForTests,
@@ -28,13 +28,13 @@ const usage = (over: Partial<AccountUsage> = {}): AccountUsage => ({
 })
 
 /** A client whose account_usage() answers `data`, and which counts the calls. */
-function fakeDb(data: unknown, calls = { n: 0 }): SupabaseClient {
+function fakeDb(data: unknown, calls = { n: 0 }): PgDb {
   return {
     rpc: async () => {
       calls.n++
       return { data, error: null }
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
 }
 
 beforeEach(() => __resetUsageCacheForTests())
@@ -96,8 +96,8 @@ describe('loadAccountUsage', () => {
   })
 
   it('fails open: null when the call errors or throws', async () => {
-    const erroring = { rpc: async () => ({ data: null, error: { message: 'boom' } }) } as unknown as SupabaseClient
-    const throwing = { rpc: async () => { throw new Error('down') } } as unknown as SupabaseClient
+    const erroring = { rpc: async () => ({ data: null, error: { message: 'boom' } }) } as unknown as PgDb
+    const throwing = { rpc: async () => { throw new Error('down') } } as unknown as PgDb
     expect(await loadAccountUsage(erroring, 'a')).toBeNull()
     expect(await loadAccountUsage(throwing, 'b')).toBeNull()
   })
@@ -107,7 +107,7 @@ describe('assertCanSendMessage', () => {
   it('lets a send through under the limit, with no limit, or when usage cannot be read', async () => {
     await expect(assertCanSendMessage(fakeDb(usage({ limits: { messages_per_month: 101 } })), 'a')).resolves.toBeUndefined()
     await expect(assertCanSendMessage(fakeDb(usage()), 'b')).resolves.toBeUndefined()
-    const down = { rpc: async () => { throw new Error('down') } } as unknown as SupabaseClient
+    const down = { rpc: async () => { throw new Error('down') } } as unknown as PgDb
     await expect(assertCanSendMessage(down, 'c')).resolves.toBeUndefined()
   })
 
@@ -122,7 +122,7 @@ describe('assertCanSendDocument', () => {
   it('lets a send through under the limit, with no limit, or when usage cannot be read', async () => {
     await expect(assertCanSendDocument(fakeDb(usage({ sign_documents_month: 49, limits: { sign_documents_per_month: 50 } })), 'a')).resolves.toBeUndefined()
     await expect(assertCanSendDocument(fakeDb(usage({ sign_documents_month: 900 })), 'b')).resolves.toBeUndefined()
-    const down = { rpc: async () => { throw new Error('down') } } as unknown as SupabaseClient
+    const down = { rpc: async () => { throw new Error('down') } } as unknown as PgDb
     await expect(assertCanSendDocument(down, 'c')).resolves.toBeUndefined()
   })
 
@@ -146,10 +146,10 @@ describe('aiAllowance', () => {
 
 describe('assertCanAddContact', () => {
   /** account_platform.limits for the first lookup, then the contacts head count. */
-  function contactsDb(limits: Record<string, number> | null, count: number): SupabaseClient {
+  function contactsDb(limits: Record<string, number> | null, count: number): PgDb {
     const platform = { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: limits ? { limits } : null }) }) }) }
     const contacts = { select: () => ({ eq: () => ({ is: async () => ({ count }) }) }) }
-    return { from: (t: string) => (t === 'account_platform' ? platform : contacts) } as unknown as SupabaseClient
+    return { from: (t: string) => (t === 'account_platform' ? platform : contacts) } as unknown as PgDb
   }
 
   it('allows with no limit and under the limit; refuses at it', async () => {
@@ -159,7 +159,7 @@ describe('assertCanAddContact', () => {
   })
 
   it('fails open when the lookup breaks', async () => {
-    const broken = { from: () => { throw new Error('down') } } as unknown as SupabaseClient
+    const broken = { from: () => { throw new Error('down') } } as unknown as PgDb
     await expect(assertCanAddContact(broken, 'a')).resolves.toBeUndefined()
   })
 })

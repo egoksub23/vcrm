@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { createAdminPgDb } from '@/lib/postgres/db';
 
 import type { EmailIdentity } from './resend';
 
@@ -30,7 +30,7 @@ export function resolveEmailIdentity(row: IdentityRow | null | undefined): Email
  */
 export async function loadEmailIdentity(accountId: string): Promise<EmailIdentity> {
   try {
-    const { data, error } = await supabaseAdmin()
+    const { data, error } = await createAdminPgDb()
       .from('accounts')
       .select('name, brand_name, email_sender_name, email_reply_to')
       .eq('id', accountId)

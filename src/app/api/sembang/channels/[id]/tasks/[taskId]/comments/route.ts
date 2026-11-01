@@ -16,7 +16,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import type { SembangTaskComment } from '@/types'
 
 const BODY_MAX = 20_000
@@ -45,12 +45,12 @@ export async function POST(
 
     let mentions: string[] = []
     if (requestedMentions.length > 0) {
-      const { data: members } = await supabaseAdmin()
+      const { data: members } = await createAdminPgDb()
         .from('sembang_channel_members')
         .select('user_id')
         .eq('channel_id', channelId)
         .in('user_id', requestedMentions)
-      mentions = (members ?? []).map((m) => m.user_id)
+      mentions = (members ?? []) .map((m: any) => m.user_id)
     }
 
     const { data, error } = await ctx.supabase

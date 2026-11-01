@@ -74,9 +74,9 @@ export async function GET(
 
     const personIds = Array.from(
       new Set([
-        ...(subtaskRows ?? []).map((s) => s.assignee_id).filter((v): v is string => !!v),
-        ...(commentRows ?? []).map((c) => c.author_id).filter((v): v is string => !!v),
-        ...(activityRows ?? []).map((a) => a.actor_id).filter((v): v is string => !!v),
+        ...((subtaskRows ?? []) as any[]).map((s: any) => s.assignee_id as string | null).filter((v): v is string => !!v),
+        ...((commentRows ?? []) as any[]).map((c: any) => c.author_id as string | null).filter((v): v is string => !!v),
+        ...((activityRows ?? []) as any[]).map((a: any) => a.actor_id as string | null).filter((v): v is string => !!v),
       ]),
     )
     const { data: profileRows } = personIds.length
@@ -85,7 +85,7 @@ export async function GET(
     const profileByUser = new Map<string, { full_name: string | null; avatar_url: string | null }>()
     for (const p of profileRows ?? []) profileByUser.set(p.user_id, p)
 
-    const subtasks: SembangSubtask[] = (subtaskRows ?? []).map((s) => ({
+    const subtasks: SembangSubtask[] = (subtaskRows ?? []) .map((s: any) => ({
       id: s.id,
       taskId: s.task_id,
       title: s.title,
@@ -104,7 +104,7 @@ export async function GET(
       completedBy: s.completed_by,
     }))
 
-    const comments: SembangTaskComment[] = (commentRows ?? []).map((c) => ({
+    const comments: SembangTaskComment[] = (commentRows ?? []) .map((c: any) => ({
       id: c.id,
       taskId: c.task_id,
       authorId: c.author_id,
@@ -116,7 +116,7 @@ export async function GET(
       editedAt: c.edited_at,
     }))
 
-    const activity: SembangTaskActivityEvent[] = (activityRows ?? []).map((a) => ({
+    const activity: SembangTaskActivityEvent[] = (activityRows ?? []) .map((a: any) => ({
       id: a.id,
       taskId: a.task_id,
       actorId: a.actor_id,

@@ -15,10 +15,10 @@
 // called best-effort after a widget-channel agent/bot reply is
 // persisted, and must never add latency to or fail that send.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 export async function notifyAppUserOfReplyViaPush(
-  _admin: SupabaseClient,
+  _admin: PgDb,
   args: {
     accountId: string;
     conversationId: string;

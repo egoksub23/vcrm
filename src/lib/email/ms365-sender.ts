@@ -25,7 +25,7 @@
  * Every dependency is injectable, so the whole path is tested without Microsoft.
  */
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { GraphApiError } from "@/lib/ms365/errors";
 import { sendMailViaDraft, sendNewMail } from "@/lib/ms365/mail-api";
 import { getValidAccessToken, type EmailConfigRow } from "@/lib/ms365/token";
@@ -95,7 +95,7 @@ export interface Ms365SenderDeps {
 
 export const realMs365Deps: Ms365SenderDeps = {
   loadConfig: async (accountId) => {
-    const { data, error } = await supabaseAdmin().from("email_config").select("*").eq("account_id", accountId).maybeSingle();
+    const { data, error } = await createAdminPgDb().from("email_config").select("*").eq("account_id", accountId).maybeSingle();
     if (error) throw error;
     return (data as Ms365MailboxRow | null) ?? null;
   },
@@ -103,7 +103,7 @@ export const realMs365Deps: Ms365SenderDeps = {
   sendMail: sendNewMail,
   sendMailViaDraft,
   markNeedsReauth: async (configId) => {
-    await supabaseAdmin().from("email_config").update({ needs_reauth: true }).eq("id", configId);
+    await createAdminPgDb().from("email_config").update({ needs_reauth: true }).eq("id", configId);
   },
   throttle: new SendThrottle(MS365_SEND_SPACING_MS, Date.now, realSleep),
   sleep: realSleep,

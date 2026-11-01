@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 import { signEnabled } from '@/lib/sign/feature'
 import type { SignRole } from '@/lib/sign/types'
@@ -42,7 +42,7 @@ export function stepsUseSign(steps: StepNode[] | undefined): boolean {
  * touches Doc Sign tables.
  */
 export async function signSetupForActivation(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   steps: StepNode[] | undefined,
   triggerType?: string,

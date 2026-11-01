@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 import {
   AiError,
   type AiConfig,
@@ -9,7 +10,6 @@ import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
 import { ensureWithinBudget } from './budget'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface GenerateArgs {
   config: AiConfig
@@ -24,7 +24,7 @@ export interface GenerateArgs {
   messages: ChatMessage[]
   /** When given, the account's monthly token budget is checked first (and
    *  the 80% alert sent); an exhausted budget throws `budget_exceeded`. */
-  guard?: { db: SupabaseClient; accountId: string }
+  guard?: { db: PgDb, accountId: string }
   /** Longer than a chat reply (e.g. translating an article): a higher cap on
    *  the reply length, and a per-call timeout that replaces the default. */
   maxOutputTokens?: number

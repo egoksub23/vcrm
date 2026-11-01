@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentAccount, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { refreshPostMedia } from '@/lib/comments/refresh-post-media'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
@@ -23,7 +23,7 @@ export async function POST(_request: Request, { params }: Params) {
     if (!limit.success) return rateLimitResponse(limit)
 
     const { id } = await params
-    const result = await refreshPostMedia(supabaseAdmin(), accountId, id)
+    const result = await refreshPostMedia(createAdminPgDb(), accountId, id)
     if (!result.ok) {
       return NextResponse.json({ error: 'The picture is not available.', reason: result.reason }, { status: result.reason === 'not_found' ? 404 : 409 })
     }

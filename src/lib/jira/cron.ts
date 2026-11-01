@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // The scheduled work behind GET /api/integrations/jira/cron.
 //
@@ -15,7 +16,6 @@
 // minute or two and each step is idempotent and bounded.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { pullAttachments, sendTicketAttachment } from "./attachments";
 import {
@@ -47,7 +47,7 @@ export interface CronContext extends SyncContext {
 }
 
 export interface CronDeps {
-  db: SupabaseClient;
+  db: PgDb,
   store: JiraStore;
   /** Build a ready client + context for a connection (tokens, refresh, rate-limit logging). */
   contextFor: (connection: JiraConnectionRow) => CronContext;
@@ -308,7 +308,7 @@ export async function runDaily(
 // ------------------------------------------------------------
 
 /** Every Jira account id we hold: the user map, cached assignees, comment authors, the connecting user. */
-export async function collectAccountIds(db: SupabaseClient, connection: JiraConnectionRow): Promise<string[]> {
+export async function collectAccountIds(db: PgDb, connection: JiraConnectionRow): Promise<string[]> {
   const ids = new Set<string>();
   if (connection.jira_account_id) ids.add(connection.jira_account_id);
   const [{ data: map }, { data: links }, { data: authors }] = await Promise.all([
@@ -324,7 +324,7 @@ export async function collectAccountIds(db: SupabaseClient, connection: JiraConn
 
 /** Erase what Atlassian says must go (`closed`) or refresh (`updated`). */
 export async function applyReportResults(
-  db: SupabaseClient,
+  db: PgDb,
   connection: JiraConnectionRow,
   results: { accountId: string; status: string }[],
 ): Promise<{ erased: number; refreshed: number }> {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { assertCapability, requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { performCommentAction } from '@/lib/comments/actions'
 import type { CommentAction } from '@/lib/comments/types'
@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const result = await performCommentAction(
-      supabaseAdmin(),
+      createAdminPgDb(),
       { accountId, userId },
       id,
       action,

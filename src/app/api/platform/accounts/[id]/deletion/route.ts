@@ -12,7 +12,7 @@
 import { NextResponse } from "next/server";
 
 import { toErrorResponse } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { requirePlatformAdmin } from "@/lib/platform/auth";
 import { runWorkspaceDeletion } from "@/lib/platform/deletion";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = (await request.json().catch(() => null)) as
       | { confirm?: unknown; days?: unknown; now?: unknown; note?: unknown }
       | null;
-    const db = supabaseAdmin();
+    const db = createAdminPgDb();
     const { data: account } = await db.from("accounts").select("name").eq("id", id).maybeSingle();
     if (!account) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     const name = account.name as string;

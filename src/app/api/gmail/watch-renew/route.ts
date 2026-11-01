@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
-
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { CRON_INTERVALS, cronRoute, forEachWithinBudget } from '@/lib/cron/guard'
 import { suspendedAccountIds } from '@/lib/platform/active'
 import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { getValidAccessToken } from '@/lib/gmail/token'
+import type { GmailInboxRow } from '@/lib/gmail/inbox-switch'
 import { watchMailbox } from '@/lib/gmail/gmail-api'
 
 /**
@@ -25,10 +25,7 @@ export const GET = cronRoute('gmail-watch-renew', CRON_INTERVALS['gmail-watch-re
     return { body: { renewed: 0, skipped: 'GMAIL_PUBSUB_TOPIC not configured' } }
   }
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  const admin = createAdminPgDb()
 
   // Renew anything expiring within the next 48 hours (a watch lasts up to
   // 7 days), plus anything lapsed or never set. Soonest first and capped,
@@ -48,7 +45,7 @@ export const GET = cronRoute('gmail-watch-renew', CRON_INTERVALS['gmail-watch-re
 
   if (error) return { status: 500, body: { error: error.message } }
   const suspended = await suspendedAccountIds(admin)
-  const eligible = (configs ?? []).filter((c) => !suspended.has(c.account_id as string) && !inboxIsOff(c))
+  const eligible = ((configs ?? []) as GmailInboxRow[]).filter((c) => !suspended.has(c.account_id) && !inboxIsOff(c))
   if (eligible.length === 0) return { body: { renewed: 0 } }
 
   let renewed = 0

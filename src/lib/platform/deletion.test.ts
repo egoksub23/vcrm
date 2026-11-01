@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 vi.mock('./teardown', () => ({
   teardownWorkspaceChannels: vi.fn(async () => ({ gmail: 'ok', whatsapp: 'not connected' })),
@@ -68,7 +68,7 @@ function setup(world: World) {
         },
       },
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
   return { db, log, removed }
 }
 
@@ -160,7 +160,7 @@ describe('runDueDeletions', () => {
       },
       from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }),
       auth: { admin: { deleteUser: async () => ({ error: null }) } },
-    } as unknown as SupabaseClient
+    } as unknown as PgDb
     const results = await runDueDeletions(db)
     expect(results).toHaveLength(1)
     // the account no longer exists and there is no tombstone: nothing to take apart, the tombstone is just closed
@@ -169,7 +169,7 @@ describe('runDueDeletions', () => {
 
   it('returns nothing when the list cannot be read', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    const db = { rpc: async () => ({ data: null, error: { message: 'down' } }) } as unknown as SupabaseClient
+    const db = { rpc: async () => ({ data: null, error: { message: 'down' } }) } as unknown as PgDb
     expect(await runDueDeletions(db)).toEqual([])
   })
 })

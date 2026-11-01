@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import type { AiConfig } from '@/lib/ai/types'
 import {
   AiStepError,
@@ -63,7 +63,7 @@ export function fakeAi(replies: FakeReply[], opts: { configError?: AiStepError }
 type Row = Record<string, unknown>
 
 export interface FakeDb {
-  db: SupabaseClient
+  db: PgDb
   /** Every write the code under test attempted (there must be none in a dry run). */
   writes: string[]
 }
@@ -114,7 +114,7 @@ export function fakeDb(tables: Record<string, Row[]>): FakeDb {
       writes.push(`rpc.${name}`)
       return { data: null, error: { message: 'write refused' } }
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
   return { db, writes }
 }
 

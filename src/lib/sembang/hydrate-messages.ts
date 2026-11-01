@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Shared Sembang message hydration.
 //
@@ -8,7 +9,6 @@
 // message list/search, the thread-replies route, and the pins route.
 // Extracted here (rather than duplicated) per SPEC-P1's own suggestion.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { SembangAttachment, SembangLinkPreview, SembangMessage, SembangReactionSummary } from '@/types'
 import { resolveAttachmentUrls } from './resolve-attachment-urls'
@@ -104,7 +104,7 @@ export function groupReactions(
 }
 
 export async function hydrateMessages(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   rows: SembangMessageRow[],
   callerUserId: string,
 ): Promise<SembangMessage[]> {
@@ -215,7 +215,7 @@ export async function hydrateMessages(
   // fetch (object went missing, etc.) does not fail the whole request —
   // the attachment just renders with an empty url.
   const allAttachments = Array.from(attachmentsByMessage.values()).flat()
-  await resolveAttachmentUrls(supabase, allAttachments, pathById)
+  await resolveAttachmentUrls(allAttachments, pathById)
 
   const reactionsByMessage = new Map<string, ReactionRow[]>()
   for (const r of (reactionRows ?? []) as ReactionRow[]) {
@@ -224,7 +224,7 @@ export async function hydrateMessages(
     reactionsByMessage.set(r.message_id, list)
   }
 
-  const starredIds = new Set<string>((starRows ?? []).map((s) => s.message_id as string))
+  const starredIds = new Set<string>(((starRows ?? []) as any[]).map((s: any) => s.message_id as string))
 
   const linkPreviewByMessage = new Map<string, SembangLinkPreview>()
   for (const p of (linkPreviewRows ?? []) as LinkPreviewRow[]) {

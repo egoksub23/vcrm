@@ -10,7 +10,6 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { PostgrestError } from "@supabase/supabase-js";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { isAccountRole, roleRank } from "@/lib/auth/roles";
@@ -18,7 +17,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit
 
 type Params = { params: Promise<{ id: string }> };
 
-function rpcErrorToResponse(err: PostgrestError): NextResponse {
+function rpcErrorToResponse(err: { message: string; code?: string | null }): NextResponse {
   if (err.code === "42501") return NextResponse.json({ error: err.message }, { status: 403 });
   if (err.code === "23505") return NextResponse.json({ error: err.message }, { status: 409 });
   if (err.code === "22023") return NextResponse.json({ error: err.message }, { status: 400 });

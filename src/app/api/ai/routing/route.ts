@@ -21,7 +21,7 @@ export async function PUT(request: Request) {
     }
 
     const { data: owned } = await supabase.from('ai_connections').select('id').eq('account_id', accountId)
-    const ownedIds = new Set((owned ?? []).map((c) => c.id as string))
+    const ownedIds = new Set((owned ?? []) .map((c: any) => c.id as string))
 
     const rows: Record<string, unknown>[] = []
     for (const item of body.routing as Record<string, unknown>[]) {

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests, the Inbox column (migration 185): the requests linked to THIS conversation or its contact, for the "Compliance requests" section
 // next to the ticket history. Server only.
@@ -11,7 +12,6 @@
 // role, so this projection is the only way a person without the Compliance menu sees them.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { complianceError } from "../errors";
 import { raiserStatus, type LinkedItem } from "../raise-types";
@@ -22,7 +22,7 @@ export interface LinkedCaller {
   accountId: string;
   userId: string;
   /** The person's own session. */
-  userDb: SupabaseClient;
+  userDb: PgDb
   /** They hold a compliance permission (not just compliance.raise). */
   sees: boolean;
 }
@@ -31,7 +31,7 @@ export type { LinkedItem };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function linkedRequests(admin: SupabaseClient, caller: LinkedCaller, conversationId: string, limit = 50): Promise<LinkedItem[]> {
+export async function linkedRequests(admin: PgDb, caller: LinkedCaller, conversationId: string, limit = 50): Promise<LinkedItem[]> {
   if (!UUID_RE.test(conversationId)) throw complianceError("invalid_request");
   const conv = await caller.userDb.from("conversations").select("id, account_id, contact_id").eq("id", conversationId).maybeSingle();
   if (conv.error) throw complianceError("server_error");

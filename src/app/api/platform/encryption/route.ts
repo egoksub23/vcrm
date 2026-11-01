@@ -13,7 +13,7 @@ import { NextResponse } from "next/server";
 import { toErrorResponse } from "@/lib/auth/account";
 import { EncryptionConfigError } from "@/lib/crypto/keyring";
 import { encryptionReport, reencryptAll } from "@/lib/crypto/reencrypt";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { requirePlatformAdmin } from "@/lib/platform/auth";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -27,7 +27,7 @@ function misconfigured(err: unknown): NextResponse | null {
 export async function GET() {
   try {
     await requirePlatformAdmin();
-    const report = await encryptionReport(supabaseAdmin());
+    const report = await encryptionReport(createAdminPgDb());
     return NextResponse.json(report, { headers: NO_STORE });
   } catch (err) {
     const bad = misconfigured(err);
@@ -43,7 +43,7 @@ export async function POST() {
     const limit = checkRateLimit(`platform-reencrypt:${userId}`, RATE_LIMITS.adminAction);
     if (!limit.success) return rateLimitResponse(limit);
 
-    const result = await reencryptAll(supabaseAdmin());
+    const result = await reencryptAll(createAdminPgDb());
     console.info(
       `[platform] re-encrypt by ${userId}: rewritten=${result.rewritten} unreadable=${result.unreadable} conflicts=${result.conflicts} finished=${result.finished}`,
     );

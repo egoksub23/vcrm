@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // The public verify page: what anyone holding a signed document's certificate may learn from the QR code
 // on it. The address carries the document's id (an unguessable v4 UUID), and nothing else guards it, so
@@ -16,7 +17,6 @@
 // exist, all give the same answer: null. A page for such an address says nothing about which it was.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { signEnabled } from "../feature";
 import { signedFileName } from "../file-names";
@@ -79,7 +79,7 @@ export function signedPeople(signers: readonly SignSignerRow[], mode?: SignMode 
     .sort((a, b) => (a.signedAt ?? "").localeCompare(b.signedAt ?? ""));
 }
 
-export async function loadVerification(admin: SupabaseClient, id: unknown, now: () => Date = () => new Date()): Promise<VerifyView | null> {
+export async function loadVerification(admin: PgDb, id: unknown, now: () => Date = () => new Date()): Promise<VerifyView | null> {
   if (!isDocumentId(id)) return null;
   const found = await admin.from("sign_documents").select("id, account_id, title, reference, status, mode, envelope_id, completed_at, page_count, final_sha256, certificate_sha256, cancelled_at").eq("id", id).maybeSingle();
   if (found.error || !found.data) return null;

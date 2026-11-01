@@ -27,9 +27,7 @@
 // past its own account because the account is fixed at lookup time.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-
-import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db';
 import { findActiveKeyByHash, touchLastUsed } from '@/lib/api-keys/store';
 import { hashApiKey, looksLikeApiKey } from '@/lib/api-keys/keys';
 import { hasScope, type ApiScope } from '@/lib/api-keys/scopes';
@@ -41,8 +39,8 @@ import { ACCOUNT_SUSPENDED_MESSAGE, parsePlatformRow, type AccountPlatform } fro
 export interface ApiKeyContext {
   /** Discriminant — lets shared logic tell key auth from cookie auth. */
   authType: 'api_key';
-  /** Service-role Supabase client. RLS-bypassing; scope by accountId. */
-  supabase: SupabaseClient;
+  /** Admin PgDb, client. RLS-bypassing; scope by accountId. */
+  supabase: PgDb;
   /** The account this key belongs to. */
   accountId: string;
   /** The key row id — for audit logging and the rate-limit bucket. */
@@ -116,7 +114,7 @@ export async function requireApiKey(
 
   // A suspended tenant's keys stop working with the rest of the account
   // (operator-set, migration 132). A missing table means 132 isn't applied.
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
   const { data: platform, error: platformError } = await admin
     .from('account_platform')
     .select('status, plan, limits, features, suspended_reason')

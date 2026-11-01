@@ -13,7 +13,7 @@
  * customers sending.
  */
 
-import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { createAdminPgDb } from '@/lib/postgres/db';
 import {
   checkRateLimit,
   type RateLimitOptions,
@@ -45,7 +45,7 @@ export async function checkSharedRateLimit(
   cost = 1,
 ): Promise<RateLimitResult> {
   try {
-    const { data, error } = await supabaseAdmin().rpc('rate_limit_hit', {
+    const { data, error } = await createAdminPgDb().rpc('rate_limit_hit', {
       p_key: key,
       p_limit: limit,
       p_window_seconds: Math.max(1, Math.ceil(windowMs / 1000)),

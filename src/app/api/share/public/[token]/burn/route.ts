@@ -8,7 +8,7 @@
 
 import { NextResponse } from "next/server";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { hashToken, isPlausibleToken } from "@/lib/share/tokens";
@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const { token } = await params;
   if (!isPlausibleToken(token)) return new NextResponse(null, { status: 204 });
 
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
   await admin
     .from("share_links")
     .update({ status: "revoked" })

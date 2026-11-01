@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getCurrentAccount, requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { TicketCommentError } from '@/lib/tickets/comment-write'
 import { isMentionAction, resolveMention } from '@/lib/tickets/mention-resolve'
 
@@ -22,7 +22,7 @@ export async function PATCH(
     const ctx = payload.action === 'done' ? await getCurrentAccount() : await requireCapability('tickets.work')
     const { id: ticketId, mentionId } = await params
 
-    const mention = await resolveMention(ctx.supabase, supabaseAdmin(), {
+    const mention = await resolveMention(ctx.supabase, createAdminPgDb(), {
       ticketId,
       mentionId,
       userId: ctx.userId,

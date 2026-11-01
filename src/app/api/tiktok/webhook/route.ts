@@ -9,7 +9,7 @@
 // ============================================================
 import { NextResponse, after } from 'next/server'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { applyTikTokCommentEvent } from '@/lib/comments/tiktok/connection'
 import { tiktokAppSecret } from '@/lib/comments/tiktok/api'
 import { parseTikTokCommentEvent, verifyTikTokSignature } from '@/lib/comments/tiktok/webhook'
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   if (event) {
     after(async () => {
       try {
-        await applyTikTokCommentEvent(supabaseAdmin(), event)
+        await applyTikTokCommentEvent(createAdminPgDb(), event)
       } catch (err) {
         console.error('[tiktok webhook] processing failed:', err)
       }

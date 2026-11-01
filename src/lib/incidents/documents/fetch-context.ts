@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { type PgDb } from '@/lib/postgres/db'
 
 import { ESCALATION_DEFAULT_MINUTES } from "../constants";
 import type { Incident, IncidentAction, IncidentAttachment, IncidentEscalationEvent, IncidentNotificationSent } from "../types";
@@ -9,7 +9,7 @@ import type { IncidentDocumentContext } from "./types";
  *  route's own RLS-scoped `supabase` client already limits this to
  *  incidents the caller can see). */
 export async function fetchIncidentDocumentContext(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   incidentId: string,
   accountId: string,
 ): Promise<IncidentDocumentContext | null> {
@@ -64,8 +64,8 @@ export async function fetchIncidentDocumentContext(
   for (const p of profileRows ?? []) nameByUser.set(p.user_id, p.full_name ?? "");
 
   const defaults = ESCALATION_DEFAULT_MINUTES[row.severity];
-  const lastA = (docsGenerated ?? []).find((d) => d.form === "a")?.generated_at ?? null;
-  const lastB = (docsGenerated ?? []).find((d) => d.form === "b")?.generated_at ?? null;
+  const lastA = ((docsGenerated ?? []) as any[]).find((d: any) => d.form === "a")?.generated_at ?? null;
+  const lastB = ((docsGenerated ?? []) as any[]).find((d: any) => d.form === "b")?.generated_at ?? null;
 
   return {
     incident: row,

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Running a workspace deletion (migration 153).
 //
@@ -13,7 +14,6 @@
 // run that stopped half way (a deploy, a timeout) is picked up by the next one.
 // The owner's 30-day request and the operator's immediate delete both end here.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { teardownWorkspaceChannels } from './teardown'
 import { appStorage } from '@/lib/storage/provider'
@@ -32,7 +32,7 @@ export interface DeletionResult {
 
 type ObjectRef = { bucket: string; name: string }
 
-async function removeByPrefix(db: SupabaseClient, prefix: string): Promise<number> {
+async function removeByPrefix(db: PgDb, prefix: string): Promise<number> {
   let removed = 0
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const { data, error } = await db.rpc('storage_objects_by_prefix', { p_prefix: prefix, p_limit: FILE_BATCH })
@@ -53,7 +53,7 @@ async function removeByPrefix(db: SupabaseClient, prefix: string): Promise<numbe
   throw new Error('removing files did not finish')
 }
 
-async function deleteLogins(_db: SupabaseClient, ids: string[]): Promise<void> {
+async function deleteLogins(_db: PgDb, ids: string[]): Promise<void> {
   for (const id of ids) {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${id}`,
@@ -74,7 +74,7 @@ async function deleteLogins(_db: SupabaseClient, ids: string[]): Promise<void> {
 }
 
 async function note(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   step: string,
   extra: { teardown?: Record<string, string>; storageRemoved?: number; error?: string } = {},
@@ -90,7 +90,7 @@ async function note(
 
 /** Delete one workspace. `force` skips the 30-day wait (the operator's "delete now"). Never throws. */
 export async function runWorkspaceDeletion(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   opts: { force?: boolean } = {},
 ): Promise<DeletionResult> {
@@ -152,7 +152,7 @@ export async function runWorkspaceDeletion(
 }
 
 /** Run every deletion that has fallen due, or stopped half way. Returns what happened to each. */
-export async function runDueDeletions(db: SupabaseClient, limit = 3): Promise<DeletionResult[]> {
+export async function runDueDeletions(db: PgDb, limit = 3): Promise<DeletionResult[]> {
   const { data, error } = await db.rpc('workspace_deletions_due', { p_limit: limit })
   if (error) {
     console.error('[workspace deletion] could not list due deletions:', error.message)

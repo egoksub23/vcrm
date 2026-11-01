@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 import {
   handleTemplateWebhookChange,
   isTemplateWebhookField,
@@ -92,7 +92,7 @@ function makeSupabaseStub(
     },
   };
 
-  return { stub: stub as unknown as SupabaseClient, calls };
+  return { stub: stub as unknown as PgDb, calls };
 }
 
 describe('isTemplateWebhookField', () => {

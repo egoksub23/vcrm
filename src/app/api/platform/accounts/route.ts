@@ -22,7 +22,8 @@ import { NextResponse } from "next/server";
 
 import { toErrorResponse } from "@/lib/auth/account";
 import { sendTenantWelcomeEmail } from "@/lib/email/tenant-welcome-email";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
+import { supabaseAdmin } from '@/lib/supabase/admin-client';
 import { requirePlatformAdmin } from "@/lib/platform/auth";
 import { parseCreateTenant } from "@/lib/platform/validate";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
@@ -64,9 +65,10 @@ export async function POST(request: Request) {
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
     const { companyName, ownerEmail, ownerName, plan, seats } = parsed.value;
 
-    const admin = supabaseAdmin();
+    const admin = createAdminPgDb();
+    const authAdmin = supabaseAdmin();
 
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
+    const { data: created, error: createError } = await authAdmin.auth.admin.createUser({
       email: ownerEmail,
       email_confirm: true,
       user_metadata: { full_name: ownerName ?? companyName },
@@ -124,7 +126,7 @@ export async function POST(request: Request) {
     // One-time "set your password" link, verified server-side at
     // /auth/confirm (no dependence on a URL fragment or a browser PKCE
     // verifier).
-    const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+    const { data: link, error: linkError } = await authAdmin.auth.admin.generateLink({
       type: "recovery",
       email: ownerEmail,
     });

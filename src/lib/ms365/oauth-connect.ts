@@ -1,5 +1,5 @@
+import { type PgDb } from '@/lib/postgres/db'
 import { randomBytes } from 'node:crypto'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * `oauth_pending_connections` CRUD for the email channel (migration
@@ -19,7 +19,7 @@ export function generateOAuthState(): string {
 }
 
 export async function createPendingEmailConnection(
-  db: SupabaseClient,
+  db: PgDb,
   args: { accountId: string; userId: string },
 ): Promise<{ id: string; state: string }> {
   const state = generateOAuthState()
@@ -51,7 +51,7 @@ export interface PendingEmailConnectionRow {
 }
 
 export async function findPendingEmailConnectionByState(
-  db: SupabaseClient,
+  db: PgDb,
   state: string,
 ): Promise<PendingEmailConnectionRow | null> {
   const { data, error } = await db
@@ -65,10 +65,10 @@ export async function findPendingEmailConnectionByState(
   return data as PendingEmailConnectionRow
 }
 
-export async function markEmailConnectionCompleted(db: SupabaseClient, id: string): Promise<void> {
+export async function markEmailConnectionCompleted(db: PgDb, id: string): Promise<void> {
   await db.from('oauth_pending_connections').update({ status: 'completed' }).eq('id', id)
 }
 
-export async function markEmailConnectionFailed(db: SupabaseClient, id: string): Promise<void> {
+export async function markEmailConnectionFailed(db: PgDb, id: string): Promise<void> {
   await db.from('oauth_pending_connections').update({ status: 'failed' }).eq('id', id)
 }

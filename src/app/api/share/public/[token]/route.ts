@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { shareEnabled } from "@/lib/share/feature";
@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   const { token } = await params;
   if (!isPlausibleToken(token)) return NOT_FOUND;
 
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
   const { data: share } = await admin
     .from("share_links")
     .select("id, account_id, title, file_name, file_size, gate_type, download_enabled, status, expires_at")

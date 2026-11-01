@@ -35,7 +35,7 @@ export const maxDuration = 60
 // Lazy-initialized to avoid build-time crash when env vars are missing
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _adminClient: any = null
-function supabaseAdmin() {
+function createAdminPgDb() {
   if (!_adminClient) {
     _adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -153,7 +153,7 @@ export async function GET(request: Request) {
     }
 
     // Fetch all whatsapp configs to check verify tokens
-    const { data: configs, error: configError } = await supabaseAdmin()
+    const { data: configs, error: configError } = await createAdminPgDb()
       .from('whatsapp_config')
       .select('id, verify_token')
 
@@ -186,7 +186,7 @@ export async function GET(request: Request) {
       // Fire-and-forget GCM upgrade. Safe to run on every subscribe
       // since it's a no-op once the column is already GCM.
       if (isLegacyFormat(matchedConfig.verify_token)) {
-        void supabaseAdmin()
+        void createAdminPgDb()
           .from('whatsapp_config')
           .update({ verify_token: encrypt(verifyToken) })
           .eq('id', matchedConfig.id)
@@ -224,7 +224,7 @@ export async function GET(request: Request) {
  * delivery names (migration 136). Only rows that actually hold a secret.
  */
 async function loadTenantSecrets(ids: WhatsAppIds) {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   const filters: string[] = []
   if (ids.phoneNumberIds.length > 0) {
     filters.push(`phone_number_id.in.(${ids.phoneNumberIds.map((i) => `"${i.replace(/"/g, '')}"`).join(',')})`)
@@ -323,7 +323,7 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
             value: change.value as unknown,
             wabaId: entry.id,
           },
-          supabaseAdmin(),
+          createAdminPgDb(),
         )
         continue
       }
@@ -360,7 +360,7 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
       // operators see the real cause in logs. ≥2 rows shouldn't happen
       // post-migration 013 (UNIQUE constraint), but a row created
       // before the constraint, or a race, would still surface here.
-      const { data: configRows, error: configError } = await supabaseAdmin()
+      const { data: configRows, error: configError } = await createAdminPgDb()
         .from('whatsapp_config')
         .select('*')
         .eq('phone_number_id', phoneNumberId)
@@ -473,7 +473,7 @@ async function resolveAccountIdForPhoneNumber(
   phoneNumberId: string | undefined
 ): Promise<string | null> {
   if (!phoneNumberId) return null
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('whatsapp_config')
     .select('account_id')
     .eq('phone_number_id', phoneNumberId)
@@ -523,7 +523,7 @@ async function handleStatusUpdate(
   }
   //    Scoped to this account's conversations: the same wamid can exist
   //    in another tenant, and its row must not be touched.
-  const { data: ownedMessages, error: ownedErr } = await supabaseAdmin()
+  const { data: ownedMessages, error: ownedErr } = await createAdminPgDb()
     .from('messages')
     .select('id, conversation_id, conversations!inner(account_id)')
     .eq('message_id', status.id)
@@ -535,7 +535,7 @@ async function handleStatusUpdate(
   const ownedRows = (ownedMessages ?? []) as { id: string; conversation_id: string }[]
 
   if (ownedRows.length > 0) {
-    const { error: msgErr } = await supabaseAdmin()
+    const { error: msgErr } = await createAdminPgDb()
       .from('messages')
       .update(messageUpdate)
       .in(
@@ -558,7 +558,7 @@ async function handleStatusUpdate(
   //    sent/delivered/read/failed counts automatically.
   const tsIso = new Date(parseInt(status.timestamp) * 1000).toISOString()
 
-  const { data: recipient, error: recFetchErr } = await supabaseAdmin()
+  const { data: recipient, error: recFetchErr } = await createAdminPgDb()
     .from('broadcast_recipients')
     .select('id, status, broadcasts!inner(account_id)')
     .eq('whatsapp_message_id', status.id)
@@ -586,7 +586,7 @@ async function handleStatusUpdate(
         (failure.details ? `: ${failure.details}` : '')
     }
 
-    const { error: recUpdateErr } = await supabaseAdmin()
+    const { error: recUpdateErr } = await createAdminPgDb()
       .from('broadcast_recipients')
       .update(update)
       .eq('id', recipient.id)
@@ -603,7 +603,7 @@ async function handleStatusUpdate(
   const msgRow = ownedRows[0]
   if (msgRow) {
     await dispatchWebhookEvent(
-      supabaseAdmin(),
+      createAdminPgDb(),
       accountId,
       'message.status_updated',
       {
@@ -629,7 +629,7 @@ async function flagBroadcastReplyIfAny(accountId: string, contactId: string) {
     // been replied to yet. Account-scoped so a shared inbox reply
     // marks the broadcast as replied regardless of which teammate
     // sent it.
-    const { data: recs, error } = await supabaseAdmin()
+    const { data: recs, error } = await createAdminPgDb()
       .from('broadcast_recipients')
       .select('id, status, broadcast_id, broadcasts!inner(account_id)')
       .eq('contact_id', contactId)
@@ -641,7 +641,7 @@ async function flagBroadcastReplyIfAny(accountId: string, contactId: string) {
     if (error || !recs || recs.length === 0) return
 
     const row = recs[0]
-    const { error: updErr } = await supabaseAdmin()
+    const { error: updErr } = await createAdminPgDb()
       .from('broadcast_recipients')
       .update({ status: 'replied', replied_at: new Date().toISOString() })
       .eq('id', row.id)
@@ -663,7 +663,7 @@ async function lookupInternalIdByMetaId(
   metaId: string,
   conversationId: string
 ): Promise<string | null> {
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('messages')
     .select('id')
     .eq('message_id', metaId)
@@ -706,7 +706,7 @@ async function handleReaction(
 
   // Empty emoji = removal (per Meta's Cloud API spec).
   if (!reaction.emoji) {
-    const { error: delError } = await supabaseAdmin()
+    const { error: delError } = await createAdminPgDb()
       .from('message_reactions')
       .delete()
       .eq('message_id', targetInternalId)
@@ -718,7 +718,7 @@ async function handleReaction(
     return
   }
 
-  const { error: upsertError } = await supabaseAdmin()
+  const { error: upsertError } = await createAdminPgDb()
     .from('message_reactions')
     .upsert(
       {
@@ -776,7 +776,7 @@ async function processMessage(
 
   // Find or create conversation
   const convResult = await findOrCreateConversation(
-    supabaseAdmin(),
+    createAdminPgDb(),
     accountId,
     configOwnerUserId,
     contactRecord.id
@@ -789,7 +789,7 @@ async function processMessage(
   // a reaction still fires the event, and a subscriber always sees the
   // thread open before its first message.received.
   if (convResult.created) {
-    await dispatchWebhookEvent(supabaseAdmin(), accountId, 'conversation.created', {
+    await dispatchWebhookEvent(createAdminPgDb(), accountId, 'conversation.created', {
       conversation_id: conversation.id,
       contact_id: contactRecord.id,
     })
@@ -854,7 +854,7 @@ async function processMessage(
   // BEFORE we insert, so the count is accurate. Covers the case where
   // the contact row already exists (manual add / CSV import) but they've
   // never messaged us before — which new_contact_created wouldn't catch.
-  const { count: priorCustomerMsgCount } = await supabaseAdmin()
+  const { count: priorCustomerMsgCount } = await createAdminPgDb()
     .from('messages')
     .select('id', { count: 'exact', head: true })
     .eq('conversation_id', conversation.id)
@@ -869,7 +869,7 @@ async function processMessage(
   // ONLY on a genuine first insert — an empty result means this delivery
   // was a replay. This is the single idempotency boundary that must sit
   // BEFORE the unread bump and all downstream fan-out below (issue #367).
-  const { data: insertedRows, error: msgError } = await supabaseAdmin()
+  const { data: insertedRows, error: msgError } = await createAdminPgDb()
     .from('messages')
     .upsert(
       {
@@ -921,7 +921,7 @@ async function processMessage(
   // both reads see the same value and write the same increment, losing one
   // (issue #369). The RPC increments in a single UPDATE and refreshes the
   // last-message summary in the same statement.
-  const { error: convError } = await supabaseAdmin().rpc(
+  const { error: convError } = await createAdminPgDb().rpc(
     'bump_conversation_on_inbound',
     {
       p_conversation_id: conversation.id,
@@ -938,7 +938,7 @@ async function processMessage(
   // separate conditional statement rather than a `status` field on the
   // update above so the write can be gated on the row's CURRENT status in
   // SQL — see the helper for why that matters.
-  await reopenClosedConversation(supabaseAdmin(), conversation)
+  await reopenClosedConversation(createAdminPgDb(), conversation)
 
   // If this contact was a recent broadcast recipient, flag the reply
   // so the broadcast's `replied_count` advances (via the aggregate
@@ -1066,7 +1066,7 @@ async function processMessage(
   // when the account has no matching endpoint and never throws.
   // (conversation.created is emitted earlier, right after the thread is
   // opened.)
-  await dispatchWebhookEvent(supabaseAdmin(), accountId, 'message.received', {
+  await dispatchWebhookEvent(createAdminPgDb(), accountId, 'message.received', {
     conversation_id: conversation.id,
     contact_id: contactRecord.id,
     whatsapp_message_id: message.id,
@@ -1120,7 +1120,7 @@ async function parseMessageContent(
 
       if (mirror) {
         const mirrored = await mirrorInboundMedia({
-          storage: supabaseAdmin().storage,
+          storage: createAdminPgDb().storage,
           accountId: mirror.accountId,
           mediaId,
           downloadUrl: info.url,
@@ -1300,7 +1300,7 @@ async function findContactByWaUserId(
   accountId: string,
   waUserId: string
 ): Promise<ContactRow | null> {
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('contacts')
     .select('*')
     .eq('account_id', accountId)
@@ -1383,7 +1383,7 @@ async function findOrCreateContact(
   // means (issue #212).
   if (!existingContact && identity.phone) {
     existingContact = await findExistingContact(
-      supabaseAdmin(),
+      createAdminPgDb(),
       accountId,
       identity.phone,
     )
@@ -1392,7 +1392,7 @@ async function findOrCreateContact(
   if (existingContact) {
     const patch = contactIdentityPatch(existingContact, identity)
     if (patch) {
-      const { data: updated, error: updateError } = await supabaseAdmin()
+      const { data: updated, error: updateError } = await createAdminPgDb()
         .from('contacts')
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', existingContact.id)
@@ -1423,7 +1423,7 @@ async function findOrCreateContact(
   // stored with '' — which migration 022's partial unique index
   // tolerates, and migration 040's BSUID index is what keeps them
   // unique instead.
-  const { data: newContact, error: createError } = await supabaseAdmin()
+  const { data: newContact, error: createError } = await createAdminPgDb()
     .from('contacts')
     .insert({
       account_id: accountId,
@@ -1449,7 +1449,7 @@ async function findOrCreateContact(
       if (raced) return { contact: raced, wasCreated: false }
       if (identity.phone) {
         const racedByPhone = await findExistingContact(
-          supabaseAdmin(),
+          createAdminPgDb(),
           accountId,
           identity.phone
         )

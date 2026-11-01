@@ -64,7 +64,7 @@ export async function PATCH(request: Request) {
     // guaranteed the caller holds `settings.workspace` (admins).
     const { data, error } = await ctx.supabase
       .from("accounts")
-      .update(parsed.value)
+      .update(parsed.value as Record<string, unknown>)
       .eq("id", ctx.accountId)
       .select("id, name, brand_name, brand_logo_url, email_sender_name, email_reply_to, locale, timezone")
       .single();

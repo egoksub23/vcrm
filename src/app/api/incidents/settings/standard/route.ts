@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     const activeId = activeRes.data?.standard_id ?? null;
 
     return NextResponse.json({
-      standards: (standardsRes.data ?? []).map((s) => ({
+      standards: (standardsRes.data ?? []) .map((s: any) => ({
         ...s,
         type_count: typeCounts.get(s.id) ?? 0,
         severity_count: sevCounts.get(s.id) ?? 0,

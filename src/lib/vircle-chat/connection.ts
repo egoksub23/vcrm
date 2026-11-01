@@ -4,7 +4,6 @@
 // workspace's usable connection to the gateway.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PgDb } from '@/lib/postgres/db'
 
 import { findConfigForAccount, openConfig } from './config'
@@ -24,7 +23,7 @@ export interface VircleTarget {
  * prove the caller can see it.
  */
 export async function findVircleTarget(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   conversationId: string,
   { requireVircleChannel = true }: { requireVircleChannel?: boolean } = {},

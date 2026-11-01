@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { strFromU8, unzipSync } from 'fflate'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { exportCell, exportFileName, workspaceExportChunks, type ExportSummary } from './workspace-export'
 
@@ -14,7 +14,7 @@ interface FakeOptions {
   failDownload?: string[]
 }
 
-function fakeDb(o: FakeOptions): SupabaseClient {
+function fakeDb(o: FakeOptions): PgDb {
   return {
     rpc: async (name: string, args: Record<string, unknown>) => {
       if (name === 'workspace_export_manifest') return { data: o.manifest, error: null }
@@ -39,7 +39,7 @@ function fakeDb(o: FakeOptions): SupabaseClient {
             : { data: new Blob([`bytes of ${bucket}/${name}`]), error: null },
       }),
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
 }
 
 async function collect(gen: AsyncGenerator<Uint8Array>): Promise<Record<string, Uint8Array>> {
@@ -138,7 +138,7 @@ describe('workspaceExportChunks', () => {
         name === 'workspace_export_manifest'
           ? { data: manifest, error: null }
           : { data: null, error: { message: 'timeout' } },
-    } as unknown as SupabaseClient
+    } as unknown as PgDb
     await expect(collect(workspaceExportChunks(broken, ACCOUNT))).rejects.toThrow(/export contacts: timeout/)
   })
 })

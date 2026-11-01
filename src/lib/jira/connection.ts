@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // The connection's life: finish a sign-in (create or refresh the connection
 // and its encrypted tokens), register and renew the Jira webhooks, and
@@ -12,7 +13,6 @@
 
 import { randomBytes } from "node:crypto";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { encrypt } from "@/lib/whatsapp/encryption";
 
@@ -43,7 +43,7 @@ export class ConnectError extends Error {
  * cached Jira data" first).
  */
 export async function completeConnection(args: {
-  db: SupabaseClient;
+  db: PgDb,
   store: JiraStore;
   accountId: string;
   userId: string;
@@ -140,7 +140,7 @@ export async function completeConnection(args: {
   return { connection, reconnected };
 }
 
-async function currentWebhookToken(db: SupabaseClient, connectionId: string): Promise<string> {
+async function currentWebhookToken(db: PgDb, connectionId: string): Promise<string> {
   const { data } = await db.from("jira_connection_secrets").select("webhook_token").eq("connection_id", connectionId).maybeSingle();
   return (data as { webhook_token?: string } | null)?.webhook_token ?? randomBytes(32).toString("base64url");
 }
@@ -172,7 +172,7 @@ const asIds = (v: unknown): number[] => (Array.isArray(v) ? v.filter((x): x is n
  * 30 days. Idempotent; safe to run daily and after linking a first issue.
  */
 export async function ensureWebhooks(args: {
-  db: SupabaseClient;
+  db: PgDb,
   store: JiraStore;
   client: JiraClient;
   connection: JiraConnectionRow;
@@ -272,7 +272,7 @@ export function webhookRenewalDue(connection: Pick<JiraConnectionRow, "webhook_c
  * history now.
  */
 export async function disconnect(args: {
-  db: SupabaseClient;
+  db: PgDb,
   store: JiraStore;
   client: JiraClient | null;
   connection: JiraConnectionRow;

@@ -1,15 +1,15 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Server helpers shared by the audit routes: resolve actor names and
 // "does the item still exist", and shape rows into API entries.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { AuditEntry, AuditRow } from "./types";
 
 /** user id -> display name for the members of `accountId`. */
 export async function loadActorNames(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   accountId: string,
   userIds: readonly string[],
 ): Promise<Map<string, string>> {
@@ -44,7 +44,7 @@ const EXISTENCE_TABLES: Readonly<Record<string, string>> = {
  * exist. RLS hides soft-deleted rows, so "found" means "not removed".
  */
 export async function loadExistingIds(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   rows: readonly Pick<AuditRow, "entity_type" | "entity_id">[],
 ): Promise<Map<string, Set<string>>> {
   const wanted = new Map<string, Set<string>>();

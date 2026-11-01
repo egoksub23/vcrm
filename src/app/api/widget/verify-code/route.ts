@@ -19,7 +19,7 @@
 // ============================================================
 import { NextResponse } from 'next/server';
 
-import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { corsPreflight, resolveCorsOrigin, withCors } from '@/lib/widget/cors';
@@ -43,7 +43,7 @@ export async function OPTIONS(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
 
   const jwt = bearerToken(request);
   if (!jwt) return widgetError(401, 'Missing Authorization bearer token');

@@ -25,7 +25,7 @@
 // Returns `{ results: SembangMyTaskItem[] }`.
 // ============================================================
 import { NextResponse } from 'next/server';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account';
 import { hydrateTasks, type SembangTaskRow } from '@/lib/sembang/hydrate-tasks';
@@ -41,7 +41,7 @@ interface ChannelContextRow {
  *  ids — identical shape to the helper in `/api/sembang/mentions`,
  *  `/search` and `/stars`. */
 async function loadChannelContexts(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   channelIds: string[],
   callerUserId: string
 ): Promise<Map<string, SembangMyTaskItem['channel']>> {
@@ -59,7 +59,7 @@ async function loadChannelContexts(
   }
 
   const rows = (channelRows ?? []) as ChannelContextRow[];
-  const dmChannelIds = rows.filter((r) => r.is_dm).map((r) => r.id);
+  const dmChannelIds = rows .filter((r: any) => r.is_dm) .map((r: any) => r.id);
 
   const namesByChannel = new Map<string, string[]>();
   if (dmChannelIds.length > 0) {
@@ -70,7 +70,7 @@ async function loadChannelContexts(
       .neq('user_id', callerUserId);
 
     const otherUserIds = Array.from(
-      new Set((memberRows ?? []).map((m) => m.user_id as string))
+      new Set((memberRows ?? []) .map((m: any) => m.user_id as string))
     );
     const nameByUser = new Map<string, string>();
     if (otherUserIds.length > 0) {
@@ -118,7 +118,7 @@ export async function GET() {
       );
     }
 
-    const taskIds = Array.from(new Set((assignedRows ?? []).map((r) => r.task_id as string)));
+    const taskIds = Array.from(new Set((assignedRows ?? []) .map((r: any) => r.task_id as string)));
     if (taskIds.length === 0) {
       return NextResponse.json({ results: [] });
     }
@@ -142,9 +142,9 @@ export async function GET() {
       return NextResponse.json({ results: [] });
     }
 
-    const open = rows.filter((r) => r.status !== 'done');
+    const open = rows .filter((r: any) => r.status !== 'done');
     const done = rows
-      .filter((r) => r.status === 'done')
+       .filter((r: any) => r.status === 'done')
       .sort((a, b) => {
         const at = a.completed_at ? new Date(a.completed_at).getTime() : 0;
         const bt = b.completed_at ? new Date(b.completed_at).getTime() : 0;
@@ -152,7 +152,7 @@ export async function GET() {
       });
     const ordered = [...open, ...done];
 
-    const channelIds = Array.from(new Set(ordered.map((r) => r.channel_id)));
+    const channelIds = Array.from(new Set(ordered .map((r: any) => r.channel_id)));
 
     const [tasks, channelContexts] = await Promise.all([
       hydrateTasks(ctx.supabase, ordered),

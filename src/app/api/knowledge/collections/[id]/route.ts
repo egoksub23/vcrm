@@ -22,7 +22,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const { data, error } = await supabase
       .from('knowledge_collections')
-      .update(parsed.fields)
+      .update(parsed.fields as Record<string, unknown>)
       .eq('account_id', accountId)
       .eq('id', id)
       .select('id, name, color, sort_order')

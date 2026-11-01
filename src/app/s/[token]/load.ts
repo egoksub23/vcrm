@@ -12,7 +12,7 @@
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientIp } from "@/lib/net/client-ip";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { signEnabled } from "@/lib/sign/feature";
@@ -32,7 +32,7 @@ export const loadSigning = cache(async (token: string): Promise<SigningLoad> => 
   if (!checkRateLimit(`sign-public:${ip}`, { limit: 120, windowMs: 60_000 }).success) return { kind: "busy" };
   if (!isPlausibleToken(token)) return { kind: "invalid" };
 
-  const admin = supabaseAdmin();
+  const admin = createAdminPgDb();
   const lookup = await lookupByToken(admin, token);
   // A workspace whose Doc Sign is switched off (or that is suspended) shows no document at all.
   if (!lookup || !(await signEnabled(admin, lookup.signer.account_id))) return { kind: "invalid" };

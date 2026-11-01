@@ -1,5 +1,5 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { purgeOldCodes, runClockSweep } from '@/lib/compliance/service/jobs'
 import { emailClockAlerts, realNoticeDeps } from '@/lib/compliance/service/notices'
 
@@ -17,7 +17,7 @@ import { emailClockAlerts, realNoticeDeps } from '@/lib/compliance/service/notic
  */
 export const GET = cronRoute('compliance-clock', CRON_INTERVALS['compliance-clock'], async () => {
   try {
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     const result = await runClockSweep(admin)
     // the emails and the housekeeping never fail the sweep: the alerts are already claimed and written
     const emails = await emailClockAlerts(admin, realNoticeDeps).catch(() => ({ looked: 0, sent: 0, skipped: 0, failed: 0 }))

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 import type { AutomationContext } from '@/lib/automations/engine'
 import { loadAiConfig } from '@/lib/ai/config'
@@ -26,7 +26,7 @@ export * from './auto-label-match'
  */
 
 interface ApplyArgs {
-  db: SupabaseClient
+  db: PgDb,
   accountId: string
   conversationId: string
   text: string

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 const h = vi.hoisted(() => ({
   createSubscription: vi.fn(async () => ({ id: 'sub-new', expirationDateTime: '2026-10-07T00:00:00Z' })),
@@ -25,7 +25,7 @@ function db() {
         return { eq: async () => ({ error: null }) }
       },
     }),
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
   return { client, updates }
 }
 

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { sendMessageToConversation, SendMessageError } from '@/lib/whatsapp/send-message'
 import type { ChannelType } from '@/types'
 import type { KnowledgeAttachment } from '@/lib/knowledge-types'
@@ -92,7 +92,7 @@ export function buildLinkText(
  * in the draft route).
  */
 export async function loadSendableAttachments(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   documentIds: string[],
 ): Promise<KnowledgeAttachment[]> {
@@ -105,7 +105,7 @@ export async function loadSendableAttachments(
 
 /** URLs already sent to the customer in this conversation, as a media message
  *  or inside a link line. */
-async function alreadySent(db: SupabaseClient, conversationId: string, urls: string[]): Promise<Set<string>> {
+async function alreadySent(db: PgDb, conversationId: string, urls: string[]): Promise<Set<string>> {
   const sent = new Set<string>()
   try {
     const { data } = await db
@@ -142,7 +142,7 @@ export interface SendAttachmentsResult {
 }
 
 export async function sendKnowledgeAttachments(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   args: {
     conversationId: string

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Matching Vircle members to Jira users (jira_user_map).
 //
@@ -8,7 +9,6 @@
 // name in the text, and assigning an issue to them is skipped.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { JiraClient } from "./client";
 import type { JiraStore } from "./store";
@@ -39,7 +39,7 @@ export function pickEmailMatch(email: string, candidates: readonly JiraUserCandi
 
 /** Try to match every unmapped member by email. Bounded: at most 40 lookups a run. */
 export async function autoMatchMembers(args: {
-  db: SupabaseClient;
+  db: PgDb,
   store: JiraStore;
   client: Pick<JiraClient, "searchUsers">;
   accountId: string;

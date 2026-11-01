@@ -10,7 +10,7 @@
 import { NextResponse } from 'next/server'
 import { type SupabaseClient } from '@supabase/supabase-js'
 
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db'
 import { checkRateLimit, rateLimitResponse, type RateLimitOptions } from '@/lib/rate-limit'
 import { resolveCorsOrigin, withCors } from '@/lib/widget/cors'
 
@@ -66,7 +66,7 @@ export async function verifyVisitorJwt(token: string): Promise<string | null> {
 }
 
 export interface WidgetVisitorContext {
-  admin: SupabaseClient
+  admin: PgDb,
   visitorId: string
   accountId: string
   contactId: string
@@ -83,7 +83,7 @@ export async function authenticateVisitorRequest(
   opts: { logTag: string; rate?: { key: string; options: RateLimitOptions } },
 ): Promise<{ ok: true; ctx: WidgetVisitorContext } | { ok: false; response: NextResponse }> {
   const requestOrigin = request.headers.get('origin')
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
 
   const token = bearerToken(request)
   if (!token) return { ok: false, response: widgetError(401, 'Missing Authorization bearer token') }

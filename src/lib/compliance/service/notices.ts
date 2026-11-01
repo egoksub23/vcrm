@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: the emails about a case (Part B). Server only.
 //
@@ -18,7 +19,6 @@
 //                  refused if it contains the case's bank account number or its phone number: a bank detail never goes out by email.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { sendWorkspaceEmail, realWorkspaceMailDeps, type WorkspaceMailDeps } from "@/lib/email/workspace-mail";
 import { reasonOfDetail } from "@/lib/email/send-reason";
@@ -65,7 +65,7 @@ interface ClaimInput {
 const isDuplicate = (e: { message?: string; code?: string } | null | undefined): boolean => !!e && (e.code === "23505" || /duplicate key|unique constraint/i.test(e.message ?? ""));
 
 /** The id of the claim when this call holds it; null when another call already sent (or is sending) this notice. */
-async function claim(admin: SupabaseClient, c: ClaimInput, now: Date): Promise<string | null> {
+async function claim(admin: PgDb, c: ClaimInput, now: Date): Promise<string | null> {
   const existing = await admin.from("compliance_notices").select("id, status, claimed_at").eq("request_id", c.requestId).eq("kind", c.kind).eq("key", c.key).maybeSingle();
   if (existing.error) return null;
   const row = existing.data as { id: string; status: string; claimed_at: string } | null;
@@ -96,7 +96,7 @@ async function claim(admin: SupabaseClient, c: ClaimInput, now: Date): Promise<s
   return (ins.data as { id: string }).id;
 }
 
-async function settle(admin: SupabaseClient, id: string, status: "sent" | "failed" | "skipped", detail: string | null, recipients: number, now: Date): Promise<void> {
+async function settle(admin: PgDb, id: string, status: "sent" | "failed" | "skipped", detail: string | null, recipients: number, now: Date): Promise<void> {
   const { error } = await admin.from("compliance_notices").update({ status, detail: detail ? detail.slice(0, 300) : null, recipients, settled_at: now.toISOString() }).eq("id", id);
   if (error) console.error("[compliance] a notice result could not be recorded");
 }
@@ -112,14 +112,14 @@ export function reasonOf(detail: string | undefined, status: string): string {
 
 // ---- who the customer is, and what language they read --------------------------------------------------------------------
 
-async function workspaceName(admin: SupabaseClient, accountId: string): Promise<string> {
+async function workspaceName(admin: PgDb, accountId: string): Promise<string> {
   const { data } = await admin.from("accounts").select("name, brand_name").eq("id", accountId).maybeSingle();
   const a = data as { name?: string; brand_name?: string } | null;
   return a?.brand_name?.trim() || a?.name || "Halo";
 }
 
 /** The language of the customer's emails: the case's own, else the contact's, else English. */
-export async function languageFor(admin: SupabaseClient, row: Pick<RequestRow, "customer_locale" | "contact_id" | "account_id">): Promise<CustomerLocale> {
+export async function languageFor(admin: PgDb, row: Pick<RequestRow, "customer_locale" | "contact_id" | "account_id">): Promise<CustomerLocale> {
   if (row.customer_locale) return row.customer_locale;
   if (row.contact_id) {
     const { data } = await admin.from("contacts").select("language").eq("id", row.contact_id).eq("account_id", row.account_id).maybeSingle();
@@ -178,7 +178,7 @@ export interface CustomerNoticeInput {
  * Send one email to the customer of a case. Answers with the result; never throws (a text that carries a bank detail is the one refusal, raised before
  * anything is claimed, so the person can fix it).
  */
-export async function sendCustomerNotice(admin: SupabaseClient, deps: NoticeDeps, input: CustomerNoticeInput): Promise<NoticeResult> {
+export async function sendCustomerNotice(admin: PgDb, deps: NoticeDeps, input: CustomerNoticeInput): Promise<NoticeResult> {
   const now = deps.now();
   let row: RequestRow;
   try {
@@ -225,7 +225,7 @@ export async function sendCustomerNotice(admin: SupabaseClient, deps: NoticeDeps
 
 /** What a customer notice would say, for the preview before it is sent. Writes nothing and sends nothing. */
 export async function previewCustomerNotice(
-  admin: SupabaseClient,
+  admin: PgDb,
   caller: ComplianceCaller,
   requestId: string,
   input: { kind: CustomerNotice; text?: string | null; language?: CustomerLocale | null },
@@ -249,7 +249,7 @@ interface Recipient {
 }
 
 /** The people (with an email address) who hold one of these capabilities in the workspace, in their own language. */
-export async function staffRecipients(admin: SupabaseClient, accountId: string, caps: readonly string[], exclude: readonly (string | null | undefined)[] = []): Promise<Recipient[]> {
+export async function staffRecipients(admin: PgDb, accountId: string, caps: readonly string[], exclude: readonly (string | null | undefined)[] = []): Promise<Recipient[]> {
   const ids = new Set<string>();
   for (const cap of caps) for (const id of await holdersOf(admin, accountId, cap)) ids.add(id);
   for (const x of exclude) if (x) ids.delete(x);
@@ -277,7 +277,7 @@ interface StaffNoticeInput {
   actor: string | null;
 }
 
-async function sendStaffNotice(admin: SupabaseClient, deps: NoticeDeps, input: StaffNoticeInput): Promise<NoticeResult> {
+async function sendStaffNotice(admin: PgDb, deps: NoticeDeps, input: StaffNoticeInput): Promise<NoticeResult> {
   const now = deps.now();
   const claimId = await claim(admin, { accountId: input.accountId, requestId: input.row.id, kind: input.kind, key: input.key, audience: "staff", language: null, claimedBy: input.actor }, now);
   if (!claimId) return { status: "duplicate" };
@@ -312,7 +312,7 @@ async function sendStaffNotice(admin: SupabaseClient, deps: NoticeDeps, input: S
  * person who recorded the identity check: they cannot sign this one off). Once per hand-over (the key is when the officer handed it over, so a case
  * sent back and handed over again is a new notice).
  */
-export async function notifySignoffWaiting(admin: SupabaseClient, deps: NoticeDeps, accountId: string, requestId: string): Promise<NoticeResult> {
+export async function notifySignoffWaiting(admin: PgDb, deps: NoticeDeps, accountId: string, requestId: string): Promise<NoticeResult> {
   let row: RequestRow;
   try {
     row = await loadRow(admin, accountId, requestId);
@@ -357,7 +357,7 @@ export async function notifySignoffWaiting(admin: SupabaseClient, deps: NoticeDe
  * sweep's claim, so nothing is alerted again: this finds the alerts of the last three days and sends each one's email once (its own claim). Only the
  * 5-days and the breach alerts are emailed; the 10-day alert stays an in-app notification.
  */
-export async function emailClockAlerts(admin: SupabaseClient, deps: NoticeDeps): Promise<{ looked: number; sent: number; skipped: number; failed: number }> {
+export async function emailClockAlerts(admin: PgDb, deps: NoticeDeps): Promise<{ looked: number; sent: number; skipped: number; failed: number }> {
   const since = new Date(deps.now().getTime() - 3 * 86_400_000).toISOString();
   const { data, error } = await admin.from("compliance_request_events").select("account_id, request_id, detail, at").eq("kind", "clock_alert").gte("at", since).order("at", { ascending: true }).limit(300);
   const out = { looked: 0, sent: 0, skipped: 0, failed: 0 };

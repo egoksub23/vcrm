@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 import { TicketCommentError } from './comment-write'
 import type { TicketMention } from '@/types'
@@ -41,8 +41,8 @@ export function nudgeWaitMs(nudgedAt: string | null, now: Date): number {
 }
 
 export async function resolveMention(
-  userDb: SupabaseClient,
-  admin: SupabaseClient,
+  userDb: PgDb,
+  admin: PgDb,
   input: ResolveInput,
 ): Promise<TicketMention> {
   const now = input.now ?? new Date()

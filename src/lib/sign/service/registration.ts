@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Registration pages, the public side (migration 164, F-58): what happens when a stranger opens /r/<slug> and
 // posts the form. No login, so this is where the guards are.
@@ -22,7 +23,6 @@
 // the address is theirs. A document that could not be delivered or sent is a "failed" row and a neutral message.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { addContactTagAndDispatch } from "@/lib/contacts/tag-events";
 import { UsageLimitError } from "@/lib/platform/usage";
@@ -55,7 +55,7 @@ const CLAIM_MS = 2 * 60 * 1000;
 /** Nothing the page reads needs to send a message, so it carries no delivery. */
 const noDeps = {} as NotifyDeps;
 
-function systemCtx(admin: SupabaseClient, accountId: string, origin: string, deps: NotifyDeps, now: () => Date): SignCtx {
+function systemCtx(admin: PgDb, accountId: string, origin: string, deps: NotifyDeps, now: () => Date): SignCtx {
   return { admin, accountId, userId: null, origin, deps, now };
 }
 
@@ -65,7 +65,7 @@ export interface PublicForm {
 }
 
 /** The form behind an address, or null for every reason a visitor must not be told apart: unknown, off, Doc Sign off. */
-export async function loadPublicForm(admin: SupabaseClient, rawSlug: string, origin = ""): Promise<PublicForm | null> {
+export async function loadPublicForm(admin: PgDb, rawSlug: string, origin = ""): Promise<PublicForm | null> {
   const slug = normalizeSlug(rawSlug);
   if (!slug) return null;
   const { data, error } = await admin.from("sign_registration_forms").select("*").eq("slug", slug).eq("active", true).maybeSingle();
@@ -118,7 +118,7 @@ export const issuePageToken = (form: Pick<RegistrationFormRow, "id">, now: Date 
 // ---- the submission ------------------------------------------------------------------------------------
 
 export interface SubmitEnv {
-  admin: SupabaseClient;
+  admin: PgDb,
   origin: string;
   deps: NotifyDeps;
   now: () => Date;
@@ -161,7 +161,7 @@ interface EntryRow {
   document_id?: string | null;
 }
 
-async function insertEntry(admin: SupabaseClient, accountId: string, formId: string, base: Record<string, unknown>, row: EntryRow): Promise<{ id: string; created_at: string } | null> {
+async function insertEntry(admin: PgDb, accountId: string, formId: string, base: Record<string, unknown>, row: EntryRow): Promise<{ id: string; created_at: string } | null> {
   const { data, error } = await admin.from("sign_registrations").insert({ ...base, ...row, account_id: accountId, form_id: formId }).select("id, created_at").single();
   if (error || !data) {
     console.error("[sign] could not record a registration:", error?.message);
@@ -170,7 +170,7 @@ async function insertEntry(admin: SupabaseClient, accountId: string, formId: str
   return data as { id: string; created_at: string };
 }
 
-async function settleEntry(admin: SupabaseClient, accountId: string, id: string, patch: Partial<EntryRow> & { status: RegistrationStatus }): Promise<void> {
+async function settleEntry(admin: PgDb, accountId: string, id: string, patch: Partial<EntryRow> & { status: RegistrationStatus }): Promise<void> {
   const { error } = await admin.from("sign_registrations").update(patch).eq("id", id).eq("account_id", accountId);
   if (error) console.error("[sign] could not settle a registration:", error.message);
 }

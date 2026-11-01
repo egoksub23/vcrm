@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Web Widget v2 — the few contact tags the widget applies by itself
 // ("Claims existing user", "Web enquiry", "Enquiry: <role>").
@@ -8,7 +9,6 @@
 // approved yet are never applied (migration 084), so the lookup filters
 // on approval_status like every other server-side tag writer.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { isUniqueViolation } from '@/lib/contacts/dedupe'
 
@@ -21,7 +21,7 @@ export function enquiryRoleTag(role: string): string {
 
 const TAG_COLOR = '#f59e0b'
 
-async function findTagId(db: SupabaseClient, accountId: string, name: string): Promise<string | null> {
+async function findTagId(db: PgDb, accountId: string, name: string): Promise<string | null> {
   const { data } = await db
     .from('tags')
     .select('id, name')
@@ -35,7 +35,7 @@ async function findTagId(db: SupabaseClient, accountId: string, name: string): P
 
 /** Apply a named tag to a contact, creating the tag definition if needed. Never throws. */
 export async function applyContactTagByName(
-  db: SupabaseClient,
+  db: PgDb,
   args: { accountId: string; ownerUserId: string; contactId: string; name: string },
 ): Promise<void> {
   try {

@@ -1,5 +1,5 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { loadCapabilityRecipients } from '@/lib/auth/capability-recipients'
 
 /** Candidates per run, and the most one workspace may contribute to a run. */
@@ -40,10 +40,10 @@ type Candidate = {
  * interval keeps the worst-case notification delay reasonable.
  */
 export const GET = cronRoute('sla-conversations', CRON_INTERVALS['sla-conversations'], async () => {
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const now = Date.now()
 
-  const { data: candidates, error } = await admin.rpc('conversation_sla_candidates', {
+  const { data: candidates, error } = await (admin as any).rpc('conversation_sla_candidates', {
     p_limit: LIMIT,
     p_per_account: PER_ACCOUNT,
   })

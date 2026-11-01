@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { findOrCreateContactByExternalId } from './contact-identity'
 
 interface Script {
@@ -38,7 +38,7 @@ function stubClient(script: Script) {
     },
   }
 
-  return { client: client as unknown as SupabaseClient, inserts }
+  return { client: client as unknown as PgDb, inserts }
 }
 
 describe('findOrCreateContactByExternalId', () => {
@@ -125,7 +125,7 @@ describe('findOrCreateContactByExternalId', () => {
         }
         return builder
       },
-    } as unknown as SupabaseClient
+    } as unknown as PgDb
 
     const result = await findOrCreateContactByExternalId(client, {
       accountId: 'acct-1',

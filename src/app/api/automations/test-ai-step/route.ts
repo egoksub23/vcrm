@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertCapability, requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { createAiCaller } from '@/lib/automations/ai/caller'
 import { dryRunStep, testKindFor } from '@/lib/automations/ai/dry-run'
 import { AiStepError } from '@/lib/automations/ai/types'
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       .maybeSingle()
     if (!conv) return NextResponse.json({ error: 'Conversation not found', code: 'not_found' }, { status: 404 })
 
-    const admin = supabaseAdmin()
+    const admin = createAdminPgDb()
     // The trigger message: the customer's latest text message.
     const { data: last } = await admin
       .from('messages')
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
   }
 }
 
-async function latestClosureNote(admin: ReturnType<typeof supabaseAdmin>, conversationId: string): Promise<string | undefined> {
+async function latestClosureNote(admin: ReturnType<typeof createAdminPgDb>, conversationId: string): Promise<string | undefined> {
   const { data } = await admin
     .from('conversation_events')
     .select('note')

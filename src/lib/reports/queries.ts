@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import type { LifecycleStage, TicketStatus } from '@/types'
 import { ACTIVE_STATUSES, isActiveStatus } from '@/lib/tickets/constants'
 import {
@@ -20,7 +20,7 @@ import {
 // query shape a future RPC could drop in behind unchanged.
 // ------------------------------------------------------------
 
-type DB = SupabaseClient
+type DB = PgDb
 
 export interface OverviewMetric {
   current: number

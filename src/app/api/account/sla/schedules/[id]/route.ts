@@ -43,7 +43,7 @@ export async function PATCH(request: Request, { params }: Params) {
     if (Object.keys(checked.value).length > 0) {
       const { error } = await ctx.supabase
         .from("business_hours_schedules")
-        .update(checked.value)
+        .update(checked.value as Record<string, unknown>)
         .eq("id", id)
         .eq("account_id", ctx.accountId);
       if (error) return slaDbFail("PATCH /api/account/sla/schedules/[id]", error);

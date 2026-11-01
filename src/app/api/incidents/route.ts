@@ -143,7 +143,7 @@ export async function POST(request: Request) {
         .select("user_id")
         .eq("incident_id", inserted.id)
         .eq("type", "incident_raised");
-      const userIds = (notifiedRows ?? []).map((r) => (r as { user_id: string }).user_id);
+      const userIds = (notifiedRows ?? []) .map((r: any) => (r as { user_id: string }).user_id);
       const key = `INC-${new Date(inserted.created_at as string).getFullYear()}-${inserted.incident_number}`;
       try {
         await notifyIncidentEmail({

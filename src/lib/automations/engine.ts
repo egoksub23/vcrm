@@ -25,7 +25,7 @@ import type {
   SendSignDocumentStepConfig,
   SignDocumentEventTriggerConfig,
 } from '@/types'
-import { supabaseAdmin } from './admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { isAccountActive } from '@/lib/platform/active'
 import { closeConversation, chainOf } from '@/lib/conversations/close'
 import { isAiStepType } from './step-kinds'
@@ -99,7 +99,7 @@ export interface DispatchInput {
  */
 export async function runAutomationsForTrigger(input: DispatchInput): Promise<void> {
   try {
-    const db = supabaseAdmin()
+    const db = createAdminPgDb()
 
     // A suspended workspace (migration 132) does nothing in the
     // background: no automation fires, whatever event reached us.
@@ -206,7 +206,7 @@ export async function resumePendingExecution(pending: {
   next_step_position: number
   context: AutomationContext
 }): Promise<void> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   const { data: automation, error } = await db
     .from('automations')
     .select('*')
@@ -242,7 +242,7 @@ export async function resumePendingExecution(pending: {
 // ------------------------------------------------------------
 
 async function executeAutomation(automation: Automation, input: DispatchInput) {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
 
   const { data: log, error: logErr } = await db
     .from('automation_logs')
@@ -312,7 +312,7 @@ interface ExecuteArgs {
 }
 
 async function executeStepsFrom(args: ExecuteArgs): Promise<void> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
 
   const baseQuery = db
     .from('automation_steps')
@@ -453,7 +453,7 @@ async function executeStepsFrom(args: ExecuteArgs): Promise<void> {
 type StepOutput = string | Pick<AutomationLogStepResult, 'detail' | 'status' | 'outcome' | 'tokens' | 'output'>
 
 async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOutput> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
 
   switch (step.step_type) {
     case 'send_message': {
@@ -654,7 +654,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
           p_online_only: cfg.online_only ?? false,
         })
         if (error) throw new Error(`round-robin pick failed: ${error.message}`)
-        agentId = data ?? undefined
+        agentId = (data as string | null) ?? undefined
       } else if (cfg.mode === 'least_loaded') {
         // Picks the agent+ profile with the fewest open conversations
         // right now — see `pick_least_loaded_agent` in migration 053.
@@ -665,7 +665,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
           p_online_only: cfg.online_only ?? false,
         })
         if (error) throw new Error(`least-loaded pick failed: ${error.message}`)
-        agentId = data ?? undefined
+        agentId = (data as string | null) ?? undefined
       }
       if (!agentId) return 'no agent resolved'
       await db
@@ -701,7 +701,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
           p_online_only: cfg.online_only ?? false,
         })
         if (error) throw new Error(`team round-robin pick failed: ${error.message}`)
-        agentId = data ?? undefined
+        agentId = (data as string | null) ?? undefined
         if (!agentId) return `team ${cfg.team_id} has no members`
       } else if (cfg.mode === 'least_loaded') {
         // Picks the team member with the fewest open conversations right
@@ -711,7 +711,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<StepOut
           p_online_only: cfg.online_only ?? false,
         })
         if (error) throw new Error(`team least-loaded pick failed: ${error.message}`)
-        agentId = data ?? undefined
+        agentId = (data as string | null) ?? undefined
         if (!agentId) return `team ${cfg.team_id} has no members`
       } else {
         // 'specific' — the chosen agent must actually be on the team,
@@ -984,7 +984,7 @@ async function resolveConversationIdOrNull(args: ExecuteArgs): Promise<string | 
 }
 
 async function buildAiRuntime(args: ExecuteArgs, dryRun: boolean): Promise<AiStepRuntime> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   const conversationId = await resolveConversationIdOrNull(args)
   const vars = { ...(args.context.vars ?? {}) }
   return {
@@ -1013,7 +1013,7 @@ async function runAiForEngine(
   kind: PlannedStepType,
   args: ExecuteArgs,
 ): Promise<AiEngineOutcome> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   const rt = await buildAiRuntime(args, false)
   const res: AiStepResult = await executeAiStep(kind, step.step_config as Record<string, unknown>, rt)
 
@@ -1091,7 +1091,7 @@ async function resolveConversationId(args: ExecuteArgs): Promise<string> {
   const fromCtx = args.context.conversation_id
   if (fromCtx) return fromCtx
   if (!args.contactId) throw new Error('cannot resolve conversation: no contact')
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('conversations')
     .select('id')
     .eq('account_id', args.automation.account_id)
@@ -1125,7 +1125,7 @@ async function resolveConversationId(args: ExecuteArgs): Promise<string> {
  * expansion. Deferred to a fast-follow.
  */
 async function assertWhatsappChannel(conversationId: string, stepType: string): Promise<void> {
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('conversations')
     .select('last_channel_type')
     .eq('id', conversationId)
@@ -1186,7 +1186,7 @@ export function triggerMatches(automation: Automation, ctx: AutomationContext | 
 }
 
 async function evaluateCondition(cfg: ConditionStepConfig, args: ExecuteArgs): Promise<boolean> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   switch (cfg.subject) {
     case 'tag_presence': {
       if (!args.contactId || !cfg.operand) return false
@@ -1260,7 +1260,7 @@ function interpolate(s: string, args: ExecuteArgs): string {
 /** Read the contact once, only when a text of the step mentions {{ contact.* }}. */
 async function loadContactScope(args: ExecuteArgs, ...templates: (string | undefined)[]): Promise<void> {
   if (args.contact || !args.contactId || !needsContactScope(...templates)) return
-  const { data } = await supabaseAdmin()
+  const { data } = await createAdminPgDb()
     .from('contacts')
     .select('name, email, company, phone')
     .eq('id', args.contactId)
@@ -1278,7 +1278,7 @@ async function appendResults(
   errorMessage: string | null,
 ) {
   if (!logId) return
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   const { data: existing } = await db
     .from('automation_logs')
     .select('steps_executed, status')
@@ -1303,14 +1303,14 @@ async function finalizeLog(
   errorMessage: string | null,
 ) {
   if (!logId) return
-  await supabaseAdmin()
+  await createAdminPgDb()
     .from('automation_logs')
     .update({ status, error_message: errorMessage })
     .eq('id', logId)
 }
 
 async function markPending(id: string, status: 'done' | 'failed') {
-  await supabaseAdmin()
+  await createAdminPgDb()
     .from('automation_pending_executions')
     .update({ status })
     .eq('id', id)

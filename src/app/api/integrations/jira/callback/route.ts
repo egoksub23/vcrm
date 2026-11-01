@@ -14,7 +14,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db';
 import { ensureWebhooks, completeConnection, ConnectError } from "@/lib/jira/connection";
 import { JiraClient } from "@/lib/jira/client";
 import { describeError } from "@/lib/jira/errors";
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
   }
   if (!code || !state) return back(base, { jira: "error", reason: "invalid_state" });
 
-  const db = supabaseAdmin();
+  const db = createAdminPgDb();
   let pendingId: string | null = null;
   try {
     // 1. Signature, expiry, one-time row.
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
 }
 
 /** Register the webhooks once the connection exists; a failure is left to the daily job and the catch-up. */
-async function bestEffortWebhooks(db: ReturnType<typeof supabaseAdmin>, connectionId: string, base: string): Promise<void> {
+async function bestEffortWebhooks(db: PgDb, connectionId: string, base: string): Promise<void> {
   try {
     const store = jiraStore(db);
     const connection = await store.getConnection(connectionId);

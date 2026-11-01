@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { loadEmbeddingsConfig } from '@/lib/ai/config'
 import { ingestDocument, type IngestDoc } from '@/lib/ai/knowledge'
 import { AiError } from '@/lib/ai/types'
@@ -61,7 +61,7 @@ export function toAttachment(row: AttachmentRow): KnowledgeAttachment {
 
 /** Attachments for a set of articles, grouped by article id, in order. */
 export async function loadAttachments(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   documentIds: string[],
 ): Promise<Map<string, KnowledgeAttachment[]>> {
@@ -87,7 +87,7 @@ export async function loadAttachments(
 }
 
 export async function loadCollections(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   accountId: string,
 ): Promise<KnowledgeCollection[]> {
   const { data } = await supabase
@@ -110,7 +110,7 @@ export type SyncResult = { ok: true } | { ok: false; error: string; status: numb
  * may change what.
  */
 export async function syncAttachments(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   userId: string,
   documentId: string,
@@ -198,7 +198,7 @@ export async function syncAttachments(
  * Best-effort: never throws.
  */
 export async function removeStoredFiles(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   paths: string[],
 ): Promise<void> {
@@ -226,7 +226,7 @@ export async function removeStoredFiles(
  * works), or null when everything went fine.
  */
 export async function indexArticle(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   doc: IngestDoc,
 ): Promise<string | null> {

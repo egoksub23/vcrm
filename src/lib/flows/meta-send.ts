@@ -16,7 +16,7 @@ import {
 } from '@/lib/whatsapp/phone-utils'
 import { resolveContactSendTarget } from '@/lib/whatsapp/wa-identity'
 import { insertFailedMessageRow } from '@/lib/messages/persist-failed'
-import { supabaseAdmin } from './admin-client'
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db'
 
 // ------------------------------------------------------------
 // Flows-side Meta sender (interactive variants).
@@ -40,7 +40,7 @@ import { supabaseAdmin } from './admin-client'
  * auto-reply's typing indicator) reuse it rather than growing a copy.
  */
 export async function loadAccountMetaCredentials(
-  db: ReturnType<typeof supabaseAdmin>,
+  db: PgDb,
   accountId: string,
 ): Promise<{ phoneNumberId: string; accessToken: string }> {
   const { data: config, error: configErr } = await db
@@ -90,7 +90,7 @@ interface SendTextEngineArgs {
 export async function engineSendText(
   args: SendTextEngineArgs,
 ): Promise<{ whatsapp_message_id: string }> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   await assertCanSendMessage(db, args.accountId) // the workspace's monthly message limit (migration 152)
 
   const { data: contact, error: contactErr } = await db
@@ -217,7 +217,7 @@ interface SendMediaEngineArgs {
 export async function engineSendMedia(
   args: SendMediaEngineArgs,
 ): Promise<{ whatsapp_message_id: string }> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   await assertCanSendMessage(db, args.accountId) // the workspace's monthly message limit (migration 152)
 
   const { data: contact, error: contactErr } = await db
@@ -379,7 +379,7 @@ type SendInput =
 async function sendInteractiveViaMeta(
   input: SendInput,
 ): Promise<{ whatsapp_message_id: string }> {
-  const db = supabaseAdmin()
+  const db = createAdminPgDb()
   await assertCanSendMessage(db, input.accountId) // the workspace's monthly message limit (migration 152)
 
   // Scope the contact + whatsapp_config lookups by account_id —

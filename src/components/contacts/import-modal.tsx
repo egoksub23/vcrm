@@ -272,7 +272,7 @@ export function ImportModal({
       let tagIdByKey = new Map<string, string>();
       let skippedNames: string[] = [];
       if (allTagNames.length > 0) {
-        ({ tagIdByKey, skippedNames } = await resolveImportTagIds(supabase, {
+        ({ tagIdByKey, skippedNames } = await resolveImportTagIds(supabase as any, {
           accountId,
           userId: user.id,
           tagNames: allTagNames,
@@ -369,7 +369,7 @@ export function ImportModal({
       let tagsAssigned = 0;
       try {
         tagsAssigned = await assignImportedContactTags(
-          supabase,
+          supabase as any,
           tagAssignments,
           tagIdByKey
         );

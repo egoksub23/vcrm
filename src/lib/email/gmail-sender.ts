@@ -16,7 +16,7 @@
  * Every dependency is injectable, so the whole path is tested without Gmail.
  */
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { GmailApiError } from "@/lib/gmail/errors";
 import { sendNewMail } from "@/lib/gmail/gmail-api";
 import { getValidAccessToken, type GmailConfigRow } from "@/lib/gmail/token";
@@ -64,14 +64,14 @@ export interface GmailSenderDeps {
 
 export const realGmailDeps: GmailSenderDeps = {
   loadConfig: async (accountId) => {
-    const { data, error } = await supabaseAdmin().from("gmail_config").select("*").eq("account_id", accountId).maybeSingle();
+    const { data, error } = await createAdminPgDb().from("gmail_config").select("*").eq("account_id", accountId).maybeSingle();
     if (error) throw error;
     return (data as GmailMailboxRow | null) ?? null;
   },
   getAccessToken: (config) => getValidAccessToken(config),
   sendMail: sendNewMail,
   markNeedsReauth: async (configId) => {
-    await supabaseAdmin().from("gmail_config").update({ needs_reauth: true }).eq("id", configId);
+    await createAdminPgDb().from("gmail_config").update({ needs_reauth: true }).eq("id", configId);
   },
   throttle: new SendThrottle(GMAIL_SEND_SPACING_MS, Date.now, realSleep),
   sleep: realSleep,

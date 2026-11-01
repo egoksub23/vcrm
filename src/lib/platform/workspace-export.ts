@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Workspace export (migration 153): everything the workspace owns, as one zip.
 //
@@ -18,7 +19,6 @@
 // a deletion the app exports after the workspace is suspended.
 // ============================================================
 import { Zip, ZipDeflate, ZipPassThrough, strToU8 } from 'fflate'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { toCsv } from '@/lib/csv'
 import { appStorage } from '@/lib/storage/provider'
@@ -57,7 +57,7 @@ export function exportCell(value: unknown): string {
 
 /** The zip, as chunks. `summary` is filled in as it goes and complete when the generator ends. */
 export async function* workspaceExportChunks(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   opts: ExportOptions = {},
   summary: ExportSummary = { tables: {}, files: 0, filesFailed: [] },
@@ -203,7 +203,7 @@ export async function* workspaceExportChunks(
 
 /** The same, as a web stream for a Response. */
 export function workspaceExportStream(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   opts: ExportOptions = {},
 ): ReadableStream<Uint8Array> {

@@ -8,7 +8,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { buildMs365OAuthUrl, getOAuthBaseUrl } from '@/lib/ms365/oauth'
 import { createPendingEmailConnection } from '@/lib/ms365/oauth-connect'
 
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   try {
     const ctx = await requireCapability('channels.manage')
 
-    const { state } = await createPendingEmailConnection(supabaseAdmin(), {
+    const { state } = await createPendingEmailConnection(createAdminPgDb(), {
       accountId: ctx.accountId,
       userId: ctx.userId,
     })

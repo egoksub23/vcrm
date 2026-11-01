@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests: the scheduled work. Server only.
 //
@@ -11,7 +12,6 @@
 // without repeating anyone), and the housekeeping of the parent form's emailed codes (a code is useless after 15 minutes; rows are removed after two days).
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface SweepResult {
   alerted: number;
@@ -23,14 +23,14 @@ export interface CodePurgeResult {
 }
 
 /** Remove the emailed codes of the public forms that are more than two days old (they hold only hashes, and are useless after fifteen minutes). */
-export async function purgeOldCodes(admin: SupabaseClient, now: Date = new Date()): Promise<CodePurgeResult> {
+export async function purgeOldCodes(admin: PgDb, now: Date = new Date()): Promise<CodePurgeResult> {
   const cutoff = new Date(now.getTime() - 2 * 86_400_000).toISOString();
   const { data, error } = await admin.from("compliance_email_codes").delete().lt("created_at", cutoff).select("id");
   if (error) return { purged: 0 };
   return { purged: Array.isArray(data) ? data.length : 0 };
 }
 
-export async function runClockSweep(admin: SupabaseClient, now: Date = new Date()): Promise<SweepResult> {
+export async function runClockSweep(admin: PgDb, now: Date = new Date()): Promise<SweepResult> {
   const { data, error } = await admin.rpc("compliance_clock_alert_sweep", { p_now: now.toISOString() });
   if (error) throw new Error("compliance clock sweep failed");
   const d = (data ?? {}) as Partial<SweepResult>;

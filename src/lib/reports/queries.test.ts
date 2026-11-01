@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import {
   loadConversationsReport,
   loadResponsesReport,
@@ -28,7 +28,7 @@ import type { DateRange } from './date-utils'
  * fields reach `localDayKey` and throw. This mirrors the fake-DB
  * pattern already used in send-message.test.ts / engine.test.ts.
  */
-function fakeDb(tables: Record<string, unknown[]>): SupabaseClient {
+function fakeDb(tables: Record<string, unknown[]>): PgDb {
   return {
     from(table: string) {
       let rows = tables[table] ?? []
@@ -61,7 +61,7 @@ function fakeDb(tables: Record<string, unknown[]>): SupabaseClient {
       }
       return builder
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
 }
 
 // A 3-day current period, and a 3-day previous period immediately
@@ -480,13 +480,13 @@ describe('loadTicketsReport', () => {
 
 describe('loadTicketSlaReport', () => {
   /** Fake client whose only job is `rpc`. */
-  function rpcDb(result: { data?: unknown; error?: unknown }, calls: { name: string; args: unknown }[] = []): SupabaseClient {
+  function rpcDb(result: { data?: unknown; error?: unknown }, calls: { name: string; args: unknown }[] = []): PgDb {
     return {
       rpc(name: string, args: unknown) {
         calls.push({ name, args })
         return Promise.resolve({ data: result.data ?? null, error: result.error ?? null })
       },
-    } as unknown as SupabaseClient
+    } as unknown as PgDb
   }
 
   it('asks the database to aggregate: one rpc with the account and the half-open range', async () => {

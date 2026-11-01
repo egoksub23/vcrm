@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/ai/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { AiError } from '@/lib/ai/types'
 import { buildClosingNotePrompt, parseClosingNote } from '@/lib/ai/wrap-up'
@@ -33,14 +33,14 @@ export async function POST(request: Request) {
       supabase.from('tags').select('id, name').eq('account_id', accountId).eq('for_conversations', true).eq('approval_status', 'approved').limit(200),
       supabase.from('conversation_labels').select('tag_id').eq('conversation_id', conversationId),
     ])
-    const applied = new Set((appliedRes.data ?? []).map((r) => r.tag_id as string))
+    const applied = new Set((appliedRes.data ?? []) .map((r: any) => r.tag_id as string))
     const labels = (tagsRes.data ?? [])
-      .filter((t) => !applied.has(t.id as string))
-      .map((t) => ({ id: t.id as string, name: t.name as string }))
+       .filter((t: any) => !applied.has(t.id as string))
+       .map((t: any) => ({ id: t.id as string, name: t.name as string }))
 
     const text = await runWrapUpJob({
       db: supabase,
-      admin: supabaseAdmin(),
+      admin: createAdminPgDb(),
       accountId,
       conversationId,
       task: 'closing_note',

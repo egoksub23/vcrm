@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 import {
   sendMessageToConversation,
@@ -9,12 +9,12 @@ import {
 
 // A db that explodes if touched — these tests cover the param
 // validation that MUST short-circuit before any query runs.
-function noDb(): SupabaseClient {
+function noDb(): PgDb {
   return {
     from() {
       throw new Error('db should not be queried for invalid params');
     },
-  } as unknown as SupabaseClient;
+  } as unknown as PgDb;
 }
 
 async function expectSendError(
@@ -136,7 +136,7 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
     const spy = vi.fn(() => {
       throw new Error('reached DB');
     });
-    const db = { from: spy } as unknown as SupabaseClient;
+    const db = { from: spy } as unknown as PgDb;
     await expect(
       sendMessageToConversation(db, 'acct-1', {
         ...base,
@@ -307,7 +307,7 @@ function sendPathDb(
      *  Only queried for a web_widget conversation (migration 097). */
     webWidgetConfig?: Record<string, unknown> | null;
   } = {},
-): SupabaseClient {
+): PgDb {
   const conversation = {
     id: 'cv-1',
     contact,
@@ -421,7 +421,7 @@ function sendPathDb(
       return builder;
     },
     __configUpdates: configUpdates,
-  } as unknown as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+  } as unknown as PgDb & { __configUpdates: Record<string, Record<string, unknown>> };
 }
 
 const TEMPLATE_ROW = {
@@ -826,7 +826,7 @@ describe('sendMessageToConversation — messenger channel', () => {
       captured,
       { id: 'ct-1', phone: '', messenger_psid: 'psid-1' },
       'messenger',
-    ) as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+    ) as unknown as PgDb & { __configUpdates: Record<string, Record<string, unknown>> };
 
     await expect(
       sendMessageToConversation(db, 'acct-1', {
@@ -999,7 +999,7 @@ describe('sendMessageToConversation — email channel', () => {
       captured,
       { id: 'ct-1', phone: '', email: 'jane@example.com' },
       'email',
-    ) as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+    ) as unknown as PgDb & { __configUpdates: Record<string, Record<string, unknown>> };
 
     await expect(
       sendMessageToConversation(db, 'acct-1', {
@@ -1147,7 +1147,7 @@ describe('sendMessageToConversation — gmail channel', () => {
       captured,
       { id: 'ct-1', phone: '', email: 'jane@example.com' },
       'gmail',
-    ) as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+    ) as unknown as PgDb & { __configUpdates: Record<string, Record<string, unknown>> };
 
     await expect(
       sendMessageToConversation(db, 'acct-1', {
@@ -1249,7 +1249,7 @@ describe('sendMessageToConversation — failed sends are saved with the reason',
   describe('files in the private chat-media bucket', () => {
     const own = 'https://x.supabase.co/storage/v1/object/public/chat-media/account-acct-1/inbound/pic.png'
     const foreign = 'https://x.supabase.co/storage/v1/object/public/chat-media/account-acct-2/pic.png'
-    const withStorage = (db: SupabaseClient) => {
+    const withStorage = (db: PgDb) => {
       const createSignedUrl = vi.fn(async (path: string) => ({
         data: { signedUrl: `https://x.supabase.co/storage/v1/object/sign/chat-media/${path}?token=t` },
         error: null,
@@ -1315,7 +1315,7 @@ describe('sendMessageToConversation — failed sends are saved with the reason',
       captured,
       { id: 'ct-1', phone: '', messenger_psid: 'psid-1' },
       'messenger'
-    ) as SupabaseClient & { __configUpdates: Record<string, Record<string, unknown>> };
+    ) as unknown as PgDb & { __configUpdates: Record<string, Record<string, unknown>> };
 
     await expect(
       sendMessageToConversation(db, 'acct-1', {
@@ -1477,7 +1477,7 @@ describe('sendMessageToConversation — failed sends are saved with the reason',
         }
         return b;
       },
-    } as unknown as SupabaseClient;
+    } as unknown as PgDb;
 
     const err = await sendMessageToConversation(db, 'acct-1', {
       conversationId: 'cv-1',
@@ -1513,7 +1513,7 @@ describe('sendMessageToConversation — failed sends are saved with the reason',
         }
         return b;
       },
-    } as unknown as SupabaseClient;
+    } as unknown as PgDb;
 
     const result = await sendMessageToConversation(db, 'acct-1', {
       conversationId: 'cv-1',
@@ -1680,7 +1680,7 @@ describe('sendMessageToConversation — disabled channel (migration 097)', () =>
 // ============================================================
 describe('sendMessageToConversation — Vircle Chat channel', () => {
   const contact = { id: 'ct-1', phone: '', wallet_id: 'W123', email: null };
-  const send = (db: SupabaseClient, params: Partial<SendMessageParams> = {}) =>
+  const send = (db: PgDb, params: Partial<SendMessageParams> = {}) =>
     sendMessageToConversation(db, 'acct-1', {
       conversationId: 'cv-1',
       messageType: 'text',

@@ -1,5 +1,5 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 /**
  * Recover a message stuck at `status = 'sending'` (migration 127).
@@ -21,12 +21,12 @@ import { supabaseAdmin } from '@/lib/flows/admin-client'
  *   star-slash-5 * * * * curl -fsS -H "x-cron-secret: $AUTOMATION_CRON_SECRET" https://YOUR-APP/api/messages/sweep-cron
  */
 export const GET = cronRoute('message-sweep', CRON_INTERVALS['message-sweep'], async () => {
-  const { data, error } = await supabaseAdmin().rpc('sweep_stuck_sending_messages', {
+  const { data, error } = await createAdminPgDb().rpc('sweep_stuck_sending_messages', {
     p_stale_minutes: 10,
   })
   if (error) {
     console.error('[messages-sweep-cron] sweep failed:', error.message)
     return { status: 500, body: { error: error.message } }
   }
-  return { body: data?.[0] ?? { recovered: 0 } }
+  return { body: (data as Record<string, unknown>[] | null)?.[0] ?? { recovered: 0 } }
 })

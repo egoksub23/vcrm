@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { makeFakeDb } from '@/lib/comments/fake-db'
 import {
   candidateRoles,
@@ -103,7 +103,7 @@ describe('loadCapabilityRecipients', () => {
           resolve({ data: null, error: { code: '42P01', message: 'missing' } })
         return b
       },
-    } as unknown as SupabaseClient
+    } as unknown as PgDb
     expect(await loadCapabilityRecipients(failing, ACCT, 'ai.configure')).toEqual([
       'owner-1',
       'admin-1',

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 import { loadCapabilityRecipients } from '@/lib/auth/capability-recipients'
 import { isDoneStatus } from './constants'
@@ -58,8 +58,8 @@ const asIds = (v: readonly unknown[]): string[] =>
  * requests. `userDb` is the caller's client; `admin` the service role.
  */
 export async function postTicketComment(
-  userDb: SupabaseClient,
-  admin: SupabaseClient,
+  userDb: PgDb,
+  admin: PgDb,
   input: PostCommentInput,
 ): Promise<PostCommentResult> {
   const text = input.body.trim()

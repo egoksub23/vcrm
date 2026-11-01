@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // "May background work run for this workspace?" for code paths that act
 // on a workspace's behalf without a signed-in member: the automation
@@ -14,13 +15,12 @@
 // an account's automations. Answers are cached for 30 seconds, so the
 // extra lookup is at most one per workspace per half minute per process.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 const TTL_MS = 30_000
 const cache = new Map<string, { active: boolean; at: number }>()
 
 export async function isAccountActive(
-  admin: SupabaseClient,
+  admin: PgDb,
   accountId: string,
   now: () => number = Date.now,
 ): Promise<boolean> {
@@ -46,7 +46,7 @@ export async function isAccountActive(
  * Every suspended workspace id, for jobs that sweep many workspaces in
  * one pass (the list is short). Fails open (empty) on any read error.
  */
-export async function suspendedAccountIds(admin: SupabaseClient): Promise<Set<string>> {
+export async function suspendedAccountIds(admin: PgDb): Promise<Set<string>> {
   try {
     const { data, error } = await admin
       .from('account_platform')

@@ -54,14 +54,14 @@ export async function GET(request: Request) {
     const { data: docs } = await supabase
       .from('ai_knowledge_documents')
       .select('id, kind, content, content_html, use_in_ai, compliance_form_type_key')
-      .in('id', top.map((h) => h.documentId))
-    const byId = new Map((docs ?? []).map((d) => [d.id as string, d]))
+      .in('id', top .map((h: any) => h.documentId))
+    const byId = new Map(((docs ?? []) as any[]) .map((d: any) => [d.id as string, d]))
     // A translation with no files of its own sends its base article's.
-    const attachments = await loadEffectiveAttachments(supabase, accountId, top.map((h) => h.documentId))
+    const attachments = await loadEffectiveAttachments(supabase, accountId, top .map((h: any) => h.documentId))
 
     // Resolve compliance form slugs for articles that have one attached.
     const cfKeys = Array.from(
-      new Set((docs ?? []).map((d) => (d as { compliance_form_type_key?: string | null }).compliance_form_type_key).filter(Boolean) as string[]),
+      new Set(((docs ?? []) as any[]) .map((d: any) => (d as { compliance_form_type_key?: string | null }).compliance_form_type_key).filter(Boolean) as string[]),
     )
     const cfSlugMap = new Map<string, string>()
     if (cfKeys.length > 0) {

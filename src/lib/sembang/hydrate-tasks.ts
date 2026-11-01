@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Shared Sembang task hydration — joins `profiles` (assignees + creator),
 // `sembang_task_assignees`, and a subtask-count aggregate onto raw
@@ -6,7 +7,6 @@
 // subtask/comment/activity rows are NOT joined here (list-only, keeps
 // this cheap) — the task detail route hydrates those itself.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { SembangTask, SembangTaskStatus } from '@/types'
 
@@ -28,7 +28,7 @@ export interface SembangTaskRow {
 }
 
 export async function hydrateTasks(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   rows: SembangTaskRow[],
 ): Promise<SembangTask[]> {
   if (rows.length === 0) return []
@@ -42,7 +42,7 @@ export async function hydrateTasks(
 
   const userIds = Array.from(
     new Set([
-      ...(assigneeRows ?? []).map((a) => a.user_id as string),
+      ...((assigneeRows ?? []) as any[]).map((a: any) => a.user_id as string),
       ...rows.map((r) => r.created_by),
     ]),
   )

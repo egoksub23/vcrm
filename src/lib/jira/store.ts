@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Everything the Jira sync reads and writes in the database, behind one
 // interface. The sync logic (./sync.ts, ./links.ts, ./cron.ts) only talks to
@@ -9,7 +10,6 @@
 // ============================================================
 
 import { suspendedAccountIds } from "@/lib/platform/active";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { FieldMappingRow, VircleFieldDef } from "./field-mapping";
 import {
@@ -299,7 +299,7 @@ function fail(what: string, error: { message?: string } | null): never {
 
 /** The real store, on the service-role client. */
 export class SupabaseJiraStore implements JiraStore {
-  constructor(private readonly db: SupabaseClient) {}
+  constructor(private readonly db: PgDb) {}
 
   async getConnection(id: string) {
     const { data, error } = await this.db.from("jira_connections").select(CONNECTION_COLUMNS).eq("id", id).maybeSingle();

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Broadcast resume / retry (issue #472).
 //
@@ -16,7 +17,6 @@
 // wizard still owns that; this makes an abandoned one recoverable.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { BroadcastError, type BroadcastPlan } from '@/lib/whatsapp/broadcast-core';
 import { decrypt } from '@/lib/whatsapp/encryption';
@@ -65,7 +65,7 @@ function scopeStatuses(scope: ResumeScope): string[] {
  * as "not yours to run".
  */
 export async function claimBroadcastDelivery(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   broadcastId: string,
   now: Date = new Date()
@@ -91,7 +91,7 @@ export async function claimBroadcastDelivery(
 
 /** Release the delivery lock. Best-effort; a stale lock self-expires. */
 export async function releaseBroadcastDelivery(
-  db: SupabaseClient,
+  db: PgDb,
   broadcastId: string
 ): Promise<void> {
   const { error } = await db
@@ -139,7 +139,7 @@ function contactPhone(row: RecipientRow): string | null {
  * Throws {@link BroadcastError}; the route maps it.
  */
 export async function planBroadcastResume(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   broadcastId: string,
   scope: ResumeScope
@@ -258,7 +258,7 @@ export async function planBroadcastResume(
  * campaign that is quietly still working.
  */
 export async function markBroadcastSending(
-  db: SupabaseClient,
+  db: PgDb,
   broadcastId: string
 ): Promise<void> {
   await db

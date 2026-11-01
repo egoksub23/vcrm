@@ -15,7 +15,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability } from "@/lib/auth/account";
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { clientForConnection, jiraStore } from "@/lib/jira/service";
 import { disconnect } from "@/lib/jira/connection";
 import { ApiError, apiErrorResponse, jiraAppUrl } from "@/lib/jira/http";
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     // The first-run checklist: has a webhook arrived, or a queued sync finished?
     let syncEvidence = false;
     if (connection && connection.status === "active") {
-      const db = supabaseAdmin();
+      const db = createAdminPgDb();
       const [hooks, jobs] = await Promise.all([
         db.from("jira_webhook_events").select("id", { count: "exact", head: true }).eq("connection_id", connection.id),
         db.from("jira_sync_jobs").select("id", { count: "exact", head: true }).eq("connection_id", connection.id).eq("kind", "sync_issue").eq("status", "done"),
@@ -109,7 +109,7 @@ export async function DELETE(request: Request) {
     if (!limit.success) return rateLimitResponse(limit);
 
     const purge = new URL(request.url).searchParams.get("purge") === "1";
-    const db = supabaseAdmin();
+    const db = createAdminPgDb();
     const store = jiraStore(db);
     const connection = await store.getConnectionByAccount(ctx.accountId);
     if (!connection) throw new ApiError(404, "no_connection", "Jira is not connected");

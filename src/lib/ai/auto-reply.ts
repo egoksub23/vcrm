@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './admin-client'
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db'
 import { isAccountActive } from '@/lib/platform/active'
 import { loadAiConfig } from './config'
 import { buildConversationContext, getPreferredLanguage } from './context'
@@ -64,7 +64,7 @@ export async function dispatchInboundToAiReply(
   const { accountId, conversationId, inboundMessageId } = args
 
   try {
-    const db = supabaseAdmin()
+    const db = createAdminPgDb()
 
     // A suspended workspace (migration 132) gets no AI replies.
     if (!(await isAccountActive(db, accountId))) return
@@ -262,7 +262,7 @@ export async function dispatchInboundToAiReply(
  * — the indicator is cosmetic, the reply is not.
  */
 async function showTypingIndicator(
-  db: ReturnType<typeof supabaseAdmin>,
+  db: PgDb,
   accountId: string,
   inboundMessageId: string,
 ): Promise<void> {
@@ -286,7 +286,7 @@ async function showTypingIndicator(
  * for AI answers) and leave the internal "AI answered from" note. Never throws.
  */
 export async function sendSourcesAfterReply(
-  db: ReturnType<typeof supabaseAdmin>,
+  db: PgDb,
   accountId: string,
   conversationId: string,
   cited: number[],

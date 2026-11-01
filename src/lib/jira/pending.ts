@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // The pending Jira sign-in (`oauth_pending_connections`, channel 'jira').
 //
@@ -8,7 +9,6 @@
 // the same key as every other stored token, for at most ten minutes.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { decrypt, encrypt } from "@/lib/whatsapp/encryption";
 
@@ -46,7 +46,7 @@ const toPending = (r: Row): PendingJira => ({
 });
 
 export async function createPending(
-  db: SupabaseClient,
+  db: PgDb,
   args: { accountId: string; userId: string; state: string },
 ): Promise<string> {
   const { data, error } = await db
@@ -59,14 +59,14 @@ export async function createPending(
 }
 
 /** Find a live pending sign-in by its state string. */
-export async function findPendingByState(db: SupabaseClient, state: string): Promise<PendingJira | null> {
+export async function findPendingByState(db: PgDb, state: string): Promise<PendingJira | null> {
   const { data } = await db.from("oauth_pending_connections").select("*").eq("channel", "jira").eq("state", state).maybeSingle();
   const r = data as Row | null;
   if (!r || new Date(r.expires_at).getTime() < Date.now()) return null;
   return toPending(r);
 }
 
-export async function findPendingById(db: SupabaseClient, id: string): Promise<PendingJira | null> {
+export async function findPendingById(db: PgDb, id: string): Promise<PendingJira | null> {
   const { data } = await db.from("oauth_pending_connections").select("*").eq("channel", "jira").eq("id", id).maybeSingle();
   const r = data as Row | null;
   if (!r || new Date(r.expires_at).getTime() < Date.now()) return null;
@@ -74,7 +74,7 @@ export async function findPendingById(db: SupabaseClient, id: string): Promise<P
 }
 
 /** Claim the callback: only one request can move a row out of 'pending'. */
-export async function consumePending(db: SupabaseClient, id: string): Promise<boolean> {
+export async function consumePending(db: PgDb, id: string): Promise<boolean> {
   const { data } = await db
     .from("oauth_pending_connections")
     .update({ status: "awaiting_page_selection" })
@@ -85,7 +85,7 @@ export async function consumePending(db: SupabaseClient, id: string): Promise<bo
 }
 
 /** Keep the tokens (encrypted) and the site list for the picker. */
-export async function storeForPicker(db: SupabaseClient, id: string, tokens: TokenSet, sites: AccessibleSite[]): Promise<void> {
+export async function storeForPicker(db: PgDb, id: string, tokens: TokenSet, sites: AccessibleSite[]): Promise<void> {
   const blob = encrypt(
     JSON.stringify({ a: tokens.accessToken, r: tokens.refreshToken, e: tokens.expiresAt.toISOString(), s: tokens.scope }),
   );
@@ -95,7 +95,7 @@ export async function storeForPicker(db: SupabaseClient, id: string, tokens: Tok
     .eq("id", id);
 }
 
-export async function readPendingTokens(db: SupabaseClient, id: string): Promise<TokenSet | null> {
+export async function readPendingTokens(db: PgDb, id: string): Promise<TokenSet | null> {
   const { data } = await db.from("oauth_pending_connections").select("long_lived_user_token").eq("id", id).maybeSingle();
   const blob = (data as { long_lived_user_token?: string | null } | null)?.long_lived_user_token;
   if (!blob) return null;
@@ -107,7 +107,7 @@ export async function readPendingTokens(db: SupabaseClient, id: string): Promise
   }
 }
 
-export async function markPendingDone(db: SupabaseClient, id: string, status: "completed" | "failed"): Promise<void> {
+export async function markPendingDone(db: PgDb, id: string, status: "completed" | "failed"): Promise<void> {
   // Whatever happens next, the stored tokens are dropped from this row.
   await db.from("oauth_pending_connections").update({ status, long_lived_user_token: null }).eq("id", id);
 }

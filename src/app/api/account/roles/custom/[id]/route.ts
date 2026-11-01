@@ -11,7 +11,6 @@
 // ============================================================
 
 import { NextResponse } from "next/server";
-import type { PostgrestError } from "@supabase/supabase-js";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { canEditRole, isCapabilityKey, overridesFromRows, resolveCapabilities } from "@/lib/auth/capabilities";
@@ -21,7 +20,7 @@ import type { CustomRoleEntry } from "../route";
 
 type Params = { params: Promise<{ id: string }> };
 
-function rpcErrorToResponse(err: PostgrestError): NextResponse {
+function rpcErrorToResponse(err: { message: string; code?: string | null }): NextResponse {
   if (err.code === "42501") return NextResponse.json({ error: err.message }, { status: 403 });
   if (err.code === "22023") return NextResponse.json({ error: err.message }, { status: 400 });
   console.error("[account/roles/custom/[id]] unexpected RPC error:", err);

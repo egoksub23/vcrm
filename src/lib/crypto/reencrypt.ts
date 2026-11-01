@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 
 import { decrypt, encrypt, keyIdOf, needsReencrypt } from '@/lib/whatsapp/encryption'
 import { getKeyRing } from '@/lib/crypto/keyring'
@@ -50,7 +50,7 @@ type Row = Record<string, unknown>
 
 /** Visit every row of one table, a keyset page at a time. Returns false when the table does not exist. */
 async function scanTable(
-  db: SupabaseClient,
+  db: PgDb,
   spec: EncryptedTable,
   visit: (row: Row) => Promise<void> | void,
   stopAt?: number,
@@ -97,7 +97,7 @@ export interface EncryptionReport {
   stale: number
 }
 
-export async function encryptionReport(db: SupabaseClient): Promise<EncryptionReport> {
+export async function encryptionReport(db: PgDb): Promise<EncryptionReport> {
   const ring = getKeyRing()
   const columns: ColumnReport[] = []
   let stale = 0
@@ -138,7 +138,7 @@ export interface ReencryptResult {
 }
 
 export async function reencryptAll(
-  db: SupabaseClient,
+  db: PgDb,
   { budgetMs = 40_000 }: { budgetMs?: number } = {},
 ): Promise<ReencryptResult> {
   const stopAt = Date.now() + budgetMs

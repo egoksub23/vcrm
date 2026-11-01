@@ -92,7 +92,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       }
     })
 
-    await resolveAttachmentUrls(ctx.supabase, files, pathById)
+    await resolveAttachmentUrls(files, pathById)
 
     return NextResponse.json({ files })
   } catch (err) {

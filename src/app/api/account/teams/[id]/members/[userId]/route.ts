@@ -42,11 +42,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    const { error, count } = await ctx.supabase
+    const { data: deleted, error } = await ctx.supabase
       .from("team_members")
-      .delete({ count: "exact" })
+      .delete()
       .eq("team_id", teamId)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select("team_id");
 
     if (error) {
       console.error(
@@ -58,7 +59,7 @@ export async function DELETE(
         { status: 500 },
       );
     }
-    if (!count) {
+    if (!(deleted ?? []).length) {
       return NextResponse.json(
         { error: "Member not found on this team" },
         { status: 404 },

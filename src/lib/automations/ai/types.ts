@@ -1,3 +1,4 @@
+import type { PgDb } from '@/lib/postgres/db'
 import type { AiConfig, AiUsage, ChatMessage } from '@/lib/ai/types'
 import type { KnowledgeHit } from '@/lib/ai/knowledge'
 
@@ -139,7 +140,7 @@ export interface AiStepResult {
 /** What a step reads about the run it is in. */
 export interface AiStepRuntime {
   /** Service-role client for READS; writes only ever go through the applier. */
-  db: import('@supabase/supabase-js').SupabaseClient
+  db: PgDb,
   ai: AiCaller
   accountId: string
   automation: { id: string; name: string } | null

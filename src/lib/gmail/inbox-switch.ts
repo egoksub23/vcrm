@@ -1,5 +1,5 @@
 import { inboxIsOff } from '@/lib/email/mailbox-types'
-import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { getCurrentHistoryId, stopWatch, watchMailbox } from '@/lib/gmail/gmail-api'
 import { getValidAccessToken, type GmailConfigRow } from '@/lib/gmail/token'
 
@@ -51,12 +51,12 @@ export type GmailInboxSwitchResult =
 export function realGmailInboxDeps(setFlag: GmailInboxDeps['setFlag']): GmailInboxDeps {
   return {
     loadConfig: async (accountId) => {
-      const { data } = await supabaseAdmin().from('gmail_config').select('*').eq('account_id', accountId).maybeSingle()
+      const { data } = await createAdminPgDb().from('gmail_config').select('*').eq('account_id', accountId).maybeSingle()
       return (data as GmailInboxRow | null) ?? null
     },
     setFlag,
     saveWatch: async (configId, patch) => {
-      const { error } = await supabaseAdmin().from('gmail_config').update(patch).eq('id', configId)
+      const { error } = await createAdminPgDb().from('gmail_config').update(patch).eq('id', configId)
       return error ? { message: error.message } : null
     },
     getAccessToken: (config) => getValidAccessToken(config),

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import { AiError, type AiConfig } from './types'
 import { loadCapabilityRecipients } from '@/lib/auth/capability-recipients'
 import { aiAllowance, LIMIT_MESSAGES } from '@/lib/platform/usage'
@@ -33,7 +33,7 @@ export function budgetState(used: number, budget: number | null | undefined): Bu
 
 export const monthKey = (d: Date = new Date()) => d.toISOString().slice(0, 7)
 
-export async function tokensThisMonth(db: SupabaseClient, accountId: string): Promise<number | null> {
+export async function tokensThisMonth(db: PgDb, accountId: string): Promise<number | null> {
   try {
     const { data, error } = await db.rpc('ai_tokens_this_month', { p_account_id: accountId })
     if (error) {
@@ -53,7 +53,7 @@ export async function tokensThisMonth(db: SupabaseClient, accountId: string): Pr
  * month for the tenant's own budget. No-op without either.
  */
 export async function ensureWithinBudget(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   config: Pick<AiConfig, 'monthlyTokenBudget'>,
 ): Promise<void> {
@@ -81,7 +81,7 @@ export async function ensureWithinBudget(
 
 /** One notification per member holding `ai.configure` per month, claimed atomically so two
  *  concurrent calls cannot both send it. Never throws. */
-export async function sendBudgetAlert(db: SupabaseClient, accountId: string, state: BudgetState): Promise<void> {
+export async function sendBudgetAlert(db: PgDb, accountId: string, state: BudgetState): Promise<void> {
   try {
     const month = monthKey()
     const { data: claimed } = await db

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PgDb } from '@/lib/postgres/db';
 
 import { resolveOrCreateContactByPhone, findOrCreatePrimaryConversation } from './session-identity';
 
@@ -18,7 +18,7 @@ interface Script {
   insertConversationError?: { code?: string } | null;
 }
 
-function makeDb(script: Script): { db: SupabaseClient; updateCalls: { id: string; patch: Record<string, unknown> }[] } {
+function makeDb(script: Script): { db: PgDb; updateCalls: { id: string; patch: Record<string, unknown> }[] } {
   let table = '';
   let mode: 'select' | 'insert' | 'update' = 'select';
   let convLookupCalls = 0;
@@ -85,7 +85,7 @@ function makeDb(script: Script): { db: SupabaseClient; updateCalls: { id: string
       mode = 'select';
       return builder;
     },
-  } as unknown as SupabaseClient;
+  } as unknown as PgDb;
 
   return { db, updateCalls };
 }

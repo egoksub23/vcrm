@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Usage against plan limits (migration 152).
 //
@@ -16,7 +17,6 @@
 // to storage). Lookups fail open and are cached for a minute: a limit check
 // must never be the thing that takes replies down.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { PlatformLimit } from './features'
 
@@ -116,7 +116,7 @@ const cache = new Map<string, { usage: AccountUsage | null; at: number }>()
 
 /** The workspace's live usage and limits, cached for a minute. Null when it cannot be read (fail open). */
 export async function loadAccountUsage(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   now: () => number = Date.now,
 ): Promise<AccountUsage | null> {
@@ -159,7 +159,7 @@ export const LIMIT_MESSAGES = {
  * Throws when sending one more outbound message would go over the monthly
  * limit. Returns quietly when there is no limit, no reading, or room.
  */
-export async function assertCanSendMessage(db: SupabaseClient, accountId: string): Promise<void> {
+export async function assertCanSendMessage(db: PgDb, accountId: string): Promise<void> {
   const usage = await loadAccountUsage(db, accountId)
   if (!usage) return
   const limit = limitOf(usage.limits, 'messages_per_month')
@@ -173,7 +173,7 @@ export async function assertCanSendMessage(db: SupabaseClient, accountId: string
  * Only a document SENT counts, never a draft. Returns quietly when there is no limit, no reading,
  * or room; the count is the live one from account_usage(), so it is not cached across a send.
  */
-export async function assertCanSendDocument(db: SupabaseClient, accountId: string): Promise<void> {
+export async function assertCanSendDocument(db: PgDb, accountId: string): Promise<void> {
   forgetAccountUsage(accountId)
   const usage = await loadAccountUsage(db, accountId)
   if (!usage) return
@@ -189,7 +189,7 @@ export async function assertCanSendDocument(db: SupabaseClient, accountId: strin
  * (unlimited). Reads the live count, and fails open like the other checks: no reading means no limit.
  */
 export async function signSendHeadroom(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
 ): Promise<{ limit: number | null; used: number; remaining: number | null }> {
   forgetAccountUsage(accountId)
@@ -206,7 +206,7 @@ export async function signSendHeadroom(
  * stopped by the database (contacts_limit_guard); this covers the API, which
  * runs as the service role. Counts exactly (no cache): the limit is a hard one.
  */
-export async function assertCanAddContact(db: SupabaseClient, accountId: string): Promise<void> {
+export async function assertCanAddContact(db: PgDb, accountId: string): Promise<void> {
   try {
     const { data } = await db.from('account_platform').select('limits').eq('account_id', accountId).maybeSingle()
     const limit = limitOf((data as { limits?: Record<string, number> } | null)?.limits, 'contacts')
@@ -227,7 +227,7 @@ export async function assertCanAddContact(db: SupabaseClient, accountId: string)
 
 /** The operator's AI token limit for the month, and what is used (cached); null when none is set. */
 export async function aiAllowance(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
 ): Promise<{ limit: number; used: number } | null> {
   const usage = await loadAccountUsage(db, accountId)

@@ -13,7 +13,7 @@ import { recentCustomerText } from '@/lib/ai/query'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPromptParts } from '@/lib/ai/defaults'
 import { logAiUsage } from '@/lib/ai/usage'
-import { supabaseAdmin } from '@/lib/ai/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { AiError } from '@/lib/ai/types'
 
 /**
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
       systemPrompt: prompt.stable,
       systemPromptTail: prompt.variable,
       messages,
-      guard: { db: supabaseAdmin(), accountId },
+      guard: { db: createAdminPgDb(), accountId },
     })
 
     // Record spend on the account's BYO key. Best-effort + via the
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     //  - it's fire-and-forget (`void`), not awaited, so the response
     //    isn't held for a DB round-trip.
     try {
-      void logAiUsage(supabaseAdmin(), {
+      void logAiUsage(createAdminPgDb(), {
         accountId,
         conversationId,
         mode: 'draft',

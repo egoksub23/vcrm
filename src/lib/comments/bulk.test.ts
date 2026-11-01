@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 import { makeFakeDb } from './fake-db'
 
 // performCommentAction pulls in the provider clients; the bulk code only needs its answer.
@@ -84,7 +84,7 @@ describe('runBulkOp: handled status', () => {
         }
         return b
       },
-    } as unknown as SupabaseClient
+    } as unknown as PgDb
     const out = await runBulkOp({ userDb, adminDb: f.db, ctx, op: 'resolve', ids: ['open1', 'open2'] })
     expect(out[0]).toEqual({ id: 'open1', ok: true })
     expect(out[1]).toMatchObject({ id: 'open2', ok: false })

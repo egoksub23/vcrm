@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { type PgDb } from '@/lib/postgres/db'
 import type { Conversation } from '@/types'
 import { closeConversationsWithNote } from '@/lib/conversations/session-log-api'
 import { notifyVircleRead } from '@/lib/vircle-chat/client'
@@ -22,7 +22,7 @@ export interface BulkResult {
 type ConvRef = Pick<Conversation, 'id' | 'status' | 'unread_count'> & Partial<Pick<Conversation, 'last_channel_type'>>
 
 export async function bulkAssign(
-  db: SupabaseClient,
+  db: PgDb,
   ids: string[],
   agentId: string | null,
 ): Promise<BulkResult> {
@@ -34,7 +34,7 @@ export async function bulkAssign(
   return error ? { succeeded: [], failed: ids.length } : { succeeded: ids, failed: 0 }
 }
 
-export async function bulkMarkRead(db: SupabaseClient, convs: ConvRef[]): Promise<BulkResult> {
+export async function bulkMarkRead(db: PgDb, convs: ConvRef[]): Promise<BulkResult> {
   const ids = convs.filter((c) => c.unread_count > 0).map((c) => c.id)
   if (ids.length === 0) return { succeeded: [], failed: 0 }
   const { error } = await db.from('conversations').update({ unread_count: 0 }).in('id', ids)
@@ -49,7 +49,7 @@ export async function bulkMarkRead(db: SupabaseClient, convs: ConvRef[]): Promis
 
 /** Marks read conversations unread (count 1). Already-unread ones are
  *  left alone rather than reset to 1. */
-export async function bulkMarkUnread(db: SupabaseClient, convs: ConvRef[]): Promise<BulkResult> {
+export async function bulkMarkUnread(db: PgDb, convs: ConvRef[]): Promise<BulkResult> {
   const ids = convs.filter((c) => c.unread_count === 0).map((c) => c.id)
   if (ids.length === 0) return { succeeded: [], failed: 0 }
   const { error } = await db.from('conversations').update({ unread_count: 1 }).in('id', ids)

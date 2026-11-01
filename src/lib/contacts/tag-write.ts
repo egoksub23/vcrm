@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { type PgDb } from '@/lib/postgres/db'
 import { isContactTag } from '@/lib/tags/scope';
 
 export class ContactTagWriteError extends Error {
@@ -18,7 +18,7 @@ interface ContactTagWriteInput {
 }
 
 async function assertContactAndTagOwnership(
-  db: SupabaseClient,
+  db: PgDb,
   input: ContactTagWriteInput
 ): Promise<void> {
   const [contactResult, tagResult] = await Promise.all([
@@ -61,7 +61,7 @@ async function assertContactAndTagOwnership(
  * unapproved tag is left to `assertContactAndTagOwnership`, which answers 404.
  */
 export async function assertTagIsContactTag(
-  db: SupabaseClient,
+  db: PgDb,
   input: { accountId: string; tagId: string }
 ): Promise<void> {
   const { data, error } = await db
@@ -90,7 +90,7 @@ export async function assertTagIsContactTag(
  * duplicate insert is a no-op and must not emit a tag_added event.
  */
 export async function addContactTagIfAbsent(
-  db: SupabaseClient,
+  db: PgDb,
   input: ContactTagWriteInput
 ): Promise<boolean> {
   await assertContactAndTagOwnership(db, input);
@@ -111,7 +111,7 @@ export async function addContactTagIfAbsent(
 }
 
 export async function removeContactTag(
-  db: SupabaseClient,
+  db: PgDb,
   input: ContactTagWriteInput
 ): Promise<void> {
   await assertContactAndTagOwnership(db, input);

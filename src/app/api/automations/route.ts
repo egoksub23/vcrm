@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { auth as nextAuth } from '@/auth'
 import { assertCapability, requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { getTemplate } from '@/lib/automations/templates'
 import { insertSteps, type BuilderStepInput } from '@/lib/automations/steps-tree'
 import { aiSetupForActivation } from '@/lib/automations/ai/activation'
@@ -107,9 +107,9 @@ export async function POST(request: Request) {
   if (is_active) {
     const stepsToCheck = (effectiveSteps ?? []) as unknown as { step_type: string; step_config: Record<string, unknown> }[]
     // AI steps need AI set up before the automation can go live.
-    const aiSetup = await aiSetupForActivation(supabaseAdmin(), accountId, stepsToCheck)
+    const aiSetup = await aiSetupForActivation(createAdminPgDb(), accountId, stepsToCheck)
     // Doc Sign steps and the Doc Sign trigger need Doc Sign on and the template active.
-    const signSetup = await signSetupForActivation(supabaseAdmin(), accountId, stepsToCheck, effectiveTriggerType)
+    const signSetup = await signSetupForActivation(createAdminPgDb(), accountId, stepsToCheck, effectiveTriggerType)
     const issues = [
       ...validateTriggerForActivation(effectiveTriggerType, effectiveTriggerConfig ?? {}, { signSetup }),
       ...validateStepsForActivation(stepsToCheck, { aiSetup, signSetup }),
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
   const { data: automation, error: insertErr } = await admin
     .from('automations')
     .insert({

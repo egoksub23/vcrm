@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAnyCapability, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { checkSharedRateLimit } from '@/lib/rate-limit-shared'
-import { supabaseAdmin } from '@/lib/ai/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { handleTranslate } from '@/lib/knowledge/translate-run'
 
 // A long article can take a minute or two per language.
@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: Params) {
     const body = await request.json().catch(() => null)
 
     const result = await handleTranslate(
-      { db: supabase, admin: supabaseAdmin(), accountId, userId, isAdmin: capabilities.has('knowledge.publish') },
+      { db: supabase, admin: createAdminPgDb(), accountId, userId, isAdmin: capabilities.has('knowledge.publish') },
       id,
       body,
     )

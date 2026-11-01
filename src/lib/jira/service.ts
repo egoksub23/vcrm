@@ -4,9 +4,8 @@
 // single-flight, rate-limit logging). Server only: it decrypts tokens.
 // ============================================================
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db';
 import { decrypt, encrypt } from "@/lib/whatsapp/encryption";
 import { appStorage } from "@/lib/storage/provider";
 
@@ -22,12 +21,12 @@ import type { JiraConnectionRow, RateLimitSnapshot } from "./types";
 import type { WebhookStore } from "./webhook-handler";
 import { CONNECTION_COLUMNS } from "./types";
 
-export function jiraStore(db: SupabaseClient = supabaseAdmin()): JiraStore {
+export function jiraStore(db: PgDb = createAdminPgDb()): JiraStore {
   return new SupabaseJiraStore(db);
 }
 
 /** The chat-media bucket via the storage provider (Supabase or MinIO). */
-export function attachmentStorage(_db?: SupabaseClient): AttachmentStorage {
+export function attachmentStorage(_db?: PgDb): AttachmentStorage {
   return {
     async download(path) {
       const { data, error } = await appStorage().from(CHAT_MEDIA_BUCKET).download(path);
@@ -48,7 +47,7 @@ export function attachmentStorage(_db?: SupabaseClient): AttachmentStorage {
 }
 
 /** The token store for one connection, on the service role. */
-export function supabaseTokenStore(db: SupabaseClient, connectionId: string): TokenStore {
+export function supabaseTokenStore(db: PgDb, connectionId: string): TokenStore {
   return {
     key: connectionId,
     async read(): Promise<StoredTokens> {
@@ -104,7 +103,7 @@ const lastRateWrite = new Map<string, number>();
 
 /** A client for `connection`. Tokens are refreshed on demand and never leave this module. */
 export function clientForConnection(
-  db: SupabaseClient,
+  db: PgDb,
   connection: Pick<JiraConnectionRow, "id" | "account_id" | "cloud_id">,
   deps: { fetch?: typeof fetch; store?: JiraStore } = {},
 ): JiraClient {
@@ -145,13 +144,13 @@ export function clientForConnection(
   });
 }
 
-export async function readWebhookToken(db: SupabaseClient, connectionId: string): Promise<string | null> {
+export async function readWebhookToken(db: PgDb, connectionId: string): Promise<string | null> {
   const { data } = await db.from("jira_connection_secrets").select("webhook_token").eq("connection_id", connectionId).maybeSingle();
   return (data as { webhook_token?: string } | null)?.webhook_token ?? null;
 }
 
 /** Everything the cron runner needs, on the service role. */
-export function cronDeps(baseUrl: string, db: SupabaseClient = supabaseAdmin()): CronDeps {
+export function cronDeps(baseUrl: string, db: PgDb = createAdminPgDb()): CronDeps {
   const store = jiraStore(db);
   return {
     db,
@@ -166,7 +165,7 @@ export function cronDeps(baseUrl: string, db: SupabaseClient = supabaseAdmin()):
 }
 
 /** The receiver's two lookups: the connection for a URL token, and delivery de-duplication. */
-export function supabaseWebhookStore(db: SupabaseClient = supabaseAdmin()): WebhookStore {
+export function supabaseWebhookStore(db: PgDb = createAdminPgDb()): WebhookStore {
   return {
     async connectionByToken(token) {
       const { data: secret } = await db

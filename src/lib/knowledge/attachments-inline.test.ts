@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 const h = vi.hoisted(() => ({ send: vi.fn() }))
 vi.mock('@/lib/whatsapp/send-message', async () => {
@@ -37,7 +37,7 @@ function fakeDb(channel: string) {
   }
   return {
     from: (table: string) => (table === 'messages' ? chain([]) : chain({ last_channel_type: channel })),
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
 }
 
 beforeEach(() => {

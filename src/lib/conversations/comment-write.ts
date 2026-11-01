@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { type PgDb } from '@/lib/postgres/db'
 
 import type { Message } from '@/types';
 
@@ -36,7 +36,7 @@ interface PostInternalCommentInput {
  * right before reassigning a conversation.
  */
 export async function postInternalComment(
-  db: SupabaseClient,
+  db: PgDb,
   input: PostInternalCommentInput
 ): Promise<Message> {
   const text = input.text.trim();
@@ -76,7 +76,7 @@ export async function postInternalComment(
     if (membersErr) {
       throw new CommentWriteError('Could not verify mentioned teammates');
     }
-    const validIds = new Set((members ?? []).map((m) => m.user_id));
+    const validIds = new Set(((members ?? []) as any[]).map((m: any) => m.user_id));
     const invalid = mentions.filter((id) => !validIds.has(id));
     if (invalid.length > 0) {
       throw new CommentWriteError(

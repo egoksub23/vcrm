@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 const mocks = vi.hoisted(() => ({ run: vi.fn(async () => {}) }))
 vi.mock('@/lib/automations/engine', () => ({ runAutomationsForTrigger: mocks.run }))
@@ -27,11 +27,11 @@ function fakeClient(opts: { status?: string; contact?: string | null; rpcError?:
       rpcs.push({ name, args })
       return { error: opts.rpcError ? { message: 'permission denied' } : null }
     },
-  } as unknown as SupabaseClient
+  } as unknown as PgDb
   return { client, rpcs }
 }
 
-const base = (client: SupabaseClient) => ({
+const base = (client: PgDb) => ({
   rpcClient: client,
   admin: client,
   accountId: 'acct-1',

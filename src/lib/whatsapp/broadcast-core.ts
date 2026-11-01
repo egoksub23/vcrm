@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Public-API broadcast core.
 //
@@ -16,7 +17,6 @@
 // for API broadcasts exactly as it does for dashboard ones.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { sendTemplateMessage } from '@/lib/whatsapp/meta-api';
 import { decrypt } from '@/lib/whatsapp/encryption';
@@ -83,7 +83,7 @@ const MAX_RECIPIENTS = 1000;
  * template / a DB failure — nothing is sent in this phase.
  */
 export async function createBroadcast(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   auditUserId: string,
   params: CreateBroadcastParams
@@ -198,7 +198,7 @@ export async function createBroadcast(
   // an orphaned campaign that looked like it was sending but had no
   // delivery plan (issue #370). The function body is atomic, so a recipient
   // failure now rolls the parent back and nothing orphaned survives.
-  const { data: createdRows, error: createErr } = await db.rpc(
+  const { data: createdRows, error: createErr } = await (db as any).rpc(
     'create_broadcast_with_recipients',
     {
       p_account_id: accountId,
@@ -256,7 +256,7 @@ export async function createBroadcast(
  * race and clobber the trigger-maintained counts.
  */
 export async function deliverBroadcast(
-  db: SupabaseClient,
+  db: PgDb,
   plan: BroadcastPlan
 ): Promise<void> {
   for (const recipient of plan.planned) {
@@ -324,7 +324,7 @@ export async function deliverBroadcast(
  * terminal `status` is written here.
  */
 export async function finalizeBroadcastStatus(
-  db: SupabaseClient,
+  db: PgDb,
   broadcastId: string
 ): Promise<void> {
   const countWhere = async (status: string): Promise<number> => {

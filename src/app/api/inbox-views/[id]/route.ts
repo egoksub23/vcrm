@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 // Rename / delete a saved inbox view. Like the POST route, this uses the
 // service-role client, so ownership has to be checked explicitly: a
@@ -8,7 +8,7 @@ import { supabaseAdmin } from '@/lib/automations/admin-client'
 // IS NULL) only by holders of inbox.shared-views.
 
 async function loadOwnedView(id: string, accountId: string) {
-  const { data, error } = await supabaseAdmin()
+  const { data, error } = await createAdminPgDb()
     .from('inbox_views')
     .select('id, owner_id')
     .eq('id', id)
@@ -61,7 +61,7 @@ export async function PATCH(
   }
   if (Object.keys(update).length === 0) return NextResponse.json({ ok: true })
 
-  const { error } = await supabaseAdmin()
+  const { error } = await createAdminPgDb()
     .from('inbox_views')
     .update(update)
     .eq('id', id)
@@ -91,7 +91,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Not allowed to delete this view' }, { status: 403 })
   }
 
-  const { error } = await supabaseAdmin()
+  const { error } = await createAdminPgDb()
     .from('inbox_views')
     .delete()
     .eq('id', id)

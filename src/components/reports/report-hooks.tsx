@@ -12,7 +12,8 @@ import type { DateRange } from "@/lib/reports/date-utils";
  * request was in flight).
  */
 export function useReportData<T>(
-  loader: (db: ReturnType<typeof createClient>, accountId: string, range: DateRange) => Promise<T>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  loader: (db: any, accountId: string, range: DateRange) => Promise<T>,
   accountId: string | null,
   range: DateRange,
 ): { data: T | null; loading: boolean; error: string | null } {

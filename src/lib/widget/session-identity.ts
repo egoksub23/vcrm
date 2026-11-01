@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Shared contact/conversation resolution for POST /api/widget/session
 // (migration 054's verified-identity + self-service-linking work).
@@ -5,7 +6,6 @@
 // logic — the same shape resolve-conversation.ts uses for the public
 // API's phone-based send — is independently testable.
 // ============================================================
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { findExistingContact, isUniqueViolation, type ExistingContact } from '@/lib/contacts/dedupe';
 
 export interface ContactUpsertOpts {
@@ -20,7 +20,7 @@ export interface ContactUpsertOpts {
  * overwrites a value the contact already has.
  */
 export async function resolveOrCreateContactByPhone(
-  admin: SupabaseClient,
+  admin: PgDb,
   accountId: string,
   ownerUserId: string,
   phone: string,
@@ -67,7 +67,7 @@ export async function resolveOrCreateContactByPhone(
  *  one-conversation-per-contact convention (migration 048) every other
  *  channel uses. */
 export async function findOrCreatePrimaryConversation(
-  admin: SupabaseClient,
+  admin: PgDb,
   accountId: string,
   ownerUserId: string,
   contactId: string,

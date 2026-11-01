@@ -10,7 +10,7 @@
 //          Postgres error. Returns the created bookmark, hydrated.
 // ============================================================
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { PgDb } from '@/lib/postgres/db'
 
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { fetchLinkPreview } from '@/lib/sembang/link-preview'
@@ -29,7 +29,7 @@ interface BookmarkRow {
 }
 
 async function hydrateBookmarks(
-  supabase: SupabaseClient,
+  supabase: PgDb,
   rows: BookmarkRow[],
 ): Promise<SembangBookmark[]> {
   if (rows.length === 0) return []

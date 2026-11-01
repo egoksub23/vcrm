@@ -1,5 +1,5 @@
+import { type PgDb } from '@/lib/postgres/db'
 import { randomUUID } from 'node:crypto'
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { MetaApiError } from '@/lib/meta/errors'
 import { findOrCreateContactByExternalId } from '@/lib/meta/contact-identity'
@@ -66,7 +66,7 @@ interface MetaCreds {
   table: 'messenger_config' | 'instagram_config'
 }
 
-async function loadMetaCreds(db: SupabaseClient, accountId: string, provider: 'facebook' | 'instagram'): Promise<MetaCreds | null> {
+async function loadMetaCreds(db: PgDb, accountId: string, provider: 'facebook' | 'instagram'): Promise<MetaCreds | null> {
   const table = provider === 'facebook' ? 'messenger_config' : 'instagram_config'
   const cols =
     provider === 'facebook'
@@ -92,7 +92,7 @@ async function loadMetaCreds(db: SupabaseClient, accountId: string, provider: 'f
 }
 
 async function audit(
-  db: SupabaseClient,
+  db: PgDb,
   ctx: Ctx,
   commentId: string,
   action: CommentAction,
@@ -112,7 +112,7 @@ async function audit(
 }
 
 export async function performCommentAction(
-  db: SupabaseClient,
+  db: PgDb,
   ctx: Ctx,
   commentId: string,
   action: CommentAction,
@@ -272,7 +272,7 @@ export async function performCommentAction(
  * chat, so their answer lands in the same thread. Returns the contact id.
  */
 async function linkPrivateReplyToChat(
-  db: SupabaseClient,
+  db: PgDb,
   ctx: Ctx,
   a: {
     provider: 'facebook' | 'instagram'

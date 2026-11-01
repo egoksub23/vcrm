@@ -21,8 +21,8 @@
 //     INBOX label only, and an outbound send never gets that label.
 // ============================================================
 import { NextResponse, after } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
+import { createAdminPgDb, type PgDb } from '@/lib/postgres/db'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
 import { escapeLike, tokensEqual } from '@/lib/security/safe-compare'
 import { findOrCreateContactByExternalId } from '@/lib/meta/contact-identity'
@@ -43,18 +43,6 @@ import {
 } from '@/lib/gmail/gmail-api'
 
 export const maxDuration = 60
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _adminClient: any = null
-function supabaseAdmin() {
-  if (!_adminClient) {
-    _adminClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-  }
-  return _adminClient
-}
 
 interface PubSubPushBody {
   message?: { data?: string; messageId?: string }
@@ -107,7 +95,7 @@ export async function POST(request: Request) {
 }
 
 async function processNotification(emailAddress: string, token: string) {
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
 
   const { data: config, error: configError } = await admin
     .from('gmail_config')
@@ -180,7 +168,7 @@ async function processNotification(emailAddress: string, token: string) {
 }
 
 async function processMessage(
-  admin: ReturnType<typeof supabaseAdmin>,
+  admin: PgDb,
   config: Record<string, unknown>,
   accessToken: string,
   messageId: string,

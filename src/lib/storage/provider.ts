@@ -1,10 +1,8 @@
 // ============================================================
 // Storage provider abstraction.
 //
-// Wraps either Supabase Storage (current default) or a self-hosted
-// MinIO instance (set STORAGE_PROVIDER=minio). All call sites use
-// appStorage().from(bucket).<method>() — the same API shape as
-// supabaseAdmin().storage so switching providers is transparent.
+// Wraps the self-hosted MinIO instance (STORAGE_PROVIDER=minio required).
+// All call sites use appStorage().from(bucket).<method>().
 //
 // MinIO env vars (required when STORAGE_PROVIDER=minio):
 //   MINIO_ENDPOINT    — hostname or IP (no protocol, no port)
@@ -16,7 +14,6 @@
 // ============================================================
 
 import { Client as MinioClient } from 'minio'
-import { supabaseAdmin } from '@/lib/supabase/admin-client'
 
 // ── Shared return shapes (mirror Supabase Storage exactly) ──────────────────
 
@@ -66,6 +63,11 @@ export interface AppStorageBucket {
   }>
 
   getPublicUrl(path: string): { data: { publicUrl: string } }
+
+  createSignedUploadUrl(
+    path: string,
+    ttlSeconds?: number,
+  ): Promise<{ data: { path: string; token: string } | null; error: AppStorageError | null }>
 }
 
 export interface AppStorage {
@@ -189,6 +191,15 @@ function minioProvider(): AppStorage {
             : `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT ?? 9000}/${bucket}/${path}`
           return { data: { publicUrl } }
         },
+
+        async createSignedUploadUrl(path, ttlSeconds = 3600) {
+          try {
+            const token = await minio.presignedPutObject(bucket, path, ttlSeconds)
+            return { data: { path, token }, error: null }
+          } catch (err) {
+            return { data: null, error: { message: String(err) } }
+          }
+        },
       }
     },
   }
@@ -203,9 +214,8 @@ function minioProvider(): AppStorage {
  * Usage: appStorage().from('bucket-name').upload(path, bytes, { contentType })
  */
 export function appStorage(): AppStorage {
-  if (process.env.STORAGE_PROVIDER === 'minio') {
-    return minioProvider()
+  if (process.env.STORAGE_PROVIDER !== 'minio') {
+    throw new Error('Set STORAGE_PROVIDER=minio — Supabase Storage is no longer supported')
   }
-  // Supabase Storage matches our interface shape.
-  return supabaseAdmin().storage as unknown as AppStorage
+  return minioProvider()
 }

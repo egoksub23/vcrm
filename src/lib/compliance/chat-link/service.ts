@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Compliance requests, the personal closure form link in a chat (migration 185): making it, sending it, sending it again, withdrawing it, and the status
 // of the cards in the Inbox. SERVER ONLY (the key ring and the send pipeline are Node).
@@ -19,7 +20,6 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { loadWhatsappWindowOpen } from "@/lib/messages/window";
 import { publicOrigin } from "@/lib/site-url";
@@ -37,7 +37,7 @@ export interface ChatLinkDeps {
   now: () => Date;
   /** `https://halo.example` (no trailing slash). */
   origin: () => string;
-  windowOpen: (admin: SupabaseClient, conversationId: string) => Promise<boolean>;
+  windowOpen: (admin: PgDb, conversationId: string) => Promise<boolean>;
   send: typeof sendMessageToConversation;
 }
 
@@ -57,7 +57,7 @@ interface ConversationRow {
   contact: { language: string | null } | { language: string | null }[] | null;
 }
 
-async function loadConversation(admin: SupabaseClient, accountId: string, conversationId: string): Promise<{ channel: string | null; language: string | null } | null> {
+async function loadConversation(admin: PgDb, accountId: string, conversationId: string): Promise<{ channel: string | null; language: string | null } | null> {
   const { data, error } = await admin.from("conversations").select("id, last_channel_type, contact:contacts(language)").eq("id", conversationId).eq("account_id", accountId).maybeSingle();
   if (error || !data) return null;
   const c = data as unknown as ConversationRow;
@@ -75,7 +75,7 @@ export function reasonOfSendError(err: unknown): NotSentReason {
   return "send_failed";
 }
 
-async function recordSent(admin: SupabaseClient, linkId: string, actor: string, messageId: string | null, delivered: boolean, resend: boolean, reason: NotSentReason | null): Promise<void> {
+async function recordSent(admin: PgDb, linkId: string, actor: string, messageId: string | null, delivered: boolean, resend: boolean, reason: NotSentReason | null): Promise<void> {
   const { error } = await admin.rpc("compliance_form_link_sent", {
     p_link: linkId,
     p_actor: actor,
@@ -103,7 +103,7 @@ export interface SendFormInput {
  * Mint a personal closure form link for a case and put it in the conversation as a card. Never throws for a problem with the CHAT (the outcome says what
  * happened and gives the link to copy); throws only when the link itself could not be made (the case is not a closure, a permission, the database).
  */
-export async function sendClosureForm(admin: SupabaseClient, deps: ChatLinkDeps, input: SendFormInput): Promise<ChatLinkOutcome> {
+export async function sendClosureForm(admin: PgDb, deps: ChatLinkDeps, input: SendFormInput): Promise<ChatLinkOutcome> {
   if (!linkTokensConfigured()) return { status: "unavailable", reason: "no_key" };
   const row = await loadRow(admin, input.accountId, input.requestId);
   if (row.type_key !== "closure") return { status: "unavailable", reason: "not_closure" };
@@ -156,14 +156,14 @@ export async function sendClosureForm(admin: SupabaseClient, deps: ChatLinkDeps,
 }
 
 /** Send the case's closure form again: a new link, the old one stops working. The conversation is the one the case is linked to. */
-export async function resendClosureForm(admin: SupabaseClient, deps: ChatLinkDeps, actor: LinkActor, requestId: string): Promise<ChatLinkOutcome> {
+export async function resendClosureForm(admin: PgDb, deps: ChatLinkDeps, actor: LinkActor, requestId: string): Promise<ChatLinkOutcome> {
   const row = await loadRow(admin, actor.accountId, requestId);
   if (!mayActOnLink(actor, row)) throw complianceError("forbidden");
   return sendClosureForm(admin, deps, { accountId: actor.accountId, requestId: row.id, actor: actor.userId, conversationId: row.conversation_id, resend: true });
 }
 
 /** Withdraw the case's active link. `revoked` is false when there was none. */
-export async function revokeClosureForm(admin: SupabaseClient, actor: LinkActor, requestId: string): Promise<{ revoked: boolean }> {
+export async function revokeClosureForm(admin: PgDb, actor: LinkActor, requestId: string): Promise<{ revoked: boolean }> {
   const row = await loadRow(admin, actor.accountId, requestId);
   if (!mayActOnLink(actor, row)) throw complianceError("forbidden");
   const { data, error } = await admin.rpc("compliance_revoke_form_link", { p_request: row.id, p_actor: actor.userId });

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/automations/admin-client'
+import { createAdminPgDb } from '@/lib/postgres/db'
 import { resumePendingExecution } from '@/lib/automations/engine'
 import type { AutomationContext } from '@/lib/automations/engine'
 import { CRON_INTERVALS, cronRoute, forEachWithinBudget } from '@/lib/cron/guard'
@@ -39,7 +39,7 @@ interface PendingRow {
  * Rows claimed but not reached inside the time budget are handed back.
  */
 export const GET = cronRoute('automations', CRON_INTERVALS.automations, async () => {
-  const admin = supabaseAdmin()
+  const admin = createAdminPgDb()
 
   const { data, error } = await admin.rpc('automation_claim_pending', {
     p_limit: BATCH,

@@ -1,3 +1,4 @@
+import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Shared contact logic for the public API (v1) contact endpoints.
 //
@@ -7,7 +8,6 @@
 // webhook and send path use), and one tag-sync routine.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe';
 import { resolveImportTagIds } from '@/lib/contacts/resolve-import-tags';
@@ -72,7 +72,7 @@ export function serializeContact(row: Record<string, unknown>): ApiContact {
  * account owner when there's no config yet.
  */
 export async function resolveAuditUserId(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string
 ): Promise<string> {
   const { data: config } = await db
@@ -109,7 +109,7 @@ export interface ContactInput {
  * API-created contact is indistinguishable from a webhook-created one.
  */
 export async function findOrCreateContact(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   auditUserId: string,
   input: ContactInput
@@ -169,7 +169,7 @@ export async function findOrCreateContact(
  * from the map's values (#560).
  */
 export async function setContactTags(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   auditUserId: string,
   contactId: string,
@@ -204,7 +204,7 @@ export async function setContactTags(
     throw new ContactError('Failed to read contact tags', 500);
   }
   const existing = new Set(
-    (current ?? []).map((r) => r.tag_id as string)
+    ((current ?? []) as any[]).map((r: any) => r.tag_id as string)
   );
 
   const toAdd = [...desired].filter((id) => !existing.has(id));
@@ -237,7 +237,7 @@ export async function setContactTags(
 
 /** Fetch + serialize a single contact scoped to the account, or null. */
 export async function getContactById(
-  db: SupabaseClient,
+  db: PgDb,
   accountId: string,
   contactId: string
 ): Promise<ApiContact | null> {
