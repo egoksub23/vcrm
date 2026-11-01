@@ -157,13 +157,14 @@ interface GenColInfo { cols: Set<string>; arrayLengthSrcs: Set<string> }
 
 async function getGeneratedCols(pg: ReturnType<typeof postgres>, table: string): Promise<GenColInfo> {
   const rows = await pg<{ attname: string; expr: string }[]>`
-    SELECT attname, pg_get_expr(attgenexpr, attrelid) AS expr
-    FROM pg_attribute
-    WHERE attrelid = (SELECT oid FROM pg_class
-                      WHERE relname = ${table}
-                        AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public'))
-      AND attgenerated = 's'
-      AND NOT attisdropped
+    SELECT a.attname, pg_get_expr(d.adbin, d.adrelid) AS expr
+    FROM pg_attribute a
+    LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+    WHERE a.attrelid = (SELECT oid FROM pg_class
+                        WHERE relname = ${table}
+                          AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public'))
+      AND a.attgenerated = 's'
+      AND NOT a.attisdropped
   `
   const cols = new Set(rows.map(r => r.attname))
   const arrayLengthSrcs = new Set<string>()
