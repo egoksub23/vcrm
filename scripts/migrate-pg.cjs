@@ -26770,7 +26770,7 @@ async function getPrimaryKeys(pg, table) {
 }
 async function getGeneratedCols(pg, table) {
   const rows = await pg`
-    SELECT attname
+    SELECT attname, pg_get_expr(attgenexpr, attrelid) AS expr
     FROM pg_attribute
     WHERE attrelid = (SELECT oid FROM pg_class
                       WHERE relname = ${table}
@@ -26778,7 +26778,13 @@ async function getGeneratedCols(pg, table) {
       AND attgenerated = 's'
       AND NOT attisdropped
   `;
-  return new Set(rows.map((r) => r.attname));
+  const cols = new Set(rows.map((r) => r.attname));
+  const arrayLengthSrcs = /* @__PURE__ */ new Set();
+  for (const { expr } of rows) {
+    const m = expr?.matchAll(/jsonb_array_length\((\w+)\)/g) ?? [];
+    for (const match of m) arrayLengthSrcs.add(match[1]);
+  }
+  return { cols, arrayLengthSrcs };
 }
 async function getJsonbCols(pg, table) {
   const rows = await pg`
@@ -26790,8 +26796,20 @@ async function getJsonbCols(pg, table) {
   `;
   return new Set(rows.map((r) => r.column_name));
 }
-async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /* @__PURE__ */ new Set()) {
+async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /* @__PURE__ */ new Set(), arrayLengthSrcs = /* @__PURE__ */ new Set()) {
   if (rows.length === 0) return;
+  if (arrayLengthSrcs.size > 0) {
+    rows = rows.map((row) => {
+      const r = { ...row };
+      for (const col of arrayLengthSrcs) {
+        const val = r[col];
+        if (val !== null && val !== void 0 && !Array.isArray(val) && typeof val !== "object") {
+          r[col] = [];
+        }
+      }
+      return r;
+    });
+  }
   const cols = Object.keys(rows[0]).filter((c2) => !generatedCols.has(c2));
   const colList = cols.map(ident).join(", ");
   const batchSize = Math.max(1, Math.floor(MAX_PARAMS / cols.length));
@@ -26829,7 +26847,7 @@ async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /
 async function migrateTable(sb, pg, table) {
   const pkCols = await getPrimaryKeys(pg, table);
   const jsonbCols = await getJsonbCols(pg, table);
-  const generatedCols = await getGeneratedCols(pg, table);
+  const { cols: generatedCols, arrayLengthSrcs } = await getGeneratedCols(pg, table);
   if (!DRY_RUN) {
     await pg.unsafe(`DELETE FROM public.${ident(table)}`);
   }
@@ -26850,7 +26868,7 @@ async function migrateTable(sb, pg, table) {
         if (data2.length === 0) break;
         read2 += data2.length;
         if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols);
+          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, arrayLengthSrcs);
         }
         upserted += data2.length;
         if (data2.length < PAGE_SIZE) break;
@@ -26864,7 +26882,7 @@ async function migrateTable(sb, pg, table) {
     if (!data || data.length === 0) break;
     read2 += data.length;
     if (!DRY_RUN) {
-      await upsertBatch(pg, table, data, pkCols, jsonbCols, generatedCols);
+      await upsertBatch(pg, table, data, pkCols, jsonbCols, generatedCols, arrayLengthSrcs);
     }
     upserted += data.length;
     process.stdout.write(`\r  ${dim(`${upserted.toLocaleString()} rows\u2026`)}`);
@@ -26891,6 +26909,12 @@ async function main() {
   await pg`SELECT 1`;
   console.log(green("\u2713 Connected to target PostgreSQL"));
   await pg.unsafe("SET session_replication_role = 'replica'");
+  await pg.unsafe(`
+    DO $$ DECLARE r RECORD; BEGIN
+      FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+      LOOP EXECUTE format('ALTER TABLE public.%I DISABLE TRIGGER ALL', r.tablename);
+      END LOOP; END $$
+  `);
   const { error: hc } = await sb.from("accounts").select("id").limit(1);
   if (hc && hc.message !== "JSON object requested, multiple (or no) rows returned") {
     if (!hc.message?.includes("0 rows") && !hc.message?.includes("Results contain 0")) {
@@ -26941,6 +26965,12 @@ async function main() {
   if (totalErrors > 0) {
     console.log(`  Tables with errors: ${red(errorTables.join(", "))}`);
   }
+  await pg.unsafe(`
+    DO $$ DECLARE r RECORD; BEGIN
+      FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+      LOOP EXECUTE format('ALTER TABLE public.%I ENABLE TRIGGER ALL', r.tablename);
+      END LOOP; END $$
+  `);
   await pg.end();
   process.exit(totalErrors > 0 ? 1 : 0);
 }

@@ -151,10 +151,13 @@ async function getPrimaryKeys(pg: ReturnType<typeof postgres>, table: string): P
 
 // ---- generated column detection ---------------------------------------------
 // Generated (ALWAYS) columns are computed by PostgreSQL; we must not INSERT into them.
+// Also returns their expressions so we can detect jsonb_array_length() dependencies.
 
-async function getGeneratedCols(pg: ReturnType<typeof postgres>, table: string): Promise<Set<string>> {
-  const rows = await pg<{ attname: string }[]>`
-    SELECT attname
+interface GenColInfo { cols: Set<string>; arrayLengthSrcs: Set<string> }
+
+async function getGeneratedCols(pg: ReturnType<typeof postgres>, table: string): Promise<GenColInfo> {
+  const rows = await pg<{ attname: string; expr: string }[]>`
+    SELECT attname, pg_get_expr(attgenexpr, attrelid) AS expr
     FROM pg_attribute
     WHERE attrelid = (SELECT oid FROM pg_class
                       WHERE relname = ${table}
@@ -162,7 +165,13 @@ async function getGeneratedCols(pg: ReturnType<typeof postgres>, table: string):
       AND attgenerated = 's'
       AND NOT attisdropped
   `
-  return new Set(rows.map(r => r.attname))
+  const cols = new Set(rows.map(r => r.attname))
+  const arrayLengthSrcs = new Set<string>()
+  for (const { expr } of rows) {
+    const m = expr?.matchAll(/jsonb_array_length\((\w+)\)/g) ?? []
+    for (const match of m) arrayLengthSrcs.add(match[1])
+  }
+  return { cols, arrayLengthSrcs }
 }
 
 // ---- column type map (for JSON cast) ----------------------------------------
@@ -187,8 +196,26 @@ async function upsertBatch(
   pkCols: string[],
   jsonbCols: Set<string>,
   generatedCols: Set<string> = new Set(),
+  arrayLengthSrcs: Set<string> = new Set(),
 ): Promise<void> {
   if (rows.length === 0) return
+
+  // Coerce JSONB columns used in jsonb_array_length() generated columns:
+  // if the value is a non-null JS primitive (scalar JSON), PostgreSQL will throw
+  // "cannot get array length of a scalar" when computing the generated column.
+  // Replace with [] so the generated expression produces 0 instead of an error.
+  if (arrayLengthSrcs.size > 0) {
+    rows = rows.map(row => {
+      const r = { ...row }
+      for (const col of arrayLengthSrcs) {
+        const val = r[col]
+        if (val !== null && val !== undefined && !Array.isArray(val) && typeof val !== 'object') {
+          r[col] = []
+        }
+      }
+      return r
+    })
+  }
 
   // Strip generated columns — PostgreSQL computes them and refuses explicit values.
   const cols = Object.keys(rows[0]).filter(c => !generatedCols.has(c))
@@ -251,7 +278,7 @@ async function migrateTable(
 ): Promise<{ read: number; upserted: number; errors: number }> {
   const pkCols = await getPrimaryKeys(pg, table)
   const jsonbCols = await getJsonbCols(pg, table)
-  const generatedCols = await getGeneratedCols(pg, table)
+  const { cols: generatedCols, arrayLengthSrcs } = await getGeneratedCols(pg, table)
 
   // Clear any rows seeded by migration SQL files so Supabase data wins.
   // FK checks are already disabled via session_replication_role=replica.
@@ -286,7 +313,7 @@ async function migrateTable(
         if (data2.length === 0) break
         read += data2.length
         if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols)
+          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, arrayLengthSrcs)
         }
         upserted += data2.length
         if (data2.length < PAGE_SIZE) break
@@ -301,7 +328,7 @@ async function migrateTable(
     if (!data || data.length === 0) break
     read += data.length
     if (!DRY_RUN) {
-      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols)
+      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols, arrayLengthSrcs)
     }
     upserted += data.length
 
@@ -343,6 +370,15 @@ async function main() {
   // Disable FK constraint triggers for bulk migration (requires superuser).
   // session_replication_role = replica suppresses FK checks on this connection.
   await pg.unsafe("SET session_replication_role = 'replica'")
+
+  // Disable ALL triggers on every public-schema table so migration-blocking guards
+  // (audit triggers, validation triggers, etc.) don't interrupt bulk import.
+  await pg.unsafe(`
+    DO $$ DECLARE r RECORD; BEGIN
+      FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+      LOOP EXECUTE format('ALTER TABLE public.%I DISABLE TRIGGER ALL', r.tablename);
+      END LOOP; END $$
+  `)
 
   // Verify Supabase connection
   const { error: hc } = await sb.from('accounts').select('id').limit(1)
@@ -402,6 +438,14 @@ async function main() {
   if (totalErrors > 0) {
     console.log(`  Tables with errors: ${red(errorTables.join(', '))}`)
   }
+
+  // Re-enable triggers now that the bulk import is done.
+  await pg.unsafe(`
+    DO $$ DECLARE r RECORD; BEGIN
+      FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+      LOOP EXECUTE format('ALTER TABLE public.%I ENABLE TRIGGER ALL', r.tablename);
+      END LOOP; END $$
+  `)
 
   await pg.end()
   process.exit(totalErrors > 0 ? 1 : 0)
