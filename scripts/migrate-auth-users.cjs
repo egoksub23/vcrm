@@ -26681,17 +26681,19 @@ async function main() {
   });
   await pg`SELECT 1`;
   console.log("\u2713 Connected to target PostgreSQL");
+  await pg`ALTER TABLE auth.users DISABLE TRIGGER ALL`;
   let page = 1;
   let total = 0;
-  for (; ; ) {
-    const { data, error: error2 } = await sb.auth.admin.listUsers({ page, perPage: 1e3 });
-    if (error2) {
-      console.error(`Error fetching users page ${page}: ${error2.message}`);
-      process.exit(1);
-    }
-    if (!data?.users?.length) break;
-    for (const user of data.users) {
-      await pg`
+  try {
+    for (; ; ) {
+      const { data, error: error2 } = await sb.auth.admin.listUsers({ page, perPage: 1e3 });
+      if (error2) {
+        console.error(`Error fetching users page ${page}: ${error2.message}`);
+        process.exit(1);
+      }
+      if (!data?.users?.length) break;
+      for (const user of data.users) {
+        await pg`
         INSERT INTO auth.users (id, email, phone, created_at, updated_at, deleted_at, is_anonymous)
         VALUES (
           ${user.id},
@@ -26707,11 +26709,14 @@ async function main() {
           phone      = EXCLUDED.phone,
           updated_at = EXCLUDED.updated_at
       `;
+      }
+      total += data.users.length;
+      console.log(`  Page ${page}: ${data.users.length} users (${total} total)`);
+      if (data.users.length < 1e3) break;
+      page++;
     }
-    total += data.users.length;
-    console.log(`  Page ${page}: ${data.users.length} users (${total} total)`);
-    if (data.users.length < 1e3) break;
-    page++;
+  } finally {
+    await pg`ALTER TABLE auth.users ENABLE TRIGGER ALL`;
   }
   console.log(`\u2713 Migrated ${total} auth users`);
   await pg.end();

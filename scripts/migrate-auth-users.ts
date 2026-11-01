@@ -42,9 +42,14 @@ async function main() {
   await pg`SELECT 1`
   console.log('✓ Connected to target PostgreSQL')
 
+  // Disable triggers on auth.users so migration-created guards
+  // (invite-only signup, etc.) don't block our bulk insert.
+  await pg`ALTER TABLE auth.users DISABLE TRIGGER ALL`
+
   let page = 1
   let total = 0
 
+  try {
   for (;;) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 })
     if (error) { console.error(`Error fetching users page ${page}: ${error.message}`); process.exit(1) }
@@ -74,6 +79,9 @@ async function main() {
 
     if (data.users.length < 1000) break
     page++
+  }
+  } finally {
+    await pg`ALTER TABLE auth.users ENABLE TRIGGER ALL`
   }
 
   console.log(`✓ Migrated ${total} auth users`)
