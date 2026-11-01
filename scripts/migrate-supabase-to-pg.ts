@@ -153,7 +153,7 @@ async function getPrimaryKeys(pg: ReturnType<typeof postgres>, table: string): P
 // Generated (ALWAYS) columns are computed by PostgreSQL; we must not INSERT into them.
 // Also returns their expressions so we can detect jsonb_array_length() dependencies.
 
-interface GenColInfo { cols: Set<string>; arrayLengthSrcs: Set<string> }
+interface GenColInfo { cols: Set<string>; hasJsonbArrayLength: boolean }
 
 async function getGeneratedCols(pg: ReturnType<typeof postgres>, table: string): Promise<GenColInfo> {
   const rows = await pg<{ attname: string; expr: string }[]>`
@@ -167,12 +167,11 @@ async function getGeneratedCols(pg: ReturnType<typeof postgres>, table: string):
       AND NOT a.attisdropped
   `
   const cols = new Set(rows.map(r => r.attname))
-  const arrayLengthSrcs = new Set<string>()
-  for (const { expr } of rows) {
-    const m = expr?.matchAll(/jsonb_array_length\((\w+)\)/g) ?? []
-    for (const match of m) arrayLengthSrcs.add(match[1])
-  }
-  return { cols, arrayLengthSrcs }
+  // If any generated column expression uses jsonb_array_length, scalar JSONB values in
+  // this table's JSONB columns must be coerced to [] before INSERT or PostgreSQL will
+  // throw "cannot get array length of a scalar" when computing the generated column.
+  const hasJsonbArrayLength = rows.some(r => r.expr?.includes('jsonb_array_length'))
+  return { cols, hasJsonbArrayLength }
 }
 
 // ---- column type map (for JSON cast) ----------------------------------------
@@ -197,18 +196,18 @@ async function upsertBatch(
   pkCols: string[],
   jsonbCols: Set<string>,
   generatedCols: Set<string> = new Set(),
-  arrayLengthSrcs: Set<string> = new Set(),
+  hasJsonbArrayLength = false,
 ): Promise<void> {
   if (rows.length === 0) return
 
-  // Coerce JSONB columns used in jsonb_array_length() generated columns:
-  // if the value is a non-null JS primitive (scalar JSON), PostgreSQL will throw
-  // "cannot get array length of a scalar" when computing the generated column.
-  // Replace with [] so the generated expression produces 0 instead of an error.
-  if (arrayLengthSrcs.size > 0) {
+  // If this table has a generated column that calls jsonb_array_length(), any JSONB
+  // column with a scalar value (JS string/number/boolean) will cause PostgreSQL to
+  // throw "cannot get array length of a scalar" when computing the generated column.
+  // Coerce all scalar JSONB values to [] so the generated expression returns 0.
+  if (hasJsonbArrayLength) {
     rows = rows.map(row => {
       const r = { ...row }
-      for (const col of arrayLengthSrcs) {
+      for (const col of jsonbCols) {
         const val = r[col]
         if (val !== null && val !== undefined && !Array.isArray(val) && typeof val !== 'object') {
           r[col] = []
@@ -279,7 +278,7 @@ async function migrateTable(
 ): Promise<{ read: number; upserted: number; errors: number }> {
   const pkCols = await getPrimaryKeys(pg, table)
   const jsonbCols = await getJsonbCols(pg, table)
-  const { cols: generatedCols, arrayLengthSrcs } = await getGeneratedCols(pg, table)
+  const { cols: generatedCols, hasJsonbArrayLength } = await getGeneratedCols(pg, table)
 
   // Clear any rows seeded by migration SQL files so Supabase data wins.
   // FK checks are already disabled via session_replication_role=replica.
@@ -314,7 +313,7 @@ async function migrateTable(
         if (data2.length === 0) break
         read += data2.length
         if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, arrayLengthSrcs)
+          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength)
         }
         upserted += data2.length
         if (data2.length < PAGE_SIZE) break
@@ -329,7 +328,7 @@ async function migrateTable(
     if (!data || data.length === 0) break
     read += data.length
     if (!DRY_RUN) {
-      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols, arrayLengthSrcs)
+      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols, hasJsonbArrayLength)
     }
     upserted += data.length
 
