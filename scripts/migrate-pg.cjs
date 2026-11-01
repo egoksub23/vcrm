@@ -26793,7 +26793,20 @@ async function getJsonbCols(pg, table) {
   `;
   return new Set(rows.map((r) => r.column_name));
 }
-async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /* @__PURE__ */ new Set(), hasJsonbArrayLength = false) {
+async function getTargetCols(pg, table) {
+  const rows = await pg`
+    SELECT a.attname
+    FROM pg_attribute   a
+    JOIN pg_class       c ON c.oid = a.attrelid
+    JOIN pg_namespace   n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname   = ${table}
+      AND a.attnum    > 0
+      AND NOT a.attisdropped
+  `;
+  return new Set(rows.map((r) => r.attname));
+}
+async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /* @__PURE__ */ new Set(), hasJsonbArrayLength = false, targetCols = /* @__PURE__ */ new Set()) {
   if (rows.length === 0) return;
   if (hasJsonbArrayLength) {
     for (const col of jsonbCols) {
@@ -26812,7 +26825,9 @@ async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /
       return r;
     });
   }
-  const cols = Object.keys(rows[0]).filter((c2) => !generatedCols.has(c2));
+  const cols = Object.keys(rows[0]).filter(
+    (c2) => !generatedCols.has(c2) && (targetCols.size === 0 || targetCols.has(c2))
+  );
   const colList = cols.map(ident).join(", ");
   const batchSize = Math.max(1, Math.floor(MAX_PARAMS / cols.length));
   for (let start2 = 0; start2 < rows.length; start2 += batchSize) {
@@ -26867,9 +26882,7 @@ async function migrateTable(sb, pg, table) {
   const pkCols = await getPrimaryKeys(pg, table);
   const jsonbCols = await getJsonbCols(pg, table);
   const { cols: generatedCols, hasJsonbArrayLength } = await getGeneratedCols(pg, table);
-  if (hasJsonbArrayLength) {
-    console.log(dim(`  [gen] ${table}: generatedCols=[${[...generatedCols]}] jsonbCols=[${[...jsonbCols]}] hasJAL=true`));
-  }
+  const targetCols = await getTargetCols(pg, table);
   if (!DRY_RUN) {
     await pg.unsafe(`DELETE FROM public.${ident(table)}`);
   }
@@ -26890,7 +26903,7 @@ async function migrateTable(sb, pg, table) {
         if (data2.length === 0) break;
         read2 += data2.length;
         if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength);
+          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols);
         }
         upserted += data2.length;
         if (data2.length < PAGE_SIZE) break;
@@ -26904,7 +26917,7 @@ async function migrateTable(sb, pg, table) {
     if (!data || data.length === 0) break;
     read2 += data.length;
     if (!DRY_RUN) {
-      await upsertBatch(pg, table, data, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength);
+      await upsertBatch(pg, table, data, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols);
     }
     upserted += data.length;
     process.stdout.write(`\r  ${dim(`${upserted.toLocaleString()} rows\u2026`)}`);

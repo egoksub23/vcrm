@@ -188,6 +188,20 @@ async function getJsonbCols(pg: ReturnType<typeof postgres>, table: string): Pro
   return new Set(rows.map(r => r.column_name))
 }
 
+async function getTargetCols(pg: ReturnType<typeof postgres>, table: string): Promise<Set<string>> {
+  const rows = await pg<{ attname: string }[]>`
+    SELECT a.attname
+    FROM pg_attribute   a
+    JOIN pg_class       c ON c.oid = a.attrelid
+    JOIN pg_namespace   n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname   = ${table}
+      AND a.attnum    > 0
+      AND NOT a.attisdropped
+  `
+  return new Set(rows.map(r => r.attname))
+}
+
 // ---- upsert a batch of rows ------------------------------------------------
 
 async function upsertBatch(
@@ -198,6 +212,7 @@ async function upsertBatch(
   jsonbCols: Set<string>,
   generatedCols: Set<string> = new Set(),
   hasJsonbArrayLength = false,
+  targetCols: Set<string> = new Set(),
 ): Promise<void> {
   if (rows.length === 0) return
 
@@ -223,8 +238,11 @@ async function upsertBatch(
     })
   }
 
-  // Strip generated columns — PostgreSQL computes them and refuses explicit values.
-  const cols = Object.keys(rows[0]).filter(c => !generatedCols.has(c))
+  // Strip generated columns and any columns that don't exist in the target table
+  // (e.g. generated columns that were dropped for the migration and will be re-added after).
+  const cols = Object.keys(rows[0]).filter(c =>
+    !generatedCols.has(c) && (targetCols.size === 0 || targetCols.has(c))
+  )
   const colList = cols.map(ident).join(', ')
 
   // How many rows fit under the param limit?
@@ -302,10 +320,7 @@ async function migrateTable(
   const pkCols = await getPrimaryKeys(pg, table)
   const jsonbCols = await getJsonbCols(pg, table)
   const { cols: generatedCols, hasJsonbArrayLength } = await getGeneratedCols(pg, table)
-
-  if (hasJsonbArrayLength) {
-    console.log(dim(`  [gen] ${table}: generatedCols=[${[...generatedCols]}] jsonbCols=[${[...jsonbCols]}] hasJAL=true`))
-  }
+  const targetCols = await getTargetCols(pg, table)
 
   // Clear any rows seeded by migration SQL files so Supabase data wins.
   // FK checks are already disabled via session_replication_role=replica.
@@ -340,7 +355,7 @@ async function migrateTable(
         if (data2.length === 0) break
         read += data2.length
         if (!DRY_RUN) {
-          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength)
+          await upsertBatch(pg, table, data2, pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols)
         }
         upserted += data2.length
         if (data2.length < PAGE_SIZE) break
@@ -355,7 +370,7 @@ async function migrateTable(
     if (!data || data.length === 0) break
     read += data.length
     if (!DRY_RUN) {
-      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols, hasJsonbArrayLength)
+      await upsertBatch(pg, table, data as Record<string, unknown>[], pkCols, jsonbCols, generatedCols, hasJsonbArrayLength, targetCols)
     }
     upserted += data.length
 
