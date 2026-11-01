@@ -26867,13 +26867,14 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false }
   });
   const pg = src_default(dbUrl, {
-    max: 5,
+    max: 1,
     ssl: process.env.DATABASE_SSL === "false" ? false : "prefer",
     idle_timeout: 60,
     connect_timeout: 15
   });
   await pg`SELECT 1`;
   console.log(green("\u2713 Connected to target PostgreSQL"));
+  await pg.unsafe("SET session_replication_role = 'replica'");
   const { error: hc } = await sb.from("accounts").select("id").limit(1);
   if (hc && hc.message !== "JSON object requested, multiple (or no) rows returned") {
     if (!hc.message?.includes("0 rows") && !hc.message?.includes("Results contain 0")) {

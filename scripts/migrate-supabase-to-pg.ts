@@ -303,8 +303,9 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
+  // max:1 so SET session_replication_role applies to every query on the same connection
   const pg = postgres(dbUrl, {
-    max: 5,
+    max: 1,
     ssl: process.env.DATABASE_SSL === 'false' ? false : 'prefer',
     idle_timeout: 60,
     connect_timeout: 15,
@@ -313,6 +314,10 @@ async function main() {
   // Verify target DB connection
   await pg`SELECT 1`
   console.log(green('✓ Connected to target PostgreSQL'))
+
+  // Disable FK constraint triggers for bulk migration (requires superuser).
+  // session_replication_role = replica suppresses FK checks on this connection.
+  await pg.unsafe("SET session_replication_role = 'replica'")
 
   // Verify Supabase connection
   const { error: hc } = await sb.from('accounts').select('id').limit(1)
