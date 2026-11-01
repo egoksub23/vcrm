@@ -26658,13 +26658,38 @@ function view(known, get2) {
 }
 
 // scripts/migrate-supabase-to-pg.ts
+var import_node_fs = require("node:fs");
 var DRY_RUN = process.argv.includes("--dry-run");
+var RESUME = process.argv.includes("--resume");
 var ONLY_TABLE = (() => {
   const i = process.argv.indexOf("--table");
   return i >= 0 ? process.argv[i + 1] : null;
 })();
 var PAGE_SIZE = 500;
 var MAX_PARAMS = 6e4;
+var CHECKPOINT_FILE = "/tmp/migrate-pg-checkpoint.txt";
+function loadCheckpoint() {
+  if (!RESUME) {
+    try {
+      if ((0, import_node_fs.existsSync)(CHECKPOINT_FILE)) require("node:fs").unlinkSync(CHECKPOINT_FILE);
+    } catch {
+    }
+    return /* @__PURE__ */ new Set();
+  }
+  try {
+    if (!(0, import_node_fs.existsSync)(CHECKPOINT_FILE)) return /* @__PURE__ */ new Set();
+    return new Set((0, import_node_fs.readFileSync)(CHECKPOINT_FILE, "utf8").split("\n").filter(Boolean));
+  } catch {
+    return /* @__PURE__ */ new Set();
+  }
+}
+function markDone(table) {
+  if (DRY_RUN) return;
+  try {
+    (0, import_node_fs.appendFileSync)(CHECKPOINT_FILE, table + "\n");
+  } catch {
+  }
+}
 var SKIP_TABLES = /* @__PURE__ */ new Set([
   "schema_migrations",
   // migration state lives in the target already
@@ -27016,8 +27041,17 @@ async function main() {
   console.log(`Tables to migrate (${tables.length} total, FK-ordered):
   ${tables.join(", ")}
 `);
+  const doneTables = loadCheckpoint();
+  if (RESUME && doneTables.size > 0) {
+    console.log(yellow(`  Resuming \u2014 skipping ${doneTables.size} already-completed table(s)
+`));
+  }
   const summary = [];
   for (const table of tables) {
+    if (RESUME && doneTables.has(table)) {
+      console.log(`${bold(table)}  ${dim("(skipped \u2014 already done)")}`);
+      continue;
+    }
     process.stdout.write(`${bold(table)}  `);
     const start2 = Date.now();
     const result = await migrateTable(sb, pg, table);
@@ -27026,12 +27060,15 @@ async function main() {
     process.stdout.write("\r");
     if (result.errors > 0) {
       console.log(`${bold(table)}  ${red(`${result.errors} error(s)`)} (${result.read} rows read)`);
-    } else if (result.read === 0) {
-      console.log(`${bold(table)}  ${dim("(empty)")}`);
     } else {
-      console.log(
-        `${bold(table)}  ${green(`${result.upserted.toLocaleString()} rows`)}  ${dim(`${ms}ms`)}`
-      );
+      if (result.read === 0) {
+        console.log(`${bold(table)}  ${dim("(empty)")}`);
+      } else {
+        console.log(
+          `${bold(table)}  ${green(`${result.upserted.toLocaleString()} rows`)}  ${dim(`${ms}ms`)}`
+        );
+      }
+      markDone(table);
     }
   }
   const totalRead = summary.reduce((a, r) => a + r.read, 0);

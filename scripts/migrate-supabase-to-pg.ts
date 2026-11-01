@@ -27,7 +27,8 @@ import postgres from 'postgres'
 
 // ---- config ----------------------------------------------------------------
 
-const DRY_RUN = process.argv.includes('--dry-run')
+const DRY_RUN    = process.argv.includes('--dry-run')
+const RESUME     = process.argv.includes('--resume')
 const ONLY_TABLE = (() => {
   const i = process.argv.indexOf('--table')
   return i >= 0 ? process.argv[i + 1] : null
@@ -35,6 +36,29 @@ const ONLY_TABLE = (() => {
 
 const PAGE_SIZE = 500          // rows per Supabase fetch
 const MAX_PARAMS = 60_000      // PostgreSQL max params; we stay under this
+
+// ---- checkpoint (for --resume) ---------------------------------------------
+
+import { existsSync, readFileSync, appendFileSync } from 'node:fs'
+
+const CHECKPOINT_FILE = '/tmp/migrate-pg-checkpoint.txt'
+
+function loadCheckpoint(): Set<string> {
+  if (!RESUME) {
+    // Fresh run — clear any stale checkpoint
+    try { if (existsSync(CHECKPOINT_FILE)) require('node:fs').unlinkSync(CHECKPOINT_FILE) } catch { /* ignore */ }
+    return new Set()
+  }
+  try {
+    if (!existsSync(CHECKPOINT_FILE)) return new Set()
+    return new Set(readFileSync(CHECKPOINT_FILE, 'utf8').split('\n').filter(Boolean))
+  } catch { return new Set() }
+}
+
+function markDone(table: string): void {
+  if (DRY_RUN) return
+  try { appendFileSync(CHECKPOINT_FILE, table + '\n') } catch { /* ignore */ }
+}
 
 // Tables to skip: they don't exist in the target schema or need special handling.
 const SKIP_TABLES = new Set([
@@ -505,9 +529,19 @@ async function main() {
 
   console.log(`Tables to migrate (${tables.length} total, FK-ordered):\n  ${tables.join(', ')}\n`)
 
+  const doneTables = loadCheckpoint()
+  if (RESUME && doneTables.size > 0) {
+    console.log(yellow(`  Resuming — skipping ${doneTables.size} already-completed table(s)\n`))
+  }
+
   const summary: Array<{ table: string; read: number; upserted: number; errors: number }> = []
 
   for (const table of tables) {
+    if (RESUME && doneTables.has(table)) {
+      console.log(`${bold(table)}  ${dim('(skipped — already done)')}`)
+      continue
+    }
+
     process.stdout.write(`${bold(table)}  `)
     const start = Date.now()
     const result = await migrateTable(sb, pg, table)
@@ -517,12 +551,15 @@ async function main() {
     process.stdout.write('\r')
     if (result.errors > 0) {
       console.log(`${bold(table)}  ${red(`${result.errors} error(s)`)} (${result.read} rows read)`)
-    } else if (result.read === 0) {
-      console.log(`${bold(table)}  ${dim('(empty)')}`)
     } else {
-      console.log(
-        `${bold(table)}  ${green(`${result.upserted.toLocaleString()} rows`)}  ${dim(`${ms}ms`)}`,
-      )
+      if (result.read === 0) {
+        console.log(`${bold(table)}  ${dim('(empty)')}`)
+      } else {
+        console.log(
+          `${bold(table)}  ${green(`${result.upserted.toLocaleString()} rows`)}  ${dim(`${ms}ms`)}`,
+        )
+      }
+      markDone(table)  // record as done so --resume can skip it next run
     }
   }
 
