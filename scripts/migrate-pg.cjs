@@ -26796,11 +26796,16 @@ async function getJsonbCols(pg, table) {
 async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /* @__PURE__ */ new Set(), hasJsonbArrayLength = false) {
   if (rows.length === 0) return;
   if (hasJsonbArrayLength) {
+    for (const col of jsonbCols) {
+      const sample = rows[0]?.[col];
+      console.log(dim(`  [coerce-check] ${table}.${col}: typeof=${typeof sample} isArr=${Array.isArray(sample)} val=${JSON.stringify(sample)?.slice(0, 60)}`));
+    }
     rows = rows.map((row) => {
       const r = { ...row };
       for (const col of jsonbCols) {
         const val = r[col];
         if (val !== null && val !== void 0 && !Array.isArray(val) && typeof val !== "object") {
+          console.log(dim(`  [coerce] ${table}.${col} scalar \u2192 []`));
           r[col] = [];
         }
       }
@@ -26829,10 +26834,27 @@ async function upsertBatch(pg, table, rows, pkCols, jsonbCols, generatedCols = /
       const conflictCols = pkCols.map(ident).join(", ");
       const updateSet = cols.filter((c2) => !pkCols.includes(c2)).map((c2) => `${ident(c2)} = EXCLUDED.${ident(c2)}`).join(", ");
       const onConflict = updateSet ? `ON CONFLICT (${conflictCols}) DO UPDATE SET ${updateSet}` : `ON CONFLICT (${conflictCols}) DO NOTHING`;
-      await pg.unsafe(
-        `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ${onConflict}`,
-        params
-      );
+      try {
+        await pg.unsafe(
+          `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ${onConflict}`,
+          params
+        );
+      } catch (e) {
+        const msg = String(e);
+        if (msg.includes("array length") || msg.includes("scalar")) {
+          console.error(red(`  [insert-err] ${table} cols=[${colList}]`));
+          console.error(red(`  [insert-err] error=${msg}`));
+          for (const row of batch) {
+            for (const col of cols) {
+              if (jsonbCols.has(col)) {
+                const v = row[col];
+                console.error(red(`  [insert-err] ${col}: typeof=${typeof v} isArr=${Array.isArray(v)} val=${JSON.stringify(v)?.slice(0, 80)}`));
+              }
+            }
+          }
+        }
+        throw e;
+      }
     } else {
       await pg.unsafe(
         `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ON CONFLICT DO NOTHING`,
@@ -26845,6 +26867,9 @@ async function migrateTable(sb, pg, table) {
   const pkCols = await getPrimaryKeys(pg, table);
   const jsonbCols = await getJsonbCols(pg, table);
   const { cols: generatedCols, hasJsonbArrayLength } = await getGeneratedCols(pg, table);
+  if (hasJsonbArrayLength) {
+    console.log(dim(`  [gen] ${table}: generatedCols=[${[...generatedCols]}] jsonbCols=[${[...jsonbCols]}] hasJAL=true`));
+  }
   if (!DRY_RUN) {
     await pg.unsafe(`DELETE FROM public.${ident(table)}`);
   }

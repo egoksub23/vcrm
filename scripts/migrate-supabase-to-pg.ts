@@ -206,11 +206,16 @@ async function upsertBatch(
   // throw "cannot get array length of a scalar" when computing the generated column.
   // Coerce all scalar JSONB values to [] so the generated expression returns 0.
   if (hasJsonbArrayLength) {
+    for (const col of jsonbCols) {
+      const sample = rows[0]?.[col]
+      console.log(dim(`  [coerce-check] ${table}.${col}: typeof=${typeof sample} isArr=${Array.isArray(sample)} val=${JSON.stringify(sample)?.slice(0, 60)}`))
+    }
     rows = rows.map(row => {
       const r = { ...row }
       for (const col of jsonbCols) {
         const val = r[col]
         if (val !== null && val !== undefined && !Array.isArray(val) && typeof val !== 'object') {
+          console.log(dim(`  [coerce] ${table}.${col} scalar → []`))
           r[col] = []
         }
       }
@@ -253,11 +258,28 @@ async function upsertBatch(
         ? `ON CONFLICT (${conflictCols}) DO UPDATE SET ${updateSet}`
         : `ON CONFLICT (${conflictCols}) DO NOTHING`
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await pg.unsafe(
-        `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ${onConflict}`,
-        params as any[],
-      )
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await pg.unsafe(
+          `INSERT INTO public.${ident(table)} (${colList}) VALUES ${valuePlaceholders} ${onConflict}`,
+          params as any[],
+        )
+      } catch (e: unknown) {
+        const msg = String(e)
+        if (msg.includes('array length') || msg.includes('scalar')) {
+          console.error(red(`  [insert-err] ${table} cols=[${colList}]`))
+          console.error(red(`  [insert-err] error=${msg}`))
+          for (const row of batch) {
+            for (const col of cols) {
+              if (jsonbCols.has(col)) {
+                const v = row[col]
+                console.error(red(`  [insert-err] ${col}: typeof=${typeof v} isArr=${Array.isArray(v)} val=${JSON.stringify(v)?.slice(0,80)}`))
+              }
+            }
+          }
+        }
+        throw e
+      }
     } else {
       // No PK: blind insert, skip duplicates
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -280,6 +302,10 @@ async function migrateTable(
   const pkCols = await getPrimaryKeys(pg, table)
   const jsonbCols = await getJsonbCols(pg, table)
   const { cols: generatedCols, hasJsonbArrayLength } = await getGeneratedCols(pg, table)
+
+  if (hasJsonbArrayLength) {
+    console.log(dim(`  [gen] ${table}: generatedCols=[${[...generatedCols]}] jsonbCols=[${[...jsonbCols]}] hasJAL=true`))
+  }
 
   // Clear any rows seeded by migration SQL files so Supabase data wins.
   // FK checks are already disabled via session_replication_role=replica.
