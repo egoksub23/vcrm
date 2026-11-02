@@ -38,7 +38,7 @@ vi.mock('@/lib/storage/provider', () => {
     download: async (path: string) => {
       const b = files.get(path)
       if (!b) return { data: null, error: { message: 'Object not found' } }
-      return { data: new Blob([b]), error: null }
+      return { data: new Blob([b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer]), error: null }
     },
     copy: async (from: string, to: string) => {
       const b = files.get(from)
