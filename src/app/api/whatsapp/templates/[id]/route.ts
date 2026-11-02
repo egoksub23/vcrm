@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { auth } from '@/auth'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   deleteMessageTemplate,
@@ -61,31 +59,13 @@ export async function PATCH(
     // Editing or deleting a template calls Meta before the RLS-gated
     // write, so `channels.manage` (admins by default) is checked first.
     // RLS on the table enforces the same rule for the database write.
+    let ctx: CapabilityContext
     try {
-      await requireCapability('channels.manage')
+      ctx = await requireCapability('channels.manage')
     } catch (err) {
       return toErrorResponse(err)
     }
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const supabase = await createClient()
-
-    // Resolve the caller's account_id so template + whatsapp_config
-    // lookups work for teammates who didn't author the row.
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('account_id')
-      .eq('user_id', session.user.id)
-      .maybeSingle()
-    const accountId = profile?.account_id as string | undefined
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
-    }
+    const { accountId, supabase } = ctx
 
     let payload: TemplatePayload
     try {
@@ -253,32 +233,13 @@ export async function DELETE(
     // Editing or deleting a template calls Meta before the RLS-gated
     // write, so `channels.manage` (admins by default) is checked first.
     // RLS on the table enforces the same rule for the database write.
+    let ctx: CapabilityContext
     try {
-      await requireCapability('channels.manage')
+      ctx = await requireCapability('channels.manage')
     } catch (err) {
       return toErrorResponse(err)
     }
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const supabase = await createClient()
-
-    // Same account-scoping rationale as the PATCH handler above —
-    // teammates need to be able to operate on shared templates +
-    // the shared whatsapp_config.
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('account_id')
-      .eq('user_id', session.user.id)
-      .maybeSingle()
-    const accountId = profile?.account_id as string | undefined
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
-    }
+    const { accountId, supabase } = ctx
 
     const { data: existing, error: lookupErr } = await supabase
       .from('message_templates')

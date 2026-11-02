@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { auth } from '@/auth'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse, getCurrentAccount, UnauthorizedError, type CapabilityContext } from '@/lib/auth/account'
 import { createAdminPgDb } from '@/lib/postgres/db'
 import {
   getSubscribedApps,
@@ -23,29 +21,6 @@ import {
   phoneNumberBelongsToWaba,
 } from '@/lib/whatsapp/waba-pairing'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
-
-/**
- * Resolve the caller's account_id from their profile. Inlined here
- * (rather than going through `@/lib/auth/account.getCurrentAccount`)
- * because the GET handler wants to return shaped 200s for every
- * non-auth failure mode, not throw — keeping the helper minimal lets
- * the existing response branches stay as-is.
- *
- * Returns null if the user has no profile or no account; callers
- * should treat that the same as "not connected".
- */
-async function resolveAccountId(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('account_id')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (error || !data?.account_id) return null
-  return data.account_id as string
-}
 
 /**
  * Shape every failed Meta call into `{ error, meta }` — the actionable
@@ -83,23 +58,19 @@ function metaFailure(err: unknown, step: MetaConnectStep, ctx: MetaErrorContext)
  */
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const supabase = await createClient()
-
-    const accountId = await resolveAccountId(supabase, session.user.id)
-    if (!accountId) {
+    let _ctx: Awaited<ReturnType<typeof getCurrentAccount>>
+    try {
+      _ctx = await getCurrentAccount()
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
       return NextResponse.json(
-        {
-          connected: false,
-          reason: 'no_account',
-          message: 'Your profile is not linked to an account.',
-        },
+        { connected: false, reason: 'no_account', message: 'Your profile is not linked to an account.' },
         { status: 200 },
       )
     }
+    const { accountId, supabase } = _ctx
 
     const { data: config, error: configError } = await supabase
       .from('whatsapp_config')
@@ -231,24 +202,13 @@ export async function POST(request: Request) {
     // Writing channel settings needs `channels.manage` (admins by default),
     // checked BEFORE anything is sent to Meta. RLS on the table enforces the
     // same rule for the database write.
+    let ctx: CapabilityContext
     try {
-      await requireCapability('channels.manage')
+      ctx = await requireCapability('channels.manage')
     } catch (err) {
       return toErrorResponse(err)
     }
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const supabase = await createClient()
-
-    const accountId = await resolveAccountId(supabase, session.user.id)
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
-    }
+    const { accountId, userId, supabase } = ctx
 
     const body = await request.json()
     const { phone_number_id, waba_id, access_token, verify_token, pin } = body
@@ -513,7 +473,7 @@ export async function POST(request: Request) {
         .from('whatsapp_config')
         .insert({
           account_id: accountId,
-          user_id: session.user.id,
+          user_id: userId,
           ...baseRow,
         })
 
@@ -570,24 +530,13 @@ export async function DELETE() {
     // Writing channel settings needs `channels.manage` (admins by default),
     // checked BEFORE anything is sent to Meta. RLS on the table enforces the
     // same rule for the database write.
+    let ctx: CapabilityContext
     try {
-      await requireCapability('channels.manage')
+      ctx = await requireCapability('channels.manage')
     } catch (err) {
       return toErrorResponse(err)
     }
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const supabase = await createClient()
-
-    const accountId = await resolveAccountId(supabase, session.user.id)
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
-    }
+    const { accountId, supabase } = ctx
 
     const { error: deleteError } = await supabase
       .from('whatsapp_config')
@@ -617,24 +566,13 @@ export async function DELETE() {
  */
 export async function PATCH(request: Request) {
   try {
+    let ctx: CapabilityContext
     try {
-      await requireCapability('channels.manage')
+      ctx = await requireCapability('channels.manage')
     } catch (err) {
       return toErrorResponse(err)
     }
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const supabase = await createClient()
-
-    const accountId = await resolveAccountId(supabase, session.user.id)
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
-    }
+    const { accountId, supabase } = ctx
 
     const body = await request.json().catch(() => ({}))
     if (typeof body.enabled !== 'boolean') {

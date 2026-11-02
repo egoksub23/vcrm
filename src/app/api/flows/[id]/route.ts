@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { auth } from '@/auth'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
-import { createAdminPgDb } from '@/lib/postgres/db'
+import { createAdminPgDb, createPgDb, type PgDb } from '@/lib/postgres/db'
 
 /**
  * GET   /api/flows/[id]  — fetch one flow with its nodes.
@@ -22,18 +21,14 @@ import { createAdminPgDb } from '@/lib/postgres/db'
 async function requireOwnership(
   flowId: string,
 ): Promise<
-  | {
-      ok: true
-      userId: string
-      supabase: Awaited<ReturnType<typeof createClient>>
-    }
+  | { ok: true; userId: string; supabase: PgDb }
   | { ok: false; status: number; body: { error: string } }
 > {
   const session = await auth()
   if (!session?.user?.id) {
     return { ok: false, status: 401, body: { error: 'Unauthorized' } }
   }
-  const supabase = await createClient()
+  const supabase = createPgDb(session.user.id)
   // RLS scopes this to the caller — a flow owned by another user
   // returns null (404 below).
   const { data: flow } = await supabase

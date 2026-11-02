@@ -8,7 +8,6 @@
 
 import { auth } from "@/auth";
 import { ForbiddenError, UnauthorizedError } from "@/lib/auth/account";
-import { createClient } from "@/lib/supabase/server";
 import { createPgDb, type PgDb } from "@/lib/postgres/db";
 
 export interface PlatformContext {
@@ -21,10 +20,8 @@ export async function requirePlatformAdmin(): Promise<PlatformContext> {
   const session = await auth();
   if (!session?.user?.id) throw new UnauthorizedError();
 
-  // Use Supabase SSR client only for the is_platform_admin() check (RLS-dependent RPC).
-  const supabase = await createClient();
   const { data: isAdmin, error: rpcError } =
-    await supabase.rpc("is_platform_admin");
+    await createPgDb(session.user.id).rpc("is_platform_admin");
   if (rpcError) {
     console.error(
       "[requirePlatformAdmin] is_platform_admin failed:",

@@ -26,7 +26,7 @@ import {
   RATE_LIMITS,
 } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/net/client-ip";
-import { createClient } from "@/lib/supabase/server";
+import { createPgDb } from "@/lib/postgres/db";
 import { auth } from "@/auth";
 
 function rpcErrorToResponse(err: { message: string; code?: string | null }): NextResponse {
@@ -70,7 +70,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  const supabase = createPgDb(session.user.id);
 
   const { data: accountId, error } = await supabase.rpc("redeem_invitation", {
     p_token_hash: hashInviteToken(token),

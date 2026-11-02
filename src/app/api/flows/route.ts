@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { auth } from '@/auth'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { createAdminPgDb } from '@/lib/postgres/db'
 import { getFlowTemplate } from '@/lib/flows/templates'
 
@@ -14,18 +12,6 @@ import { getFlowTemplate } from '@/lib/flows/templates'
  * shows a "Beta" label so users know the surface is young, but the
  * routes themselves are open.
  */
-
-async function requireUser(): Promise<
-  | { ok: true; userId: string; supabase: Awaited<ReturnType<typeof createClient>> }
-  | { ok: false; status: number; body: { error: string } }
-> {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return { ok: false, status: 401, body: { error: 'Unauthorized' } }
-  }
-  const supabase = await createClient()
-  return { ok: true, userId: session.user.id, supabase }
-}
 
 export async function GET() {
   // Listing flows is a read of the Flows menu: `menu.flows` (every role
@@ -51,33 +37,13 @@ export async function POST(request: Request) {
   // Creating a flow is a write — the RLS flows_insert policy requires
   // `agent`, but this route inserts via the service-role client which
   // bypasses RLS, so the role must be enforced here.
+  let ctx: CapabilityContext
   try {
-    await requireCapability('flows.manage')
+    ctx = await requireCapability('flows.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
-
-  const guard = await requireUser()
-  if (!guard.ok) {
-    return NextResponse.json(guard.body, { status: guard.status })
-  }
-  const { userId, supabase } = guard
-
-  // Resolve the caller's account_id — `flows.account_id` is NOT NULL
-  // post-017, so an INSERT without it trips the not-null constraint
-  // even though the admin client below bypasses RLS.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('account_id')
-    .eq('user_id', userId)
-    .single()
-  const accountId = profile?.account_id as string | undefined
-  if (!accountId) {
-    return NextResponse.json(
-      { error: 'Your profile is not linked to an account.' },
-      { status: 403 },
-    )
-  }
+  const { userId, accountId } = ctx
 
   const body = (await request.json().catch(() => null)) as
     | {

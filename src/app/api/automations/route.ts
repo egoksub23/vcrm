@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { auth as nextAuth } from '@/auth'
 import { assertCapability, requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { createAdminPgDb } from '@/lib/postgres/db'
 import { getTemplate } from '@/lib/automations/templates'
@@ -41,25 +39,7 @@ export async function POST(request: Request) {
     return toErrorResponse(err)
   }
 
-  const session = await nextAuth()
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const supabase = await createClient()
-
-  // Resolve the caller's account_id — `automations.account_id` is NOT
-  // NULL post-017, so an INSERT without it trips the not-null constraint
-  // even though the admin client bypasses RLS.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('account_id')
-    .eq('user_id', session.user.id)
-    .single()
-  const accountId = profile?.account_id as string | undefined
-  if (!accountId) {
-    return NextResponse.json(
-      { error: 'Your profile is not linked to an account.' },
-      { status: 403 },
-    )
-  }
+  const { accountId, userId } = ctx
 
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
@@ -126,7 +106,7 @@ export async function POST(request: Request) {
   const { data: automation, error: insertErr } = await admin
     .from('automations')
     .insert({
-      user_id: session.user.id,
+      user_id: userId,
       account_id: accountId,
       name: effectiveName,
       description: effectiveDescription ?? null,

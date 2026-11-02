@@ -30,7 +30,7 @@ import {
   RATE_LIMITS,
 } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/net/client-ip";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminPgDb } from "@/lib/postgres/db";
 
 export async function GET(
   request: Request,
@@ -50,7 +50,7 @@ export async function GET(
     );
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminPgDb();
   const { data, error } = await supabase.rpc("peek_invitation", {
     p_token_hash: hashInviteToken(token),
   });

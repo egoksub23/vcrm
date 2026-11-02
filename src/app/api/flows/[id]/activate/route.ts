@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { auth } from '@/auth'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { createAdminPgDb } from '@/lib/postgres/db'
 import { validateFlowForActivation } from '@/lib/flows/validate'
 
@@ -29,17 +27,13 @@ export async function POST(
   // flows_update policy requires `agent`, but the service-role client
   // below bypasses RLS, so enforce the role here (a viewer passes the
   // membership-only ownership check).
+  let ctx: CapabilityContext
   try {
-    await requireCapability('flows.manage')
+    ctx = await requireCapability('flows.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
-
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  const supabase = await createClient()
+  const { supabase } = ctx
 
   const body = (await request.json().catch(() => null)) as
     | { status?: 'draft' | 'active' | 'archived' }

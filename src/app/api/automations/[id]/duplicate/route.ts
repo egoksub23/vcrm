@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { auth } from '@/auth'
 import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { createAdminPgDb } from '@/lib/postgres/db'
@@ -21,7 +20,6 @@ export async function POST(
 
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const supabase = await createClient()
 
   const admin = createAdminPgDb()
   const { data: original, error: origErr } = await admin

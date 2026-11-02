@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { auth } from '@/auth'
-import { requireCapability, toErrorResponse } from '@/lib/auth/account'
+import { requireCapability, toErrorResponse, type CapabilityContext } from '@/lib/auth/account'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   getSubscribedApps,
@@ -33,29 +31,14 @@ import {
 export async function GET() {
   // Diagnostic that calls Meta with the stored token: `channels.manage`
   // (admins by default), checked before any Meta call.
+  let ctx: CapabilityContext
   try {
-    await requireCapability('channels.manage')
+    ctx = await requireCapability('channels.manage')
   } catch (err) {
     return toErrorResponse(err)
   }
+  const { accountId, supabase } = ctx
 
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  const userId = session.user.id
-
-  const supabase = await createClient()
-
-  // whatsapp_config is one-row-per-account post-017. Resolve the
-  // caller's account_id so a teammate who joined an existing account
-  // sees the same registration state as the admin who set it up.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('account_id')
-    .eq('user_id', userId)
-    .maybeSingle()
-  const accountId = profile?.account_id as string | undefined
   if (!accountId) {
     return NextResponse.json({
       live: false,
