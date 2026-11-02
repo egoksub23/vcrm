@@ -72,7 +72,9 @@ export async function GET(request: Request) {
     const response = NextResponse.redirect(`${base}${next}`);
     const cookie = await signRecoveryCookie(userId);
     const secure = process.env.NODE_ENV === "production";
-    response.cookies.set("sb-access-token", cookie, {
+    // Use a dedicated cookie name so middleware never overwrites/deletes it
+    // while the user types their new password on /reset-password.
+    response.cookies.set("pw_reset", cookie, {
       httpOnly: false,
       secure,
       sameSite: "lax",

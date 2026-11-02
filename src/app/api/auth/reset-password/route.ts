@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const cookieHeader = request.headers.get("cookie") ?? "";
-    const m = cookieHeader.match(/(?:^|;\s*)sb-access-token=([^;]+)/);
+    const m = cookieHeader.match(/(?:^|;\s*)pw_reset=([^;]+)/);
     const token = m ? decodeURIComponent(m[1]) : null;
 
     if (!token) {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     }
 
     const response = NextResponse.json({ success: true });
-    response.cookies.delete("sb-access-token");
+    response.cookies.delete("pw_reset");
     return response;
   } catch {
     return NextResponse.json(

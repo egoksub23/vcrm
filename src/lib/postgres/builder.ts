@@ -294,6 +294,11 @@ export class PgQueryBuilder<T = any> {
   overlaps(col: string, val: unknown): this { return this._w({ k: 'array_op', col, op: '&&', val }) }
 
   not(col: string, op: string, val: unknown): this {
+    // IS NULL/TRUE/FALSE cannot be parameterized — generate literals like .is() does.
+    if (op === 'is') {
+      if (val === null) return this._w({ k: 'no_val', col, expr: `${ident(col)} IS NOT NULL` })
+      return this._w({ k: 'no_val', col, expr: `${ident(col)} IS NOT ${val ? 'TRUE' : 'FALSE'}` })
+    }
     this._wheres.push({ k: 'simple', col, op: `NOT ${mapOp(op)}`, val })
     return this
   }
