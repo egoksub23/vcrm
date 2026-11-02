@@ -5,14 +5,16 @@ const h = vi.hoisted(() => ({
   conversations: [] as { id: string }[],
   conversationError: false,
   findByWallet: vi.fn(),
-  httpSend: vi.fn(),
-  removeChannel: vi.fn(),
-  channelNames: [] as string[],
+  broadcastTyping: vi.fn(),
   filters: [] as [string, unknown][],
 }))
 
 vi.mock('@/lib/widget/identity-resolve', () => ({
   createSupabaseIdentityStore: () => ({ findByWallet: (...a: unknown[]) => h.findByWallet(...a) }),
+}))
+
+vi.mock('./typing-broadcaster', () => ({
+  broadcastTyping: (...a: unknown[]) => h.broadcastTyping(...a),
 }))
 
 import type { TypingEvent } from './contract'
@@ -29,11 +31,6 @@ const admin = {
     }
     return b
   },
-  channel: (name: string) => {
-    h.channelNames.push(name)
-    return { httpSend: (...a: unknown[]) => h.httpSend(...a) }
-  },
-  removeChannel: (...a: unknown[]) => h.removeChannel(...a),
 }
 
 const ev: TypingEvent = { kind: 'user.typing', eventId: 'evt_t', workspaceKey: 'vcw_x', walletId: 'W123', conversationId: 'c_1' }
@@ -42,32 +39,21 @@ beforeEach(() => {
   h.contact = { id: 'ct-1' }
   h.conversations = [{ id: 'cv-1' }]
   h.conversationError = false
-  h.channelNames = []
   h.filters = []
   h.findByWallet.mockReset()
   h.findByWallet.mockImplementation(async () => h.contact)
-  h.httpSend.mockReset()
-  h.httpSend.mockResolvedValue({ success: true })
-  h.removeChannel.mockReset()
-  h.removeChannel.mockResolvedValue('ok')
+  h.broadcastTyping.mockReset()
 })
 
 describe('broadcastUserTyping', () => {
-  it('finds the contact by wallet id and broadcasts on vircle-typing:<haloConversationId> with the event and a timestamp', async () => {
+  it('finds the contact by wallet id and broadcasts on the correct conversationId with a timestamp', async () => {
     const r = await broadcastUserTyping(admin as never, 'acct-1', ev)
     expect(r).toEqual({ status: 'broadcast', conversationId: 'cv-1' })
     expect(h.findByWallet).toHaveBeenCalledWith('acct-1', 'W123')
     expect(h.filters).toEqual([['account_id', 'acct-1'], ['contact_id', 'ct-1']])
-    expect(h.channelNames).toEqual(['vircle-typing:cv-1'])
-    expect(h.httpSend).toHaveBeenCalledTimes(1)
-    expect(h.httpSend.mock.calls[0][0]).toBe('typing')
-    expect(Date.parse(h.httpSend.mock.calls[0][1].at)).not.toBeNaN()
-  })
-
-  it('removes the channel it opened, even when the broadcast fails (and rethrows for the caller to log)', async () => {
-    h.httpSend.mockRejectedValueOnce(new Error('realtime down'))
-    await expect(broadcastUserTyping(admin as never, 'acct-1', ev)).rejects.toThrow('realtime down')
-    expect(h.removeChannel).toHaveBeenCalledTimes(1)
+    expect(h.broadcastTyping).toHaveBeenCalledTimes(1)
+    expect(h.broadcastTyping.mock.calls[0][0]).toBe('cv-1')
+    expect(Date.parse(h.broadcastTyping.mock.calls[0][1].at)).not.toBeNaN()
   })
 
   it('does nothing for a user Halo has not seen, or one with no conversation yet', async () => {
@@ -76,7 +62,7 @@ describe('broadcastUserTyping', () => {
     h.contact = { id: 'ct-1' }
     h.conversations = []
     expect(await broadcastUserTyping(admin as never, 'acct-1', ev)).toEqual({ status: 'unknown_user' })
-    expect(h.httpSend).not.toHaveBeenCalled()
+    expect(h.broadcastTyping).not.toHaveBeenCalled()
   })
 
   it('throws when the conversation lookup fails', async () => {
@@ -86,7 +72,7 @@ describe('broadcastUserTyping', () => {
 })
 
 describe('typing channel constants', () => {
-  it('names the channel and event the Inbox listens on', () => {
+  it('names the channel and event correctly', () => {
     expect(typingChannelName('cv-9')).toBe('vircle-typing:cv-9')
     expect(TYPING_EVENT).toBe('typing')
     expect(TYPING_DISPLAY_MS).toBe(6000)
