@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
+import { getPool } from "@/lib/postgres/client";
 
-// Authenticated route: verifies current password then updates to new password.
-// The client sends { current, next }; we verify against GoTrue then update.
+// Authenticated route: verifies current password via bcrypt then updates.
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -10,43 +11,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { current, next } = await request.json() as { current?: string; next?: string };
+    const { current, next } = (await request.json()) as {
+      current?: string;
+      next?: string;
+    };
     if (!current || !next) {
-      return NextResponse.json({ error: "current and next passwords required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "current and next passwords required" },
+        { status: 400 },
+      );
     }
 
-    const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const sql = getPool();
 
-    // Verify the current password by attempting a sign-in.
-    const verifyRes = await fetch(`${base}/auth/v1/token?grant_type=password`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      },
-      body: JSON.stringify({ email: session.user.email, password: current }),
-    });
-    if (!verifyRes.ok) {
-      return NextResponse.json({ error: "currentPasswordIncorrect" }, { status: 401 });
+    // Fetch the current bcrypt hash.
+    const rows = await sql`
+      SELECT encrypted_password FROM auth.users
+       WHERE id         = ${session.user.id}
+         AND deleted_at IS NULL
+       LIMIT 1
+    ` as unknown as Array<{ encrypted_password: string | null }>;
+
+    const encryptedPassword = rows[0]?.encrypted_password;
+    if (!encryptedPassword) {
+      return NextResponse.json(
+        { error: "currentPasswordIncorrect" },
+        { status: 401 },
+      );
     }
 
-    // Update to new password via admin API.
-    const updateRes = await fetch(`${base}/auth/v1/admin/users/${session.user.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-      },
-      body: JSON.stringify({ password: next }),
-    });
-    if (!updateRes.ok) {
-      const body = await updateRes.json().catch(() => ({})) as { message?: string };
-      return NextResponse.json({ error: body.message ?? "Failed to update password" }, { status: 400 });
+    const match = await bcrypt.compare(current, encryptedPassword);
+    if (!match) {
+      return NextResponse.json(
+        { error: "currentPasswordIncorrect" },
+        { status: 401 },
+      );
     }
+
+    const newHash = await bcrypt.hash(next, 10);
+    await sql`
+      UPDATE auth.users
+         SET encrypted_password = ${newHash},
+             updated_at         = NOW()
+       WHERE id = ${session.user.id}
+    `;
 
     return NextResponse.json({ success: true });
   } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

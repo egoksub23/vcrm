@@ -21,8 +21,9 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { SignJWT } from "jose";
+import bcrypt from "bcryptjs";
 
-import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { getPool } from "@/lib/postgres/client";
 
 // ── Supabase-compatible JWT ──────────────────────────────────
 // PostgREST validates JWTs with SUPABASE_JWT_SECRET and reads auth.uid()
@@ -46,71 +47,78 @@ async function makeSupabaseJwt(userId: string, email: string): Promise<string> {
     .sign(SUPABASE_JWT_SECRET);
 }
 
-// ── Credentials: delegate to Supabase GoTrue for Phase 1 ────
-// In Phase 2 (self-hosted PG cutover) this will switch to bcrypt
-// against auth.users.password_hash, eliminating the GoTrue call.
+// ── Credentials: bcrypt against auth.users.encrypted_password ───────────────
 
 async function verifyCredentials(
   email: string,
   password: string,
 ): Promise<{ id: string; email: string; name: string } | null> {
-  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token?grant_type=password`;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      user: { id: string; email: string; user_metadata?: { full_name?: string } };
-    };
+    const sql = getPool();
+    const rows = await sql`
+      SELECT id, email, encrypted_password, raw_user_meta_data
+        FROM auth.users
+       WHERE email             = ${email}
+         AND deleted_at        IS NULL
+         AND email_confirmed_at IS NOT NULL
+         AND is_sso_user       = false
+    ` as unknown as Array<{
+      id: string;
+      email: string;
+      encrypted_password: string | null;
+      raw_user_meta_data: Record<string, unknown> | null;
+    }>;
+    if (rows.length === 0) return null;
+    const user = rows[0];
+    if (!user.encrypted_password) return null; // OAuth-only account
+    const match = await bcrypt.compare(password, user.encrypted_password);
+    if (!match) return null;
     return {
-      id: data.user.id,
-      email: data.user.email,
-      name: data.user.user_metadata?.full_name ?? "",
+      id: user.id,
+      email: user.email,
+      name: (user.raw_user_meta_data?.full_name as string | undefined) ?? "",
     };
   } catch {
     return null;
   }
 }
 
-// ── OAuth: find or create the user in auth.users ─────────────
+// ── OAuth: find or create the user in auth.users directly ────────────────────
+
 async function findOrCreateOAuthUser(
   email: string,
   name: string,
 ): Promise<string> {
-  // Look up the user via GoTrue admin REST API (supabase-js v2 has no getUserByEmail).
-  const adminRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
-    {
-      headers: {
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-      },
-    },
-  );
-  const { users } = (await adminRes.json()) as {
-    users?: Array<{ id: string; email: string }>;
-  };
-  const existing = users?.find(
-    (u) => u.email?.toLowerCase() === email.toLowerCase(),
-  );
-  if (existing) return existing.id;
+  const sql = getPool();
 
-  // New OAuth user — create in auth.users so the profiles trigger fires.
-  const { data: created, error } =
-    await supabaseAdmin().auth.admin.createUser({
-      email,
-      user_metadata: { full_name: name },
-      email_confirm: true,
-    });
-  if (error || !created?.user)
-    throw new Error(`OAuth user creation failed: ${error?.message}`);
-  return created.user.id;
+  // Find by exact email (case-insensitive via citext or LOWER).
+  const existing = await sql`
+    SELECT id FROM auth.users
+     WHERE LOWER(email) = LOWER(${email})
+       AND deleted_at IS NULL
+     LIMIT 1
+  ` as unknown as Array<{ id: string }>;
+  if (existing.length > 0) return existing[0].id;
+
+  // New OAuth user — INSERT directly so handle_new_user trigger fires and
+  // builds the profile + account exactly as it did via GoTrue.
+  const metaJson = JSON.stringify({ full_name: name });
+  const created = await sql`
+    INSERT INTO auth.users (
+      id, instance_id, aud, role, email,
+      email_confirmed_at, raw_user_meta_data, raw_app_meta_data,
+      created_at, updated_at, is_anonymous, is_sso_user
+    ) VALUES (
+      gen_random_uuid(),
+      '00000000-0000-0000-0000-000000000000',
+      'authenticated', 'authenticated', ${email},
+      NOW(), ${metaJson}::jsonb, '{}'::jsonb,
+      NOW(), NOW(), false, false
+    )
+    RETURNING id
+  ` as unknown as Array<{ id: string }>;
+  if (created.length === 0) throw new Error("OAuth user creation failed");
+  return created[0].id;
 }
 
 // ── Auth.js config ───────────────────────────────────────────

@@ -1,80 +1,95 @@
-// ============================================================
 // /auth/confirm
 //
-//   GET ?token_hash=...&type=recovery|invite|magiclink|email&next=/path
+//   GET ?token_hash=...&type=recovery|signup&next=/path
 //
-// Server-side OTP confirmation for links that carry a Supabase
-// `token_hash` rather than a PKCE `code` — the platform operator's
-// "set your password" email for a newly created customer workspace
-// (src/app/api/platform/accounts/route.ts builds the link from
-// `auth.admin.generateLink`). Verifying here writes the session cookies
-// on the server, so it works in any browser and does not depend on
-// Supabase redirecting back with a URL fragment.
+// Replaces GoTrue's OTP verification (supabase.auth.verifyOtp) with our own
+// token mechanism that stores hashes directly in auth.users:
 //
-// `next` is restricted to a same-origin relative path so this cannot be
-// used as an open redirect.
-// ============================================================
-import { NextResponse } from 'next/server'
-import type { EmailOtpType } from '@supabase/supabase-js'
+//   • type=recovery  — password reset initiated by /api/auth/forgot-password
+//                      or by /api/platform/accounts (tenant onboarding).
+//                      Verifies the one-time hash, then sets sb-access-token
+//                      to a signed JWT so /reset-password can identify the user.
+//
+//   • type=signup    — email confirmation for self-signed-up users.
+//                      Verifies the confirmation token and marks
+//                      email_confirmed_at, then redirects to `next`.
+//
+// `next` is restricted to a same-origin relative path to prevent open redirects.
 
-import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from "next/server";
+import {
+  verifyAndConsumeRecoveryToken,
+  verifyAndConsumeConfirmationToken,
+  signRecoveryCookie,
+} from "@/lib/auth/tokens";
 
-const OTP_TYPES: readonly EmailOtpType[] = ['recovery', 'invite', 'magiclink', 'email', 'signup']
+const SUPPORTED_TYPES = new Set(["recovery", "signup"]);
 
 function safeNextPath(raw: string | null): string {
-  if (raw && /^\/(?!\/)/.test(raw)) return raw
-  return '/dashboard'
+  if (raw && /^\/(?!\/)/.test(raw)) return raw;
+  return "/dashboard";
 }
 
-/** Same public-origin resolution as /auth/callback (behind a reverse proxy
- *  `request.url`'s own origin can be the internal address). */
 function getBaseUrl(request: Request): string {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim()
-  if (explicit) return explicit.replace(/\/+$/, '')
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
 
-  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
-  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
-  if (forwardedHost) return `${forwardedProto || 'https'}://${forwardedHost}`
+  const forwardedHost = request.headers
+    .get("x-forwarded-host")
+    ?.split(",")[0]
+    ?.trim();
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim();
+  if (forwardedHost) return `${forwardedProto || "https"}://${forwardedHost}`;
 
-  const host = request.headers.get('host')?.trim()
+  const host = request.headers.get("host")?.trim();
   if (host) {
-    const reqProto = new URL(request.url).protocol.replace(':', '')
-    return `${reqProto}://${host}`
+    const reqProto = new URL(request.url).protocol.replace(":", "");
+    return `${reqProto}://${host}`;
   }
 
-  return new URL(request.url).origin
+  return new URL(request.url).origin;
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const tokenHash = searchParams.get('token_hash')
-  const type = searchParams.get('type') as EmailOtpType | null
-  const next = safeNextPath(searchParams.get('next'))
-  const base = getBaseUrl(request)
+  const { searchParams } = new URL(request.url);
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type");
+  const next = safeNextPath(searchParams.get("next"));
+  const base = getBaseUrl(request);
 
-  if (tokenHash && type && OTP_TYPES.includes(type)) {
-    const supabase = await createClient()
-    const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash })
-    if (!error) {
-      const response = NextResponse.redirect(`${base}${next}`)
-      // For recovery (password reset), set the GoTrue access token as
-      // sb-access-token so /reset-password can detect the session and
-      // /api/auth/reset-password can verify+use it. Non-HTTP-only so the
-      // page can check cookie presence client-side.
-      if (type === 'recovery' && data.session?.access_token) {
-        const secure = process.env.NODE_ENV === 'production'
-        response.cookies.set('sb-access-token', data.session.access_token, {
-          httpOnly: false,
-          secure,
-          sameSite: 'lax',
-          maxAge: 60 * 60,
-          path: '/',
-        })
-      }
-      return response
-    }
-    console.error('[GET /auth/confirm] verifyOtp error:', error.message)
+  if (!tokenHash || !type || !SUPPORTED_TYPES.has(type)) {
+    return NextResponse.redirect(`${base}/login?error=link_expired`);
   }
 
-  return NextResponse.redirect(`${base}/login?error=link_expired`)
+  if (type === "recovery") {
+    const userId = await verifyAndConsumeRecoveryToken(tokenHash);
+    if (!userId) {
+      return NextResponse.redirect(`${base}/login?error=link_expired`);
+    }
+
+    const response = NextResponse.redirect(`${base}${next}`);
+    const cookie = await signRecoveryCookie(userId);
+    const secure = process.env.NODE_ENV === "production";
+    response.cookies.set("sb-access-token", cookie, {
+      httpOnly: false,
+      secure,
+      sameSite: "lax",
+      maxAge: 60 * 60,
+      path: "/",
+    });
+    return response;
+  }
+
+  if (type === "signup") {
+    const userId = await verifyAndConsumeConfirmationToken(tokenHash);
+    if (!userId) {
+      return NextResponse.redirect(`${base}/login?error=link_expired`);
+    }
+    return NextResponse.redirect(`${base}${next}`);
+  }
+
+  return NextResponse.redirect(`${base}/login?error=link_expired`);
 }

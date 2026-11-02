@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { auth } from "@/auth";
+import { createPgDb } from "@/lib/postgres/db";
 
 export interface LocalePreferences {
   /** The signed-in person's own language, if they chose one. */
@@ -18,19 +19,22 @@ const NONE: LocalePreferences = { user: null, account: null };
  */
 export async function loadLocalePreferences(): Promise<LocalePreferences> {
   try {
-    const supabase = await createClient();
-    // Verifies the token locally; no round trip to the auth server.
-    const { data: claims } = await supabase.auth.getClaims();
-    const userId = claims?.claims?.sub;
+    const session = await auth();
+    const userId = session?.user?.id;
     if (!userId) return NONE;
 
+    const supabase = createPgDb(userId);
     const [profile, account] = await Promise.all([
-      supabase.from('profiles').select('locale').eq('user_id', userId).maybeSingle(),
-      supabase.from('accounts').select('locale').limit(1).maybeSingle(),
+      supabase.from("profiles").select("locale").eq("user_id", userId).maybeSingle(),
+      supabase.from("accounts").select("locale").limit(1).maybeSingle(),
     ]);
     return {
-      user: profile.error ? null : ((profile.data as { locale?: string | null } | null)?.locale ?? null),
-      account: account.error ? null : ((account.data as { locale?: string | null } | null)?.locale ?? null),
+      user: profile.error
+        ? null
+        : ((profile.data as { locale?: string | null } | null)?.locale ?? null),
+      account: account.error
+        ? null
+        : ((account.data as { locale?: string | null } | null)?.locale ?? null),
     };
   } catch {
     return NONE;

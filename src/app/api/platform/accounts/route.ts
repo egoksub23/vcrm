@@ -22,8 +22,9 @@ import { NextResponse } from "next/server";
 
 import { toErrorResponse } from "@/lib/auth/account";
 import { sendTenantWelcomeEmail } from "@/lib/email/tenant-welcome-email";
-import { createAdminPgDb } from '@/lib/postgres/db';
-import { supabaseAdmin } from '@/lib/supabase/admin-client';
+import { createAdminPgDb } from "@/lib/postgres/db";
+import { getPool } from "@/lib/postgres/client";
+import { storeRecoveryToken } from "@/lib/auth/tokens";
 import { requirePlatformAdmin } from "@/lib/platform/auth";
 import { parseCreateTenant } from "@/lib/platform/validate";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
@@ -66,23 +67,48 @@ export async function POST(request: Request) {
     const { companyName, ownerEmail, ownerName, plan, seats } = parsed.value;
 
     const admin = createAdminPgDb();
-    const authAdmin = supabaseAdmin();
+    const sql = getPool();
 
-    const { data: created, error: createError } = await authAdmin.auth.admin.createUser({
-      email: ownerEmail,
-      email_confirm: true,
-      user_metadata: { full_name: ownerName ?? companyName },
-      app_metadata: { provisioned: true },
-    });
-    if (createError || !created.user) {
-      const already = /already|registered|exists/i.test(createError?.message ?? "");
-      if (!already) console.error("[POST /api/platform/accounts] createUser error:", createError);
+    // Check for existing user first to return a clean 409.
+    const existingRows = await sql`
+      SELECT id FROM auth.users
+       WHERE LOWER(email) = LOWER(${ownerEmail})
+         AND deleted_at IS NULL
+       LIMIT 1
+    ` as unknown as Array<{ id: string }>;
+    if (existingRows.length > 0) {
       return NextResponse.json(
-        { error: already ? "That email already has a login" : "Could not create the owner login" },
-        { status: already ? 409 : 500 },
+        { error: "That email already has a login" },
+        { status: 409 },
       );
     }
-    const userId = created.user.id;
+
+    // INSERT into auth.users directly — the handle_new_user trigger fires
+    // and builds the account + owner profile synchronously.
+    const metaJson = JSON.stringify({ full_name: ownerName ?? companyName });
+    const appMetaJson = JSON.stringify({ provisioned: true });
+    const createdRows = await sql`
+      INSERT INTO auth.users (
+        id, instance_id, aud, role, email,
+        email_confirmed_at, raw_user_meta_data, raw_app_meta_data,
+        created_at, updated_at, is_anonymous, is_sso_user
+      ) VALUES (
+        gen_random_uuid(),
+        '00000000-0000-0000-0000-000000000000',
+        'authenticated', 'authenticated', ${ownerEmail},
+        NOW(), ${metaJson}::jsonb, ${appMetaJson}::jsonb,
+        NOW(), NOW(), false, false
+      )
+      RETURNING id
+    ` as unknown as Array<{ id: string }>;
+    if (createdRows.length === 0) {
+      console.error("[POST /api/platform/accounts] INSERT into auth.users returned no row");
+      return NextResponse.json(
+        { error: "Could not create the owner login" },
+        { status: 500 },
+      );
+    }
+    const userId = createdRows[0].id;
 
     // handle_new_user builds the account + owner profile synchronously.
     const { data: profile } = await admin
@@ -93,16 +119,10 @@ export async function POST(request: Request) {
     const accountId = (profile as { account_id?: string } | null)?.account_id;
     if (!accountId) {
       console.error("[POST /api/platform/accounts] no account was created for", userId);
-      await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${userId}`,
-        {
-          method: "DELETE",
-          headers: {
-            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          },
-        },
-      ).catch(() => {});
+      // Rollback: delete the auth user directly from auth.users.
+      await sql`
+        DELETE FROM auth.users WHERE id = ${userId}
+      `.catch(() => {});
       return NextResponse.json({ error: "Could not create the workspace" }, { status: 500 });
     }
 
@@ -123,16 +143,11 @@ export async function POST(request: Request) {
       if (platformError) console.error("[POST /api/platform/accounts] plan/limits failed:", platformError);
     }
 
-    // One-time "set your password" link, verified server-side at
-    // /auth/confirm (no dependence on a URL fragment or a browser PKCE
-    // verifier).
-    const { data: link, error: linkError } = await authAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email: ownerEmail,
-    });
-    const hashed = link?.properties?.hashed_token;
-    if (linkError || !hashed) {
-      console.error("[POST /api/platform/accounts] generateLink failed:", linkError);
+    // One-time "set your password" link — generate a recovery token and store
+    // its hash in auth.users, then build the confirm URL with the raw token.
+    const rawToken = await storeRecoveryToken(ownerEmail);
+    if (!rawToken) {
+      console.error("[POST /api/platform/accounts] storeRecoveryToken returned null for", ownerEmail);
       return NextResponse.json(
         {
           accountId,
@@ -142,7 +157,7 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     }
-    const url = `${getBaseUrl(request)}/auth/confirm?token_hash=${encodeURIComponent(hashed)}&type=recovery&next=${encodeURIComponent("/reset-password")}`;
+    const url = `${getBaseUrl(request)}/auth/confirm?token_hash=${encodeURIComponent(rawToken)}&type=recovery&next=${encodeURIComponent("/reset-password")}`;
 
     const emailed = await sendTenantWelcomeEmail({ to: ownerEmail, companyName, ownerName, url });
 
