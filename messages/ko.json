@@ -54,7 +54,8 @@
     "platform": "플랫폼",
     "sign": "Secure Sign",
     "kyc": "KYC 검토",
-    "compliance": "컴플라이언스"
+    "compliance": "컴플라이언스",
+    "share": "Secure Share"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -82,7 +83,8 @@
     "menuSignOut": "로그아웃",
     "sign": "Secure Sign",
     "kyc": "KYC 검토",
-    "compliance": "컴플라이언스 요청"
+    "compliance": "컴플라이언스 요청",
+    "share": "Secure Share"
   },
   "Help": {
     "pageTitle": "사용 가이드",
@@ -7158,6 +7160,14 @@
       "kyc_decide": {
         "label": "신분증 확인 승인 또는 거부",
         "description": "KYC 검토에서 신분증 확인을 승인하거나 거부합니다. 승인하면 아이의 eKYC 상태가 ‘인증됨’으로, 거부하면 ‘거부됨’으로 바뀌고 부모에게 이메일이 전송됩니다. 모든 결정은 내 이름과 함께 기록됩니다. 이미지 보기, 값 표시 권한과는 별개입니다. KYC 검토 메뉴가 필요합니다. 기본값: 소유자와 관리자."
+      },
+      "menu_share": {
+        "label": "Menu: Secure Share",
+        "description": "Show Secure Share in the sidebar and allow opening its page to see the workspace's shared documents. Sending new share links also needs 'Send share links'. Default: Owner, Admin and Agent."
+      },
+      "share_send": {
+        "label": "Send share links",
+        "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
       }
     },
     "group": {
@@ -7176,7 +7186,8 @@
       "sign": "Secure Sign",
       "kyc": "KYC 검토",
       "compliance": "컴플라이언스 요청",
-      "incidents": "인시던트"
+      "incidents": "인시던트",
+      "share": "Secure Share"
     },
     "preset": {
       "support-manager": {
@@ -8679,7 +8690,9 @@
     "feature_kyc": "KYC 검토",
     "feature_kyc_desc": "신분 확인 백엔드(아동의 신분증 이미지와 검증 기록)를 위한 직원용 화면으로, 검토 담당자가 신분증 확인을 승인하거나 거부하며 접근 기록이 남습니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다. 서버에 KYC_DOC_API_BASE_URL과 KYC_DOC_API_KEY가 필요합니다.",
     "feature_compliance": "컴플라이언스 요청",
-    "feature_compliance_desc": "신원 확인, 컴플라이언스 책임자 승인, 규제 기한, 암호화된 은행 정보, 7년간의 감사 기록이 있는 계정 해지·출금·전화번호 변경 요청입니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다."
+    "feature_compliance_desc": "신원 확인, 컴플라이언스 책임자 승인, 규제 기한, 암호화된 은행 정보, 7년간의 감사 기록이 있는 계정 해지·출금·전화번호 변경 요청입니다. 운영자가 켜기 전까지 모든 워크스페이스에서 꺼져 있습니다.",
+    "feature_share": "Secure Share",
+    "feature_share_desc": "Trackable document sharing: upload a PDF, create a shareable link, and see who opened it and how long they spent on each page. Optional email-capture or OTP gate. On for every workspace by default."
   },
   "Sign": {
     "admin": {
@@ -14129,6 +14142,45 @@
       "nameDiffers": "은행 예금주 이름이 계정 명의자 이름과 다릅니다. 지급 전에 확인하세요.",
       "thirdParty": "제3자에게 지급: 위임장이 첨부되어 있음",
       "thirdPartyMissing": "제3자에게 지급: 위임장이 없음"
+    }
+  },
+  "Share": {
+    "tabLabel": "Shares",
+    "newShare": "New share",
+    "shareDocument": "Share a document",
+    "noShares": "No shared documents yet.",
+    "views": "{count, plural, one {# view} other {# views}}",
+    "firstOpened": "first opened {when}",
+    "copyLink": "Copy link",
+    "revoke": "Revoke",
+    "statusActive": "Active",
+    "statusRevoked": "Revoked",
+    "create": {
+      "title": "Share a document",
+      "description": "Upload a PDF to create a trackable share link.",
+      "fileLabel": "PDF file",
+      "filePlaceholder": "Click to choose a PDF (max 25 MB)",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Document title",
+      "submit": "Create share link",
+      "submitting": "Creating…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "errorNoFile": "Choose a PDF file to share.",
+      "errorNoTitle": "Enter a title for the share.",
+      "errorNotPdf": "Only PDF files are supported. Please convert PPTX to PDF first.",
+      "errorTooLarge": "File is too large. Maximum size is 25 MB.",
+      "errorGeneric": "Something went wrong. Please try again.",
+      "readyMessage": "Your share link is ready. Anyone with this link can view the document."
+    },
+    "viewer": {
+      "loading": "Loading document…",
+      "errorExpired": "Could not load the document. The link may have expired.",
+      "errorGeneric": "This document could not be opened.",
+      "download": "Download",
+      "page": "Page {current} of {total}",
+      "sharedVia": "Shared via {product}",
+      "tooManyRequests": "Too many requests. Please try again in a moment."
     }
   }
 }

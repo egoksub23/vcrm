@@ -61,8 +61,11 @@ describe("middleware — route protection and cookie injection", () => {
 
   it("clears sb-access-token when signed out", async () => {
     mockSession = null;
-    // A signed-out visit to /login should not set sb-access-token.
+    // A signed-out visit to /login should not carry an active sb-access-token.
+    // cookies.delete() in Next.js sets the cookie with expires=epoch, so the
+    // cookie object may be present but with an empty value and past expiry.
     const res = await middleware(new NextRequest("https://app.test/login"));
-    expect(res.cookies.get("sb-access-token")).toBeUndefined();
+    const cookie = res.cookies.get("sb-access-token");
+    expect(!cookie || !cookie.value).toBe(true);
   });
 });

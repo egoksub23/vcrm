@@ -54,7 +54,8 @@
     "platform": "平台",
     "sign": "Secure Sign",
     "kyc": "KYC 审核",
-    "compliance": "合规"
+    "compliance": "合规",
+    "share": "Secure Share"
   },
   "Header": {
     "dashboard": "仪表板",
@@ -82,7 +83,8 @@
     "menuSignOut": "退出登录",
     "sign": "Secure Sign",
     "kyc": "KYC 审核",
-    "compliance": "合规请求"
+    "compliance": "合规请求",
+    "share": "Secure Share"
   },
   "Help": {
     "pageTitle": "用户指南",
@@ -6412,6 +6414,14 @@
       "kyc_decide": {
         "label": "批准或拒绝身份证件检查",
         "description": "在 KYC 审核中批准或拒绝身份证件检查。批准会将孩子的 eKYC 状态设为“已验证”；拒绝会设为“已拒绝”并向家长发送电子邮件。每项决定都会记录您的姓名。与查看图片、显示数值的权限相互独立。需要拥有 KYC 审核菜单。默认：所有者和管理员。"
+      },
+      "menu_share": {
+        "label": "Menu: Secure Share",
+        "description": "Show Secure Share in the sidebar and allow opening its page to see the workspace's shared documents. Sending new share links also needs 'Send share links'. Default: Owner, Admin and Agent."
+      },
+      "share_send": {
+        "label": "Send share links",
+        "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
       }
     },
     "group": {
@@ -6430,7 +6440,8 @@
       "sign": "Secure Sign",
       "kyc": "KYC 审核",
       "compliance": "合规请求",
-      "incidents": "事件"
+      "incidents": "事件",
+      "share": "Secure Share"
     },
     "preset": {
       "support-manager": {
@@ -12758,6 +12769,45 @@
       "nameDiffers": "银行账户持有人姓名与账户持有人姓名不同：付款前请核对。",
       "thirdParty": "付款给第三方：已存有授权书",
       "thirdPartyMissing": "付款给第三方：缺少授权书"
+    }
+  },
+  "Share": {
+    "tabLabel": "Shares",
+    "newShare": "New share",
+    "shareDocument": "Share a document",
+    "noShares": "No shared documents yet.",
+    "views": "{count, plural, one {# view} other {# views}}",
+    "firstOpened": "first opened {when}",
+    "copyLink": "Copy link",
+    "revoke": "Revoke",
+    "statusActive": "Active",
+    "statusRevoked": "Revoked",
+    "create": {
+      "title": "Share a document",
+      "description": "Upload a PDF to create a trackable share link.",
+      "fileLabel": "PDF file",
+      "filePlaceholder": "Click to choose a PDF (max 25 MB)",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Document title",
+      "submit": "Create share link",
+      "submitting": "Creating…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "errorNoFile": "Choose a PDF file to share.",
+      "errorNoTitle": "Enter a title for the share.",
+      "errorNotPdf": "Only PDF files are supported. Please convert PPTX to PDF first.",
+      "errorTooLarge": "File is too large. Maximum size is 25 MB.",
+      "errorGeneric": "Something went wrong. Please try again.",
+      "readyMessage": "Your share link is ready. Anyone with this link can view the document."
+    },
+    "viewer": {
+      "loading": "Loading document…",
+      "errorExpired": "Could not load the document. The link may have expired.",
+      "errorGeneric": "This document could not be opened.",
+      "download": "Download",
+      "page": "Page {current} of {total}",
+      "sharedVia": "Shared via {product}",
+      "tooManyRequests": "Too many requests. Please try again in a moment."
     }
   }
 }

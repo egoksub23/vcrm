@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const rpc = vi.fn()
-vi.mock('@/lib/flows/admin-client', () => ({ supabaseAdmin: () => ({ rpc }) }))
+vi.mock('@/lib/postgres/db', () => ({ createAdminPgDb: () => ({ rpc }) }))
 
 import { __resetRateLimitForTests } from '@/lib/rate-limit'
 import { checkSharedRateLimit } from '@/lib/rate-limit-shared'

@@ -75,7 +75,10 @@ function orCondition(part: string): Filter {
 
 export class FakeDb {
   tables: Record<string, Row[]> = {};
-  files = new Map<string, Uint8Array>();
+  // Shared with the storage mock (src/test/storage-mock.ts via globalThis.__mockStorageFiles__)
+  // so t.db.files.get(path) returns what appStorage().upload() wrote.
+  files: Map<string, Uint8Array> =
+    ((globalThis as Record<string, unknown>).__mockStorageFiles__ as Map<string, Uint8Array> | undefined) ?? new Map<string, Uint8Array>();
   rpcCalls: { name: string; args: Record<string, unknown> }[] = [];
   rpcHandlers: Record<string, (args: Record<string, unknown>) => Result | Promise<Result>> = {};
   /** Make a table's next write fail. */
