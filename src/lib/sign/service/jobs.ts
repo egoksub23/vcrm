@@ -56,14 +56,16 @@ export async function runReminders(base: Base, limit = 100): Promise<{ checked: 
     .select("*, doc:sign_documents!inner(id, account_id, status, reminder_days, envelope_id)")
     .in("status", ["sent", "viewed"])
     .not("invited_at", "is", null)
-    .in("doc.status", ["sent", "in_progress"])
     .order("invited_at", { ascending: true })
     .limit(limit);
   if (error) {
     console.error("[sign] reminder run failed:", error.message);
     return { checked: 0, reminded: 0 };
   }
-  const rows = (data ?? []) as (SignSignerRow & { doc: { id: string; account_id: string; reminder_days: number[] | null; envelope_id: string | null } })[];
+  // Filter doc.status in JS — the builder cannot apply filters on embedded-relation
+  // columns (PostgREST dot-notation) to the generated SQL.
+  const rows = ((data ?? []) as (SignSignerRow & { doc: { id: string; account_id: string; status: string; reminder_days: number[] | null; envelope_id: string | null } | null })[])
+    .filter(r => r.doc && ["sent", "in_progress"].includes(r.doc.status)) as (SignSignerRow & { doc: { id: string; account_id: string; status: string; reminder_days: number[] | null; envelope_id: string | null } })[];
   const now = base.now();
   let reminded = 0;
   // a person of an envelope is one person with one link, however many documents they have left: reminded once, by their anchor row

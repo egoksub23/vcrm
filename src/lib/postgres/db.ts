@@ -41,7 +41,7 @@ export class PgDb {
       let params: unknown[]
 
       if (entries.length === 0) {
-        query = `SELECT * FROM "${fn.replace(/"/g, '""')}()`
+        query = 'SELECT * FROM "' + fn.replace(/"/g, '""') + '"()'
         params = []
       } else {
         const namedParts = entries.map(([name], i) => `${name} := $${i + 1}`).join(', ')
