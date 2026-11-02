@@ -21,9 +21,6 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { SignJWT } from "jose";
-import bcrypt from "bcryptjs";
-
-import { getPool } from "@/lib/postgres/client";
 
 // ── Supabase-compatible JWT ──────────────────────────────────
 // PostgREST validates JWTs with SUPABASE_JWT_SECRET and reads auth.uid()
@@ -54,6 +51,10 @@ async function verifyCredentials(
   password: string,
 ): Promise<{ id: string; email: string; name: string } | null> {
   try {
+    const [{ default: bcrypt }, { getPool }] = await Promise.all([
+      import("bcryptjs"),
+      import("@/lib/postgres/client"),
+    ]);
     const sql = getPool();
     const rows = await sql`
       SELECT id, email, encrypted_password, raw_user_meta_data
@@ -89,6 +90,7 @@ async function findOrCreateOAuthUser(
   email: string,
   name: string,
 ): Promise<string> {
+  const { getPool } = await import("@/lib/postgres/client");
   const sql = getPool();
 
   // Find by exact email (case-insensitive via citext or LOWER).
