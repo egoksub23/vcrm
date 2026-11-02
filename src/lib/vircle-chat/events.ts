@@ -202,13 +202,22 @@ async function findReplyTarget(admin: PgDb, conversationId: string, serverId: st
 async function findMessageByServerId(admin: PgDb, accountId: string, serverId: string) {
   const { data, error } = await admin
     .from('messages')
-    .select('id, status, conversation_id, conversations!inner(account_id)')
+    .select('id, status, conversation_id')
     .eq('message_id', serverId)
     .eq('channel_type', 'vircle_chat')
-    .eq('conversations.account_id', accountId)
     .limit(1)
-  if (error) throw error
-  return ((data as unknown[] | null ?? [])[0] as { id: string; status: string; conversation_id: string } | undefined) ?? null
+  if (error) throw new Error(error.message)
+  const row = ((data as unknown[] | null ?? [])[0] as { id: string; status: string; conversation_id: string } | undefined) ?? null
+  if (!row) return null
+  // Verify the message belongs to this account via the conversation.
+  const { data: conv } = await admin
+    .from('conversations')
+    .select('id')
+    .eq('id', row.conversation_id)
+    .eq('account_id', accountId)
+    .maybeSingle()
+  if (!conv) return null
+  return row
 }
 
 // ------------------------------------------------------------
