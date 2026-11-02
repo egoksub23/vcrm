@@ -224,7 +224,7 @@ export async function hydrateMessages(
     reactionsByMessage.set(r.message_id, list)
   }
 
-  const starredIds = new Set<string>(((starRows ?? []) as any[]).map((s: any) => s.message_id as string))
+  const starredIds = new Set<string>(((starRows ?? []) as unknown[]).map((s) => (s as { message_id: string }).message_id))
 
   const linkPreviewByMessage = new Map<string, SembangLinkPreview>()
   for (const p of (linkPreviewRows ?? []) as LinkPreviewRow[]) {

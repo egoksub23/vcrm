@@ -60,10 +60,10 @@ export async function notifyWidgetVisitorOfReply(
     if (!visitors || visitors.length === 0) return;
 
     // Only a verified browser's email is trusted enough to notify.
-    if (!(visitors as any[]).some((v: any) => v.identity_level === 'verified')) return;
+    if (!(visitors as unknown[]).some((v) => (v as { identity_level: string }).identity_level === 'verified')) return;
 
-    const mostRecentSeen = (visitors as any[]).reduce((max: number, v: any) => {
-      const seen = v.last_seen_at ? new Date(v.last_seen_at).getTime() : 0;
+    const mostRecentSeen = (visitors as unknown[]).reduce((max: number, v: unknown) => {
+      const seen = (v as { last_seen_at?: string | null }).last_seen_at ? new Date((v as { last_seen_at: string }).last_seen_at).getTime() : 0;
       return Math.max(max, seen);
     }, 0);
     if (Date.now() - mostRecentSeen < ACTIVE_WINDOW_MS) return;

@@ -42,7 +42,7 @@ export async function hydrateTasks(
 
   const userIds = Array.from(
     new Set([
-      ...((assigneeRows ?? []) as any[]).map((a: any) => a.user_id as string),
+      ...((assigneeRows ?? []) as unknown[]).map((a) => (a as { user_id: string }).user_id),
       ...rows.map((r) => r.created_by),
     ]),
   )

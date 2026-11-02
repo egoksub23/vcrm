@@ -64,8 +64,8 @@ export async function fetchIncidentDocumentContext(
   for (const p of profileRows ?? []) nameByUser.set(p.user_id, p.full_name ?? "");
 
   const defaults = ESCALATION_DEFAULT_MINUTES[row.severity];
-  const lastA = ((docsGenerated ?? []) as any[]).find((d: any) => d.form === "a")?.generated_at ?? null;
-  const lastB = ((docsGenerated ?? []) as any[]).find((d: any) => d.form === "b")?.generated_at ?? null;
+  const lastA = ((docsGenerated ?? []) as Array<{ form: string; generated_at: string | null }>).find((d) => d.form === "a")?.generated_at ?? null;
+  const lastB = ((docsGenerated ?? []) as Array<{ form: string; generated_at: string | null }>).find((d) => d.form === "b")?.generated_at ?? null;
 
   return {
     incident: row,

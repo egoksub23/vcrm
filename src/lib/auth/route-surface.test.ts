@@ -29,6 +29,8 @@ const AUTH_MARKER = new RegExp(
     'requireCapability', 'requireAnyCapability', 'requireApiKey', 'requirePlatformAdmin',
     'getCurrentAccount', 'requireAdmin', 'auth\\.getUser', 'getUser\\(', 'cronRoute',
     'checkCronSecret', 'Signature', 'verifyVisitorJwt', 'requireUser', 'requireSession',
+    // Next.js Auth session check (auth() from @/auth — returns null when signed out)
+    '\\bauth\\(',
     // Doc Sign's staff() wrapper (lib/sign/http.ts): requireCapability, then a rate limit
     'staff\\(',
     // KYC review's wrapper (lib/kyc/http.ts): requireCapability('menu.kyc'), a rate limit, the caller's workspace
@@ -51,6 +53,10 @@ const ACCOUNT_REFERENCE = new RegExp(
 
 /** Reachable without a session or key. Why each is safe. */
 const PUBLIC_ROUTES: Record<string, string> = {
+  'auth/[...nextauth]': 'Auth.js session and OAuth handler; this IS the authentication endpoint — it creates and validates sessions',
+  'auth/forgot-password': 'public password-reset request; sends a recovery email with a one-time link; rate-limited per caller; never reveals whether an address is registered',
+  'auth/reset-password': 'password reset; guarded by the pw_reset recovery cookie (a signed JWT from /auth/confirm, one-time, short-lived); the cookie is the proof of identity',
+  'auth/signup': 'account sign-up; open only when the platform has open_signup on (off by default — invitation-only); hashed password, rate-limited per caller',
   'account/channels/email/oauth/callback': 'OAuth redirect; signed one-time state ties it to the workspace and user that started it',
   'account/channels/gmail/oauth/callback': 'OAuth redirect; one-time state bound to the signed-in person who started it',
   'account/channels/instagram/oauth/callback': 'OAuth redirect; one-time state bound to the signed-in person who started it',
@@ -85,6 +91,11 @@ const PUBLIC_ROUTES: Record<string, string> = {
   'compliance/public/[slug]/verify': 'a public parent form (/c/<slug>, Compliance requests): unknown, switched-off and Compliance-off forms all answer the same 404; five tries per code, every try counted in the database before it is judged, a code is used once, a code for another address or form means nothing (it is a keyed hash of the form, the address and the digits); a right code gives an HttpOnly, SameSite=Lax session cookie for that form for an hour that carries a hash of the address, never the address; the answer for a missing, foreign or used code is the same',
   'compliance/form-link/submit': 'the personal closure form at /c/link/<token> (Compliance requests, migration 185): the link is a 256-bit random token made for ONE case, found by its id and compared in constant time against a keyed hash (the token itself is never stored), single-use (the claim and the update of the case are one database step, so a double submit applies once), expiring in 14 days and withdrawable; an unknown, used, withdrawn, replaced or expired link and a workspace with Compliance off all answer the same 404; needs the page\'s signed form token (genuine, for this link, 3 seconds to 2 hours old), the hidden field empty, strict validation (the same as the public closure form: acknowledgements and declaration required, an authorization letter required when the bank holder name differs), the email typed (validated, not proved), a limit per caller address and per link (shared, the address kept as a keyed hash), files checked by their first bytes and size (PDF, JPEG, PNG, 10 MB) before they go to the private bucket; UPDATES the existing case (never makes one, never creates a contact), the identity check stays not done, and never answers with a stored value, a link or which reason made a link not work',
   'compliance/public/[slug]/submit': 'a public parent form (/c/<slug>, Compliance requests): unknown, switched-off and Compliance-off forms all answer the same 404; needs the page\'s signed form token (genuine, for this form, 8 seconds to 2 hours old) AND the session of the verified address AND the same address typed again, the hidden field empty, strict validation (a closure is refused without its acknowledgements and declaration, an authorization letter is required when the bank holder name differs), files checked by their first bytes and size (PDF, JPEG, PNG, 10 MB) before they are stored in the private bucket, limits per address, form and address (shared); makes the case through createComplianceRequest (source form, bank answers encrypted), links a contact only on one exact match inside the workspace, never creates a contact, one open request per type per address (a repeat gets the same confirmation and creates nothing), and never answers with a stored value or whether a request exists',
+  'share/public/[token]': 'a trackable share link: a random token whose SHA-256 is looked up; rate limited per caller address; a workspace with Secure Share off or an unknown/revoked share answers 404; records a view event on the first load of each session',
+  'share/public/[token]/burn': 'a trackable share link: rate limited per caller address; records a burn (download) event; a revoked or unknown share answers 404',
+  'share/public/[token]/file': 'a trackable share link: rate limited per caller address; streams the share\'s PDF from private storage; a revoked or unknown share answers 404',
+  'share/public/[token]/gate': 'a trackable share link: rate limited per caller address; handles the OTP or email gate for gated shares; a revoked or unknown share answers 404',
+  'share/public/[token]/ping': 'a trackable share link: rate limited per caller address; records a page-view heartbeat event; a revoked or unknown share answers 404',
 }
 
 /** Use the service-role client with no account in scope: jobs over every workspace, provider webhooks. */

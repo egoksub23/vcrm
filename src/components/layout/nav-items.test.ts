@@ -50,7 +50,7 @@ describe("the sidebar rows", () => {
 
   it("leaves every other row where it was", () => {
     expect(hrefs(navItems)).toEqual(["/dashboard", "/inbox", "/notifications", "/contacts", "/pipelines", "/broadcasts", "/tickets", "/automations", "/flows", "/knowledge", "/agents", "/reports"]);
-    expect(hrefs(bottomNavItems)).toEqual(["/help", "/settings", "/sembang", "/incidents", "/kyc", "/compliance", "/sign"]);
+    expect(hrefs(bottomNavItems)).toEqual(["/help", "/settings", "/sembang", "/incidents", "/kyc", "/compliance", "/sign", "/share"]);
   });
 
   it("matches the order the page-access list keeps (first accessible page walks it): KYC review right after Incidents, then Compliance, then Secure Sign", () => {

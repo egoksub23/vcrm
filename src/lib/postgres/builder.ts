@@ -126,18 +126,26 @@ function parseSpec(raw: string): SelectSpec {
     const head = t.slice(0, pi).trim()
     const inner_spec = t.slice(pi + 1, t.lastIndexOf(')')).trim()
     const bang = head.indexOf('!')
+    const colon = head.indexOf(':')
     let relation = head, hint: string | undefined, inner = false
-    if (bang >= 0) {
+    let embAlias: string | undefined
+
+    // alias:table!hint(...) — strip the alias prefix before resolving the relation
+    if (colon >= 0 && (bang < 0 || colon < bang)) {
+      embAlias = head.slice(0, colon).trim()
+      const afterColon = head.slice(colon + 1)
+      const bangInRest = afterColon.indexOf('!')
+      if (bangInRest >= 0) {
+        relation = afterColon.slice(0, bangInRest)
+        const rest = afterColon.slice(bangInRest + 1)
+        if (rest === 'inner') inner = true; else hint = rest
+      } else {
+        relation = afterColon
+      }
+    } else if (bang >= 0) {
       relation = head.slice(0, bang)
       const rest = head.slice(bang + 1)
       if (rest === 'inner') inner = true; else hint = rest
-    }
-    // "alias:table(*)" PostgREST syntax: split alias from real table name.
-    let embAlias: string | undefined
-    const colonIdx = relation.indexOf(':')
-    if (colonIdx >= 0) {
-      embAlias = relation.slice(0, colonIdx)
-      relation = relation.slice(colonIdx + 1)
     }
     columns.push({ raw: embAlias ?? relation, embedded: { relation, alias: embAlias, hint, inner, select: parseSpec(inner_spec) } })
   }

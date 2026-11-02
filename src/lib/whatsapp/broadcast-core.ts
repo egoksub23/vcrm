@@ -198,7 +198,7 @@ export async function createBroadcast(
   // an orphaned campaign that looked like it was sending but had no
   // delivery plan (issue #370). The function body is atomic, so a recipient
   // failure now rolls the parent back and nothing orphaned survives.
-  const { data: createdRows, error: createErr } = await (db as any).rpc(
+  const { data: createdRows, error: createErr } = await db.rpc<Array<{ broadcast_id: string; recipient_id: string; contact_id: string }>>(
     'create_broadcast_with_recipients',
     {
       p_account_id: accountId,
