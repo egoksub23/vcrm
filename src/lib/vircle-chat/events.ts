@@ -200,16 +200,24 @@ async function findReplyTarget(admin: PgDb, conversationId: string, serverId: st
 }
 
 async function findMessageByServerId(admin: PgDb, accountId: string, serverId: string) {
-  const rows = await admin.sql<Array<{ id: string; status: string; conversation_id: string }>>`
-    SELECT m.id, m.status, m.conversation_id
-    FROM public.messages m
-    INNER JOIN public.conversations c ON c.id = m.conversation_id
-    WHERE m.message_id = ${serverId}
-      AND m.channel_type = 'vircle_chat'
-      AND c.account_id = ${accountId}
-    LIMIT 1
-  `
-  return rows[0] ?? null
+  const { data, error } = await admin
+    .from('messages')
+    .select('id, status, conversation_id')
+    .eq('message_id', serverId)
+    .eq('channel_type', 'vircle_chat')
+    .limit(1)
+  if (error) throw new Error(error.message)
+  const row = ((data as unknown[] | null ?? [])[0] as { id: string; status: string; conversation_id: string } | undefined) ?? null
+  if (!row) return null
+  // Verify the message belongs to this account via the conversation.
+  const { data: conv } = await admin
+    .from('conversations')
+    .select('id')
+    .eq('id', row.conversation_id)
+    .eq('account_id', accountId)
+    .maybeSingle()
+  if (!conv) return null
+  return row
 }
 
 // ------------------------------------------------------------
