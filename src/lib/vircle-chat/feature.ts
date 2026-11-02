@@ -12,7 +12,7 @@ export const VIRCLE_CHAT_FEATURE = 'vircle_chat'
  */
 export async function vircleChatEnabled(admin: PgDb, accountId: string): Promise<boolean> {
   const { data, error } = await admin.from('account_platform').select('*').eq('account_id', accountId).maybeSingle()
-  if (error) throw error
+  if (error) throw new Error(error.message)
   const platform = parsePlatformRow(data)
   return platform.status === 'active' && isFeatureEnabled(platform, VIRCLE_CHAT_FEATURE)
 }

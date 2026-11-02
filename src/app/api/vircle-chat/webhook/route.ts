@@ -97,7 +97,9 @@ export async function POST(request: Request) {
     return json(429, { error: 'Rate limited' }, { 'Retry-After': String(Math.max(1, Math.ceil((limit.reset - Date.now()) / 1000))) })
   }
 
-  if (!row.enabled || !(await vircleChatEnabled(admin, row.account_id))) {
+  const chatEnabled = await vircleChatEnabled(admin, row.account_id)
+  console.log('[vircle-chat] webhook received:', event.kind, 'account:', row.account_id, 'enabled:', row.enabled, 'feature:', chatEnabled)
+  if (!row.enabled || !chatEnabled) {
     return json(200, { ok: true, ignored: 'paused' })
   }
 
@@ -131,9 +133,11 @@ export async function POST(request: Request) {
     if (event.kind === 'message.inbound') {
       const result = await ingestInbound(admin, row, event)
       if (result.status === 'stored') {
+        console.log('[vircle-chat] message stored:', result.messageId, 'conv:', result.conversationId)
         after(() => result.fanOut().catch((err) => console.error('[vircle-chat] fan-out failed:', err)))
         responseBody = { ok: true, message_id: result.messageId }
       } else {
+        console.log('[vircle-chat] duplicate message:', result.messageId)
         responseBody = { ok: true, duplicate: true, message_id: result.messageId }
       }
     } else {
