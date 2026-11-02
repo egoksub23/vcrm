@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     "widget/**",
     // Standalone gateway service (own package.json, tsconfig and tests).
     "gateway/**",
+    // One-shot DB migration script: CJS with vendored patterns not worth linting.
+    "scripts/migrate-auth-users.cjs",
   ]),
 ]);
 
