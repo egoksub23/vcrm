@@ -60,17 +60,23 @@ export async function middleware(request: NextRequest) {
   // browser supabase-js client can inject it as the Authorization header.
   // This lets PostgREST see the correct auth.uid() and role on every
   // client-side query without any code changes to existing components.
+  //
+  // Exception: /reset-password uses sb-access-token as the recovery JWT
+  // set by /auth/confirm — never overwrite or delete it on that path.
   const secure = process.env.NODE_ENV === "production";
-  if (session?.supabaseAccessToken) {
-    response.cookies.set("sb-access-token", session.supabaseAccessToken, {
-      httpOnly: false,
-      secure,
-      sameSite: "lax",
-      maxAge: 3600,
-      path: "/",
-    });
-  } else {
-    response.cookies.delete("sb-access-token");
+  const isResetPassword = request.nextUrl.pathname.startsWith("/reset-password");
+  if (!isResetPassword) {
+    if (session?.supabaseAccessToken) {
+      response.cookies.set("sb-access-token", session.supabaseAccessToken, {
+        httpOnly: false,
+        secure,
+        sameSite: "lax",
+        maxAge: 3600,
+        path: "/",
+      });
+    } else {
+      response.cookies.delete("sb-access-token");
+    }
   }
 
   return response;
