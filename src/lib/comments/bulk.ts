@@ -65,7 +65,7 @@ export async function runBulkOp(args: {
     console.error('[comments bulk] lookup failed:', error)
     return ids.map((id) => ({ id, ok: false, error: 'Could not look the comment up.' }))
   }
-  const rows = new Map(((data ?? []) as any[]).map((r: any) => [(r as Row).id, r as Row]))
+  const rows = new Map(((data ?? []) as unknown[]).map((r) => [(r as Row).id, r as Row]))
 
   const results = new Map<string, BulkResult>()
   const eligible: string[] = []
@@ -87,7 +87,7 @@ export async function runBulkOp(args: {
         .in('id', eligible)
         .select('id')
       if (updErr) console.error('[comments bulk] update failed:', updErr)
-      const done = new Set(((updated ?? []) as any[]).map((r: any) => (r as { id: string }).id))
+      const done = new Set(((updated ?? []) as unknown[]).map((r) => (r as { id: string }).id))
       for (const id of eligible) {
         results.set(id, done.has(id) ? { id, ok: true } : { id, ok: false, error: updErr ? 'Could not update the comment.' : 'You do not have permission to change this comment.' })
       }

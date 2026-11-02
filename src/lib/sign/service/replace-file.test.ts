@@ -142,6 +142,7 @@ describe("replacing the file of a draft", () => {
           return realFrom(table);
         },
         rpc: ctx.admin.rpc.bind(ctx.admin),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         storage: (ctx.admin as any).storage,
       } as unknown as SignCtx["admin"],
     };

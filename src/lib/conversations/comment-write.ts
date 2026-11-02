@@ -76,7 +76,7 @@ export async function postInternalComment(
     if (membersErr) {
       throw new CommentWriteError('Could not verify mentioned teammates');
     }
-    const validIds = new Set(((members ?? []) as any[]).map((m: any) => m.user_id));
+    const validIds = new Set(((members ?? []) as unknown[]).map((m) => (m as { user_id: string }).user_id));
     const invalid = mentions.filter((id) => !validIds.has(id));
     if (invalid.length > 0) {
       throw new CommentWriteError(
