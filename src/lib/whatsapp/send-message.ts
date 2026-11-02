@@ -1206,6 +1206,7 @@ export async function sendMessageToConversation(
     const admin = createAdminPgDb();
     // The connection holds encrypted secrets, so it is read with the service role.
     const cfgRow = await findConfigForAccount(admin, accountId);
+    console.log('[send-message] vircle-chat send: account', accountId, 'config found:', !!cfgRow)
     if (!cfgRow) {
       throw new SendMessageError(
         'vircle_chat_not_configured',
@@ -1254,6 +1255,7 @@ export async function sendMessageToConversation(
         }
       );
       waMessageId = accepted.serverId;
+      console.log('[send-message] vircle-chat gateway accepted, serverId:', accepted.serverId)
       if (accepted.conversationId && accepted.conversationId !== conversation.vircle_conversation_id) {
         await admin
           .from('conversations')
@@ -1263,7 +1265,7 @@ export async function sendMessageToConversation(
     } catch (err) {
       if (err instanceof SendMessageError) throw err;
       const message = err instanceof Error ? err.message : 'Unknown gateway error';
-      console.error('[send-message] Vircle Chat send failed:', message);
+      console.error('[send-message] vircle-chat gateway error:', message);
       if (err instanceof GatewayError) {
         await admin.from('vircle_chat_config').update({ last_error: err.message.slice(0, 300) }).eq('id', cfgRow.id);
         return failSend(new VircleSendError(err), `Vircle Chat error: ${err.message}`);
@@ -1287,6 +1289,7 @@ export async function sendMessageToConversation(
     status: 'sent',
   });
 
+  if (isVircleConversation) console.log('[send-message] vircle-chat db insert:', msgError ? 'error: ' + msgError.message : 'ok, id: ' + (messageRecord as { id: string } | null)?.id)
   if (msgError || !messageRecord) {
     console.error('[send-message] error inserting sent message:', msgError);
     throw new SendMessageError(

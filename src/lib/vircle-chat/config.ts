@@ -90,12 +90,12 @@ export function openConfig(row: VircleChatConfigRow): OpenConfig {
 export async function findConfigByKey(admin: PgDb, workspaceKey: string): Promise<VircleChatConfigRow | null> {
   if (!WORKSPACE_KEY_PATTERN.test(workspaceKey)) return null
   const { data, error } = await admin.from('vircle_chat_config').select('*').eq('workspace_key', workspaceKey).maybeSingle()
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return (data as VircleChatConfigRow | null) ?? null
 }
 
 export async function findConfigForAccount(admin: PgDb, accountId: string): Promise<VircleChatConfigRow | null> {
   const { data, error } = await admin.from('vircle_chat_config').select('*').eq('account_id', accountId).maybeSingle()
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return (data as VircleChatConfigRow | null) ?? null
 }
