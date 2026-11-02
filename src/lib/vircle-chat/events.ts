@@ -200,15 +200,16 @@ async function findReplyTarget(admin: PgDb, conversationId: string, serverId: st
 }
 
 async function findMessageByServerId(admin: PgDb, accountId: string, serverId: string) {
-  const { data, error } = await admin
-    .from('messages')
-    .select('id, status, conversation_id, conversations!inner(account_id)')
-    .eq('message_id', serverId)
-    .eq('channel_type', 'vircle_chat')
-    .eq('conversations.account_id', accountId)
-    .limit(1)
-  if (error) throw error
-  return ((data as unknown[] | null ?? [])[0] as { id: string; status: string; conversation_id: string } | undefined) ?? null
+  const rows = await admin.sql<Array<{ id: string; status: string; conversation_id: string }>>`
+    SELECT m.id, m.status, m.conversation_id
+    FROM public.messages m
+    INNER JOIN public.conversations c ON c.id = m.conversation_id
+    WHERE m.message_id = ${serverId}
+      AND m.channel_type = 'vircle_chat'
+      AND c.account_id = ${accountId}
+    LIMIT 1
+  `
+  return rows[0] ?? null
 }
 
 // ------------------------------------------------------------
