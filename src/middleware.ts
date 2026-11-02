@@ -64,7 +64,9 @@ export async function middleware(request: NextRequest) {
   // Exception: /reset-password uses sb-access-token as the recovery JWT
   // set by /auth/confirm — never overwrite or delete it on that path.
   const secure = process.env.NODE_ENV === "production";
-  const isResetPassword = request.nextUrl.pathname.startsWith("/reset-password");
+  const isResetPassword =
+    request.nextUrl.pathname.startsWith("/reset-password") ||
+    request.nextUrl.pathname === "/api/auth/reset-password";
   if (!isResetPassword) {
     if (session?.supabaseAccessToken) {
       response.cookies.set("sb-access-token", session.supabaseAccessToken, {
