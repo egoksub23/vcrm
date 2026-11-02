@@ -537,6 +537,21 @@ function InboxPageInner() {
   }, []);
 
   /**
+   * Polling fallback when Realtime is disconnected. Fires every 10 s so
+   * inbound messages appear without a manual refresh when the WS cannot
+   * establish (e.g. production Supabase Realtime outage).
+   */
+  useEffect(() => {
+    if (isConnected) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        setResyncToken((n) => n + 1);
+      }
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [isConnected]);
+
+  /**
    * Manual refresh trigger for the thread-header refresh button.
    * Bumps the same resyncToken the reconnect / visibility paths use,
    * so it goes through the existing dedupe & refetch plumbing — no
