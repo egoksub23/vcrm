@@ -31,9 +31,8 @@ function safeNextPath(raw: string | null): string {
 }
 
 function getBaseUrl(request: Request): string {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (explicit) return explicit.replace(/\/+$/, "");
-
+  // Use the actual request host so the redirect stays on the same domain
+  // (important on UAT where NEXT_PUBLIC_SITE_URL may point to production).
   const forwardedHost = request.headers
     .get("x-forwarded-host")
     ?.split(",")[0]
