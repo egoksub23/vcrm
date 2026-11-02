@@ -30,6 +30,7 @@ interface ColSpec {
 }
 interface EmbeddedSpec {
   relation: string
+  alias?: string   // "alias:table(*)" → alias stored here, relation is the real table name
   hint?: string    // !hint syntax — FK column or constraint name
   inner?: boolean  // !inner → INNER JOIN (skip rows with no match)
   select: SelectSpec
@@ -146,7 +147,7 @@ function parseSpec(raw: string): SelectSpec {
       const rest = head.slice(bang + 1)
       if (rest === 'inner') inner = true; else hint = rest
     }
-    columns.push({ raw: embAlias ?? relation, embedded: { relation, hint, inner, select: parseSpec(inner_spec) } })
+    columns.push({ raw: embAlias ?? relation, embedded: { relation, alias: embAlias, hint, inner, select: parseSpec(inner_spec) } })
   }
   return { columns }
 }
@@ -445,7 +446,7 @@ export class PgQueryBuilder<T = any> {
     const embCols: string[] = []
     for (const c of spec.columns.filter(c => c.embedded)) {
       const sub = await this._embeddedSub(c.embedded!, alias ?? this._table, P)
-      if (sub) embCols.push(`${sub} AS ${ident(c.raw)}`)
+      if (sub) embCols.push(`${sub} AS ${ident(c.embedded!.alias ?? c.embedded!.relation)}`)
     }
 
     const colList = [...directCols, ...embCols].join(', ') || '*'
