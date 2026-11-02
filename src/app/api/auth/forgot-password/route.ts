@@ -23,9 +23,13 @@ export async function POST(request: Request) {
       const url = `${base}/auth/confirm?token_hash=${encodeURIComponent(rawToken)}&type=recovery&next=${encodeURIComponent("/reset-password")}`;
       const sent = await sendPasswordResetEmail({ to: email, url });
       if (!sent) {
-        console.error(
-          "[POST /api/auth/forgot-password] Resend not configured — password reset link not sent for",
+        // Log the link so operators can retrieve it from docker logs on
+        // environments where Resend is not configured (e.g. UAT).
+        console.warn(
+          "[POST /api/auth/forgot-password] Resend not configured — reset link for",
           email,
+          "→",
+          url,
         );
       }
     }
