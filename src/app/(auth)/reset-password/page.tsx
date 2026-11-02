@@ -35,7 +35,7 @@ export default function ResetPasswordPage() {
     // /auth/confirm sets sb-access-token to the GoTrue access token
     // after verifying the recovery OTP. Its presence means we have a
     // valid (≤1h) recovery session.
-    const m = document.cookie.match(/(?:^|;\s*)sb-access-token=([^;]+)/);
+    const m = document.cookie.match(/(?:^|;\s*)pw_reset=([^;]+)/);
     setHasSession(Boolean(m));
   }, []);
 
