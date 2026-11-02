@@ -1,9 +1,8 @@
 // Recovery and confirmation token utilities — Phase 3 Supabase Auth removal.
 //
-// Replaces GoTrue's token generation (auth.admin.generateLink) and
-// verification (supabase.auth.verifyOtp) with direct PostgreSQL operations
-// against the existing auth.users columns (recovery_token, confirmation_token,
-// etc.) that GoTrue itself used.
+// Stores tokens in public.verification_tokens (created in migration 204),
+// NOT in auth.users GoTrue columns (recovery_token etc.), so this works
+// on both production (full GoTrue schema) and fresh self-hosted installs.
 
 import { createHash, randomBytes } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
@@ -14,7 +13,7 @@ const RECOVERY_JWT_SECRET = new TextEncoder().encode(
 );
 
 /** Generate a 256-bit random token and its SHA-256 hash. The raw form goes
- *  in the URL; the hash is stored in auth.users. */
+ *  in the URL; the hash is stored in verification_tokens. */
 export function generateToken(): { raw: string; hash: string } {
   const raw = randomBytes(32).toString("hex");
   const hash = createHash("sha256").update(raw).digest("hex");
@@ -22,78 +21,86 @@ export function generateToken(): { raw: string; hash: string } {
 }
 
 /** Store a recovery token for the given email. Returns the raw token (for the
- *  reset URL), or null when no active user with that email exists. Callers
- *  should always return 200 regardless to avoid leaking account existence. */
+ *  reset URL), or null when no active user with that email exists. */
 export async function storeRecoveryToken(email: string): Promise<string | null> {
-  const { raw, hash } = generateToken();
   const sql = getPool();
-  const rows = await sql`
-    UPDATE auth.users
-       SET recovery_token   = ${hash},
-           recovery_sent_at = NOW(),
-           updated_at       = NOW()
-     WHERE email      = ${email}
+  // Check the user exists before storing a token (avoids leaking timing info).
+  const users = await sql`
+    SELECT id FROM auth.users
+     WHERE email     = ${email}
        AND deleted_at IS NULL
-     RETURNING id
+     LIMIT 1
   ` as unknown as Array<{ id: string }>;
-  return rows.length > 0 ? raw : null;
+  if (users.length === 0) return null;
+
+  const { raw, hash } = generateToken();
+  // Replace any existing recovery token for this email.
+  await sql`DELETE FROM public.verification_tokens WHERE identifier = ${"recovery:" + email}`;
+  await sql`
+    INSERT INTO public.verification_tokens (identifier, token, expires)
+    VALUES (${"recovery:" + email}, ${hash}, NOW() + INTERVAL '1 hour')
+  `;
+  return raw;
 }
 
-/** Verify a raw recovery token. On success, clears the token from auth.users
- *  (one-time use) and returns the user's id. Returns null if the token is
- *  unknown, expired (>1 h), or already consumed. */
+/** Verify a raw recovery token. On success, deletes it (one-time use) and
+ *  returns the user's id. Returns null if unknown, expired, or already used. */
 export async function verifyAndConsumeRecoveryToken(
   rawToken: string,
 ): Promise<string | null> {
   const hash = createHash("sha256").update(rawToken).digest("hex");
   const sql = getPool();
   const rows = await sql`
-    UPDATE auth.users
-       SET recovery_token   = NULL,
-           recovery_sent_at = NULL,
-           updated_at       = NOW()
-     WHERE recovery_token   = ${hash}
-       AND recovery_sent_at > NOW() - INTERVAL '1 hour'
-       AND deleted_at IS NULL
-     RETURNING id
+    DELETE FROM public.verification_tokens
+     WHERE token      = ${hash}
+       AND identifier LIKE 'recovery:%'
+       AND expires    > NOW()
+    RETURNING identifier
+  ` as unknown as Array<{ identifier: string }>;
+  if (rows.length === 0) return null;
+
+  const email = rows[0].identifier.replace(/^recovery:/, "");
+  const users = await sql`
+    SELECT id FROM auth.users WHERE email = ${email} AND deleted_at IS NULL LIMIT 1
   ` as unknown as Array<{ id: string }>;
-  return rows.length > 0 ? rows[0].id : null;
+  return users.length > 0 ? users[0].id : null;
 }
 
-/** Store an email-confirmation token for a newly signed-up user (not yet
- *  email_confirmed_at). Returns the raw token to include in the confirm URL. */
+/** Store an email-confirmation token for a newly signed-up user. Returns the
+ *  raw token to include in the confirm URL. */
 export async function storeConfirmationToken(userId: string): Promise<string> {
   const { raw, hash } = generateToken();
   const sql = getPool();
+  await sql`DELETE FROM public.verification_tokens WHERE identifier = ${"confirm:" + userId}`;
   await sql`
-    UPDATE auth.users
-       SET confirmation_token   = ${hash},
-           confirmation_sent_at = NOW(),
-           updated_at           = NOW()
-     WHERE id = ${userId}
+    INSERT INTO public.verification_tokens (identifier, token, expires)
+    VALUES (${"confirm:" + userId}, ${hash}, NOW() + INTERVAL '24 hours')
   `;
   return raw;
 }
 
-/** Verify a confirmation token. On success, marks email_confirmed_at and
- *  clears the token, then returns the user's id. Expires after 24 h. */
+/** Verify a confirmation token. On success, marks email_confirmed_at, deletes
+ *  the token, and returns the user's id. Expires after 24 h. */
 export async function verifyAndConsumeConfirmationToken(
   rawToken: string,
 ): Promise<string | null> {
   const hash = createHash("sha256").update(rawToken).digest("hex");
   const sql = getPool();
   const rows = await sql`
-    UPDATE auth.users
-       SET email_confirmed_at    = NOW(),
-           confirmation_token    = NULL,
-           confirmation_sent_at  = NULL,
-           updated_at            = NOW()
-     WHERE confirmation_token    = ${hash}
-       AND confirmation_sent_at  > NOW() - INTERVAL '24 hours'
-       AND deleted_at IS NULL
-     RETURNING id
-  ` as unknown as Array<{ id: string }>;
-  return rows.length > 0 ? rows[0].id : null;
+    DELETE FROM public.verification_tokens
+     WHERE token      = ${hash}
+       AND identifier LIKE 'confirm:%'
+       AND expires    > NOW()
+    RETURNING identifier
+  ` as unknown as Array<{ identifier: string }>;
+  if (rows.length === 0) return null;
+
+  const userId = rows[0].identifier.replace(/^confirm:/, "");
+  await sql`
+    UPDATE auth.users SET email_confirmed_at = NOW(), updated_at = NOW()
+     WHERE id = ${userId}
+  `;
+  return userId;
 }
 
 /** Sign a short-lived JWT that represents a "password reset in progress"
