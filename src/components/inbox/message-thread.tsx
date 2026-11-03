@@ -162,6 +162,13 @@ interface MessageThreadProps {
    */
   onRefresh?: () => void;
   /**
+   * Called immediately after every successful send. The parent bumps
+   * `resyncToken` so the real DB row (with its stored id) replaces the
+   * optimistic temp bubble without waiting for the next poll cycle.
+   * Optional so existing callers keep working.
+   */
+  onMessageSent?: () => void;
+  /**
    * Desktop-only contact-panel toggle. The page owns the open/closed
    * state (it's the one that renders the sidebar), so the thread just
    * reflects it and asks the page to flip it. Both optional so existing
@@ -241,6 +248,7 @@ export function MessageThread({
   onBack,
   resyncToken = 0,
   onRefresh,
+  onMessageSent,
   contactPanelOpen,
   onToggleContactPanel,
   ticketPanelOpen,
@@ -732,8 +740,11 @@ export function MessageThread({
 
         // Success — the realtime INSERT event will replace the temp bubble
         // with the real DB row. If realtime hasn't arrived yet, at least
-        // flip status to 'sent' so the UI stops showing "sending".
+        // flip status to 'sent' so the UI stops showing "sending", then
+        // ask the parent to bump resyncToken so the real DB row (with its
+        // stored UUID) replaces the temp bubble promptly.
         onUpdateMessage(tempId, { status: "sent" });
+        onMessageSent?.();
         return true;
       } catch (err) {
         console.error("Failed to send message:", err);
@@ -772,8 +783,9 @@ export function MessageThread({
       try {
         await postComment(conversation.id, text, mentions);
         // Realtime's message INSERT handler swaps the temp bubble for
-        // the real row (same dedup path every other send goes through);
-        // nothing further to do on success.
+        // the real row (same dedup path every other send goes through).
+        // Also ask the parent to bump resyncToken in case Realtime is down.
+        onMessageSent?.();
         return true;
       } catch (err) {
         console.error("Failed to post comment:", err);
@@ -855,6 +867,7 @@ export function MessageThread({
         }
 
         onUpdateMessage(tempId, { status: "sent" });
+        onMessageSent?.();
         return true;
       } catch (err) {
         console.error("Failed to send media:", err);
@@ -915,6 +928,7 @@ export function MessageThread({
         }
 
         onUpdateMessage(tempId, { status: "sent" });
+        onMessageSent?.();
       } catch (err) {
         console.error("Failed to send interactive message:", err);
         const reason = err instanceof Error ? err.message : "network error";
@@ -1108,6 +1122,7 @@ export function MessageThread({
         }
 
         onUpdateMessage(tempId, { status: "sent" });
+        onMessageSent?.();
       } catch (err) {
         console.error("Failed to send template:", err);
         const reason = err instanceof Error ? err.message : "network error";

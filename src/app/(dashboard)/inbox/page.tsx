@@ -907,6 +907,7 @@ function InboxPageInner() {
             onBack={handleCloseConversation}
             resyncToken={resyncToken}
             onRefresh={handleManualRefresh}
+            onMessageSent={() => setResyncToken((n) => n + 1)}
             contactPanelOpen={contactPanelOpen}
             onToggleContactPanel={handleToggleContactPanel}
             ticketPanelOpen={ticketPanelOpen}
