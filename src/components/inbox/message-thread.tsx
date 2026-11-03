@@ -408,24 +408,23 @@ export function MessageThread({
   useEffect(() => {
     if (!conversationId) return;
 
-    const supabase = createClient();
     let cancelled = false;
 
     (async () => {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
+      // Fetch via the internal API so we read from the same local
+      // PostgreSQL that the server writes to, not from Supabase cloud
+      // (which no longer receives new inserts since Phase 1).
+      const res = await fetch(`/api/conversations/${conversationId}/messages`);
 
       if (cancelled) return;
 
-      if (error) {
-        console.error("Failed to fetch messages:", error);
+      if (!res.ok) {
+        console.error("Failed to fetch messages:", res.status);
       } else {
-        onMessagesLoadedRef.current(data ?? []);
+        const data: Message[] = await res.json();
+        onMessagesLoadedRef.current(data);
       }
 
       if (!cancelled) setLoading(false);
@@ -434,10 +433,6 @@ export function MessageThread({
     return () => {
       cancelled = true;
     };
-    // `resyncToken` is included so the parent can force a refetch when
-    // the realtime channel reconnects or the tab regains focus —
-    // realtime is best-effort and any message events sent while the WS
-    // was disconnected or throttled are otherwise lost.
   }, [conversationId, resyncToken]);
 
   // Reactions fetch — pulls the current state from the DB. Kept separate
