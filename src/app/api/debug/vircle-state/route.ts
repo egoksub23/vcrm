@@ -20,7 +20,7 @@ export async function GET() {
     // conversation is receiving activity in local PG.
     const { data: convs, error: convErr } = await admin
       .from('conversations')
-      .select('id, contact_id, last_message_at, last_message_text, last_channel_type, channel_type')
+      .select('id, contact_id, last_message_at, last_message_text, last_channel_type')
       .order('last_message_at', { ascending: false })
       .limit(10);
 
