@@ -544,6 +544,38 @@ export function MessageThread({
     };
   }, [conversationId]);
 
+  // Per-conversation Realtime subscription for new messages.
+  // The global inbox subscription filters by account_id, but the messages
+  // table has no account_id column, so those INSERT events never fire.
+  // Subscribing here by conversation_id delivers inbound messages in real
+  // time when the open conversation receives a new message.
+  const onNewMessageRef = useRef(onNewMessage);
+  useEffect(() => {
+    onNewMessageRef.current = onNewMessage;
+  });
+  useEffect(() => {
+    if (!conversationId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`messages:${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          onNewMessageRef.current(payload.new as Message);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId]);
+
   // Clear any in-progress reply draft when the active conversation changes —
   // a quote pulled from conversation A shouldn't bleed into conversation B.
   useEffect(() => {

@@ -537,19 +537,21 @@ function InboxPageInner() {
   }, []);
 
   /**
-   * Polling fallback when Realtime is disconnected. Fires every 10 s so
-   * inbound messages appear without a manual refresh when the WS cannot
-   * establish (e.g. production Supabase Realtime outage).
+   * Polling fallback — fires every 10 s regardless of Realtime connection
+   * state. The messages table has no account_id column so the global
+   * Realtime subscription (filtered by account_id) never delivers message
+   * INSERT events even when the channel shows SUBSCRIBED. Per-conversation
+   * subscriptions in message-thread.tsx cover the real-time path; this
+   * poll is the belt-and-suspenders catch-all.
    */
   useEffect(() => {
-    if (isConnected) return;
     const id = setInterval(() => {
       if (document.visibilityState === "visible") {
         setResyncToken((n) => n + 1);
       }
     }, 10_000);
     return () => clearInterval(id);
-  }, [isConnected]);
+  }, []);
 
   /**
    * Manual refresh trigger for the thread-header refresh button.
