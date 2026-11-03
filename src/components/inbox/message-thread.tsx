@@ -385,6 +385,12 @@ export function MessageThread({
   });
 
   const conversationId = conversation?.id;
+
+  // Track the conversation the last fetch ran for.  Only show the
+  // loading spinner when switching to a new conversation — background
+  // resyncToken bumps (10-s poll, post-send refresh) must not blank
+  // the thread between fetches.
+  const prevFetchedConvIdRef = useRef<string | null>(null);
   const hasUnread = (conversation?.unread_count ?? 0) > 0;
   const isVircleChat = conversation?.last_channel_type === "vircle_chat";
 
@@ -411,7 +417,12 @@ export function MessageThread({
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
+      // Show the spinner only when opening a different conversation.
+      // Periodic resyncs (resyncToken bumps) fetch silently so the
+      // message list doesn't blank out every 10 seconds.
+      const isConvSwitch = prevFetchedConvIdRef.current !== conversationId;
+      prevFetchedConvIdRef.current = conversationId;
+      if (isConvSwitch) setLoading(true);
 
       // Fetch via the internal API so we read from the same local
       // PostgreSQL that the server writes to, not from Supabase cloud
