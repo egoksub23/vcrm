@@ -5,6 +5,7 @@
 // Supabase cloud which no longer receives new inserts.
 
 import { requireCapability } from '@/lib/auth/account';
+import { createAdminPgDb } from '@/lib/postgres/db';
 import { NextResponse } from 'next/server';
 import type { Message } from '@/types';
 
@@ -16,7 +17,7 @@ export async function GET(
     const { supabase, accountId } = await requireCapability('messages.send');
     const { id: conversationId } = await params;
 
-    // Verify the conversation belongs to this account.
+    // Verify the conversation belongs to this account (user-scoped for auth).
     const { data: conv } = await supabase
       .from('conversations')
       .select('id')
@@ -25,7 +26,12 @@ export async function GET(
       .maybeSingle();
     if (!conv) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-    const { data, error } = await supabase
+    // Fetch messages via admin to bypass RLS — ownership is already
+    // established above. This ensures messages inserted by server-side
+    // admin paths (inbound webhooks) are always visible alongside those
+    // inserted through the user-scoped client.
+    const admin = createAdminPgDb();
+    const { data, error } = await admin
       .from('messages')
       .select('*')
       .eq('conversation_id', conversationId)

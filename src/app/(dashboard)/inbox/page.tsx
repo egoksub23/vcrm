@@ -3,11 +3,6 @@
 import { Suspense, useState, useCallback, useEffect, useReducer, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createClient } from "@/lib/supabase/client";
-import {
-  CONVERSATION_SELECT,
-  normalizeConversation,
-} from "@/lib/inbox/conversations";
 import type { Conversation, ConversationPriority, Message, Contact, ConversationStatus, Tag } from "@/types";
 import { tabForChannel, unreadConversationCounts, type InboxTab } from "@/lib/inbox/channel-scope";
 import { CommentsInbox } from "@/components/comments/comments-inbox";
@@ -245,25 +240,12 @@ function InboxPageInner() {
     if (hydratingConvIdsRef.current.has(convId)) return;
     hydratingConvIdsRef.current.add(convId);
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("conversations")
-        .select(CONVERSATION_SELECT)
-        .eq("id", convId)
-        .maybeSingle();
-      if (error) {
-        // Supabase errors have non-enumerable properties — log fields
-        // explicitly so the console message isn't just `{}`.
-        console.error("Failed to hydrate conversation:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-        });
+      const res = await fetch(`/api/conversations/${convId}`);
+      if (!res.ok) {
+        console.error("Failed to hydrate conversation:", res.status);
         return;
       }
-      if (!data) return;
-      const fetched = normalizeConversation(data);
+      const fetched: Conversation = await res.json();
       setConversations((prev) => {
         const existing = prev.find((c) => c.id === fetched.id);
         if (existing) {
@@ -285,44 +267,12 @@ function InboxPageInner() {
     }
   }, []);
 
-  // Check WhatsApp connection status on mount
+  // Check WhatsApp connection status on mount via the config API.
   useEffect(() => {
-    const checkConnection = async () => {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const user = session?.user;
-
-      if (!user) return;
-
-      // whatsapp_config is one-row-per-account post-multi-user, so
-      // the previous `.eq('user_id', user.id)` would miss the row
-      // for any teammate who didn't personally save the config —
-      // the "WhatsApp not connected" banner would show in the
-      // shared inbox even though the admin had it configured.
-      // Resolve account_id via the profile and query by that.
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("account_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const accountId = profile?.account_id as string | undefined;
-      if (!accountId) {
-        setWhatsappConnected(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("whatsapp_config")
-        .select("status")
-        .eq("account_id", accountId)
-        .maybeSingle();
-
-      setWhatsappConnected(data?.status === "connected");
-    };
-
-    checkConnection();
+    fetch('/api/whatsapp/config')
+      .then((r) => r.json())
+      .then((d) => setWhatsappConnected(d?.status === 'connected'))
+      .catch(() => {/* leave null — no banner */});
   }, []);
 
   // Client-triggered companion to the /api/email/subscription-renew
@@ -686,7 +636,19 @@ function InboxPageInner() {
 
 
   const handleMessagesLoaded = useCallback((loaded: Message[]) => {
-    setMessages(loaded);
+    setMessages((prev) => {
+      // Keep any optimistic (temp-*) messages that the DB doesn't have yet.
+      // Real messages in `prev` that aren't in `loaded` are dropped — they
+      // may have been deleted or belong to a conversation switch.
+      const optimistic = prev.filter(
+        (m) => m.id.startsWith('temp-') && !loaded.some((l) => l.id === m.id),
+      );
+      if (optimistic.length === 0) return loaded;
+      return [...loaded, ...optimistic].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+    });
   }, []);
 
   const handleNewMessage = useCallback((msg: Message) => {

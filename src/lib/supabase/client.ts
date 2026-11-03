@@ -21,7 +21,7 @@ function readTokenCookie(): string | null {
 
 export function createClient(): SupabaseClient {
   const token = readTokenCookie();
-  return createSupabaseClient(
+  const client = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -35,4 +35,10 @@ export function createClient(): SupabaseClient {
       },
     },
   );
+  // Explicitly set the Realtime auth token so postgres_changes subscriptions
+  // evaluate RLS with the user's JWT (auth.uid() → user sub) rather than the
+  // anon key. Without this, Supabase Realtime uses the anon role and all
+  // row-level security checks fail, so INSERT events are never delivered.
+  if (token) client.realtime.setAuth(token);
+  return client;
 }
