@@ -16,7 +16,7 @@
 //     not WhatsApp's Bearer-token download.
 // ============================================================
 import { NextResponse, after } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
@@ -33,18 +33,6 @@ import { getMessengerUserProfile } from '@/lib/messenger/meta-api'
 import { hasCommentChanges, processMetaCommentChanges, type MetaEntryWithChanges } from '@/lib/comments/meta-webhook'
 
 export const maxDuration = 60
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _adminClient: any = null
-function createAdminPgDb() {
-  if (!_adminClient) {
-    _adminClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-  }
-  return _adminClient
-}
 
 interface MessengerAttachment {
   type: 'image' | 'video' | 'audio' | 'file' | 'template' | 'fallback'

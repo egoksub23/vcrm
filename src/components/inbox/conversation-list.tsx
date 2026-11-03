@@ -1,11 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
 import {
-  CONVERSATION_SELECT,
   matchesContactFilters,
-  normalizeConversations,
 } from "@/lib/inbox/conversations";
 import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
@@ -209,12 +206,10 @@ export function ConversationList({
   const [pendingDeleteOpen, setPendingDeleteOpen] = useState(false);
   const [pendingDeleteCount, setPendingDeleteCount] = useState(0);
   const refetchPendingDeleteCount = useCallback(() => {
-    const supabase = createClient();
-    supabase
-      .from("messages")
-      .select("id", { count: "exact", head: true })
-      .eq("pending_delete", true)
-      .then(({ count }) => setPendingDeleteCount(count ?? 0));
+    fetch('/api/conversations/pending-delete-count')
+      .then((r) => r.json())
+      .then(({ count }: { count: number }) => setPendingDeleteCount(count ?? 0))
+      .catch(() => {});
   }, []);
   useEffect(() => {
     refetchPendingDeleteCount();
@@ -356,31 +351,26 @@ export function ConversationList({
   });
 
   useEffect(() => {
-    const supabase = createClient();
     let cancelled = false;
 
     (async () => {
-      const { data, error } = await supabase
-        .from("conversations")
-        .select(CONVERSATION_SELECT)
-        .order("last_message_at", { ascending: false });
-
-      if (cancelled) return;
-
-      if (error) {
-        // Supabase errors have non-enumerable properties — log fields explicitly
-        console.error("Failed to fetch conversations:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-        });
+      try {
+        const res = await fetch('/api/conversations');
+        if (cancelled) return;
+        if (!res.ok) {
+          console.error("Failed to fetch conversations:", res.status);
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        onConversationsLoadedRef.current(data);
         setLoading(false);
-        return;
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Failed to fetch conversations:", err);
+        setLoading(false);
       }
-
-      onConversationsLoadedRef.current(normalizeConversations(data ?? []));
-      setLoading(false);
     })();
 
     return () => {

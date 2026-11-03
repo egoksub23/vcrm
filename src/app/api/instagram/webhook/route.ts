@@ -15,7 +15,7 @@
 // ============================================================
 import { NextResponse, after } from 'next/server'
 import { hasCommentChanges, processMetaCommentChanges, type MetaEntryWithChanges } from '@/lib/comments/meta-webhook'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
@@ -30,18 +30,6 @@ import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 
 export const maxDuration = 60
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _adminClient: any = null
-function createAdminPgDb() {
-  if (!_adminClient) {
-    _adminClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-  }
-  return _adminClient
-}
 
 interface InstagramAttachment {
   type: 'image' | 'video' | 'audio' | 'file' | 'template' | 'fallback' | 'story_mention' | 'share'

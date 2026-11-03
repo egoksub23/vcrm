@@ -27,7 +27,7 @@
 //     is_echo problem simply doesn't exist here.
 // ============================================================
 import { NextResponse, after } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminPgDb } from '@/lib/postgres/db'
 
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
@@ -44,18 +44,6 @@ import { inboxIsOff } from '@/lib/email/mailbox-types'
 import { getMessage, listAttachments, downloadAttachmentBytes } from '@/lib/ms365/mail-api'
 
 export const maxDuration = 60
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _adminClient: any = null
-function createAdminPgDb() {
-  if (!_adminClient) {
-    _adminClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-  }
-  return _adminClient
-}
 
 interface GraphNotification {
   subscriptionId: string
