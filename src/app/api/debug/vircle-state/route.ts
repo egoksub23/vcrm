@@ -4,20 +4,36 @@
 import { createAdminPgDb } from '@/lib/postgres/db';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const admin = createAdminPgDb();
+    const { searchParams } = new URL(request.url);
+    const convId = searchParams.get('convId');
 
-    // Latest 10 messages across ALL conversations for this account,
-    // ordered by created_at desc — lets us see if any new messages landed anywhere.
+    // If ?convId= is provided, dump everything for that one conversation.
+    if (convId) {
+      const { data: msgs, error: msgsErr } = await admin
+        .from('messages')
+        .select('id, sender_type, channel_type, content_text, created_at, status, message_id')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      const { data: conv, error: convErr } = await admin
+        .from('conversations')
+        .select('id, contact_id, last_message_at, last_message_text, last_channel_type, account_id')
+        .eq('id', convId)
+        .maybeSingle();
+      return NextResponse.json({ conv, convErr, msgs, msgsErr, msgCount: msgs?.length ?? 0 });
+    }
+
+    // Latest 20 messages across ALL conversations, ordered newest-first.
     const { data: recentMsgs, error: recentErr } = await admin
       .from('messages')
       .select('id, conversation_id, sender_type, channel_type, content_text, created_at, status')
       .order('created_at', { ascending: false })
       .limit(20);
 
-    // Conversation list — rows sorted by last_message_at so we can see which
-    // conversation is receiving activity in local PG.
+    // Conversation list sorted by last_message_at.
     const { data: convs, error: convErr } = await admin
       .from('conversations')
       .select('id, contact_id, last_message_at, last_message_text, last_channel_type')
