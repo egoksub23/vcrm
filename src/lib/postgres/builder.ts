@@ -237,6 +237,14 @@ export class PgQueryBuilder<T = any> {
   // ---- operation setters -------------------------------------------------
 
   select(cols?: string, opts?: { count?: 'exact' | 'planned' | 'estimated'; head?: boolean }): this {
+    if (this._op === 'insert' || this._op === 'update' || this._op === 'delete' || this._op === 'upsert') {
+      // For mutations, .select() sets the RETURNING columns — it must NOT switch _op to 'select'.
+      // Supabase JS does the same: .insert(row).select('id') means INSERT ... RETURNING "id".
+      this._returning = cols ?? '*'
+      this._count = opts?.count ? 'exact' : null
+      this._headOnly = opts?.head === true
+      return this
+    }
     this._op = 'select'
     this._selectRaw = cols ?? '*'
     this._count = opts?.count ? 'exact' : null
