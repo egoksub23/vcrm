@@ -111,19 +111,25 @@ export async function ingestInbound(
 
   // The user's file: copy it into private storage. A file that cannot be taken is noted in
   // the message instead of failing the event (a retry would not fix a refused type).
+  // The outer try/catch covers appStorage() itself, which throws when the storage provider
+  // env var isn't configured — that must degrade to the fallback text, not abort the event.
   let mediaUrl: string | null = null
   let mediaType: string | null = null
   let contentType: string = m.type
   let text = m.text
   if (m.type !== 'text' && m.media) {
-    mediaUrl = await mirrorUserFile({
-      storage: appStorage(),
-      accountId,
-      serverId: m.serverId,
-      kind: m.type,
-      media: m.media,
-      sentAt: m.sentAt,
-    })
+    try {
+      mediaUrl = await mirrorUserFile({
+        storage: appStorage(),
+        accountId,
+        serverId: m.serverId,
+        kind: m.type,
+        media: m.media,
+        sentAt: m.sentAt,
+      })
+    } catch (err) {
+      console.warn('[vircle-chat] mirror failed:', err instanceof Error ? err.message : err)
+    }
     if (mediaUrl) {
       mediaType = m.media.mimeType
     } else {

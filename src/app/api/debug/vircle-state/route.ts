@@ -52,12 +52,21 @@ export async function GET(request: Request) {
       }
     }
 
+    // vircle_chat_config.last_error — set by the webhook on any ingestInbound failure.
+    const { data: cfgRows } = await admin
+      .from('vircle_chat_config')
+      .select('account_id, last_error, updated_at')
+      .not('last_error', 'is', null)
+      .order('updated_at', { ascending: false })
+      .limit(5);
+
     return NextResponse.json({
       recentMessages: recentMsgs,
       recentMsgsError: recentErr,
       conversations: convs,
       convsError: convErr,
       messageCounts: counts,
+      webhookErrors: cfgRows,
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
