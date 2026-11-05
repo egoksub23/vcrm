@@ -23,7 +23,7 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
 } from "@/lib/rate-limit";
-import { INCIDENT_DETECTION_SOURCES } from "@/lib/incidents/constants";
+import { INCIDENT_DETECTION_SOURCES, isIncidentFlag } from "@/lib/incidents/constants";
 
 const MAX_TITLE_LEN = 200;
 const MAX_DESCRIPTION_LEN = 10000;
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
           incidentType?: unknown;
           severity?: unknown;
           detectionSource?: unknown;
+          flags?: unknown;
         }
       | null;
 
@@ -63,22 +64,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "'incidentType' is required" }, { status: 400 });
     }
 
-    // Validate incidentType and severity against the account's active standard catalogue.
-    const { data: aisRows } = await ctx.supabase
+    // Validate incidentType and severity against the account's active template.
+    // (Frameworks such as PDPA are active alongside it but add obligations, not categories.)
+    const { data: activeRows } = await ctx.supabase
       .from("account_incident_standards")
       .select("standard_id")
       .eq("account_id", ctx.accountId)
-      .eq("is_active", true)
-      .limit(1);
+      .eq("is_active", true);
+    const activeIds = (activeRows ?? []).map((r: { standard_id: string }) => r.standard_id);
 
-    const standardId = aisRows?.[0]?.standard_id as string | undefined;
+    const { data: templateRows } = activeIds.length
+      ? await ctx.supabase
+          .from("incident_standards")
+          .select("id")
+          .in("id", activeIds)
+          .eq("kind", "template")
+          .limit(1)
+      : { data: [] as { id: string }[] };
+
+    const standardId = templateRows?.[0]?.id as string | undefined;
     if (!standardId) {
       return NextResponse.json({ error: "No active incident standard configured for this account" }, { status: 422 });
     }
 
     const { data: typeRow } = await ctx.supabase
       .from("incident_type_catalogue")
-      .select("id")
+      .select("id, default_flags")
       .eq("standard_id", standardId)
       .eq("code", incidentType)
       .maybeSingle();
@@ -87,16 +98,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "'incidentType' is not a recognized incident type" }, { status: 400 });
     }
 
-    const severity = typeof body?.severity === "string" ? body.severity : "P3";
-    const { data: sevRow } = await ctx.supabase
+    const { data: levels } = await ctx.supabase
       .from("incident_severity_levels")
-      .select("id")
+      .select("slug")
       .eq("standard_id", standardId)
-      .eq("slug", severity)
-      .maybeSingle();
+      .order("position");
+    const levelSlugs = (levels ?? []).map((l: { slug: string }) => l.slug);
 
-    if (!sevRow) {
+    // Default to the second-lowest level (BNM: P3) when the client sends none.
+    const severity =
+      typeof body?.severity === "string"
+        ? body.severity
+        : (levelSlugs[Math.max(0, levelSlugs.length - 2)] ?? "");
+    if (!levelSlugs.includes(severity)) {
       return NextResponse.json({ error: "'severity' is not a recognized severity level for this standard" }, { status: 400 });
+    }
+
+    // Flags say what the incident involves; an active framework's obligations key off them.
+    // The client sends the final set (the category's defaults, as the reporter adjusted
+    // them); without one the category's own defaults apply.
+    let flags: string[];
+    if (body?.flags === undefined) {
+      flags = (typeRow.default_flags as string[] | null) ?? [];
+    } else if (Array.isArray(body.flags) && body.flags.every(isIncidentFlag)) {
+      flags = [...new Set(body.flags as string[])];
+    } else {
+      return NextResponse.json({ error: "'flags' contains an unrecognized flag" }, { status: 400 });
     }
 
     const detectionSource = typeof body?.detectionSource === "string" ? body.detectionSource : "other";
@@ -124,6 +151,7 @@ export async function POST(request: Request) {
         detection_source: detectionSource,
         reporter_id: ctx.userId,
         standard_id: standardId,
+        incident_flags: flags,
       })
       .select("*")
       .single();

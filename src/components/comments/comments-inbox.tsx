@@ -8,6 +8,7 @@ import { Loader2, MessageCircleMore, RefreshCw, Search } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSse } from "@/hooks/use-account-sse";
 import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import { COMMENT_PROVIDERS, type CommentPost, type CommentProvider, type CommentRow } from "@/lib/comments/types";
@@ -75,6 +76,7 @@ export function CommentsInbox({
   const [tick, setTick] = useState(0);
   const seq = useRef(0);
   const openedLink = useRef<string | null>(null);
+  const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // The flat-list choice is remembered per person on this device. Read after mount so the server and the first client render agree.
   useEffect(() => {
@@ -134,30 +136,20 @@ export function CommentsInbox({
   }, [load, q, prefReady]);
 
   // Live updates: any change to a comment refreshes the list, the open thread and the count.
-  useEffect(() => {
-    if (!accountId) return;
-    const supabase = createClient();
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const channel = supabase
-      .channel(`comments-${accountId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "comments", filter: `account_id=eq.${accountId}` },
-        () => {
-          if (timer) clearTimeout(timer);
-          timer = setTimeout(() => {
+  useAccountSse(
+    "comments",
+    accountId
+      ? () => {
+          if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+          liveTimerRef.current = setTimeout(() => {
             void load();
             setTick((n) => n + 1);
             onCountChange();
           }, 400);
-        },
-      )
-      .subscribe();
-    return () => {
-      if (timer) clearTimeout(timer);
-      void supabase.removeChannel(channel);
-    };
-  }, [accountId, load, onCountChange]);
+        }
+      : undefined,
+    !!accountId,
+  );
 
   // A link to one comment: open its post's thread scrolled to it (or, in the flat list, the comment itself).
   useEffect(() => {

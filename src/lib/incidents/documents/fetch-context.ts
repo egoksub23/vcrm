@@ -1,6 +1,6 @@
 import { type PgDb } from '@/lib/postgres/db'
 
-import { ESCALATION_DEFAULT_MINUTES } from "../constants";
+import { escalationDefaultsFor } from "../constants";
 import type { Incident, IncidentAction, IncidentAttachment, IncidentEscalationEvent, IncidentNotificationSent } from "../types";
 import type { IncidentDocumentContext } from "./types";
 
@@ -63,7 +63,7 @@ export async function fetchIncidentDocumentContext(
   const nameByUser = new Map<string, string>();
   for (const p of profileRows ?? []) nameByUser.set(p.user_id, p.full_name ?? "");
 
-  const defaults = ESCALATION_DEFAULT_MINUTES[row.severity];
+  const defaults = escalationDefaultsFor(row.severity);
   const lastA = ((docsGenerated ?? []) as Array<{ form: string; generated_at: string | null }>).find((d) => d.form === "a")?.generated_at ?? null;
   const lastB = ((docsGenerated ?? []) as Array<{ form: string; generated_at: string | null }>).find((d) => d.form === "b")?.generated_at ?? null;
 

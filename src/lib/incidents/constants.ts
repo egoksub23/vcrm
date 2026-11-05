@@ -114,12 +114,22 @@ export function suggestsP2Minimum(type: IncidentTypeCode, detectionSource: Incid
   return P2_MINIMUM_TYPES.includes(type) || detectionSource === "regulator_partner";
 }
 
+/** 0 (most critical) to 3 for every scale in use: BNM P1-P4 and the
+ *  critical/high/medium/low (School, ISO) scales share four tiers. Anything
+ *  else sorts last. */
+export function severityRank(slug: string): number {
+  const i = ["P1", "P2", "P3", "P4"].indexOf(slug);
+  if (i >= 0) return i;
+  const j = ["critical", "high", "medium", "low"].indexOf(slug);
+  return j >= 0 ? j : 4;
+}
+
 /** Incidents fetched per page of the list view (mirrors Tickets' LIST_PAGE_SIZE). */
 export const LIST_PAGE_SIZE = 200;
 /** Incidents fetched per board column. */
 export const BOARD_COLUMN_PAGE_SIZE = 100;
 
-/** Mirrors `incident_escalation_default_minutes()` (migration 118) — the
+/** Mirrors `incident_escalation_default_minutes()` (migrations 118, 206) — the
  *  fallback used when an account has no `incident_escalation_policies`
  *  row for a severity. Kept in lockstep with that SQL function; used by
  *  the Settings escalation-timers tab (to show "using the default") and
@@ -130,3 +140,39 @@ export const ESCALATION_DEFAULT_MINUTES: Record<IncidentSeverity, { level1: numb
   P3: { level1: 1440, level2: 43200 },
   P4: { level1: 10080, level2: 43200 },
 };
+
+/** The critical/high/medium/low scales (School, ISO) take P1-P4's timers. */
+const ESCALATION_SLUG_ALIAS: Record<string, IncidentSeverity> = {
+  critical: "P1",
+  high: "P2",
+  medium: "P3",
+  low: "P4",
+};
+
+/** Default escalation timers for any severity slug; anything unknown gets
+ *  the SQL function's own fallback of 1 day. */
+export function escalationDefaultsFor(slug: string): { level1: number; level2: number } {
+  const key = (ESCALATION_SLUG_ALIAS[slug] ?? slug) as IncidentSeverity;
+  return ESCALATION_DEFAULT_MINUTES[key] ?? { level1: 1440, level2: 43200 };
+}
+
+// ============================================================
+// Flags: what an incident involves. A category starts with default
+// flags; an active framework's obligation rules fire on them
+// (incident_obligation_rules.trigger_flag, migration 206).
+// ============================================================
+export const INCIDENT_FLAGS = [
+  "injury",
+  "child_involved",
+  "personal_data",
+  "infosec",
+  "property_damage",
+  "security_breach",
+  "safeguarding",
+  "outside_agency",
+] as const;
+export type IncidentFlag = (typeof INCIDENT_FLAGS)[number];
+
+export function isIncidentFlag(value: unknown): value is IncidentFlag {
+  return typeof value === "string" && (INCIDENT_FLAGS as readonly string[]).includes(value);
+}

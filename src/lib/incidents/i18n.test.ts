@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { INCIDENT_STATUSES } from "./constants";
+import { INCIDENT_FLAGS, INCIDENT_STATUSES } from "./constants";
 
 // The incident detail screen reads Incidents.detail.activity.* keyed by
 // event_type and Incidents.detail.notificationsSent.party.* keyed by
@@ -34,7 +34,19 @@ const ACTIVITY_EVENT_TYPES = [
   "closedEvent",
 ];
 
-const RECIPIENT_PARTIES = ["bnm", "sponsor_emi", "partner", "pdp_commissioner", "data_subjects", "police", "other"];
+const RECIPIENT_PARTIES = [
+  "bnm",
+  "sponsor_emi",
+  "partner",
+  "pdp_commissioner",
+  "data_subjects",
+  "police",
+  "other",
+  "parent_guardian",
+  "school_leadership",
+  "ministry_education",
+  "insurer",
+];
 
 describe.each(["en", "ko"])("incident strings (%s)", (lang) => {
   const m = messages[lang];
@@ -52,6 +64,18 @@ describe.each(["en", "ko"])("incident strings (%s)", (lang) => {
   it("names every external-notification recipient party", () => {
     const party = at(m, "Incidents.detail.notificationsSent.party");
     for (const p of RECIPIENT_PARTIES) expect(party[p], p).toBeTypeOf("string");
+  });
+
+  it("labels every incident flag", () => {
+    const flags = at(m, "Incidents.flags");
+    for (const f of INCIDENT_FLAGS) expect(flags[f], f).toBeTypeOf("string");
+  });
+
+  it("has the obligations checklist strings", () => {
+    const o = at(m, "Incidents.detail.obligations");
+    for (const key of ["title", "openCount", "markDone", "markOpen", "updateFailed", "doneAt", "dueIn", "overdueBy"]) {
+      expect(o[key], key).toBeTypeOf("string");
+    }
   });
 
   it("registers the two capabilities and the menu entry", () => {

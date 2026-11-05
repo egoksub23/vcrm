@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import type { Message } from "@/types";
 import { shouldNotifyForMessage } from "@/lib/notifications/browser-notify";
 import {
@@ -20,14 +20,6 @@ export function useSoundNotifyPref(): boolean {
 /**
  * Audible ding for new inbound events. Mount ONCE per dashboard tab via
  * <SoundNotificationsListener /> in the dashboard shell.
- *
- * Two subscriptions:
- * 1. `messages` INSERT — plays for every new customer message that
- *    `shouldNotifyForMessage` would also flag (not the conversation the
- *    user is currently reading).
- * 2. `notifications` INSERT for this user — covers assignments, mentions,
- *    ticket events, etc. A separate ding so the inbox isn't the only
- *    event that gets audio feedback.
  */
 export function useSoundNotifications(): void {
   const enabled = useSoundNotifyPref();
@@ -35,22 +27,13 @@ export function useSoundNotifications(): void {
   const userId = user?.id ?? null;
   const seenRef = useRef<Map<string, number>>(new Map());
 
-  useEffect(() => {
-    if (!enabled || !accountId || !userId) return;
+  const active = enabled && !!accountId && !!userId;
 
-    const supabase = createClient();
-
-    const channel = supabase
-      .channel("sound-notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `account_id=eq.${accountId}`,
-        },
-        (payload) => {
+  useAccountSse(
+    "messages",
+    active
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "INSERT") return;
           const msg = payload.new as Message;
           const shouldPlay = shouldNotifyForMessage(msg, {
             documentVisible: document.visibilityState === "visible",
@@ -58,24 +41,25 @@ export function useSoundNotifications(): void {
             seen: seenRef.current,
           });
           if (shouldPlay) playNotificationSound();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          playNotificationSound();
-        },
-      )
-      .subscribe();
+        }
+      : undefined,
+    active,
+  );
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [enabled, accountId, userId]);
+  useAccountSse(
+    "notifications",
+    active
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "INSERT") return;
+          if ((payload.new as { user_id?: string }).user_id !== userId) return;
+          playNotificationSound();
+        }
+      : undefined,
+    active,
+  );
+
+  // Keep seenRef available for effects above.
+  useEffect(() => {
+    seenRef.current = seenRef.current;
+  }, []);
 }

@@ -30,6 +30,7 @@ import { dragHasFiles, droppedImages, pastedImages } from "@/lib/media/clipboard
 import { attachFileToIncident } from "@/lib/incidents/attachment-actions";
 import {
   INCIDENT_DETECTION_SOURCES,
+  INCIDENT_FLAGS,
   type IncidentDetectionSource,
 } from "@/lib/incidents/constants";
 import { useIncidentStandard } from "@/hooks/use-incident-standard";
@@ -66,26 +67,33 @@ interface RaiseIncidentDialogProps {
 export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreated }: RaiseIncidentDialogProps) {
   const t = useTranslations("Incidents.raise");
   const { user } = useAuth();
-  const { types, severities } = useIncidentStandard();
+  const tFlags = useTranslations("Incidents.flags");
+  const { types, severities, standardSlug, rules } = useIncidentStandard();
+  // BNM keeps the policy's P3 starting point; every other template starts a
+  // category at its own default severity (until the reporter picks one).
+  const isBnm = standardSlug === "bnm_rmit";
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [incidentType, setIncidentType] = useState<string>("");
   const [detectionSource, setDetectionSource] = useState<IncidentDetectionSource>("customer");
-  const [severity, setSeverity] = useState<string>("P3");
+  const [severity, setSeverity] = useState<string | null>(null);
+  const [flags, setFlags] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const defaultSeverity = severities[Math.max(0, severities.length - 2)]?.slug ?? "P3";
+  const effectiveSeverity = severity ?? defaultSeverity;
 
   const reset = () => {
     setTitle("");
     setDescription("");
     setIncidentType("");
     setDetectionSource("customer");
-    setSeverity(defaultSeverity);
+    setSeverity(null);
+    setFlags([]);
     for (const s of staged) if (s.preview) URL.revokeObjectURL(s.preview);
     setStaged([]);
   };
@@ -111,11 +119,29 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
     });
 
   const selectedType = types.find((ty) => ty.code === incidentType);
+
+  // Picking a category sets what the incident involves (the reporter can adjust it)
+  // and, outside BNM, its starting severity.
+  const chooseType = (code: string) => {
+    setIncidentType(code);
+    const ty = types.find((x) => x.code === code);
+    setFlags(ty?.default_flags ?? []);
+    if (!isBnm && severity === null && ty?.default_severity && severities.some((s) => s.slug === ty.default_severity)) {
+      setSeverity(ty.default_severity);
+    }
+  };
+  const toggleFlag = (flag: string) =>
+    setFlags((prev) => (prev.includes(flag) ? prev.filter((f) => f !== flag) : [...prev, flag]));
+
+  // What the account's active frameworks will track for the flags ticked.
+  const obligations = rules.filter((r) => flags.includes(r.trigger_flag));
+  const showFlags = incidentType !== "" && rules.length > 0;
+
   const showMinSeverityHint =
     incidentType !== "" &&
     selectedType?.min_severity != null &&
     (detectionSource === "regulator_partner" ||
-      (severities.findIndex((s) => s.slug === severity) >
+      (severities.findIndex((s) => s.slug === effectiveSeverity) >
         severities.findIndex((s) => s.slug === selectedType.min_severity)));
 
   const handleSubmit = async () => {
@@ -138,8 +164,9 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
           title: trimmedTitle,
           description: description.trim() || undefined,
           incidentType,
-          severity,
+          severity: effectiveSeverity,
           detectionSource,
+          flags,
         }),
       });
       const body = (await res.json().catch(() => null)) as { incident?: Incident; error?: string } | null;
@@ -195,7 +222,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
             </div>
             <DialogTitle className="text-lg text-popover-foreground">{t("title")}</DialogTitle>
           </div>
-          <DialogDescription className="text-muted-foreground">{t("description")}</DialogDescription>
+          <DialogDescription className="text-muted-foreground">{isBnm ? t("description") : t("descriptionGeneral")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-1">
@@ -307,7 +334,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="text-foreground">{t("typeLabel")}</Label>
-              <Select value={incidentType} onValueChange={(v) => setIncidentType(v ?? "")}>
+              <Select value={incidentType} onValueChange={(v) => chooseType(v ?? "")}>
                 <SelectTrigger className="h-10 w-full bg-muted">
                   <SelectValue placeholder={t("typePlaceholder")} />
                 </SelectTrigger>
@@ -350,21 +377,75 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                   disabled={busy}
                   className={cn(
                     "rounded-lg border px-2 py-2.5 text-center text-xs font-semibold transition-colors",
-                    severity === sev.slug ? cn(severityStyle(sev.slug), "border-2") : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                    effectiveSeverity === sev.slug ? cn(severityStyle(sev.slug), "border-2") : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
                   )}
                 >
-                  {sev.slug}
-                  <div className="mt-0.5 text-[10.5px] font-normal">{sev.label}</div>
+                  {isBnm ? (
+                    <>
+                      {sev.slug}
+                      <div className="mt-0.5 text-[10.5px] font-normal">{sev.label}</div>
+                    </>
+                  ) : (
+                    sev.label
+                  )}
                 </button>
               ))}
             </div>
             {showMinSeverityHint ? (
               <div className="mt-2 flex items-start gap-2 rounded-md bg-orange-500/10 px-2.5 py-2 text-[12px] text-orange-700 dark:text-orange-300">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                <span>{t("p2MinimumHint")}</span>
+                <span>
+                  {isBnm
+                    ? t("p2MinimumHint")
+                    : t("minSeverityHint", {
+                        level: severities.find((s) => s.slug === selectedType?.min_severity)?.label ?? "",
+                      })}
+                </span>
               </div>
             ) : null}
           </div>
+
+          {showFlags ? (
+            <div className="space-y-2">
+              <Label className="text-foreground">
+                {t("flagsLabel")} <span className="font-normal text-muted-foreground">{t("flagsHint")}</span>
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {INCIDENT_FLAGS.map((flag) => (
+                  <button
+                    key={flag}
+                    type="button"
+                    aria-pressed={flags.includes(flag)}
+                    onClick={() => toggleFlag(flag)}
+                    disabled={busy}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                      flags.includes(flag)
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {tFlags(flag)}
+                  </button>
+                ))}
+              </div>
+              {obligations.length > 0 ? (
+                <div className="rounded-lg bg-muted/50 px-3 py-2.5">
+                  <p className="text-[12px] font-semibold text-foreground">{t("obligationsHeading")}</p>
+                  <ul className="mt-1.5 space-y-1">
+                    {obligations.map((r) => (
+                      <li key={r.id} className="flex items-start justify-between gap-3 text-[12px] text-muted-foreground">
+                        <span>{r.title}</span>
+                        {r.due_hours ? (
+                          <span className="shrink-0 font-medium text-foreground">{t("obligationDue", { hours: r.due_hours })}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <DialogFooter className="border-border bg-popover pt-3">

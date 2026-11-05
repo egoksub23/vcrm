@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import type { Notification } from "@/types";
 import { AlarmClock, AtSign, Bell, Bot, CheckCheck, CheckSquare, ClipboardCheck, FileSignature, Hash, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -82,11 +82,10 @@ export default function NotificationsPage() {
 
   // Realtime — new assignments appear without a refresh, and a
   // "mark all read" fired from another tab/device stays in sync here.
-  useEffect(() => {
-    if (!userId) return;
-    const supabase = createClient();
-    const channel = supabase.channel("notifications-page");
-    onScopedChanges(channel, { table: "notifications", filter: eq("user_id", userId) }, (payload) => {
+  useAccountSse(
+    "notifications",
+    userId
+      ? (payload: SsePayload) => {
           if (payload.eventType === "DELETE" && (payload.old as Partial<Notification>).user_id !== userId) return;
           if (payload.eventType === "INSERT") {
             const row = payload.new as Notification;
@@ -98,22 +97,16 @@ export default function NotificationsPage() {
           } else if (payload.eventType === "UPDATE") {
             const row = payload.new as Notification;
             setNotifications((prev) =>
-              prev?.map((n) => (n.id === row.id ? { ...n, ...row } : n)) ??
-              prev,
+              prev?.map((n) => (n.id === row.id ? { ...n, ...row } : n)) ?? prev,
             );
           } else if (payload.eventType === "DELETE") {
             const oldRow = payload.old as Partial<Notification>;
-            setNotifications(
-              (prev) => prev?.filter((n) => n.id !== oldRow.id) ?? prev,
-            );
+            setNotifications((prev) => prev?.filter((n) => n.id !== oldRow.id) ?? prev);
           }
-    });
-    channel.subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId]);
+        }
+      : undefined,
+    !!userId,
+  );
 
   const markRead = useCallback(
     async (id: string) => {

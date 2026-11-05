@@ -5,7 +5,8 @@ import { AlertTriangle, ShieldAlert } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus } from "@/lib/incidents/constants";
-import { incidentTypeLabel } from "@/lib/incidents/constants";
+import { incidentTypeLabel, severityRank } from "@/lib/incidents/constants";
+import { useStandardCatalogue } from "@/hooks/use-incident-standard";
 
 // ============================================================
 // The small pieces every incident surface shares (list row, board card,
@@ -41,13 +42,13 @@ export function severityStyle(slug: string): string {
   );
 }
 
-/** The 3px coloured edge on a board card, by severity. */
-export const SEVERITY_EDGE: Record<IncidentSeverity, string> = {
-  P1: "border-l-red-500",
-  P2: "border-l-orange-500",
-  P3: "border-l-amber-500",
-  P4: "border-l-border",
-};
+/** The 3px coloured edge on a board card, by severity. Every scale (BNM
+ *  P1-P4, School / ISO critical-low) shares the same four tiers. */
+const _EDGE_BY_RANK = ["border-l-red-500", "border-l-orange-500", "border-l-amber-500", "border-l-border"];
+
+export function severityEdge(slug: string): string {
+  return _EDGE_BY_RANK[severityRank(slug)] ?? "border-l-border";
+}
 
 export const STATUS_STYLE: Record<IncidentStatus, string> = {
   reported: "bg-red-500/15 text-red-700 dark:text-red-300",
@@ -60,9 +61,24 @@ export const STATUS_STYLE: Record<IncidentStatus, string> = {
 
 const _BNM_SEVERITY_SLUGS = new Set(["P1", "P2", "P3", "P4"]);
 
-export function SeverityBadge({ severity, label, className }: { severity: string; label?: string; className?: string }) {
+export function SeverityBadge({
+  severity,
+  label,
+  standardId,
+  className,
+}: {
+  severity: string;
+  label?: string;
+  /** The template the incident was raised under, so a school's "Serious" shows as
+   *  such rather than the raw slug. */
+  standardId?: string | null;
+  className?: string;
+}) {
   const t = useTranslations("Incidents.common.severity");
-  const displayLabel = label ?? (_BNM_SEVERITY_SLUGS.has(severity) ? t(severity as IncidentSeverity) : severity);
+  const catalogue = useStandardCatalogue(standardId);
+  const catalogueLabel = catalogue?.severities.find((s) => s.slug === severity)?.label;
+  const displayLabel =
+    label ?? (_BNM_SEVERITY_SLUGS.has(severity) ? t(severity as IncidentSeverity) : (catalogueLabel ?? severity));
   return (
     <span
       className={cn(
@@ -71,8 +87,8 @@ export function SeverityBadge({ severity, label, className }: { severity: string
         className,
       )}
     >
-      {severity === "P1" ? <AlertTriangle className="size-3" /> : null}
-      {severity} · {displayLabel}
+      {severityRank(severity) === 0 ? <AlertTriangle className="size-3" /> : null}
+      {displayLabel.toLowerCase() === severity.toLowerCase() ? displayLabel : `${severity} · ${displayLabel}`}
     </span>
   );
 }
@@ -92,11 +108,13 @@ export function StatusLozenge({ status, className }: { status: IncidentStatus; c
   );
 }
 
-export function TypeChip({ code, className }: { code: string; className?: string }) {
+export function TypeChip({ code, standardId, className }: { code: string; standardId?: string | null; className?: string }) {
+  const catalogue = useStandardCatalogue(standardId);
+  const name = catalogue?.types.find((ty) => ty.code === code)?.name ?? incidentTypeLabel(code);
   return (
     <span className={cn("inline-flex items-center gap-1 truncate text-[12px] text-muted-foreground", className)}>
       <ShieldAlert className="size-3 shrink-0" />
-      <span className="truncate">{incidentTypeLabel(code)}</span>
+      <span className="truncate">{name}</span>
     </span>
   );
 }

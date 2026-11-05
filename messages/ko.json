@@ -5127,7 +5127,16 @@
         "loadFailed": "표준을 불러올 수 없습니다. 페이지를 새로 고침하고 다시 시도하세요.",
         "switchFailed": "표준을 전환할 수 없습니다. 다시 시도하세요.",
         "bnmNote": "BNM RMiT는 말레이시아 허가된 금융 서비스 제공자에게 의무 사항입니다. 인시던트 유형, 심각도 분류 체계 및 SLA 기간은 이 프레임워크에 의해 결정됩니다.",
-        "switchNote": "표준을 전환하면 계정 전체의 인시던트 유형 및 심각도 수준이 변경됩니다. 이전 인시던트는 원래의 유형 및 심각도 코드를 유지합니다."
+        "switchNote": "템플릿을 전환하면 계정 전체의 새 인시던트에 대한 유형 및 심각도 수준이 변경됩니다. 이전 인시던트는 원래의 유형과 심각도를 유지합니다.",
+        "templatesHeading": "인시던트 템플릿",
+        "templatesHint": "인시던트를 등록할 때 선택하는 분류와 심각도 체계입니다. 한 번에 하나의 템플릿만 활성화됩니다.",
+        "useTemplate": "이 템플릿 사용",
+        "frameworksHeading": "컴플라이언스 프레임워크",
+        "frameworksHint": "필요한 만큼 켤 수 있습니다. 각 프레임워크는 해당하는 인시던트에 기한이 있는 이행 사항을 추가합니다.",
+        "switchOn": "켜기",
+        "switchOff": "끄기",
+        "rulesCount": "이행 사항",
+        "frameworksNote": "이 프레임워크의 기한과 문구는 출발점입니다. 현행 규정과 자체 정책에 맞는지 개인정보 보호 책임자 또는 학교 관리자가 확인하세요."
       }
     },
     "ticketResolutions": {
@@ -7962,9 +7971,25 @@
         "closed": "종료됨"
       }
     },
+    "flags": {
+      "injury": "부상자가 있음",
+      "child_involved": "어린이 또는 학생이 관련됨",
+      "personal_data": "개인정보가 관련됨",
+      "infosec": "컴퓨터 시스템 또는 계정이 영향을 받음",
+      "property_damage": "재산 손상 또는 분실",
+      "security_breach": "침입자 또는 보안 침해",
+      "safeguarding": "아동 복지 우려",
+      "outside_agency": "경찰, 소방 또는 구급차 호출"
+    },
     "raise": {
       "title": "인시던트 등록",
       "description": "누구나 의심되는 보안 인시던트를 신고할 수 있습니다 — 지금 아는 내용을 적어주세요. 불확실한 부분은 기다리지 말고 \"조사 중\"으로 표시하세요. 분류와 영향 평가는 컴플라이언스 담당자가 분류 단계에서 완료합니다.",
+      "descriptionGeneral": "누구나 인시던트를 신고할 수 있습니다 — 부상, 사고, 시설 손상, 보안 또는 데이터 문제 등. 지금 아는 내용을 적어주세요. 분류는 인시던트 담당 팀이 검토 단계에서 완료합니다.",
+      "minSeverityHint": "이 유형의 신고는 보통 최소 {level} 수준입니다 — 인시던트 담당 팀이 검토 단계에서 사유를 기록하고 낮출 수 있습니다.",
+      "flagsLabel": "이 인시던트에 해당하는 항목",
+      "flagsHint": "— 해당하는 항목을 모두 선택하세요",
+      "obligationsHeading": "다음 항목이 자동으로 추적됩니다",
+      "obligationDue": "{hours}시간 이내",
       "titleLabel": "제목",
       "titlePlaceholder": "발생한 일에 대한 간단한 요약",
       "whatHappenedLabel": "무슨 일이 있었나요?",
@@ -8003,6 +8028,7 @@
       "fieldStatus": "상태",
       "fieldType": "유형",
       "fieldLead": "인시던트 담당자",
+      "involves": "관련 항목",
       "unassigned": "미배정",
       "timelineTitle": "타임라인",
       "timelineEmpty": "아직 활동이 없습니다.",
@@ -8013,6 +8039,16 @@
       "evidenceTitle": "증거 파일",
       "evidenceEmpty": "아직 업로드된 증거가 없습니다.",
       "uploadEvidence": "증거 업로드",
+      "obligations": {
+        "title": "이행 사항",
+        "openCount": "{total}건 중 {open}건 미완료",
+        "markDone": "완료로 표시",
+        "markOpen": "미완료로 표시",
+        "updateFailed": "해당 항목을 업데이트하지 못했습니다.",
+        "doneAt": "{when} 완료",
+        "dueIn": "{time} 후 기한",
+        "overdueBy": "{time} 초과"
+      },
       "activity": {
         "created": "인시던트가 신고되었습니다",
         "statusChanged": "상태가 {from}에서 {to}(으)로 변경됨",
@@ -8056,7 +8092,11 @@
           "settlement_bank_acquirer": "정산 은행 / 매입사",
           "payment_network": "결제 네트워크",
           "nsrc": "PDRM / NSRC",
-          "mycert": "MyCERT"
+          "mycert": "MyCERT",
+          "parent_guardian": "학부모 / 보호자",
+          "school_leadership": "학교 관리자",
+          "ministry_education": "교육청 / 교육부",
+          "insurer": "보험사"
         }
       },
       "documents": {

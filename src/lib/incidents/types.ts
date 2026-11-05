@@ -1,9 +1,4 @@
-import type {
-  IncidentDetectionSource,
-  IncidentSeverity,
-  IncidentStatus,
-  IncidentTypeCode,
-} from "./constants";
+import type { IncidentDetectionSource, IncidentStatus } from "./constants";
 
 export interface Incident {
   id: string;
@@ -11,9 +6,15 @@ export interface Incident {
   incident_number: number;
   title: string;
   description: string | null;
-  incident_type: IncidentTypeCode;
+  /** A code from the incident's template (BNM: SB, DB ...; School: CCA, DBR ...). */
+  incident_type: string;
   incident_type_secondary: string[];
-  severity: IncidentSeverity;
+  /** A slug from the incident's template (BNM: P1-P4; School: critical ... low). */
+  severity: string;
+  /** The template the incident was raised under (migration 196); null on legacy rows. */
+  standard_id: string | null;
+  /** What the incident involves; frameworks key their obligations off these (migration 206). */
+  incident_flags: string[];
   severity_downgrade_reason: string | null;
   status: IncidentStatus;
   detected_at: string;
@@ -140,7 +141,11 @@ export interface IncidentNotificationSent {
     | "settlement_bank_acquirer"
     | "payment_network"
     | "nsrc"
-    | "mycert";
+    | "mycert"
+    | "parent_guardian"
+    | "school_leadership"
+    | "ministry_education"
+    | "insurer";
   recipient_detail: string | null;
   method: string | null;
   reference: string | null;
@@ -183,6 +188,26 @@ export interface IncidentDocumentGenerated {
   generated_by: string | null;
   generated_at: string;
   attachment_id: string | null;
+}
+
+/** Migration 206 — one checklist item an active framework (PDPA, ISO 45001 ...)
+ *  added because the incident carries the rule's trigger flag. Title and
+ *  description are a snapshot of the rule at the time. */
+export interface IncidentObligation {
+  id: string;
+  incident_id: string;
+  rule_id: string | null;
+  standard_id: string | null;
+  title: string;
+  description: string | null;
+  /** A recipient_party value when the item is "tell somebody". */
+  party: string | null;
+  due_at: string | null;
+  status: "open" | "done" | "not_applicable";
+  note: string | null;
+  completed_at: string | null;
+  completed_by: string | null;
+  created_at: string;
 }
 
 /** `INC-2026-42` — the display key, never stored redundantly (migration 116). */

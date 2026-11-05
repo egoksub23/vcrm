@@ -21,17 +21,14 @@ import { INCIDENT_STATUSES } from "@/lib/incidents/constants";
 import type { IncidentStatus } from "@/lib/incidents/constants";
 import type { Incident } from "@/lib/incidents/types";
 import { incidentKey } from "@/lib/incidents/types";
-import { EscalationChip, SEVERITY_EDGE, SeverityBadge, TypeChip } from "./incident-visuals";
+import { EscalationChip, severityEdge, SeverityBadge, TypeChip } from "./incident-visuals";
+import { severityRank } from "@/lib/incidents/constants";
 
 interface IncidentBoardProps {
   rows: Incident[];
   canManage: boolean;
   onOpen: (id: string) => void;
   onMove: (id: string, status: IncidentStatus) => void;
-}
-
-function severityRank(s: Incident["severity"]): number {
-  return { P1: 0, P2: 1, P3: 2, P4: 3 }[s];
 }
 
 function Card({ row, dragging = false }: { row: Incident; dragging?: boolean }) {
@@ -41,7 +38,7 @@ function Card({ row, dragging = false }: { row: Incident; dragging?: boolean }) 
     <div
       className={cn(
         "rounded-md border border-l-[3px] border-border bg-card p-2.5 text-[13px] shadow-xs",
-        SEVERITY_EDGE[row.severity],
+        severityEdge(row.severity),
         dragging && "rotate-1 shadow-lg",
       )}
     >
@@ -49,12 +46,12 @@ function Card({ row, dragging = false }: { row: Incident; dragging?: boolean }) 
         <span className="font-mono text-[11px] text-muted-foreground">{incidentKey(row)}</span>
         <div className="flex items-center gap-1">
           <EscalationChip level={row.escalation_level} />
-          <SeverityBadge severity={row.severity} />
+          <SeverityBadge severity={row.severity} standardId={row.standard_id} />
         </div>
       </div>
       <p className="mt-1.5 line-clamp-2 font-medium text-foreground">{row.title}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <TypeChip code={row.incident_type} className="min-w-0" />
+        <TypeChip code={row.incident_type} standardId={row.standard_id} className="min-w-0" />
         {lead ? (
           <span className="shrink-0 truncate text-[11px] text-muted-foreground">{lead.full_name}</span>
         ) : null}

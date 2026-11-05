@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
+import { useAccountSse } from "@/hooks/use-account-sse";
 import {
   PAGE_SIZE,
   STATUS_GROUPS,
@@ -222,39 +222,48 @@ export function useSignDocuments(filters: ListFilters) {
 
   const reload = useCallback(() => setTick((t) => t + 1), []);
 
-  // Refresh when the window regains focus (not more than once in five seconds) and, where the database
-  // publishes changes, when the workspace's documents or people change.
+  const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRefreshRef = useRef(0);
+
+  // Refresh on window focus (throttled to 5 s).
   useEffect(() => {
     if (!accountId) return;
-    let last = Date.now();
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const refresh = () => {
-      last = Date.now();
-      setTick((t) => t + 1);
-    };
     const onFocus = () => {
-      if (document.visibilityState === "visible" && Date.now() - last > 5000) refresh();
-    };
-    const onChange = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(refresh, 1000);
+      if (document.visibilityState === "visible" && Date.now() - lastRefreshRef.current > 5000) {
+        lastRefreshRef.current = Date.now();
+        setTick((t) => t + 1);
+      }
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
-    const supabase = createClient();
-    const scope = eq("account_id", accountId);
-    const channel = supabase.channel(`sign-documents-${accountId}`);
-    onScopedChanges(channel, { table: "sign_documents", filter: scope }, onChange);
-    onScopedChanges(channel, { table: "sign_envelopes", filter: scope }, onChange);
-    onScopedChanges(channel, { table: "sign_signers", filter: scope, events: ["INSERT", "UPDATE"] }, onChange);
-    channel.subscribe();
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
-      if (timer) clearTimeout(timer);
-      void supabase.removeChannel(channel);
     };
   }, [accountId]);
+
+  const handleSignChange = accountId
+    ? () => {
+        if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+        liveTimerRef.current = setTimeout(() => {
+          lastRefreshRef.current = Date.now();
+          setTick((t) => t + 1);
+        }, 1000);
+      }
+    : undefined;
+
+  useAccountSse("sign_documents", handleSignChange, !!accountId);
+  useAccountSse("sign_envelopes", handleSignChange, !!accountId);
+  useAccountSse(
+    "sign_signers",
+    accountId
+      ? (payload) => {
+          if (payload.eventType === "DELETE") return;
+          handleSignChange?.();
+        }
+      : undefined,
+    !!accountId,
+  );
 
   const current = loaded && loaded.key === key ? loaded : null;
 

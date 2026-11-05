@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { LIST_PAGE_SIZE } from "@/lib/incidents/constants";
 import type { Incident } from "@/lib/incidents/types";
 
@@ -59,15 +60,10 @@ export function useIncidents() {
     setRows((cur) => cur.filter((r) => r.id !== id));
   }, []);
 
-  useEffect(() => {
-    if (!accountId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`incidents-store-${accountId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "incidents", filter: `account_id=eq.${accountId}` },
-        (payload) => {
+  useAccountSse(
+    "incidents",
+    accountId
+      ? (payload: SsePayload) => {
           if (payload.eventType === "DELETE") {
             const id = (payload.old as { id?: string }).id;
             if (id) removeRow(id);
@@ -77,17 +73,12 @@ export function useIncidents() {
           setRows((cur) => {
             const known = cur.find((r) => r.id === next.id);
             if (known) return cur.map((r) => (r.id === next.id ? { ...r, ...next } : r));
-            // A newly-visible row (just raised, or RLS now allows it — e.g.
-            // this member was just made a watcher): prepend it.
             return [next, ...cur];
           });
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [accountId, removeRow]);
+        }
+      : undefined,
+    !!accountId,
+  );
 
   return { rows, loading, error, reload, applyPatch, removeRow };
 }

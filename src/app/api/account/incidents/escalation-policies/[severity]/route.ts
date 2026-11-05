@@ -18,19 +18,23 @@ import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 
-const SEVERITIES = ["P1", "P2", "P3", "P4"] as const;
-type Severity = (typeof SEVERITIES)[number];
+type Supabase = Awaited<ReturnType<typeof requireCapability>>["supabase"];
 
-function isSeverity(v: string): v is Severity {
-  return (SEVERITIES as readonly string[]).includes(v);
+/** A severity slug is valid when some incident template defines it (BNM P1-P4,
+ *  School / ISO critical-high-medium-low ...) — migration 206 dropped the
+ *  P1-P4-only CHECK, so the catalogue is the source of truth. */
+async function isKnownSeverity(supabase: Supabase, slug: string): Promise<boolean> {
+  if (!slug || slug.length > 40) return false;
+  const { data } = await supabase.from("incident_severity_levels").select("id").eq("slug", slug).limit(1);
+  return (data?.length ?? 0) > 0;
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ severity: string }> }) {
   try {
     const ctx = await requireCapability("incidents.manage");
     const { severity } = await params;
-    if (!isSeverity(severity)) {
-      return NextResponse.json({ error: "severity must be one of P1, P2, P3, P4" }, { status: 400 });
+    if (!(await isKnownSeverity(ctx.supabase, severity))) {
+      return NextResponse.json({ error: "severity is not a recognized severity level" }, { status: 400 });
     }
 
     const body = (await request.json().catch(() => null)) as {
@@ -88,8 +92,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   try {
     const ctx = await requireCapability("incidents.manage");
     const { severity } = await params;
-    if (!isSeverity(severity)) {
-      return NextResponse.json({ error: "severity must be one of P1, P2, P3, P4" }, { status: 400 });
+    if (!(await isKnownSeverity(ctx.supabase, severity))) {
+      return NextResponse.json({ error: "severity is not a recognized severity level" }, { status: 400 });
     }
 
     const { error } = await ctx.supabase

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { oldestOpenByTicket, waitingTicketCount } from "@/lib/tickets/mentions";
 import type { TicketMention } from "@/types";
 
@@ -62,27 +63,29 @@ export function useMyTicketMentions(enabled = true): {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
 
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`ticket-mentions-mine-${channelKey}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "ticket_mentions", filter: `mentioned_user_id=eq.${userId}` },
-        () => void load(),
-      )
-      .subscribe();
-
     const onWake = () => void load();
     const timer = window.setInterval(onWake, REFRESH_MS);
     window.addEventListener("focus", onWake);
     window.addEventListener(MENTIONS_CHANGED_EVENT, onWake);
     return () => {
-      void supabase.removeChannel(channel);
       window.clearInterval(timer);
       window.removeEventListener("focus", onWake);
       window.removeEventListener(MENTIONS_CHANGED_EVENT, onWake);
     };
-  }, [enabled, userId, channelKey, load]);
+  }, [enabled, userId, load]);
+
+  useAccountSse(
+    "ticket_mentions",
+    enabled && !!userId
+      ? (payload: SsePayload) => {
+          const row = payload.new as { mentioned_user_id?: string };
+          const old = payload.old as { mentioned_user_id?: string };
+          if ((row.mentioned_user_id ?? old.mentioned_user_id) !== userId) return;
+          void load();
+        }
+      : undefined,
+    enabled && !!userId,
+  );
 
   const shown = useMemo(() => (enabled ? requests : []), [enabled, requests]);
   const count = useMemo(() => waitingTicketCount(shown), [shown]);

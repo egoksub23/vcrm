@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { directionOnAnywhere, normalizeSettings } from "@/lib/jira/settings";
 import {
   MAX_LINKS_PER_TICKET,
@@ -308,19 +308,18 @@ export function useTicketJira(ticketId: string | null): TicketJira {
     void load(ticketId);
   }, [ticketId, load]);
 
-  useEffect(() => {
-    if (!ticketId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`ticket-jira-${ticketId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "ticket_jira_links", filter: `ticket_id=eq.${ticketId}` }, () => {
-        void load(ticketId, "links");
-      })
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [ticketId, load]);
+  useAccountSse(
+    "ticket_jira_links",
+    ticketId
+      ? (payload: SsePayload) => {
+          const row = payload.new as { ticket_id?: string };
+          const old = payload.old as { ticket_id?: string };
+          if ((row.ticket_id ?? old.ticket_id) !== ticketId) return;
+          void load(ticketId, "links");
+        }
+      : undefined,
+    !!ticketId,
+  );
 
   const reload = useCallback(async () => {
     if (idRef.current) await load(idRef.current);
@@ -438,19 +437,22 @@ export function useJiraLinkChips(ticketIds: readonly string[]): Record<string, J
 
   useEffect(() => {
     if (!idKey || !accountId) return;
-    const supabase = createClient();
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const channel = supabase.channel(`jira-chips-${Math.random().toString(36).slice(2, 8)}`);
-    onScopedChanges(channel, { table: "ticket_jira_links", filter: eq("account_id", accountId) }, () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void fetchChips(idKey), 400);
-    });
-    channel.subscribe();
     return () => {
       if (timer) clearTimeout(timer);
-      void supabase.removeChannel(channel);
     };
-  }, [idKey, accountId, fetchChips]);
+  }, [idKey, accountId]);
+
+  useAccountSse(
+    "ticket_jira_links",
+    idKey && accountId
+      ? (_payload: SsePayload) => {
+          // Chips are a board-level view; debounce to avoid rapid refetches.
+          void fetchChips(idKey);
+        }
+      : undefined,
+    !!(idKey && accountId),
+  );
 
   return chips;
 }

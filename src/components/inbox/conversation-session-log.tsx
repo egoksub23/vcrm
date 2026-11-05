@@ -8,6 +8,7 @@ import { History } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchConversationEvents } from "@/lib/conversations/session-log-api";
 import { useTeams } from "@/hooks/use-teams";
+import { useAccountSse } from "@/hooks/use-account-sse";
 import type { ConversationEvent, Profile } from "@/types";
 
 interface ConversationSessionLogProps {
@@ -47,28 +48,17 @@ export function ConversationSessionLog({ conversationId }: ConversationSessionLo
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!conversationId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`conversation-events-${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "conversation_events",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
+  useAccountSse(
+    "conversation_events",
+    conversationId
+      ? (payload) => {
+          if (payload.eventType !== "INSERT") return;
+          if ((payload.new as { conversation_id?: string }).conversation_id !== conversationId) return;
           setEvents((prev) => [...prev, payload.new as ConversationEvent]);
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [conversationId]);
+        }
+      : undefined,
+    !!conversationId,
+  );
 
   const profileName = (userId: string | null | undefined) =>
     profiles.find((p) => p.user_id === userId)?.full_name ?? t("unknownAgent");

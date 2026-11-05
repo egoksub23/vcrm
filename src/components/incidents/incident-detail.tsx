@@ -31,16 +31,18 @@ import {
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSse } from "@/hooks/use-account-sse";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { useCapability } from "@/hooks/use-can";
 import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import { attachFileToIncident } from "@/lib/incidents/attachment-actions";
 import {
+  INCIDENT_FLAGS,
   INCIDENT_SEVERITIES,
   INCIDENT_STATUSES,
   INCIDENT_TYPES,
 } from "@/lib/incidents/constants";
-import type { IncidentSeverity, IncidentStatus } from "@/lib/incidents/constants";
+import type { IncidentStatus } from "@/lib/incidents/constants";
 import { incidentKey } from "@/lib/incidents/types";
 import type {
   Incident,
@@ -49,11 +51,15 @@ import type {
   IncidentAttachment,
   IncidentComment,
   IncidentNotificationSent,
+  IncidentObligation,
 } from "@/lib/incidents/types";
+import { useStandardCatalogue } from "@/hooks/use-incident-standard";
+import { cn } from "@/lib/utils";
 import { PersonAvatar } from "@/components/tickets/ticket-visuals";
 import { linkifySegments } from "@/lib/sembang/linkify";
 import { EscalationChip, SeverityBadge, StatusLozenge } from "./incident-visuals";
 import { GenerateDocumentDialog } from "./generate-document-dialog";
+import { ObligationsPanel } from "./obligations-panel";
 
 /** Plain text with any URL turned into a clickable link — same link
  *  definition Sembang uses (findLinkTokens), so a link pasted into an
@@ -121,6 +127,7 @@ function EvidenceLink({ attachment: a }: { attachment: IncidentAttachment }) {
 export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onBack: () => void }) {
   const t = useTranslations("Incidents.detail");
   const tActivity = useTranslations("Incidents.detail.activity");
+  const tFlags = useTranslations("Incidents.flags");
   const { user } = useAuth();
   const { members, nameOf, profileOf } = useAccountMembers();
   const canManage = useCapability("incidents.manage");
@@ -131,19 +138,21 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const [attachments, setAttachments] = useState<IncidentAttachment[]>([]);
   const [notificationsSent, setNotificationsSent] = useState<IncidentNotificationSent[]>([]);
   const [actions, setActions] = useState<IncidentAction[]>([]);
+  const [obligations, setObligations] = useState<IncidentObligation[]>([]);
   const [loading, setLoading] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [inc, com, act, att, ns, ac] = await Promise.all([
+    const [inc, com, act, att, ns, ac, ob] = await Promise.all([
       supabase.from("incidents").select("*").eq("id", incidentId).maybeSingle(),
       supabase.from("incident_comments").select("*").eq("incident_id", incidentId).order("created_at"),
       supabase.from("incident_activity").select("*").eq("incident_id", incidentId).order("created_at"),
       supabase.from("incident_attachments").select("*").eq("incident_id", incidentId).order("created_at"),
       supabase.from("incident_notifications_sent").select("*").eq("incident_id", incidentId).order("sent_at", { ascending: false }),
       supabase.from("incident_actions").select("*").eq("incident_id", incidentId).order("created_at"),
+      supabase.from("incident_obligations").select("*").eq("incident_id", incidentId).order("due_at", { ascending: true, nullsFirst: false }),
     ]);
     setIncident((inc.data as Incident) ?? null);
     setComments((com.data as IncidentComment[]) ?? []);
@@ -151,6 +160,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     setAttachments((att.data as IncidentAttachment[]) ?? []);
     setNotificationsSent((ns.data as IncidentNotificationSent[]) ?? []);
     setActions((ac.data as IncidentAction[]) ?? []);
+    setObligations((ob.data as IncidentObligation[]) ?? []);
     setLoading(false);
   }, [incidentId]);
 
@@ -159,27 +169,44 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     void load();
   }, [load]);
 
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`incident-detail-${incidentId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "incidents", filter: `id=eq.${incidentId}` }, (payload) => {
-        setIncident((prev) => (prev ? { ...prev, ...(payload.new as Incident) } : prev));
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "incident_comments", filter: `incident_id=eq.${incidentId}` }, (payload) => {
-        setComments((prev) => (prev.some((c) => c.id === (payload.new as IncidentComment).id) ? prev : [...prev, payload.new as IncidentComment]));
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "incident_activity", filter: `incident_id=eq.${incidentId}` }, (payload) => {
-        setActivity((prev) => (prev.some((a) => a.id === (payload.new as IncidentActivity).id) ? prev : [...prev, payload.new as IncidentActivity]));
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "incident_attachments", filter: `incident_id=eq.${incidentId}` }, (payload) => {
-        setAttachments((prev) => (prev.some((a) => a.id === (payload.new as IncidentAttachment).id) ? prev : [...prev, payload.new as IncidentAttachment]));
-      })
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [incidentId]);
+  useAccountSse("incidents", (payload) => {
+    if (payload.eventType !== "UPDATE") return;
+    if ((payload.new as { id?: string }).id !== incidentId) return;
+    setIncident((prev) => (prev ? { ...prev, ...(payload.new as Incident) } : prev));
+  });
+  useAccountSse("incident_comments", (payload) => {
+    if (payload.eventType !== "INSERT") return;
+    if ((payload.new as { incident_id?: string }).incident_id !== incidentId) return;
+    setComments((prev) => (prev.some((c) => c.id === (payload.new as IncidentComment).id) ? prev : [...prev, payload.new as IncidentComment]));
+  });
+  useAccountSse("incident_activity", (payload) => {
+    if (payload.eventType !== "INSERT") return;
+    if ((payload.new as { incident_id?: string }).incident_id !== incidentId) return;
+    setActivity((prev) => (prev.some((a) => a.id === (payload.new as IncidentActivity).id) ? prev : [...prev, payload.new as IncidentActivity]));
+  });
+  useAccountSse("incident_attachments", (payload) => {
+    if (payload.eventType !== "INSERT") return;
+    if ((payload.new as { incident_id?: string }).incident_id !== incidentId) return;
+    setAttachments((prev) => (prev.some((a) => a.id === (payload.new as IncidentAttachment).id) ? prev : [...prev, payload.new as IncidentAttachment]));
+  });
+  useAccountSse("incident_obligations", (payload) => {
+    if ((payload.new as { incident_id?: string }).incident_id !== incidentId) return;
+    const row = payload.new as IncidentObligation;
+    if (!row?.id) return;
+    setObligations((prev) => (prev.some((o) => o.id === row.id) ? prev.map((o) => (o.id === row.id ? row : o)) : [...prev, row]));
+  });
+
+  // The categories and severity scale this incident was raised under — which
+  // may no longer be the account's current template.
+  const catalogue = useStandardCatalogue(incident?.standard_id);
+  const typeOptions = catalogue
+    ? catalogue.types.map((ty) => ({ code: ty.code, label: ty.name }))
+    : INCIDENT_TYPES.map((ty) => ({ code: ty.code as string, label: ty.label }));
+  const severityOptions = catalogue
+    ? catalogue.severities.map((s) => ({ slug: s.slug, label: s.label }))
+    : INCIDENT_SEVERITIES.map((s) => ({ slug: s as string, label: s as string }));
+  // Forms A-D are the BNM RMiT notification set; other templates do not use them.
+  const hasBnmForms = !incident?.standard_id || catalogue?.standard.slug === "bnm_rmit";
 
   const timeline = useMemo<TimelineItem[]>(() => {
     const items: TimelineItem[] = [
@@ -263,6 +290,21 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   };
 
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+
+  const toggleFlag = async (flag: string) => {
+    if (!incident) return;
+    const next = incident.incident_flags.includes(flag)
+      ? incident.incident_flags.filter((f) => f !== flag)
+      : [...incident.incident_flags, flag];
+    await patch({ incident_flags: next });
+    // The database refreshes the checklist in the same statement; re-read it.
+    const { data } = await createClient()
+      .from("incident_obligations")
+      .select("*")
+      .eq("incident_id", incident.id)
+      .order("due_at", { ascending: true, nullsFirst: false });
+    if (data) setObligations(data as IncidentObligation[]);
+  };
 
   const [escalating, setEscalating] = useState(false);
   const escalate = async () => {
@@ -349,10 +391,12 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                   {t("escalateNow")}
                 </Button>
               ) : null}
-              <Button variant="outline" size="sm" onClick={() => setDocumentDialogOpen(true)}>
-                <FileOutput className="size-3.5" />
-                {t("documents.generateDocument")}
-              </Button>
+              {hasBnmForms ? (
+                <Button variant="outline" size="sm" onClick={() => setDocumentDialogOpen(true)}>
+                  <FileOutput className="size-3.5" />
+                  {t("documents.generateDocument")}
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -364,20 +408,20 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
           <Field label={t("fieldSeverity")}>
             {canManage ? (
-              <Select value={incident.severity} onValueChange={(v) => void patch({ severity: v as IncidentSeverity })}>
+              <Select value={incident.severity} onValueChange={(v) => void patch({ severity: v ?? incident.severity })}>
                 <SelectTrigger className="h-8 w-full bg-muted text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {INCIDENT_SEVERITIES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                  {severityOptions.map((s) => (
+                    <SelectItem key={s.slug} value={s.slug}>
+                      {s.slug === s.label ? s.slug : `${s.slug} · ${s.label}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
-              <SeverityBadge severity={incident.severity} />
+              <SeverityBadge severity={incident.severity} standardId={incident.standard_id} />
             )}
           </Field>
           <Field label={t("fieldStatus")}>
@@ -400,12 +444,12 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           </Field>
           <Field label={t("fieldType")}>
             {canManage ? (
-              <Select value={incident.incident_type} onValueChange={(v) => void patch({ incident_type: v as never })}>
+              <Select value={incident.incident_type} onValueChange={(v) => void patch({ incident_type: v ?? incident.incident_type })}>
                 <SelectTrigger className="h-8 w-full bg-muted text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {INCIDENT_TYPES.map((ty) => (
+                  {typeOptions.map((ty) => (
                     <SelectItem key={ty.code} value={ty.code}>
                       {ty.code} — {ty.label}
                     </SelectItem>
@@ -441,6 +485,33 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             )}
           </Field>
         </div>
+
+        {canManage || incident.incident_flags.length > 0 ? (
+          <div className="mt-4">
+            <p className="mb-1.5 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">{t("involves")}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(canManage ? INCIDENT_FLAGS : INCIDENT_FLAGS.filter((f) => incident.incident_flags.includes(f))).map((flag) => {
+                const on = incident.incident_flags.includes(flag);
+                return (
+                  <button
+                    key={flag}
+                    type="button"
+                    disabled={!canManage}
+                    aria-pressed={on}
+                    onClick={() => void toggleFlag(flag)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium transition-colors",
+                      on ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                      !canManage && "cursor-default",
+                    )}
+                  >
+                    {tFlags(flag)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
@@ -558,6 +629,12 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             </button>
           </div>
 
+          <ObligationsPanel
+            rows={obligations}
+            canManage={canManage}
+            onChanged={(row) => setObligations((prev) => prev.map((o) => (o.id === row.id ? row : o)))}
+          />
+
           <ActionsPanel
             incidentId={incident.id}
             rows={actions}
@@ -576,7 +653,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         </div>
       </div>
 
-      {canManage ? (
+      {canManage && hasBnmForms ? (
         <GenerateDocumentDialog
           open={documentDialogOpen}
           onOpenChange={setDocumentDialogOpen}
@@ -763,6 +840,10 @@ const RECIPIENT_PARTIES = [
   "payment_network",
   "nsrc",
   "mycert",
+  "parent_guardian",
+  "school_leadership",
+  "ministry_education",
+  "insurer",
 ] as const;
 
 function NotificationsSentPanel({

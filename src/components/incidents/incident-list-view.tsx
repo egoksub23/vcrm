@@ -42,10 +42,10 @@ export function IncidentListView({ rows, onOpen }: IncidentListViewProps) {
               <td className="px-3 py-2.5 font-mono text-[12.5px] text-muted-foreground">{incidentKey(row)}</td>
               <td className="max-w-[320px] truncate px-3 py-2.5 font-medium text-foreground">{row.title}</td>
               <td className="px-3 py-2.5">
-                <TypeChip code={row.incident_type} />
+                <TypeChip code={row.incident_type} standardId={row.standard_id} />
               </td>
               <td className="px-3 py-2.5">
-                <SeverityBadge severity={row.severity} />
+                <SeverityBadge severity={row.severity} standardId={row.standard_id} />
               </td>
               <td className="px-3 py-2.5">
                 <div className="flex items-center gap-1.5">

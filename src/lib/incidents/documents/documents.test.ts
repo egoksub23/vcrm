@@ -17,6 +17,8 @@ const incident: Incident = {
   incident_type: "AT",
   incident_type_secondary: [],
   severity: "P1",
+  standard_id: null,
+  incident_flags: [],
   severity_downgrade_reason: null,
   status: "investigating",
   detected_at: "2026-09-20T01:00:00Z",

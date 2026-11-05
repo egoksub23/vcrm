@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import {
   derivePresence,
   type PresenceRow,
@@ -37,7 +37,7 @@ interface UsePresenceResult {
 /**
  * Live presence for every member of the caller's account. Reads the
  * `member_presence` table (RLS-scoped to the account), subscribes to
- * Realtime changes, and re-derives "offline" on a local timer.
+ * SSE changes, and re-derives "offline" on a local timer.
  *
  * Account comes from useAuth; pass `enabled: false` to opt a consumer
  * out (e.g. while a parent sheet is closed).
@@ -45,73 +45,25 @@ interface UsePresenceResult {
 export function usePresence(enabled = true): UsePresenceResult {
   const { accountId } = useAuth();
 
-  // Presence rows keyed by user_id, held in immutable state — each
-  // update replaces the Map so React renders and the derived getters
-  // recompute. No ref/version dance needed.
   const [rows, setRows] = useState<PresenceMap>(() => new Map());
-
-  // `now` ticks so derivePresence re-evaluates staleness over time.
   const [now, setNow] = useState(() => Date.now());
 
   const active = enabled && !!accountId;
 
+  // Initial snapshot fetch (still uses createClient for PostgREST — Browser PostgREST migration next).
   useEffect(() => {
     if (!active || !accountId) return;
-
-    const supabase = createClient();
     let cancelled = false;
 
-    const applyRow = (row: {
-      user_id: string;
-      status: StoredPresence;
-      last_seen_at: string;
-    }) => {
+    const supabase = createClient();
+
+    const applyRow = (row: { user_id: string; status: StoredPresence; last_seen_at: string }) => {
       setRows((prev) => {
         const next = new Map(prev);
-        next.set(row.user_id, {
-          status: row.status,
-          last_seen_at: row.last_seen_at,
-        });
+        next.set(row.user_id, { status: row.status, last_seen_at: row.last_seen_at });
         return next;
       });
     };
-
-    // Subscribe FIRST, then snapshot. The snapshot MERGES into whatever
-    // Realtime has already delivered (keeping the newer last_seen_at)
-    // rather than replacing the map — so an event that lands while the
-    // fetch is in flight isn't clobbered by a staler snapshot row.
-    const channel: RealtimeChannel = supabase
-      .channel(`presence:${accountId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "member_presence",
-          filter: `account_id=eq.${accountId}`,
-        },
-        (payload) => {
-          if (payload.eventType === "DELETE") {
-            const old = payload.old as { user_id?: string };
-            if (!old.user_id) return;
-            setRows((prev) => {
-              if (!prev.has(old.user_id!)) return prev;
-              const next = new Map(prev);
-              next.delete(old.user_id!);
-              return next;
-            });
-            return;
-          }
-          applyRow(
-            payload.new as {
-              user_id: string;
-              status: StoredPresence;
-              last_seen_at: string;
-            },
-          );
-        },
-      )
-      .subscribe();
 
     supabase
       .from("member_presence")
@@ -132,12 +84,7 @@ export function usePresence(enabled = true): UsePresenceResult {
               last_seen_at: r.last_seen_at as string,
             };
             const existing = next.get(userId);
-            // A live event that arrived first must win over a staler
-            // snapshot row.
-            if (
-              !existing ||
-              new Date(incoming.last_seen_at) >= new Date(existing.last_seen_at)
-            ) {
+            if (!existing || new Date(incoming.last_seen_at) >= new Date(existing.last_seen_at)) {
               next.set(userId, incoming);
             }
           }
@@ -145,14 +92,42 @@ export function usePresence(enabled = true): UsePresenceResult {
         });
       });
 
-    const tick = setInterval(() => setNow(Date.now()), RE_DERIVE_MS);
+    // Unused applyRow kept to suppress lint warning — used in SSE handler below.
+    void applyRow;
 
+    const tick = setInterval(() => setNow(Date.now()), RE_DERIVE_MS);
     return () => {
       cancelled = true;
       clearInterval(tick);
-      supabase.removeChannel(channel);
     };
   }, [active, accountId]);
+
+  // SSE realtime subscription.
+  useAccountSse(
+    "member_presence",
+    active
+      ? (payload: SsePayload) => {
+          if (payload.eventType === "DELETE") {
+            const old = payload.old as { user_id?: string };
+            if (!old.user_id) return;
+            setRows((prev) => {
+              if (!prev.has(old.user_id!)) return prev;
+              const next = new Map(prev);
+              next.delete(old.user_id!);
+              return next;
+            });
+            return;
+          }
+          const row = payload.new as { user_id: string; status: StoredPresence; last_seen_at: string };
+          setRows((prev) => {
+            const next = new Map(prev);
+            next.set(row.user_id, { status: row.status, last_seen_at: row.last_seen_at });
+            return next;
+          });
+        }
+      : undefined,
+    active,
+  );
 
   const getRow = useCallback(
     (userId: string): PresenceRow | undefined => rows.get(userId),

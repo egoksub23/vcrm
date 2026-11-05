@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { attachFileToTicket, removeTicketAttachment } from "@/lib/tickets/attachment-actions";
 import { TICKET_MAX_ATTACHMENTS, checkTicketFile, formatBytes } from "@/lib/tickets/attachments";
 import { linkRowFor, type LinkGroupKey } from "@/lib/tickets/links";
@@ -140,60 +140,94 @@ export function useTicketDetail(
   }, [ticketId, load]);
 
   // ---- Realtime --------------------------------------------------------------
-  useEffect(() => {
-    if (!ticketId) return;
-    const supabase = createClient();
-    const filter = `ticket_id=eq.${ticketId}`;
-    const channel = supabase
-      .channel(`ticket-detail-${ticketId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "tickets", filter: `id=eq.${ticketId}` },
-        (payload) => setTicket((prev) => (prev ? { ...prev, ...(payload.new as Ticket) } : prev)),
-      )
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_activity", filter }, (payload) => {
-        const row = payload.new as TicketActivity;
-        setActivity((prev) => (prev.some((a) => a.id === row.id) ? prev : [...prev, row]));
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_comments", filter }, (payload) => {
-        const row = payload.new as TicketComment;
-        setComments((prev) => (prev.some((c) => c.id === row.id) ? prev : [...prev, row]));
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ticket_comments", filter }, (payload) => {
-        const row = payload.new as TicketComment;
-        setComments((prev) => prev.map((c) => (c.id === row.id ? { ...c, ...row } : c)));
-      })
-      // Deletes cannot be filtered by column; ids are matched against what is open.
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "ticket_comments" }, (payload) => {
-        const id = (payload.old as { id?: string }).id;
-        if (id) setComments((prev) => prev.filter((c) => c.id !== id));
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "ticket_watchers", filter }, () => {
-        void supabase
-          .from("ticket_watchers")
-          .select("*")
-          .eq("ticket_id", ticketId)
-          .order("created_at", { ascending: true })
-          .then(({ data }) => setWatchers((data as TicketWatcher[]) ?? []));
-      })
-      // Links: this workspace's changes. onScopedChanges is not chainable, so it is wired after the chain below.
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_attachments", filter }, (payload) => {
-        const row = payload.new as TicketAttachment;
-        setAttachments((prev) => (prev.some((a) => a.id === row.id) ? prev : [...prev, row]));
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "ticket_attachments" }, (payload) => {
-        const id = (payload.old as { id?: string }).id;
-        if (id) setAttachments((prev) => prev.filter((a) => a.id !== id));
-      })
-    ;
-    if (accountId) {
-      onScopedChanges(channel, { table: "ticket_links", filter: eq("account_id", accountId) }, () => void loadLinks(ticketId));
-    }
-    channel.subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [ticketId, loadLinks, accountId]);
+  useAccountSse(
+    "tickets",
+    ticketId
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "UPDATE") return;
+          if ((payload.new as { id?: string }).id !== ticketId) return;
+          setTicket((prev) => (prev ? { ...prev, ...(payload.new as Ticket) } : prev));
+        }
+      : undefined,
+    !!ticketId,
+  );
+
+  useAccountSse(
+    "ticket_activity",
+    ticketId
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "INSERT") return;
+          const row = payload.new as TicketActivity;
+          if (row.ticket_id !== ticketId) return;
+          setActivity((prev) => (prev.some((a) => a.id === row.id) ? prev : [...prev, row]));
+        }
+      : undefined,
+    !!ticketId,
+  );
+
+  useAccountSse(
+    "ticket_comments",
+    ticketId
+      ? (payload: SsePayload) => {
+          const row = payload.new as TicketComment;
+          const oldRow = payload.old as { id?: string };
+          if (payload.eventType === "INSERT") {
+            if (row.ticket_id !== ticketId) return;
+            setComments((prev) => (prev.some((c) => c.id === row.id) ? prev : [...prev, row]));
+          } else if (payload.eventType === "UPDATE") {
+            if (row.ticket_id !== ticketId) return;
+            setComments((prev) => prev.map((c) => (c.id === row.id ? { ...c, ...row } : c)));
+          } else if (payload.eventType === "DELETE") {
+            if (oldRow.id) setComments((prev) => prev.filter((c) => c.id !== oldRow.id));
+          }
+        }
+      : undefined,
+    !!ticketId,
+  );
+
+  useAccountSse(
+    "ticket_watchers",
+    ticketId
+      ? (payload: SsePayload) => {
+          const row = payload.new as { ticket_id?: string };
+          const old = payload.old as { ticket_id?: string };
+          const tid = row.ticket_id ?? old.ticket_id;
+          if (tid !== ticketId) return;
+          void createClient()
+            .from("ticket_watchers")
+            .select("*")
+            .eq("ticket_id", ticketId)
+            .order("created_at", { ascending: true })
+            .then(({ data }) => setWatchers((data as TicketWatcher[]) ?? []));
+        }
+      : undefined,
+    !!ticketId,
+  );
+
+  useAccountSse(
+    "ticket_attachments",
+    ticketId
+      ? (payload: SsePayload) => {
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as TicketAttachment;
+            if (row.ticket_id !== ticketId) return;
+            setAttachments((prev) => (prev.some((a) => a.id === row.id) ? prev : [...prev, row]));
+          } else if (payload.eventType === "DELETE") {
+            const id = (payload.old as { id?: string }).id;
+            if (id) setAttachments((prev) => prev.filter((a) => a.id !== id));
+          }
+        }
+      : undefined,
+    !!ticketId,
+  );
+
+  useAccountSse(
+    "ticket_links",
+    ticketId && accountId
+      ? (_payload: SsePayload) => void loadLinks(ticketId)
+      : undefined,
+    !!(ticketId && accountId),
+  );
 
   // ---- Writes ------------------------------------------------------------------
   /** Save fields: optimistic, rolled back with a toast if the write fails. */

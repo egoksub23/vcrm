@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import type { TicketMention } from "@/types";
 import { notifyTicketMentionsChanged } from "@/hooks/use-my-ticket-mentions";
 
@@ -42,25 +43,32 @@ export function useTicketMentions(ticketId: string | null): {
     if (!ticketId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`ticket-mentions-${ticketId}-${channelKey}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "ticket_mentions", filter: `ticket_id=eq.${ticketId}` },
-        () => void reload(),
-      )
-      // A reply resolves a request in the database; the comment insert is the cue to re-read.
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "ticket_comments", filter: `ticket_id=eq.${ticketId}` },
-        () => window.setTimeout(() => void reload(), 400),
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [ticketId, channelKey, reload]);
+  }, [ticketId, reload]);
+
+  useAccountSse(
+    "ticket_mentions",
+    ticketId
+      ? (payload: SsePayload) => {
+          const row = payload.new as { ticket_id?: string };
+          const old = payload.old as { ticket_id?: string };
+          if ((row.ticket_id ?? old.ticket_id) !== ticketId) return;
+          void reload();
+        }
+      : undefined,
+    !!ticketId,
+  );
+
+  useAccountSse(
+    "ticket_comments",
+    ticketId
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "INSERT") return;
+          if ((payload.new as { ticket_id?: string }).ticket_id !== ticketId) return;
+          window.setTimeout(() => void reload(), 400);
+        }
+      : undefined,
+    !!ticketId,
+  );
 
   return { requests: ticketId ? requests.filter((r) => r.ticket_id === ticketId) : [], reload };
 }

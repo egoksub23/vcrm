@@ -1,4 +1,5 @@
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+/* @deprecated — use useAccountSse from @/hooks/use-account-sse instead.
+ * This file remains only for tests that still reference ChangePayload/ChangeEvent. */
 
 // ============================================================
 // Live updates scoped to one workspace.
@@ -16,34 +17,27 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/
 // ============================================================
 
 export type ChangeEvent = "INSERT" | "UPDATE" | "DELETE";
-// Same loose row type supabase-js uses by default, so handlers can cast `payload.new` as before.
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ChangePayload = RealtimePostgresChangesPayload<{ [key: string]: any }>;
+export type ChangePayload = {
+  eventType: ChangeEvent;
+  new: Record<string, unknown>;
+  old: Record<string, unknown>;
+};
 
 /** The filter string for "this workspace's rows" (or any equality filter). */
 export function eq(column: string, value: string): string {
   return `${column}=eq.${value}`;
 }
 
-/**
- * Subscribe `handler` to a table's changes, filtered by `filter`, with deletes
- * delivered unfiltered (see above). `events` limits which kinds are subscribed.
- */
+/** No-op shim kept for test compilation. Real realtime uses useAccountSse. */
 export function onScopedChanges(
-  channel: RealtimeChannel,
-  spec: { table: string; filter: string; events?: readonly ChangeEvent[] },
-  handler: (payload: ChangePayload) => void,
-): RealtimeChannel {
-  const events = spec.events ?? (["INSERT", "UPDATE", "DELETE"] as const);
-  const { table, filter } = spec;
-  if (events.includes("INSERT")) {
-    channel.on("postgres_changes", { event: "INSERT", schema: "public", table, filter }, handler);
-  }
-  if (events.includes("UPDATE")) {
-    channel.on("postgres_changes", { event: "UPDATE", schema: "public", table, filter }, handler);
-  }
-  if (events.includes("DELETE")) {
-    channel.on("postgres_changes", { event: "DELETE", schema: "public", table }, handler);
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  channel: any,
+  _spec: { table: string; filter: string; events?: readonly ChangeEvent[] },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _handler: (payload: ChangePayload) => void,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
   return channel;
 }

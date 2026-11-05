@@ -15,8 +15,8 @@ import { useIncidents } from "@/hooks/use-incidents";
 import { IncidentBoard } from "@/components/incidents/incident-board";
 import { IncidentListView } from "@/components/incidents/incident-list-view";
 import { RaiseIncidentDialog } from "@/components/incidents/raise-incident-dialog";
-import { SEVERITY_STYLE } from "@/components/incidents/incident-visuals";
-import { INCIDENT_SEVERITIES, type IncidentSeverity } from "@/lib/incidents/constants";
+import { severityStyle } from "@/components/incidents/incident-visuals";
+import { useIncidentStandard } from "@/hooks/use-incident-standard";
 
 type ViewMode = "board" | "list";
 const VIEW_STORAGE_KEY = "wacrm:incidents:view";
@@ -28,6 +28,7 @@ export default function IncidentsPage() {
   const canManage = useCapability("incidents.manage");
 
   const { rows, loading, error, reload, applyPatch } = useIncidents();
+  const { severities } = useIncidentStandard();
 
   const [view, setView] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "board";
@@ -47,14 +48,22 @@ export default function IncidentsPage() {
   };
 
   const [query, setQuery] = useState("");
-  const [severityFilter, setSeverityFilter] = useState<Set<IncidentSeverity>>(new Set());
-  const toggleSeverity = (s: IncidentSeverity) =>
+  const [severityFilter, setSeverityFilter] = useState<Set<string>>(new Set());
+  const toggleSeverity = (s: string) =>
     setSeverityFilter((prev) => {
       const next = new Set(prev);
       if (next.has(s)) next.delete(s);
       else next.add(s);
       return next;
     });
+
+  // The current template's levels, then any other level still on an existing
+  // incident (raised before the account switched template).
+  const severityChips = useMemo(() => {
+    const slugs = severities.map((s) => s.slug);
+    for (const r of rows) if (!slugs.includes(r.severity)) slugs.push(r.severity);
+    return slugs;
+  }, [severities, rows]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -123,7 +132,7 @@ export default function IncidentsPage() {
           placeholder={t("searchPlaceholder")}
           className="h-8 w-56 bg-card text-sm"
         />
-        {INCIDENT_SEVERITIES.map((s) => (
+        {severityChips.map((s) => (
           <button
             key={s}
             type="button"
@@ -131,7 +140,7 @@ export default function IncidentsPage() {
             onClick={() => toggleSeverity(s)}
             className={cn(
               "inline-flex h-8 items-center rounded-md border px-2.5 text-[12.5px] font-semibold outline-none transition-colors",
-              severityFilter.has(s) ? SEVERITY_STYLE[s] : "border-border bg-card text-muted-foreground hover:bg-muted",
+              severityFilter.has(s) ? severityStyle(s) : "border-border bg-card text-muted-foreground hover:bg-muted",
             )}
           >
             {s}

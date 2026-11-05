@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import type { Message } from "@/types";
 import {
   DEFAULT_NOTIFICATION_LABELS,
@@ -75,66 +76,23 @@ export function useBrowserNotifications(): void {
   // Message ids already handled, for replay dedupe. Survives re-renders,
   // pruned by shouldNotifyForMessage.
   const seenRef = useRef<Map<string, number>>(new Map());
+  const cancelledRef = useRef(false);
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; });
 
+  // Track mount/unmount so the async notify callback doesn't fire after teardown.
   useEffect(() => {
-    if (!enabled || !accountId) return;
-    if (getNotificationPermission() === "unsupported") return;
+    cancelledRef.current = false;
+    return () => { cancelledRef.current = true; };
+  }, [enabled, accountId]);
 
-    const supabase = createClient();
-    let cancelled = false;
+  const active = enabled && !!accountId;
 
-    const notify = async (msg: Message) => {
-      // One small select to put the contact's name in the title. A
-      // failure here just means the generic fallback title.
-      const { data } = await supabase
-        .from("conversations")
-        .select("contact:contacts(name, wa_username, phone, wallet_id)")
-        .eq("id", msg.conversation_id)
-        .maybeSingle();
-      if (cancelled) return;
-
-      const contact = (data as {
-        contact?: {
-          name?: string | null;
-          wa_username?: string | null;
-          phone?: string | null;
-          wallet_id?: string | null;
-        } | null;
-      } | null)?.contact;
-      const { title, body } = buildNotificationContent(
-        msg,
-        pickContactDisplayName(contact),
-        labelsRef.current,
-      );
-
-      try {
-        const notification = new Notification(title, {
-          body,
-          // One alert per conversation: a second message from the same
-          // customer replaces the first instead of stacking.
-          tag: msg.conversation_id,
-          icon: "/icon",
-        });
-        notification.onclick = () => {
-          window.focus();
-          router.push(conversationHref(msg.conversation_id));
-          notification.close();
-        };
-      } catch (err) {
-        // Some browsers throw from the constructor (e.g. Android Chrome
-        // requires a service worker). Non-fatal.
-        console.error("[useBrowserNotifications] failed to show:", err);
-      }
-    };
-
-    const channel = supabase
-      .channel("browser-notifications")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `account_id=eq.${accountId}` },
-        (payload) => {
-          // Re-check every time: the user can revoke permission in the
-          // browser without the preference flipping.
+  useAccountSse(
+    "messages",
+    active
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "INSERT") return;
           if (getNotificationPermission() !== "granted") return;
           const msg = payload.new as Message;
           const shouldNotify = shouldNotifyForMessage(msg, {
@@ -146,14 +104,46 @@ export function useBrowserNotifications(): void {
             seen: seenRef.current,
           });
           if (!shouldNotify) return;
-          void notify(msg);
-        },
-      )
-      .subscribe();
 
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-    };
-  }, [enabled, router, accountId]);
+          void (async () => {
+            const { data } = await createClient()
+              .from("conversations")
+              .select("contact:contacts(name, wa_username, phone, wallet_id)")
+              .eq("id", msg.conversation_id)
+              .maybeSingle();
+            if (cancelledRef.current) return;
+
+            const contact = (data as {
+              contact?: {
+                name?: string | null;
+                wa_username?: string | null;
+                phone?: string | null;
+                wallet_id?: string | null;
+              } | null;
+            } | null)?.contact;
+            const { title, body } = buildNotificationContent(
+              msg,
+              pickContactDisplayName(contact),
+              labelsRef.current,
+            );
+
+            try {
+              const notification = new Notification(title, {
+                body,
+                tag: msg.conversation_id,
+                icon: "/icon",
+              });
+              notification.onclick = () => {
+                window.focus();
+                routerRef.current.push(conversationHref(msg.conversation_id));
+                notification.close();
+              };
+            } catch (err) {
+              console.error("[useBrowserNotifications] failed to show:", err);
+            }
+          })();
+        }
+      : undefined,
+    active,
+  );
 }

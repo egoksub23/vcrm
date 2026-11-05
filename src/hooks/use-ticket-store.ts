@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { eq, onScopedChanges } from "@/lib/realtime/scoped-changes";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { BOARD_COLUMN_PAGE_SIZE, LIST_PAGE_SIZE, TICKET_STATUSES } from "@/lib/tickets/constants";
 import type { Contact, Ticket, TicketStatus } from "@/types";
 
@@ -307,53 +307,57 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
     return (row.board_rank ?? 0) >= lowest;
   }, []);
 
-  useEffect(() => {
-    if (!enabled || !accountId) return;
-    const supabase = createClient();
-    const scope = eq("account_id", accountId);
-    const channel = supabase.channel(`tickets-store-${mode}`);
-    onScopedChanges(channel, { table: "tickets", filter: scope }, (payload) => {
-        if (payload.eventType === "DELETE") {
-          const id = (payload.old as { id?: string }).id;
-          if (id) removeRows([id]);
-          return;
-        }
-        const next = payload.new as Ticket;
-        const known = rowsRef.current.find((r) => r.id === next.id);
-        if (known) {
-          // Merge: a payload can leave out large unchanged columns, and it
-          // carries none of the joins.
-          if (next.status !== known.status) {
-            setTotals((prev) => ({
-              ...prev,
-              [known.status]: Math.max(0, prev[known.status] - 1),
-              [next.status]: prev[next.status] + 1,
-            }));
+  const active = enabled && !!accountId;
+
+  useAccountSse(
+    "tickets",
+    active
+      ? (payload: SsePayload) => {
+          if (payload.eventType === "DELETE") {
+            const id = (payload.old as { id?: string }).id;
+            if (id) removeRows([id]);
+            return;
           }
-          setRows((prev) => prev.map((r) => (r.id === next.id ? { ...r, ...next, contact: r.contact } : r)));
-        } else if (payload.eventType === "INSERT" || belongsInWindow(next)) {
-          void supabase
-            .from("tickets")
-            .select(SELECT)
-            .eq("id", next.id)
-            .maybeSingle()
-            .then(({ data }) => {
-              if (data) upsertRow(normalize(data as unknown as RawTicket));
-            });
+          const next = payload.new as Ticket;
+          const known = rowsRef.current.find((r) => r.id === next.id);
+          if (known) {
+            if (next.status !== known.status) {
+              setTotals((prev) => ({
+                ...prev,
+                [known.status]: Math.max(0, prev[known.status] - 1),
+                [next.status]: prev[next.status] + 1,
+              }));
+            }
+            setRows((prev) => prev.map((r) => (r.id === next.id ? { ...r, ...next, contact: r.contact } : r)));
+          } else if (payload.eventType === "INSERT" || belongsInWindow(next)) {
+            void createClient()
+              .from("tickets")
+              .select(SELECT)
+              .eq("id", next.id)
+              .maybeSingle()
+              .then(({ data }) => {
+                if (data) upsertRow(normalize(data as unknown as RawTicket));
+              });
+          }
         }
-    });
-    onScopedChanges(channel, { table: "ticket_comments", filter: scope, events: ["INSERT"] }, (payload) => {
-      const ticketId = (payload.new as { ticket_id?: string }).ticket_id;
-      if (!ticketId) return;
-      setRows((prev) =>
-        prev.map((r) => (r.id === ticketId ? { ...r, comment_count: r.comment_count + 1 } : r)),
-      );
-    });
-    channel.subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [enabled, mode, accountId, removeRows, upsertRow, belongsInWindow]);
+      : undefined,
+    active,
+  );
+
+  useAccountSse(
+    "ticket_comments",
+    active
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "INSERT") return;
+          const ticketId = (payload.new as { ticket_id?: string }).ticket_id;
+          if (!ticketId) return;
+          setRows((prev) =>
+            prev.map((r) => (r.id === ticketId ? { ...r, comment_count: r.comment_count + 1 } : r)),
+          );
+        }
+      : undefined,
+    active,
+  );
 
   return {
     rows,

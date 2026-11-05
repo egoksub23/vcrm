@@ -7,6 +7,7 @@ import { Loader2, Plus, Ticket as TicketIcon } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSse } from "@/hooks/use-account-sse";
 import { useCapability } from "@/hooks/use-can";
 import { useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
 import { isFeatureEnabled } from "@/lib/platform/features";
@@ -110,21 +111,17 @@ export function TicketHistoryPanel({
     void load();
   }, [contactId, load]);
 
-  useEffect(() => {
-    if (!contactId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`ticket-history-${contactId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tickets", filter: `contact_id=eq.${contactId}` },
-        () => void load(),
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [contactId, load]);
+  useAccountSse(
+    "tickets",
+    contactId
+      ? (payload) => {
+          const id = (payload.new as { contact_id?: string }).contact_id ?? (payload.old as { contact_id?: string }).contact_id;
+          if (id !== contactId) return;
+          void load();
+        }
+      : undefined,
+    !!contactId,
+  );
 
   const visible = useMemo(() => {
     if (filter === "all") return rows;

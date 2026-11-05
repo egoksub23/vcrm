@@ -1,7 +1,8 @@
 "use client";
 
 // Settings > Incidents > Escalation timers (incidents.manage). One row
-// per severity (P1-P4, fixed — incident_escalation_policies is keyed
+// per severity level of the account's incident template (BNM P1-P4, School
+// critical-low ... — incident_escalation_policies is keyed
 // (account_id, severity), not a reorderable list like ticket SLA
 // policies). Each row: a business-hours schedule (reused as-is from
 // Settings > SLA & business hours — no second schedule system) plus
@@ -17,10 +18,10 @@ import { Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
-import { ESCALATION_DEFAULT_MINUTES } from "@/lib/incidents/constants";
+import { escalationDefaultsFor } from "@/lib/incidents/constants";
+import { useIncidentStandard } from "@/hooks/use-incident-standard";
 
-const SEVERITIES = ["P1", "P2", "P3", "P4"] as const;
-type Severity = (typeof SEVERITIES)[number];
+type Severity = string;
 
 interface ScheduleOption {
   id: string;
@@ -39,13 +40,9 @@ const NO_SCHEDULE = "__24_7__";
 
 export function EscalationTimersTab() {
   const t = useTranslations("Settings.incidents.timers");
+  const { severities } = useIncidentStandard();
   const [schedules, setSchedules] = useState<ScheduleOption[]>([]);
-  const [policies, setPolicies] = useState<Record<Severity, PolicyRow | null>>({
-    P1: null,
-    P2: null,
-    P3: null,
-    P4: null,
-  });
+  const [policies, setPolicies] = useState<Record<Severity, PolicyRow | null>>({});
   const [loading, setLoading] = useState(true);
   const [savingSeverity, setSavingSeverity] = useState<Severity | null>(null);
 
@@ -57,7 +54,7 @@ export function EscalationTimersTab() {
       supabase.from("incident_escalation_policies").select("*"),
     ]);
     setSchedules((sch as ScheduleOption[]) ?? []);
-    const bySeverity: Record<Severity, PolicyRow | null> = { P1: null, P2: null, P3: null, P4: null };
+    const bySeverity: Record<Severity, PolicyRow | null> = {};
     for (const row of (pol as PolicyRow[]) ?? []) bySeverity[row.severity] = row;
     setPolicies(bySeverity);
     setLoading(false);
@@ -114,11 +111,11 @@ export function EscalationTimersTab() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t("intro")}</p>
-      {SEVERITIES.map((severity) => (
+      {severities.map((level) => level.slug).map((severity) => (
         <SeverityRow
           key={severity}
           severity={severity}
-          policy={policies[severity]}
+          policy={policies[severity] ?? null}
           schedules={schedules}
           saving={savingSeverity === severity}
           onSave={(l1, l2, sid) => void save(severity, l1, l2, sid)}
@@ -145,7 +142,7 @@ function SeverityRow({
   onReset: () => void;
 }) {
   const t = useTranslations("Settings.incidents.timers");
-  const defaults = ESCALATION_DEFAULT_MINUTES[severity];
+  const defaults = escalationDefaultsFor(severity);
   const [level1, setLevel1] = useState(String(policy?.level_1_minutes ?? defaults.level1));
   const [level2, setLevel2] = useState(String(policy?.level_2_minutes ?? defaults.level2));
   const [scheduleId, setScheduleId] = useState(policy?.schedule_id ?? NO_SCHEDULE);

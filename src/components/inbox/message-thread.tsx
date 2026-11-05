@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { usePresence } from "@/hooks/use-presence";
 import { useTeams } from "@/hooks/use-teams";
 import { useTags } from "@/hooks/use-tags";
@@ -477,78 +478,44 @@ export function MessageThread({
   }, [conversationId, resyncToken]);
 
   // Reactions realtime subscription per conversation. Subscribing here
-  // (not at the page level) keeps the channel scoped to the visible
-  // conversation and avoids cross-conversation chatter on a busy inbox.
-  useEffect(() => {
-    if (!conversationId) return;
-    const supabase = createClient();
-
-    const channel = supabase
-      .channel(`reactions:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "message_reactions",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const row = payload.new as MessageReaction;
-          setReactions((prev) => {
-            if (prev.some((r) => r.id === row.id)) return prev;
-            // Swap any matching optimistic temp row for the real one so
-            // the pill doesn't double up after a successful POST.
-            const tempIdx = prev.findIndex(
-              (r) =>
-                r.id.startsWith("temp-") &&
-                r.message_id === row.message_id &&
-                r.actor_type === row.actor_type &&
-                r.actor_id === row.actor_id,
-            );
-            if (tempIdx >= 0) {
-              const copy = prev.slice();
-              copy[tempIdx] = row;
-              return copy;
-            }
-            return [...prev, row];
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "message_reactions",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const row = payload.new as MessageReaction;
-          setReactions((prev) => prev.map((r) => (r.id === row.id ? row : r)));
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          // A DELETE carries only the row's id, so it cannot be filtered by
-          // conversation (a filter would silence it); the id is matched below.
-          event: "DELETE",
-          schema: "public",
-          table: "message_reactions",
-        },
-        (payload) => {
-          const old = payload.old as Partial<MessageReaction>;
-          if (!old?.id) return;
-          setReactions((prev) => prev.filter((r) => r.id !== old.id));
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [conversationId]);
+  // Live reaction updates for the open conversation.
+  useAccountSse(
+    "message_reactions",
+    conversationId
+      ? (payload: SsePayload) => {
+          if (payload.eventType === "DELETE") {
+            const old = payload.old as Partial<MessageReaction>;
+            if (!old?.id) return;
+            setReactions((prev) => prev.filter((r) => r.id !== old.id));
+            return;
+          }
+          if ((payload.new as { conversation_id?: string }).conversation_id !== conversationId) return;
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as MessageReaction;
+            setReactions((prev) => {
+              if (prev.some((r) => r.id === row.id)) return prev;
+              const tempIdx = prev.findIndex(
+                (r) =>
+                  r.id.startsWith("temp-") &&
+                  r.message_id === row.message_id &&
+                  r.actor_type === row.actor_type &&
+                  r.actor_id === row.actor_id,
+              );
+              if (tempIdx >= 0) {
+                const copy = prev.slice();
+                copy[tempIdx] = row;
+                return copy;
+              }
+              return [...prev, row];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const row = payload.new as MessageReaction;
+            setReactions((prev) => prev.map((r) => (r.id === row.id ? row : r)));
+          }
+        }
+      : undefined,
+    !!conversationId,
+  );
 
   // Per-conversation Realtime subscription for new messages.
   // The global inbox subscription filters by account_id, but the messages
@@ -559,28 +526,17 @@ export function MessageThread({
   useEffect(() => {
     onNewMessageRef.current = onNewMessage;
   });
-  useEffect(() => {
-    if (!conversationId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
+  useAccountSse(
+    "messages",
+    conversationId
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "INSERT") return;
+          if ((payload.new as { conversation_id?: string }).conversation_id !== conversationId) return;
           onNewMessageRef.current(payload.new as Message);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [conversationId]);
+        }
+      : undefined,
+    !!conversationId,
+  );
 
   // Clear any in-progress reply draft when the active conversation changes —
   // a quote pulled from conversation A shouldn't bleed into conversation B.
@@ -983,27 +939,20 @@ export function MessageThread({
         if (!cancelled) setSessionEvents(rows);
       })
       .catch(() => {});
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`thread-session-events-${sessionEventsConversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "conversation_events",
-          filter: `conversation_id=eq.${sessionEventsConversationId}`,
-        },
-        (payload) => {
-          setSessionEvents((prev) => [...prev, payload.new as ConversationEvent]);
-        },
-      )
-      .subscribe();
-    return () => {
-      cancelled = true;
-      void supabase.removeChannel(channel);
-    };
+    return () => { cancelled = true; };
   }, [sessionEventsConversationId]);
+
+  useAccountSse(
+    "conversation_events",
+    sessionEventsConversationId
+      ? (payload: SsePayload) => {
+          if (payload.eventType !== "INSERT") return;
+          if ((payload.new as { conversation_id?: string }).conversation_id !== sessionEventsConversationId) return;
+          setSessionEvents((prev) => [...prev, payload.new as ConversationEvent]);
+        }
+      : undefined,
+    !!sessionEventsConversationId,
+  );
 
   // ---- Closure note + session log (migration 065, klink.cloud parity) --
   // Closing requires a note — routed through CloseConversationDialog

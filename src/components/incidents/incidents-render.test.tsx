@@ -56,11 +56,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/incidents",
 }));
 
-import type { Incident } from "@/lib/incidents/types";
+import type { Incident, IncidentObligation } from "@/lib/incidents/types";
 import { IncidentListView } from "./incident-list-view";
 import { IncidentBoard } from "./incident-board";
 import { RaiseIncidentDialog } from "./raise-incident-dialog";
 import { SeverityBadge, StatusLozenge, TypeChip, EscalationChip } from "./incident-visuals";
+import { ObligationsPanel } from "./obligations-panel";
 import { INCIDENT_SEVERITIES, INCIDENT_STATUSES, INCIDENT_TYPES } from "@/lib/incidents/constants";
 
 const load = (locale: string) =>
@@ -89,6 +90,8 @@ const incident = (over: Partial<Incident> = {}): Incident => ({
   incident_type: "AT",
   incident_type_secondary: [],
   severity: "P2",
+  standard_id: null,
+  incident_flags: [],
   severity_downgrade_reason: null,
   status: "reported",
   detected_at: "2026-09-28T00:00:00Z",
@@ -187,5 +190,53 @@ describe.each(["en", "ko"])("incident surfaces render (%s)", (locale) => {
       expect(() => render(locale, <TypeChip code={ty.code} />)).not.toThrow();
     }
     expect(() => render(locale, <EscalationChip level={2} />)).not.toThrow();
+  });
+
+  it("severity badges and type chips for the School / ISO scale", () => {
+    for (const s of ["critical", "high", "medium", "low"]) {
+      expect(() => render(locale, <SeverityBadge severity={s} />)).not.toThrow();
+    }
+    // The slug alone reads as a label, not "high · high".
+    expect(render(locale, <SeverityBadge severity="high" label="Serious" />)).toContain("high · Serious");
+    expect(render(locale, <SeverityBadge severity="high" />)).not.toContain("high · high");
+    expect(() => render(locale, <TypeChip code="CCA" standardId="school" />)).not.toThrow();
+  });
+
+  it("ObligationsPanel (open, done, overdue, not applicable, with a party)", () => {
+    const day = 24 * 60 * 60 * 1000;
+    const obligation = (over: Partial<IncidentObligation>): IncidentObligation => ({
+      id: "ob-1",
+      incident_id: "inc-1",
+      rule_id: "r-1",
+      standard_id: "s-1",
+      title: "Notify the PDP Commissioner",
+      description: "Within 72 hours.",
+      party: "pdp_commissioner",
+      due_at: new Date(Date.now() + day).toISOString(),
+      status: "open",
+      note: null,
+      completed_at: null,
+      completed_by: null,
+      created_at: "2026-11-02T00:00:00Z",
+      ...over,
+    });
+    const html = render(
+      locale,
+      <ObligationsPanel
+        canManage
+        onChanged={() => {}}
+        rows={[
+          obligation({ id: "a" }),
+          obligation({ id: "b", title: "Give first aid", party: "parent_guardian", due_at: new Date(Date.now() - day).toISOString() }),
+          obligation({ id: "c", title: "Assess", party: null, status: "done", completed_at: "2026-11-02T01:00:00Z" }),
+          obligation({ id: "d", title: "Hidden", status: "not_applicable" }),
+        ]}
+      />,
+    );
+    expect(html).toContain("Notify the PDP Commissioner");
+    expect(html).toContain("Give first aid");
+    expect(html).not.toContain("Hidden");
+    expect(() => render(locale, <ObligationsPanel rows={[]} canManage onChanged={() => {}} />)).not.toThrow();
+    expect(render(locale, <ObligationsPanel rows={[]} canManage onChanged={() => {}} />)).toBe("");
   });
 });
