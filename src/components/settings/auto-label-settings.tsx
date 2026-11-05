@@ -29,7 +29,6 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useTags } from "@/hooks/use-tags";
-import { createClient } from "@/lib/supabase/client";
 import { matchAutoLabelRules, type AutoLabelRule } from "@/lib/conversations/auto-label-match";
 import { parseKeywords } from "@/lib/conversations/auto-label-keywords";
 import { SettingsChip } from "./settings-chip";
@@ -77,18 +76,15 @@ export function AutoLabelSettings() {
 
   const load = useCallback(async () => {
     if (!accountId) return;
-    const supabase = createClient();
-    const [rulesRes, accountRes, aiRes] = await Promise.all([
-      supabase
-        .from("auto_label_rules")
-        .select("id, tag_id, keywords, match_type, description, is_active")
-        .order("created_at"),
-      supabase.from("accounts").select("auto_label_ai_enabled").eq("id", accountId).maybeSingle(),
-      supabase.from("ai_configs").select("is_active").eq("account_id", accountId).maybeSingle(),
-    ]);
-    setRules(((rulesRes.data ?? []) as (AutoLabelRule & { is_active: boolean })[]));
-    setAiEnabled(Boolean(accountRes.data?.auto_label_ai_enabled));
-    setAiConfigured(Boolean(aiRes.data?.is_active));
+    const res = await fetch("/api/account/auto-label-rules").catch(() => null);
+    const json = (await res?.json().catch(() => null)) as {
+      rules?: (AutoLabelRule & { is_active: boolean })[];
+      aiEnabled?: boolean;
+      aiConfigured?: boolean;
+    } | null;
+    setRules(json?.rules ?? []);
+    setAiEnabled(json?.aiEnabled ?? false);
+    setAiConfigured(json?.aiConfigured ?? true);
     setLoading(false);
   }, [accountId]);
 
@@ -115,7 +111,6 @@ export function AutoLabelSettings() {
   const handleSave = async () => {
     if (!canManage || !draft || !accountId || !canSave) return;
     setSaving(true);
-    const supabase = createClient();
     const payload = {
       tag_id: draft.tagId,
       keywords,
@@ -123,11 +118,16 @@ export function AutoLabelSettings() {
       description: draft.description.trim() || null,
       is_active: draft.isActive,
     };
-    const { error } = draft.id
-      ? await supabase.from("auto_label_rules").update(payload).eq("id", draft.id)
-      : await supabase.from("auto_label_rules").insert({ ...payload, account_id: accountId });
+    const url = draft.id
+      ? `/api/account/auto-label-rules/${encodeURIComponent(draft.id)}`
+      : "/api/account/auto-label-rules";
+    const res = await fetch(url, {
+      method: draft.id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
     setSaving(false);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("saveFailed"));
       return;
     }
@@ -137,30 +137,32 @@ export function AutoLabelSettings() {
 
   const toggleActive = async (r: AutoLabelRule & { is_active?: boolean }) => {
     if (!canManage) return;
-    const { error } = await createClient()
-      .from("auto_label_rules")
-      .update({ is_active: !(r.is_active ?? true) })
-      .eq("id", r.id);
-    if (error) toast.error(t("saveFailed"));
+    const res = await fetch(`/api/account/auto-label-rules/${encodeURIComponent(r.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active: !(r.is_active ?? true) }),
+    });
+    if (!res.ok) toast.error(t("saveFailed"));
     await load();
   };
 
   const handleDelete = async (r: AutoLabelRule) => {
     if (!canManage) return;
     if (!window.confirm(t("deleteConfirm"))) return;
-    const { error } = await createClient().from("auto_label_rules").delete().eq("id", r.id);
-    if (error) toast.error(t("saveFailed"));
+    const res = await fetch(`/api/account/auto-label-rules/${encodeURIComponent(r.id)}`, { method: "DELETE" });
+    if (!res.ok) toast.error(t("saveFailed"));
     await load();
   };
 
   const handleAiToggle = async (next: boolean) => {
     if (!canManage || !accountId) return;
     setAiEnabled(next);
-    const { error } = await createClient()
-      .from("accounts")
-      .update({ auto_label_ai_enabled: next })
-      .eq("id", accountId);
-    if (error) {
+    const res = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auto_label_ai_enabled: next }),
+    });
+    if (!res.ok) {
       setAiEnabled(!next);
       toast.error(t("saveFailed"));
     }

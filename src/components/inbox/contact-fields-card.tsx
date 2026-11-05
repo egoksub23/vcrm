@@ -5,9 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, Pencil } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { findExistingContact, isUniqueViolation } from "@/lib/contacts/dedupe";
 import {
   checkEmail,
   checkPhone,
@@ -61,24 +59,20 @@ export function ContactFieldsCard({
   /** Write columns to the contact; returns an error message, or null on success. */
   async function save(key: string, patch: Record<string, unknown>): Promise<string | null> {
     setSavingKey(key);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("contacts")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("id", contact.id);
-    if (error) {
-      console.error("[ContactFieldsCard] save failed:", error);
-      if (isUniqueViolation(error)) {
-        // Name the conflicting contact instead of a generic "taken" message,
-        // same as the contact form / detail sheet already do.
-        const phone = typeof patch.phone === "string" ? patch.phone : contact.phone;
-        const existing = await findExistingContact(supabase as any, contact.account_id, phone, contact.id);
-        setSavingKey(null);
+    const res = await fetch(`/api/contacts/${contact.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setSavingKey(null);
+      if (json.error === "duplicate_phone") {
+        const existing = json.conflict;
         return existing
           ? t("errors.phone_taken_named", { name: existing.name || existing.phone })
           : t("errors.phone_taken");
       }
-      setSavingKey(null);
       return t("saveFailed");
     }
     setSavingKey(null);

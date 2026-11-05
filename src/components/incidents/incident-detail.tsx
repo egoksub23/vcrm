@@ -29,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse } from "@/hooks/use-account-sse";
 import { useAccountMembers } from "@/hooks/use-account-members";
@@ -144,23 +143,24 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
-    const supabase = createClient();
-    const [inc, com, act, att, ns, ac, ob] = await Promise.all([
-      supabase.from("incidents").select("*").eq("id", incidentId).maybeSingle(),
-      supabase.from("incident_comments").select("*").eq("incident_id", incidentId).order("created_at"),
-      supabase.from("incident_activity").select("*").eq("incident_id", incidentId).order("created_at"),
-      supabase.from("incident_attachments").select("*").eq("incident_id", incidentId).order("created_at"),
-      supabase.from("incident_notifications_sent").select("*").eq("incident_id", incidentId).order("sent_at", { ascending: false }),
-      supabase.from("incident_actions").select("*").eq("incident_id", incidentId).order("created_at"),
-      supabase.from("incident_obligations").select("*").eq("incident_id", incidentId).order("due_at", { ascending: true, nullsFirst: false }),
-    ]);
-    setIncident((inc.data as Incident) ?? null);
-    setComments((com.data as IncidentComment[]) ?? []);
-    setActivity((act.data as IncidentActivity[]) ?? []);
-    setAttachments((att.data as IncidentAttachment[]) ?? []);
-    setNotificationsSent((ns.data as IncidentNotificationSent[]) ?? []);
-    setActions((ac.data as IncidentAction[]) ?? []);
-    setObligations((ob.data as IncidentObligation[]) ?? []);
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incidentId)}/detail`);
+    if (!res.ok) { setLoading(false); return; }
+    const json = (await res.json()) as {
+      incident: Incident;
+      comments: IncidentComment[];
+      activity: IncidentActivity[];
+      attachments: IncidentAttachment[];
+      notificationsSent: IncidentNotificationSent[];
+      actions: IncidentAction[];
+      obligations: IncidentObligation[];
+    };
+    setIncident(json.incident ?? null);
+    setComments(json.comments ?? []);
+    setActivity(json.activity ?? []);
+    setAttachments(json.attachments ?? []);
+    setNotificationsSent(json.notificationsSent ?? []);
+    setActions(json.actions ?? []);
+    setObligations(json.obligations ?? []);
     setLoading(false);
   }, [incidentId]);
 
@@ -220,8 +220,12 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     if (!incident) return;
     const prev = incident;
     setIncident({ ...incident, ...fields });
-    const { error } = await createClient().from("incidents").update(fields).eq("id", incident.id);
-    if (error) {
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    if (!res.ok) {
       setIncident(prev);
       toast.error(t("updateFailed"));
     }
@@ -257,16 +261,15 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     mentionQuery === null ? [] : members.filter((m) => m.full_name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6);
 
   const postComment = async () => {
-    if (!incident || !user || !draft.trim()) return;
+    if (!incident || !draft.trim()) return;
     setPosting(true);
-    const { error } = await createClient().from("incident_comments").insert({
-      incident_id: incident.id,
-      author_id: user.id,
-      body: draft.trim(),
-      mentions,
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: draft.trim(), mentions }),
     });
     setPosting(false);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("commentFailed"));
       return;
     }
@@ -298,12 +301,11 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       : [...incident.incident_flags, flag];
     await patch({ incident_flags: next });
     // The database refreshes the checklist in the same statement; re-read it.
-    const { data } = await createClient()
-      .from("incident_obligations")
-      .select("*")
-      .eq("incident_id", incident.id)
-      .order("due_at", { ascending: true, nullsFirst: false });
-    if (data) setObligations(data as IncidentObligation[]);
+    const oblRes = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/obligations`);
+    if (oblRes.ok) {
+      const oblJson = (await oblRes.json()) as { obligations?: IncidentObligation[] };
+      setObligations(oblJson.obligations ?? []);
+    }
   };
 
   const [escalating, setEscalating] = useState(false);
@@ -701,25 +703,20 @@ function ActionsPanel({
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!user || !description.trim()) return;
+    if (!description.trim()) return;
     setBusy(true);
-    const { data, error } = await createClient()
-      .from("incident_actions")
-      .insert({
-        incident_id: incidentId,
-        description: description.trim(),
-        owner_id: ownerId,
-        due_date: dueDate || null,
-        created_by: user.id,
-      })
-      .select("*")
-      .single();
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incidentId)}/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: description.trim(), owner_id: ownerId, due_date: dueDate || null }),
+    });
+    const json = (await res.json().catch(() => null)) as { action?: IncidentAction } | null;
     setBusy(false);
-    if (error || !data) {
+    if (!res.ok || !json?.action) {
       toast.error(t("addFailed"));
       return;
     }
-    onAdded(data as IncidentAction);
+    onAdded(json.action);
     setAdding(false);
     setDescription("");
     setOwnerId(null);
@@ -728,17 +725,17 @@ function ActionsPanel({
 
   const toggleDone = async (row: IncidentAction) => {
     const nextStatus = row.status === "done" ? "open" : "done";
-    const { data, error } = await createClient()
-      .from("incident_actions")
-      .update({ status: nextStatus, closed_at: nextStatus === "done" ? new Date().toISOString() : null })
-      .eq("id", row.id)
-      .select("*")
-      .single();
-    if (error || !data) {
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incidentId)}/actions/${encodeURIComponent(row.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus, closed_at: nextStatus === "done" ? new Date().toISOString() : null }),
+    });
+    const json = (await res.json().catch(() => null)) as { action?: IncidentAction } | null;
+    if (!res.ok || !json?.action) {
       toast.error(t("updateFailed"));
       return;
     }
-    onChanged(data as IncidentAction);
+    onChanged(json.action);
   };
 
   return (
@@ -863,25 +860,19 @@ function NotificationsSentPanel({
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!user) return;
     setBusy(true);
-    const { data, error } = await createClient()
-      .from("incident_notifications_sent")
-      .insert({
-        incident_id: incidentId,
-        recipient_party: party,
-        reference: reference.trim() || null,
-        sent_at: new Date().toISOString(),
-        recorded_by: user.id,
-      })
-      .select("*")
-      .single();
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incidentId)}/notifications`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipient_party: party, reference: reference.trim() || null }),
+    });
+    const json = (await res.json().catch(() => null)) as { notification?: IncidentNotificationSent } | null;
     setBusy(false);
-    if (error || !data) {
+    if (!res.ok || !json?.notification) {
       toast.error(t("addFailed"));
       return;
     }
-    onAdded(data as IncidentNotificationSent);
+    onAdded(json.notification);
     setAdding(false);
     setReference("");
   };

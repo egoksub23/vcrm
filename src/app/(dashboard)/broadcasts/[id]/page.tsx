@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { Broadcast, BroadcastRecipient, RecipientStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { GatedButton } from '@/components/ui/gated-button';
@@ -170,25 +169,15 @@ export default function BroadcastDetailPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const supabase = createClient();
-
-      const { data: bc, error: bcError } = await supabase
-        .from('broadcasts')
-        .select('*')
-        .eq('id', broadcastId)
-        .single();
-
-      if (bcError) throw bcError;
-      setBroadcast(bc);
-
-      const { data: recs, error: recsError } = await supabase
-        .from('broadcast_recipients')
-        .select('*, contact:contacts(*)')
-        .eq('broadcast_id', broadcastId)
-        .order('created_at', { ascending: false });
-
-      if (recsError) throw recsError;
-      setRecipients(recs ?? []);
+      const [bcRes, recsRes] = await Promise.all([
+        fetch(`/api/broadcasts/${broadcastId}`),
+        fetch(`/api/broadcasts/${broadcastId}/recipients`),
+      ]);
+      if (!bcRes.ok) throw new Error((await bcRes.json().catch(() => ({}))).error ?? t('notFound'));
+      if (!recsRes.ok) throw new Error((await recsRes.json().catch(() => ({}))).error ?? t('notFound'));
+      const [bcJson, recsJson] = await Promise.all([bcRes.json(), recsRes.json()]);
+      setBroadcast(bcJson.broadcast);
+      setRecipients(recsJson.recipients ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('notFound'));
     } finally {
@@ -286,18 +275,15 @@ export default function BroadcastDetailPage() {
   async function handleDelete() {
     if (!canSend) return;
     setDeleting(true);
-    const supabase = createClient();
     // broadcast_recipients cascades on broadcasts.id (migration 001), so a
     // single delete is sufficient — the aggregate trigger in migration 003
     // is defined on broadcast_recipients but fires only on its own row
     // changes, not on a cascaded drop of the parent row.
-    const { error: delErr } = await supabase
-      .from('broadcasts')
-      .delete()
-      .eq('id', broadcastId);
+    const delRes = await fetch(`/api/broadcasts/${broadcastId}`, { method: 'DELETE' });
     setDeleting(false);
-    if (delErr) {
-      toast.error(t('toastFailedDelete', { error: delErr.message }));
+    if (!delRes.ok) {
+      const json = await delRes.json().catch(() => ({}));
+      toast.error(t('toastFailedDelete', { error: (json as { error?: string }).error ?? 'unknown' }));
       return;
     }
     toast.success(t('toastDeleted'));

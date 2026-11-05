@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { usePresence } from "@/hooks/use-presence";
@@ -319,24 +318,15 @@ export function MessageThread({
     messageId: string;
   } | null>(null);
 
-  // Profiles are bounded by RLS to rows the current user is allowed to
-  // see — today that's just the current user, but the dropdown keeps the
-  // shape ready for shared-team workspaces without a refactor.
   useEffect(() => {
     let cancelled = false;
-    const supabase = createClient();
-    supabase
-      .from("profiles")
-      .select("*")
-      .order("full_name")
-      .then(({ data, error }) => {
+    fetch("/api/account/profiles")
+      .then((r) => r.json())
+      .then((json) => {
         if (cancelled) return;
-        if (error) {
-          console.error("Failed to fetch profiles:", error);
-          return;
-        }
-        setProfiles((data as Profile[]) ?? []);
-      });
+        setProfiles((json.profiles as Profile[]) ?? []);
+      })
+      .catch((err) => console.error("Failed to fetch profiles:", err));
     return () => {
       cancelled = true;
     };
@@ -456,21 +446,15 @@ export function MessageThread({
       setReactions([]);
       return;
     }
-    const supabase = createClient();
     let cancelled = false;
 
-    (async () => {
-      const { data, error } = await supabase
-        .from("message_reactions")
-        .select("*")
-        .eq("conversation_id", conversationId);
-      if (cancelled) return;
-      if (error) {
-        console.error("Failed to fetch reactions:", error);
-        return;
-      }
-      setReactions((data as MessageReaction[]) ?? []);
-    })();
+    fetch(`/api/conversations/${conversationId}/reactions`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        setReactions((json.reactions as MessageReaction[]) ?? []);
+      })
+      .catch((err) => console.error("Failed to fetch reactions:", err));
 
     return () => {
       cancelled = true;

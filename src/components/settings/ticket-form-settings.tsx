@@ -37,7 +37,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { useTicketFields } from "@/hooks/use-ticket-fields";
 import { setCachedTicketKeyPrefix, useTicketKeyPrefix } from "@/hooks/use-ticket-key-prefix";
-import { createClient } from "@/lib/supabase/client";
 import { isValidPrefix, normalizePrefix, ticketKey } from "@/lib/tickets/key";
 import {
   TICKET_FIELD_TYPES,
@@ -125,24 +124,31 @@ export function TicketFormSettings() {
   const handleSave = async () => {
     if (!draft || !accountId || !canSave) return;
     setSaving(true);
-    const supabase = createClient();
     const payload = {
       label: draft.label.trim(),
       options: draft.field_type === "dropdown" ? options : [],
       is_required: draft.is_required,
       applies_to_categories: draft.categories,
     };
-    const { error } = draft.id
-      ? await supabase.from("ticket_field_definitions").update(payload).eq("id", draft.id)
-      : await supabase.from("ticket_field_definitions").insert({
-          ...payload,
-          account_id: accountId,
-          field_type: draft.field_type,
-          position: fields.reduce((max, f) => Math.max(max, f.position), 0) + 1,
+    const res = draft.id
+      ? await fetch(`/api/account/ticket-fields/${encodeURIComponent(draft.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+      : await fetch("/api/account/ticket-fields", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...payload,
+            field_type: draft.field_type,
+            position: fields.reduce((max, f) => Math.max(max, f.position), 0) + 1,
+          }),
         });
     setSaving(false);
-    if (error) {
-      toast.error(error.code === "23505" ? t("duplicate", { name: payload.label }) : t("saveFailed"));
+    const resJson = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(resJson?.error?.includes("23505") ? t("duplicate", { name: payload.label }) : t("saveFailed"));
       return;
     }
     setDraft(null);
@@ -151,14 +157,14 @@ export function TicketFormSettings() {
 
   const setActiveFlag = async (f: TicketFieldDefinition, is_active: boolean) => {
     setBusyId(f.id);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("ticket_field_definitions")
-      .update({ is_active })
-      .eq("id", f.id);
+    const res = await fetch(`/api/account/ticket-fields/${encodeURIComponent(f.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active }),
+    });
     setBusyId(null);
-    if (error) {
-      toast.error(error.code === "23505" ? t("duplicate", { name: f.label }) : t("saveFailed"));
+    if (!res.ok) {
+      toast.error(t("saveFailed"));
       return;
     }
     await reload();
@@ -169,16 +175,13 @@ export function TicketFormSettings() {
     const b = active[index + dir];
     if (!a || !b) return;
     setBusyId(a.id);
-    const supabase = createClient();
-    // Swap positions. If two rows share a position (older data), nudge so
-    // the swap still changes their order.
     const posA = a.position === b.position ? b.position + dir : b.position;
     const [r1, r2] = await Promise.all([
-      supabase.from("ticket_field_definitions").update({ position: posA }).eq("id", a.id),
-      supabase.from("ticket_field_definitions").update({ position: a.position }).eq("id", b.id),
+      fetch(`/api/account/ticket-fields/${encodeURIComponent(a.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ position: posA }) }),
+      fetch(`/api/account/ticket-fields/${encodeURIComponent(b.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ position: a.position }) }),
     ]);
     setBusyId(null);
-    if (r1.error || r2.error) toast.error(t("saveFailed"));
+    if (!r1.ok || !r2.ok) toast.error(t("saveFailed"));
     await reload();
   };
 
@@ -201,12 +204,13 @@ export function TicketFormSettings() {
   const savePrefix = async () => {
     if (!accountId || !prefixValid || prefixValue === savedPrefix) return;
     setSavingPrefix(true);
-    const { error } = await createClient()
-      .from("accounts")
-      .update({ ticket_key_prefix: prefixValue })
-      .eq("id", accountId);
+    const res = await fetch("/api/account/ticket-key-prefix", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prefix: prefixValue }),
+    });
     setSavingPrefix(false);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("prefixSaveFailed"));
       return;
     }

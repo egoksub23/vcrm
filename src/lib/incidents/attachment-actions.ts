@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/client";
 import { deleteAccountMedia, uploadAccountMedia } from "@/lib/storage/upload-media";
 import type { IncidentAttachment } from "./types";
 
@@ -27,38 +26,44 @@ async function sha256Hex(file: File): Promise<string> {
 export async function attachFileToIncident(
   incident: { id: string },
   file: File,
-  userId: string,
+  _userId: string,
   commentId?: string,
 ): Promise<IncidentAttachment> {
   const [{ publicUrl, path }, fileHash] = await Promise.all([
     uploadAccountMedia(BUCKET, file, SUBFOLDER),
     sha256Hex(file),
   ]);
-  const { data, error } = await createClient()
-    .from("incident_attachments")
-    .insert({
-      incident_id: incident.id,
-      comment_id: commentId ?? null,
+  const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/attachments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       storage_path: path,
       url: publicUrl,
-      filename: file.name || "file",
-      mime_type: file.type || "application/octet-stream",
+      filename: file.name || 'file',
+      mime_type: file.type || 'application/octet-stream',
       size_bytes: file.size,
-      uploaded_by: userId,
+      comment_id: commentId ?? null,
       file_hash: fileHash,
-    })
-    .select("*")
-    .single();
-  if (error || !data) {
+    }),
+  }).catch(() => null);
+  if (!res?.ok) {
     void deleteAccountMedia(BUCKET, path).catch(() => {});
-    throw new Error(error?.message ?? "Could not save the attachment.");
+    throw new Error('Could not save the attachment.');
   }
-  return data as IncidentAttachment;
+  const json = (await res.json().catch(() => null)) as { attachment?: IncidentAttachment } | null;
+  if (!json?.attachment) {
+    void deleteAccountMedia(BUCKET, path).catch(() => {});
+    throw new Error('Could not save the attachment.');
+  }
+  return json.attachment;
 }
 
 export async function removeIncidentAttachment(att: IncidentAttachment): Promise<boolean> {
-  const { error } = await createClient().from("incident_attachments").delete().eq("id", att.id);
-  if (error) return false;
+  const res = await fetch(
+    `/api/incidents/${encodeURIComponent(att.incident_id)}/attachments/${encodeURIComponent(att.id)}`,
+    { method: 'DELETE' },
+  ).catch(() => null);
+  if (!res?.ok) return false;
   void deleteAccountMedia(BUCKET, att.storage_path).catch(() => {});
   return true;
 }

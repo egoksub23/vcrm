@@ -9,19 +9,6 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { BarChart } from "@/components/tremor/bar-chart";
 import type { DateRange } from "@/lib/reports/date-utils";
 import {
-  loadConversationsReport,
-  loadResponsesReport,
-  loadResolutionsReport,
-  loadMessagesReport,
-  loadContactsReport,
-  loadAssignmentsReport,
-  loadLeaderboardReport,
-  loadUsersReport,
-  loadLifecycleReport,
-  loadBroadcastsReport,
-  loadTicketsReport,
-  loadTicketSlaReport,
-  loadTicketReportsDrilldown,
   slaCompliancePct,
   LIFECYCLE_STAGES,
   type OverviewMetric,
@@ -29,6 +16,19 @@ import {
   type SlaCounts,
   type TicketBreakdownRow,
   type TicketResolutionRow,
+  type ConversationsReport,
+  type ResponsesReport,
+  type ResolutionsReport,
+  type MessagesReport,
+  type AssignmentsReport,
+  type LeaderboardReport,
+  type UsersReport,
+  type LifecycleReport,
+  type BroadcastsReport,
+  type ContactsReport,
+  type TicketsReport,
+  type TicketSlaReport,
+  type TicketReportsDrilldown,
 } from "@/lib/reports/queries";
 import { useReportData, formatMinutes, formatPercent } from "./report-hooks";
 
@@ -70,7 +70,7 @@ function deltaFor(
 export function ConversationsReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.conversations");
   const tShared = useTranslations("Reports");
-  const { data, loading, error } = useReportData(loadConversationsReport, accountId, range);
+  const { data, loading, error } = useReportData<ConversationsReport>("conversations", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -108,7 +108,7 @@ export function ConversationsReportPanel({ accountId, range }: PanelProps) {
 export function ResponsesReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.responses");
   const tShared = useTranslations("Reports");
-  const { data, loading, error } = useReportData(loadResponsesReport, accountId, range);
+  const { data, loading, error } = useReportData<ResponsesReport>("responses", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -141,7 +141,7 @@ export function ResponsesReportPanel({ accountId, range }: PanelProps) {
 export function ResolutionsReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.resolutions");
   const tShared = useTranslations("Reports");
-  const { data, loading, error } = useReportData(loadResolutionsReport, accountId, range);
+  const { data, loading, error } = useReportData<ResolutionsReport>("resolutions", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -177,7 +177,7 @@ export function ResolutionsReportPanel({ accountId, range }: PanelProps) {
 export function MessagesReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.messages");
   const tShared = useTranslations("Reports");
-  const { data, loading, error } = useReportData(loadMessagesReport, accountId, range);
+  const { data, loading, error } = useReportData<MessagesReport>("messages", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -215,7 +215,7 @@ export function MessagesReportPanel({ accountId, range }: PanelProps) {
 export function ContactsReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.contacts");
   const tShared = useTranslations("Reports");
-  const { data, loading, error } = useReportData(loadContactsReport, accountId, range);
+  const { data, loading, error } = useReportData<ContactsReport>("contacts", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -246,7 +246,7 @@ export function ContactsReportPanel({ accountId, range }: PanelProps) {
 
 export function AssignmentsReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.assignments");
-  const { data, loading, error } = useReportData(loadAssignmentsReport, accountId, range);
+  const { data, loading, error } = useReportData<AssignmentsReport>("assignments", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -353,7 +353,7 @@ function StatsTable({
 
 export function LeaderboardReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.leaderboard");
-  const { data, loading, error } = useReportData(loadLeaderboardReport, accountId, range);
+  const { data, loading, error } = useReportData<LeaderboardReport>("leaderboard", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -370,7 +370,7 @@ export function LeaderboardReportPanel({ accountId, range }: PanelProps) {
 
 export function UsersReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.users");
-  const { data, loading, error } = useReportData(loadUsersReport, accountId, range);
+  const { data, loading, error } = useReportData<UsersReport>("users", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -390,7 +390,7 @@ export function UsersReportPanel({ accountId, range }: PanelProps) {
 
 export function LifecycleReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.lifecycle");
-  const { data, loading, error } = useReportData(loadLifecycleReport, accountId, range);
+  const { data, loading, error } = useReportData<LifecycleReport>("lifecycle", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -438,7 +438,7 @@ export function LifecycleReportPanel({ accountId, range }: PanelProps) {
 export function BroadcastsReportPanel({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.broadcasts");
   const tShared = useTranslations("Reports");
-  const { data, loading, error } = useReportData(loadBroadcastsReport, accountId, range);
+  const { data, loading, error } = useReportData<BroadcastsReport>("broadcasts", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -583,7 +583,7 @@ export function TicketsReportPanel({ accountId, range }: PanelProps) {
   const tShared = useTranslations("Reports");
   const tCat = useTranslations("Tickets.detail.category");
   const tPri = useTranslations("Tickets.detail.priority");
-  const { data, loading, error } = useReportData(loadTicketsReport, accountId, range);
+  const { data, loading, error } = useReportData<TicketsReport>("tickets", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -788,7 +788,7 @@ function TicketSlaReportSection({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.tickets");
   const tPri = useTranslations("Tickets.detail.priority");
   const { nameOf } = useAccountMembers();
-  const { data, loading, error } = useReportData(loadTicketSlaReport, accountId, range);
+  const { data, loading, error } = useReportData<TicketSlaReport>("ticket_sla", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;
@@ -898,7 +898,7 @@ function TicketSlaReportSection({ accountId, range }: PanelProps) {
  */
 function TicketDrilldownSection({ accountId, range }: PanelProps) {
   const t = useTranslations("Reports.tickets");
-  const { data, loading, error } = useReportData(loadTicketReportsDrilldown, accountId, range);
+  const { data, loading, error } = useReportData<TicketReportsDrilldown>("ticket_drilldown", accountId, range);
 
   if (error) return <ErrorState message={error} />;
   if (loading || !data) return <EmptyState label={t("loading")} />;

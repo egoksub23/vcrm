@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import {
@@ -12,36 +11,16 @@ import {
   type StoredPresence,
 } from "@/lib/presence";
 
-// How often the viewer re-derives presence locally. The online→offline
-// transition fires NO database event (it's just the clock passing the
-// staleness threshold), so without this tick a member who closes their
-// tab would appear online forever. ~15s keeps "offline" responsive
-// without busy-spinning.
 const RE_DERIVE_MS = 15_000;
 
 type PresenceMap = Map<string, PresenceRow>;
 
 interface UsePresenceResult {
-  /** Derived status for one member (defaults to offline if unseen). */
   getPresence: (userId: string) => PresenceStatus;
-  /** Raw row for tooltips ("last seen …"). */
   getRow: (userId: string) => PresenceRow | undefined;
-  /**
-   * The clock value the hook is currently deriving against. Pass this
-   * to `presenceLabel` / `formatLastSeen` so labels stay in lockstep
-   * with the dots (both advance on the same ~15s re-derive tick).
-   */
   now: number;
 }
 
-/**
- * Live presence for every member of the caller's account. Reads the
- * `member_presence` table (RLS-scoped to the account), subscribes to
- * SSE changes, and re-derives "offline" on a local timer.
- *
- * Account comes from useAuth; pass `enabled: false` to opt a consumer
- * out (e.g. while a parent sheet is closed).
- */
 export function usePresence(enabled = true): UsePresenceResult {
   const { accountId } = useAuth();
 
@@ -50,59 +29,37 @@ export function usePresence(enabled = true): UsePresenceResult {
 
   const active = enabled && !!accountId;
 
-  // Initial snapshot fetch (still uses createClient for PostgREST — Browser PostgREST migration next).
   useEffect(() => {
-    if (!active || !accountId) return;
+    if (!active) return;
     let cancelled = false;
 
-    const supabase = createClient();
-
-    const applyRow = (row: { user_id: string; status: StoredPresence; last_seen_at: string }) => {
-      setRows((prev) => {
-        const next = new Map(prev);
-        next.set(row.user_id, { status: row.status, last_seen_at: row.last_seen_at });
-        return next;
-      });
-    };
-
-    supabase
-      .from("member_presence")
-      .select("user_id, status, last_seen_at")
-      .eq("account_id", accountId)
-      .then(({ data, error }) => {
+    fetch("/api/account/presence")
+      .then((r) => r.json())
+      .then(({ presence }: { presence?: { user_id: string; status: StoredPresence; last_seen_at: string }[] }) => {
         if (cancelled) return;
-        if (error) {
-          console.error("[usePresence] initial fetch error:", error.message);
-          return;
-        }
         setRows((prev) => {
           const next = new Map(prev);
-          for (const r of data ?? []) {
-            const userId = r.user_id as string;
-            const incoming: PresenceRow = {
-              status: r.status as StoredPresence,
-              last_seen_at: r.last_seen_at as string,
-            };
-            const existing = next.get(userId);
+          for (const r of presence ?? []) {
+            const incoming: PresenceRow = { status: r.status, last_seen_at: r.last_seen_at };
+            const existing = next.get(r.user_id);
             if (!existing || new Date(incoming.last_seen_at) >= new Date(existing.last_seen_at)) {
-              next.set(userId, incoming);
+              next.set(r.user_id, incoming);
             }
           }
           return next;
         });
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("[usePresence] initial fetch error:", err);
       });
-
-    // Unused applyRow kept to suppress lint warning — used in SSE handler below.
-    void applyRow;
 
     const tick = setInterval(() => setNow(Date.now()), RE_DERIVE_MS);
     return () => {
       cancelled = true;
       clearInterval(tick);
     };
-  }, [active, accountId]);
+  }, [active]);
 
-  // SSE realtime subscription.
   useAccountSse(
     "member_presence",
     active

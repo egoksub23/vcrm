@@ -14,7 +14,6 @@ import { Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { createClient } from "@/lib/supabase/client"
 import { SIGN_EVENT_NAMES, eventsOf } from "@/lib/automations/sign-event"
 import { MAX_COPY_RECIPIENTS, MAX_SIGN_RECIPIENTS, isCopyRecipient, requiredRoleKeys } from "@/lib/automations/sign-step"
 import { SIGN_LOCALES, type SignRole } from "@/lib/sign/types"
@@ -65,17 +64,16 @@ export function SignResourcesProvider({ needed, children }: { needed: boolean; c
     if (!needed || started.current) return
     started.current = true
     let cancelled = false
-    const supabase = createClient()
     void (async () => {
       try {
-        const [tpl, cat] = await Promise.all([
-          supabase.from("sign_templates").select("id, name, status, category_id, current_version_id").eq("status", "active").order("name"),
-          supabase.from("sign_categories").select("id, name").eq("archived", false).order("position", { ascending: true }),
+        const [tplRes, catRes] = await Promise.all([
+          fetch("/api/sign/templates").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+          fetch("/api/sign/categories").then((r) => (r.ok ? r.json() : null)).catch(() => null),
         ])
         if (cancelled) return
         setValue({
-          templates: (tpl.data as SignTemplateOption[] | null) ?? [],
-          categories: (cat.data as SignCategoryOption[] | null) ?? [],
+          templates: (tplRes?.templates as SignTemplateOption[] | null) ?? [],
+          categories: ((catRes?.categories as (SignCategoryOption & { archived: boolean })[] | null) ?? []).filter((c) => !c.archived),
           loaded: true,
         })
       } catch {
@@ -192,8 +190,9 @@ function useTemplateVersion(versionId: string | null | undefined): TemplateVersi
     let cancelled = false
     void (async () => {
       try {
-        const { data } = await createClient().from("sign_template_versions").select("roles, fields, form").eq("id", versionId).maybeSingle()
-        if (!cancelled) setState({ id: versionId, v: (data as TemplateVersion | null) ?? null })
+        const res = await fetch(`/api/sign/template-versions/${versionId}`)
+        const json = res.ok ? await res.json().catch(() => null) : null
+        if (!cancelled) setState({ id: versionId, v: (json?.version as TemplateVersion | null) ?? null })
       } catch {
         if (!cancelled) setState({ id: versionId, v: null })
       }

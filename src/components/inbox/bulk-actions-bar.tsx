@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Lock, Mail, MailOpen, UserPlus, UserX } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useCapability } from "@/hooks/use-can";
 import { readOnlyTitle } from "@/components/ui/gated-button";
 import {
@@ -63,12 +62,10 @@ export function BulkActionsBar({
 
   useEffect(() => {
     let cancelled = false;
-    createClient()
-      .from("profiles")
-      .select("*")
-      .order("full_name")
-      .then(({ data }) => {
-        if (!cancelled) setProfiles((data as Profile[]) ?? []);
+    fetch("/api/account/profiles")
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled) setProfiles((json.profiles as Profile[]) ?? []);
       });
     return () => {
       cancelled = true;
@@ -104,7 +101,7 @@ export function BulkActionsBar({
 
   const handleAssign = (agent: Profile | null) =>
     run(async () => {
-      const res = await bulkAssign(createClient() as any, ids, agent?.user_id ?? null);
+      const res = await bulkAssign(ids, agent?.user_id ?? null);
       finish(
         res,
         { assigned_agent_id: agent?.user_id },
@@ -116,8 +113,7 @@ export function BulkActionsBar({
 
   const handleRead = (read: boolean) =>
     run(async () => {
-      const db = createClient() as any;
-      const res = read ? await bulkMarkRead(db, selected) : await bulkMarkUnread(db, selected);
+      const res = read ? await bulkMarkRead(selected) : await bulkMarkUnread(selected);
       finish(
         res,
         { unread_count: read ? 0 : 1 },

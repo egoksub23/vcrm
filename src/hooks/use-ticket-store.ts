@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { BOARD_COLUMN_PAGE_SIZE, LIST_PAGE_SIZE, TICKET_STATUSES } from "@/lib/tickets/constants";
@@ -107,26 +106,17 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
 
   // ---- Loading ---------------------------------------------------------
   const fetchList = useCallback(async (from: number) => {
-    const { data, error: err } = await createClient()
-      .from("tickets")
-      .select(SELECT)
-      .order("updated_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(from, from + LIST_PAGE_SIZE - 1);
-    if (err) throw err;
-    return ((data ?? []) as unknown as RawTicket[]).map(normalize);
+    const res = await fetch(`/api/tickets/list?mode=list&from=${from}`);
+    if (!res.ok) throw new Error(`fetchList failed: ${res.status}`);
+    const json = (await res.json()) as { tickets?: unknown[] };
+    return ((json.tickets ?? []) as unknown as RawTicket[]).map(normalize);
   }, []);
 
   const fetchColumn = useCallback(async (status: TicketStatus, from: number) => {
-    const { data, count, error: err } = await createClient()
-      .from("tickets")
-      .select(SELECT, { count: "exact" })
-      .eq("status", status)
-      .order("board_rank", { ascending: false })
-      .order("created_at", { ascending: false })
-      .range(from, from + BOARD_COLUMN_PAGE_SIZE - 1);
-    if (err) throw err;
-    return { rows: ((data ?? []) as unknown as RawTicket[]).map(normalize), total: count ?? 0 };
+    const res = await fetch(`/api/tickets/list?mode=board&status=${encodeURIComponent(status)}&from=${from}`);
+    if (!res.ok) throw new Error(`fetchColumn failed: ${res.status}`);
+    const json = (await res.json()) as { tickets?: unknown[]; total?: number };
+    return { rows: ((json.tickets ?? []) as unknown as RawTicket[]).map(normalize), total: json.total ?? 0 };
   }, []);
 
   const reload = useCallback(async () => {
@@ -140,13 +130,13 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
         setRows(page);
         setListHasMore(page.length === LIST_PAGE_SIZE);
       } else {
-        const supabase = createClient();
         // Closed stays collapsed until asked for: only its count is fetched.
         const open = TICKET_STATUSES.filter((s) => s !== "closed");
-        const [columns, closedCount] = await Promise.all([
+        const [columns, closedRes] = await Promise.all([
           Promise.all(open.map((s) => fetchColumn(s, 0))),
-          supabase.from("tickets").select("id", { count: "exact", head: true }).eq("status", "closed"),
+          fetch("/api/tickets/list?count=1&status=closed"),
         ]);
+        const closedCount = { count: closedRes.ok ? ((await closedRes.json().catch(() => null)) as { count?: number } | null)?.count ?? 0 : 0 };
         if (gen !== generation.current) return;
         const nextTotals = emptyTotals();
         open.forEach((s, i) => {
@@ -264,13 +254,18 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
     const have = new Set(rowsRef.current.map((r) => r.id));
     const missing = ids.filter((id) => !have.has(id)).slice(0, 200);
     if (missing.length === 0) return;
-    const { data, error: err } = await createClient().from("tickets").select(SELECT).in("id", missing);
-    if (err) {
-      console.error("[useTicketStore] ensureLoaded failed:", err);
+    const res = await fetch("/api/tickets/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: missing }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      console.error("[useTicketStore] ensureLoaded failed:", res?.status);
       return;
     }
+    const json = (await res.json().catch(() => null)) as { tickets?: unknown[] } | null;
     const known = new Set(rowsRef.current.map((r) => r.id));
-    const incoming = ((data ?? []) as unknown as RawTicket[]).map(normalize).filter((r) => !known.has(r.id));
+    const incoming = ((json?.tickets ?? []) as unknown as RawTicket[]).map(normalize).filter((r) => !known.has(r.id));
     if (incoming.length === 0) return;
     rowsRef.current = mergeById(rowsRef.current, incoming);
     setRows((prev) => mergeById(prev, incoming));
@@ -284,8 +279,10 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
   /** Re-read one ticket (after its comment count changed, or right after it was created). */
   const refreshOne = useCallback(
     async (id: string) => {
-      const { data } = await createClient().from("tickets").select(SELECT).eq("id", id).maybeSingle();
-      if (data) upsertRow(normalize(data as unknown as RawTicket));
+      const res = await fetch(`/api/tickets/${encodeURIComponent(id)}`).catch(() => null);
+      if (!res?.ok) return;
+      const json = (await res.json().catch(() => null)) as { ticket?: unknown } | null;
+      if (json?.ticket) upsertRow(normalize(json.ticket as unknown as RawTicket));
     },
     [upsertRow],
   );
@@ -330,14 +327,12 @@ export function useTicketStore(mode: TicketViewMode, enabled = true) {
             }
             setRows((prev) => prev.map((r) => (r.id === next.id ? { ...r, ...next, contact: r.contact } : r)));
           } else if (payload.eventType === "INSERT" || belongsInWindow(next)) {
-            void createClient()
-              .from("tickets")
-              .select(SELECT)
-              .eq("id", next.id)
-              .maybeSingle()
-              .then(({ data }) => {
-                if (data) upsertRow(normalize(data as unknown as RawTicket));
-              });
+            void fetch(`/api/tickets/${encodeURIComponent(next.id)}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((json: { ticket?: unknown } | null) => {
+                if (json?.ticket) upsertRow(normalize(json.ticket as unknown as RawTicket));
+              })
+              .catch(() => undefined);
           }
         }
       : undefined,

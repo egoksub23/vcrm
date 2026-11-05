@@ -8,7 +8,6 @@ import { KanbanSquare, List, Loader2, Plus, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useCapability } from "@/hooks/use-can";
 import { useIncidents } from "@/hooks/use-incidents";
@@ -80,8 +79,12 @@ export default function IncidentsPage() {
 
   const handleMove = async (id: string, status: string) => {
     const undo = applyPatch(id, { status: status as never });
-    const { error: moveError } = await createClient().from("incidents").update({ status }).eq("id", id);
-    if (moveError) {
+    const moveRes = await fetch(`/api/incidents/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (!moveRes.ok) {
       undo();
       toast.error(t("moveFailed"));
     }

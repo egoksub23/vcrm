@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
+import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
 import { AlarmClock, AtSign, Bell, Bot, CheckCheck, CheckSquare, ClipboardCheck, FileSignature, Hash, Loader2, MessageSquare, PlugZap, Ticket, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -51,7 +50,7 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
 export default function NotificationsPage() {
   const t = useTranslations("Notifications");
   const router = useRouter();
-  const { accountId, user } = useAuth();
+  const { user } = useAuth();
   const userId = user?.id;
   const [notifications, setNotifications] = useState<Notification[] | null>(
     null,
@@ -60,20 +59,15 @@ export default function NotificationsPage() {
   const [markingAll, setMarkingAll] = useState(false);
 
   const load = useCallback(async () => {
-    if (!accountId) return;
-    const supabase = createClient();
-    const { data, error: fetchErr } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("account_id", accountId)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (fetchErr) {
-      setError(fetchErr.message);
+    const res = await fetch("/api/notifications");
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setError((json as { error?: string }).error ?? "Failed to load notifications");
       return;
     }
-    setNotifications((data ?? []) as Notification[]);
-  }, [accountId]);
+    const json = await res.json();
+    setNotifications((json.notifications ?? []) as Notification[]);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -120,13 +114,12 @@ export default function NotificationsPage() {
               : n,
           ) ?? prev,
       );
-      const supabase = createClient();
-      const { error: updateErr } = await supabase
-        .from("notifications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("id", id)
-        .is("read_at", null);
-      if (updateErr) {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ read_at: new Date().toISOString() }),
+      });
+      if (!res.ok) {
         toast.error(t("markReadFailed"));
         load();
       }
@@ -173,13 +166,13 @@ export default function NotificationsPage() {
     setNotifications(
       (prev) => prev?.map((n) => (n.read_at ? n : { ...n, read_at: now })) ?? prev,
     );
-    const supabase = createClient();
-    const { error: updateErr } = await supabase
-      .from("notifications")
-      .update({ read_at: now })
-      .is("read_at", null);
+    const res = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ read_at: now }),
+    });
     setMarkingAll(false);
-    if (updateErr) {
+    if (!res.ok) {
       toast.error(t("markAllFailed"));
       load();
     }

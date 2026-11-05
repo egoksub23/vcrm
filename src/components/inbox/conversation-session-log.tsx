@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { format, formatDistanceToNow } from "date-fns";
 import { History } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { fetchConversationEvents } from "@/lib/conversations/session-log-api";
 import { useTeams } from "@/hooks/use-teams";
 import { useAccountSse } from "@/hooks/use-account-sse";
@@ -33,13 +32,12 @@ export function ConversationSessionLog({ conversationId }: ConversationSessionLo
   const load = useCallback(async () => {
     if (!conversationId) return;
     setLoading(true);
-    const supabase = createClient();
-    const [eventRows, { data: profileRows }] = await Promise.all([
+    const [eventRows, profilesRes] = await Promise.all([
       fetchConversationEvents(conversationId).catch(() => [] as ConversationEvent[]),
-      supabase.from("profiles").select("*").order("full_name"),
+      fetch("/api/account/profiles").then((r) => r.json()).catch(() => ({ profiles: [] })),
     ]);
     setEvents(eventRows);
-    setProfiles((profileRows as Profile[]) ?? []);
+    setProfiles((profilesRes.profiles as Profile[]) ?? []);
     setLoading(false);
   }, [conversationId]);
 

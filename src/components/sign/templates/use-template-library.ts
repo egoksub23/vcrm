@@ -6,14 +6,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { SignCategoryRow } from "@/lib/sign/client/admin-settings";
-import { countVersions, type LibraryTemplate } from "@/lib/sign/client/template-library";
-import { createClient } from "@/lib/supabase/client";
+import type { LibraryTemplate } from "@/lib/sign/client/template-library";
 
 export type LibraryCategory = Pick<SignCategoryRow, "id" | "name" | "archived" | "position">;
 
 type State = { status: "loading" } | { status: "error" } | { status: "ready"; templates: LibraryTemplate[]; categories: LibraryCategory[] };
-
-const TEMPLATE_COLUMNS = "id, name, description, category_id, status, tags, addon_key, addon_version, customised, updated_at, mode";
 
 export function useTemplateLibrary() {
   const [state, setState] = useState<State>({ status: "loading" });
@@ -21,26 +18,20 @@ export function useTemplateLibrary() {
 
   useEffect(() => {
     let live = true;
-    const supabase = createClient();
-    void Promise.all([
-      supabase.from("sign_templates").select(TEMPLATE_COLUMNS).order("updated_at", { ascending: false }).limit(1000),
-      supabase.from("sign_template_versions").select("template_id").limit(10000),
-      supabase.from("sign_categories").select("id, name, archived, position").order("position", { ascending: true }),
-    ]).then(([templates, versions, categories]) => {
-      if (!live) return;
-      if (templates.error || versions.error || categories.error) {
-        setState({ status: "error" });
-        return;
-      }
-      const counts = countVersions((versions.data ?? []) as { template_id: string }[]);
-      setState({
-        status: "ready",
-        templates: ((templates.data ?? []) as Omit<LibraryTemplate, "versionCount">[]).map((t) => ({ ...t, tags: t.tags ?? [], versionCount: counts.get(t.id) ?? 0 })),
-        categories: (categories.data ?? []) as LibraryCategory[],
+    void fetch("/api/sign/templates?library=true")
+      .then((r) => r.json())
+      .then((json: { templates?: Omit<LibraryTemplate, "versionCount"> & { version_count?: number }[]; categories?: LibraryCategory[] }) => {
+        if (!live) return;
+        if (!json.templates) { setState({ status: "error" }); return; }
+        setState({
+          status: "ready",
+          templates: (json.templates ?? []).map((t) => ({ ...t, tags: (t.tags ?? []) as string[], versionCount: t.version_count ?? 0 })),
+          categories: (json.categories ?? []) as LibraryCategory[],
+        });
+      })
+      .catch(() => {
+        if (live) setState({ status: "error" });
       });
-    }).catch(() => {
-      if (live) setState({ status: "error" });
-    });
     return () => {
       live = false;
     };

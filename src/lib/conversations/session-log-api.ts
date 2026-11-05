@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/client';
 import type { ConversationEvent } from '@/types';
 
 /**
@@ -39,23 +38,22 @@ export async function reopenConversation(
   conversationId: string,
   note?: string,
 ): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.rpc('reopen_conversation', {
-    p_conversation_id: conversationId,
-    p_note: note ?? null,
+  const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/reopen`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note: note ?? null }),
   });
-  if (error) throw new Error(error.message);
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(json?.error ?? 'Failed to reopen conversation');
+  }
 }
 
 export async function fetchConversationEvents(
   conversationId: string,
 ): Promise<ConversationEvent[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('conversation_events')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data as ConversationEvent[]) ?? [];
+  const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/events`);
+  if (!res.ok) throw new Error('Failed to fetch conversation events');
+  const json = (await res.json()) as { events?: ConversationEvent[] };
+  return json.events ?? [];
 }

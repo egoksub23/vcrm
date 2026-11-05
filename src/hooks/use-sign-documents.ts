@@ -6,21 +6,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse } from "@/hooks/use-account-sse";
 import {
   PAGE_SIZE,
-  STATUS_GROUPS,
   filtersKey,
   narrowByGroup,
   pageRange,
   sanitizeSearch,
-  searchClause,
   validDay,
-  signerSearchClause,
   type ListFilters,
   type StatusGroup,
 } from "@/lib/sign/client/list-filters";
 import { createdRange } from "@/lib/sign/export/documents";
-import { envelopesIncluded, envelopeToRow, mergeNewestFirst, type EnvelopeListRaw, type EnvelopeRowExtras } from "@/lib/sign/client/list-merge";
 import type { DocumentStatus, SignerKind } from "@/lib/sign/types";
-import { createClient } from "@/lib/supabase/client";
+import type { EnvelopeRowExtras } from "@/lib/sign/client/list-merge";
 
 export interface SignListSigner {
   id: string;
@@ -66,13 +62,6 @@ export interface SignListRow {
 
 export type StatusCounts = Record<StatusGroup, number>;
 
-const SELECT =
-  "id, reference, title, status, mode, test, is_private, category_id, contact_id, sign_in_order, sent_at, expires_at, completed_at, cancelled_at, created_by, created_at, updated_at, contacts(name), sign_signers(id, full_name, status, order_no, kind, part_keys, alternate_of)";
-
-/** An envelope with its documents and their people (migration 171); the list shows it as one row. */
-const ENVELOPE_SELECT =
-  "id, reference, title, status, is_private, contact_id, sign_in_order, sent_at, expires_at, completed_at, cancelled_at, created_by, created_at, updated_at, contacts(name), sign_documents!sign_documents_envelope_fk(id, title, status, envelope_position, sign_signers(id, full_name, status, order_no, kind, part_keys, party_id))";
-
 /** The part of a PostgREST filter builder these queries use; every method returns the builder. */
 interface Filterable {
   in(column: string, values: readonly string[]): Filterable;
@@ -108,66 +97,19 @@ export function narrow<T>(query: T, group: StatusGroup | null, f: ListFilters, c
   return q as unknown as T;
 }
 
-/** The ids of documents (and of the envelopes those are in) with a person whose name or email matches the search (up to 200). */
-async function signerMatches(search: string): Promise<{ documents: string[]; envelopes: string[] }> {
-  const clause = signerSearchClause(search);
-  if (!clause) return { documents: [], envelopes: [] };
-  const { data, error } = await createClient().from("sign_signers").select("document_id, sign_documents(envelope_id)").or(clause).limit(200);
-  if (error) throw error;
-  const rows = (data as unknown as { document_id: string; sign_documents: { envelope_id: string | null } | null }[] | null) ?? [];
+async function fetchAll(f: ListFilters, want: number, timeZone: string): Promise<{ rows: SignListRow[]; hasMore: boolean; counts: StatusCounts }> {
+  const res = await fetch("/api/sign/documents/list", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filters: f, want, timeZone }),
+  });
+  if (!res.ok) throw new Error(`sign/documents/list failed: ${res.status}`);
+  const json = (await res.json()) as { rows?: SignListRow[]; hasMore?: boolean; counts?: StatusCounts };
   return {
-    documents: [...new Set(rows.map((r) => r.document_id))],
-    envelopes: [...new Set(rows.map((r) => r.sign_documents?.envelope_id).filter((id): id is string => !!id))],
+    rows: json.rows ?? [],
+    hasMore: json.hasMore ?? false,
+    counts: (json.counts ?? null) as unknown as StatusCounts,
   };
-}
-
-/** The two search filters (documents, envelopes) for one search text. */
-async function searchClauses(search: string): Promise<{ docs: string | null; envs: string | null }> {
-  const matches = await signerMatches(search);
-  return { docs: searchClause(search, matches.documents), envs: searchClause(search, matches.envelopes) };
-}
-
-/**
- * The first `want` rows newest first: the documents that are on their own and the envelopes (each ONE row), read together and cut.
- * A document of an envelope is not a row of its own (it is on its envelope's row).
- */
-async function fetchRows(f: ListFilters, clauses: { docs: string | null; envs: string | null }, want: number, range: Range): Promise<{ rows: SignListRow[]; hasMore: boolean }> {
-  const supabase = createClient();
-  const docQuery = supabase.from("sign_documents").select(SELECT).is("envelope_id", null).order("created_at", { ascending: false }).order("id", { ascending: false });
-  const { data, error } = await narrow(docQuery, f.group, f, clauses.docs, range).range(0, want - 1);
-  if (error) throw error;
-  let envs: SignListRow[] = [];
-  if (envelopesIncluded(f)) {
-    let q = narrowByGroup(supabase.from("sign_envelopes").select(ENVELOPE_SELECT).order("created_at", { ascending: false }).order("id", { ascending: false }), f.group) as unknown as Filterable;
-    q = narrowShared(q, f, range);
-    if (clauses.envs) q = q.or(clauses.envs);
-    const res = await (q as unknown as { range(from: number, to: number): PromiseLike<{ data: unknown; error: unknown }> }).range(0, want - 1);
-    if (res.error) throw res.error;
-    envs = ((res.data as EnvelopeListRaw[] | null) ?? []).map((e) => envelopeToRow(e) as unknown as SignListRow);
-  }
-  return mergeNewestFirst((data as unknown as SignListRow[]) ?? [], envs, want);
-}
-
-async function fetchCounts(f: ListFilters, clauses: { docs: string | null; envs: string | null }, range: Range): Promise<StatusCounts> {
-  const supabase = createClient();
-  const withEnvelopes = envelopesIncluded(f);
-  const entries = await Promise.all(
-    STATUS_GROUPS.map(async (g) => {
-      const { count, error } = await narrow(supabase.from("sign_documents").select("id", { count: "exact", head: true }).is("envelope_id", null), g, f, clauses.docs, range);
-      if (error) throw error;
-      let extra = 0;
-      if (withEnvelopes && g !== "test") {
-        let q = narrowByGroup(supabase.from("sign_envelopes").select("id", { count: "exact", head: true }), g) as unknown as Filterable;
-        q = narrowShared(q, f, range);
-        if (clauses.envs) q = q.or(clauses.envs);
-        const res = await (q as unknown as PromiseLike<{ count: number | null; error: unknown }>);
-        if (res.error) throw res.error;
-        extra = res.count ?? 0;
-      }
-      return [g, (count ?? 0) + extra] as const;
-    }),
-  );
-  return Object.fromEntries(entries) as StatusCounts;
 }
 
 interface Loaded {
@@ -200,15 +142,13 @@ export function useSignDocuments(filters: ListFilters) {
     if (!accountId) return;
     let cancelled = false;
     const f: ListFilters = { group, category, search, from, to, contactId };
-    const range = rangeOf(f, timeZone);
     const want = shown.current.key === key ? Math.max(PAGE_SIZE, shown.current.count) : PAGE_SIZE;
     void (async () => {
       try {
-        const clauses = await searchClauses(search);
-        const [page, counts] = await Promise.all([fetchRows(f, clauses, want, range), fetchCounts(f, clauses, range)]);
+        const result = await fetchAll(f, want, timeZone);
         if (cancelled) return;
-        shown.current = { key, count: page.rows.length };
-        setLoaded({ key, rows: page.rows, counts, hasMore: page.hasMore, error: false });
+        shown.current = { key, count: result.rows.length };
+        setLoaded({ key, rows: result.rows, counts: result.counts, hasMore: result.hasMore, error: false });
       } catch (err) {
         if (cancelled) return;
         console.error("[useSignDocuments] fetch error:", err);
@@ -273,13 +213,13 @@ export function useSignDocuments(filters: ListFilters) {
     setLoadMoreFailed(false);
     try {
       const f: ListFilters = { group, category, search, from, to, contactId };
-      const clauses = await searchClauses(search);
+      const want = pageRange(0, current.rows.length + PAGE_SIZE).to + 1;
       // two sources are merged by date, so the next page is read again from the start up to the new length (nothing is added out of order)
-      const page = await fetchRows(f, clauses, pageRange(0, current.rows.length + PAGE_SIZE).to + 1, rangeOf(f, timeZone));
+      const result = await fetchAll(f, want, timeZone);
       setLoaded((prev) => {
         if (!prev || prev.key !== key) return prev;
-        shown.current = { key, count: page.rows.length };
-        return { ...prev, rows: page.rows, hasMore: page.hasMore };
+        shown.current = { key, count: result.rows.length };
+        return { ...prev, rows: result.rows, hasMore: result.hasMore };
       });
     } catch (err) {
       console.error("[useSignDocuments] load more error:", err);

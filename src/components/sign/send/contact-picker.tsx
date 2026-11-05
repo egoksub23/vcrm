@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import { CONTACT_COLUMNS as COLUMNS, useContactSearch, type ContactSummary } from "./use-contact-search";
@@ -45,9 +44,10 @@ export function ContactPicker({ contactId, onChange, disabled, id }: Props) {
     if (!contactId || !accountId || resolved?.id === contactId) return;
     let cancelled = false;
     void (async () => {
-      const { data } = await createClient().from("contacts").select(COLUMNS).eq("id", contactId).maybeSingle();
+      const res = await fetch(`/api/contacts/${contactId}`).catch(() => null);
+      const json = res?.ok ? await res.json().catch(() => null) : null;
       if (cancelled) return;
-      setResolved((data as ContactSummary | null) ?? { id: contactId, name: null, email: null, phone: null, company: null });
+      setResolved((json?.contact as ContactSummary | null) ?? { id: contactId, name: null, email: null, phone: null, company: null });
     })();
     return () => {
       cancelled = true;

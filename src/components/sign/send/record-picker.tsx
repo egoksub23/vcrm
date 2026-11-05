@@ -14,8 +14,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
-import { recordSearchClause, ticketLabel, type RecordKind, type RecordOption } from "@/lib/sign/client/record-links";
-import { createClient } from "@/lib/supabase/client";
+import { ticketLabel, type RecordKind, type RecordOption } from "@/lib/sign/client/record-links";
 import { cn } from "@/lib/utils";
 
 interface TicketRow {
@@ -34,9 +33,6 @@ interface DealRow {
   contact_id: string | null;
 }
 
-const TICKET_COLUMNS = "id, ticket_number, subject, status, contact_id";
-const DEAL_COLUMNS = "id, title, status, value, currency, contact_id";
-
 const ticketOption = (r: TicketRow): RecordOption => ({ id: r.id, label: ticketLabel(r.ticket_number, r.subject), sub: r.status, contactId: r.contact_id });
 const dealOption = (r: DealRow): RecordOption => ({
   id: r.id,
@@ -46,30 +42,28 @@ const dealOption = (r: DealRow): RecordOption => ({
 });
 
 async function findOne(kind: RecordKind, id: string): Promise<RecordOption | null> {
-  const supabase = createClient();
   if (kind === "ticket") {
-    const { data } = await supabase.from("tickets").select(TICKET_COLUMNS).eq("id", id).maybeSingle();
-    return data ? ticketOption(data as TicketRow) : null;
+    const res = await fetch(`/api/tickets/${id}`).catch(() => null);
+    const json = res?.ok ? await res.json().catch(() => null) : null;
+    return json?.ticket ? ticketOption(json.ticket as TicketRow) : null;
   }
-  const { data } = await supabase.from("deals").select(DEAL_COLUMNS).eq("id", id).maybeSingle();
-  return data ? dealOption(data as DealRow) : null;
+  const res = await fetch(`/api/deals/${id}`).catch(() => null);
+  const json = res?.ok ? await res.json().catch(() => null) : null;
+  return json?.deal ? dealOption(json.deal as DealRow) : null;
 }
 
 async function search(kind: RecordKind, query: string, contactId: string | null): Promise<RecordOption[]> {
-  const supabase = createClient();
-  const clause = recordSearchClause(kind, query);
+  const params = new URLSearchParams({ limit: "8" });
+  if (query.trim()) params.set("q", query.trim());
+  if (contactId) params.set("contactId", contactId);
   if (kind === "ticket") {
-    let req = supabase.from("tickets").select(TICKET_COLUMNS);
-    if (contactId) req = req.eq("contact_id", contactId);
-    if (clause) req = req.or(clause);
-    const { data } = await req.order("created_at", { ascending: false }).limit(8);
-    return ((data as TicketRow[] | null) ?? []).map(ticketOption);
+    const res = await fetch(`/api/tickets?${params}`).catch(() => null);
+    const json = res?.ok ? await res.json().catch(() => null) : null;
+    return ((json?.tickets as TicketRow[] | null) ?? []).map(ticketOption);
   }
-  let req = supabase.from("deals").select(DEAL_COLUMNS);
-  if (contactId) req = req.eq("contact_id", contactId);
-  if (clause) req = req.or(clause);
-  const { data } = await req.order("created_at", { ascending: false }).limit(8);
-  return ((data as DealRow[] | null) ?? []).map(dealOption);
+  const res = await fetch(`/api/deals?${params}`).catch(() => null);
+  const json = res?.ok ? await res.json().catch(() => null) : null;
+  return ((json?.deals as DealRow[] | null) ?? []).map(dealOption);
 }
 
 interface Props {

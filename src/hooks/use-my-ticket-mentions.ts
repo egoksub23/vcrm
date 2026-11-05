@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { createClient } from "@/lib/supabase/client";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { oldestOpenByTicket, waitingTicketCount } from "@/lib/tickets/mentions";
 import type { TicketMention } from "@/types";
@@ -16,8 +15,6 @@ export const MENTIONS_CHANGED_EVENT = "vircle:ticket-mentions-changed";
 export function notifyTicketMentionsChanged(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(MENTIONS_CHANGED_EVENT));
 }
-
-const COLUMNS = "id, account_id, ticket_id, comment_id, mentioned_user_id, requested_by, via_team_id, kind, status, created_at, resolved_at, resolved_by, resolved_reason, nudged_at";
 
 /**
  * The "needs your response" requests waiting on the signed-in person (migration
@@ -43,19 +40,13 @@ export function useMyTicketMentions(enabled = true): {
 
   const load = useCallback(async () => {
     if (!userId) return;
-    const { data, error } = await createClient()
-      .from("ticket_mentions")
-      .select(COLUMNS)
-      .eq("mentioned_user_id", userId)
-      .eq("status", "open")
-      .eq("kind", "response")
-      .order("created_at", { ascending: true })
-      .limit(1000);
-    if (error) {
-      console.error("[useMyTicketMentions] fetch error:", error);
+    const res = await fetch("/api/account/ticket-mentions?kind=response&status=open").catch(() => null);
+    if (!res?.ok) {
+      console.error("[useMyTicketMentions] fetch error");
       return;
     }
-    setRequests((data ?? []) as TicketMention[]);
+    const { mentions } = (await res.json().catch(() => ({ mentions: [] }))) as { mentions?: TicketMention[] };
+    setRequests(mentions ?? []);
   }, [userId]);
 
   useEffect(() => {

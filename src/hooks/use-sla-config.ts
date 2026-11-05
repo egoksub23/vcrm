@@ -2,18 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 import type { BusinessSchedule } from "@/lib/sla/business-time";
 import { toBusinessSchedule } from "@/lib/sla/policy";
 import type { SlaPolicy, SlaSchedule } from "@/lib/sla/types";
-
-// ============================================================
-// The account's SLA configuration (migration 086): business-hour schedules
-// (with their holidays) and SLA policies. Every member can read it (RLS), so
-// the ticket badge can show "due in 2h 10m of business time" and the schedule
-// name without asking the server per ticket. One cached read shared by every
-// badge on screen; `invalidateSlaConfig()` (after a settings save) refreshes it.
-// ============================================================
 
 export interface SlaConfig {
   schedules: SlaSchedule[];
@@ -34,22 +25,18 @@ export function invalidateSlaConfig(): void {
 export async function fetchSlaConfig(force = false): Promise<SlaConfig> {
   if (!force && cache && Date.now() - cache.at < TTL_MS) return cache.data;
   if (!force && inflight) return inflight;
-  const supabase = createClient();
   const load = (async () => {
-    const [sch, pol] = await Promise.all([
-      supabase
-        .from("business_hours_schedules")
-        .select("*, holidays:business_hours_holidays(id, schedule_id, holiday_date, name)")
-        .order("created_at", { ascending: true }),
-      supabase.from("ticket_sla_policies").select("*").order("position", { ascending: true }).order("created_at", { ascending: true }),
+    const [schRes, polRes] = await Promise.all([
+      fetch("/api/account/sla/schedules"),
+      fetch("/api/account/sla/policies"),
     ]);
-    if (sch.error) throw sch.error;
-    if (pol.error) throw pol.error;
-    const schedules = ((sch.data ?? []) as unknown as SlaSchedule[]).map((s) => ({
+    const { schedules: rawSchedules } = (await schRes.json()) as { schedules?: unknown[] };
+    const { policies: rawPolicies } = (await polRes.json()) as { policies?: unknown[] };
+    const schedules = ((rawSchedules ?? []) as unknown as SlaSchedule[]).map((s) => ({
       ...s,
       holidays: [...(s.holidays ?? [])].sort((a, b) => a.holiday_date.localeCompare(b.holiday_date)),
     }));
-    const data: SlaConfig = { schedules, policies: (pol.data ?? []) as unknown as SlaPolicy[] };
+    const data: SlaConfig = { schedules, policies: (rawPolicies ?? []) as unknown as SlaPolicy[] };
     cache = { at: Date.now(), data };
     return data;
   })();
@@ -67,14 +54,9 @@ export interface SlaConfigApi extends SlaConfig {
   reload: () => Promise<void>;
   policyById: (id: string | null | undefined) => SlaPolicy | null;
   scheduleById: (id: string | null | undefined) => SlaSchedule | null;
-  /** The schedule a policy measures in, as the business-time maths wants it (null = 24/7 or unknown). */
   businessScheduleForPolicy: (policyId: string | null | undefined) => BusinessSchedule | null;
 }
 
-/**
- * `enabled` false skips the read (a surface that only shows tickets without
- * an SLA can avoid the request).
- */
 export function useSlaConfig(enabled = true): SlaConfigApi {
   const [data, setData] = useState<SlaConfig>(() => cache?.data ?? { schedules: [], policies: [] });
   const [loading, setLoading] = useState(enabled && !cache);

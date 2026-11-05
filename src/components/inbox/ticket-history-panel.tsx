@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { formatDistanceToNow } from "date-fns";
 import { Loader2, Plus, Ticket as TicketIcon } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse } from "@/hooks/use-account-sse";
 import { useCapability } from "@/hooks/use-can";
@@ -89,16 +88,13 @@ export function TicketHistoryPanel({
 
   const load = useCallback(async () => {
     if (!contactId) return;
-    const { data, error } = await createClient()
-      .from("tickets")
-      .select(
-        "id, ticket_number, subject, status, priority, category, conversation_id, created_at, updated_at, sla_policy_id, sla_first_response_due_at, sla_first_response_risk_at, sla_first_response_state, sla_resolution_due_at, sla_resolution_risk_at, sla_resolution_state",
-      )
-      .eq("contact_id", contactId)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) console.error("[TicketHistoryPanel] load failed:", error);
-    setRows((data as Row[]) ?? []);
+    const res = await fetch(
+      `/api/tickets?contactId=${encodeURIComponent(contactId)}&full=true&limit=100`,
+      { cache: "no-store" },
+    );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) console.error("[TicketHistoryPanel] load failed:", json.error);
+    setRows((json.tickets as Row[]) ?? []);
     setLoading(false);
   }, [contactId]);
 

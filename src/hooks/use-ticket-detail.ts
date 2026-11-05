@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { attachFileToTicket, removeTicketAttachment } from "@/lib/tickets/attachment-actions";
@@ -27,7 +26,6 @@ import type {
 
 /** The bits of another ticket a link shows. */
 export type LinkedTicket = Pick<Ticket, "id" | "ticket_number" | "subject" | "status" | "category">;
-const LINKED_COLUMNS = "id, ticket_number, subject, status, category";
 
 export interface UploadingFile {
   key: string;
@@ -85,53 +83,42 @@ export function useTicketDetail(
 
   // ---- Loading -----------------------------------------------------------
   const loadLinks = useCallback(async (id: string) => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("ticket_links")
-      .select("*")
-      .or(`from_ticket_id.eq.${id},to_ticket_id.eq.${id}`)
-      .order("created_at", { ascending: true });
-    const rows = (data as TicketLink[]) ?? [];
-    setLinks(rows);
-    const missing = [
-      ...new Set(rows.flatMap((l) => [l.from_ticket_id, l.to_ticket_id]).filter((x) => x !== id && !linkedRef.current[x])),
-    ];
-    if (missing.length > 0) {
-      const { data: others } = await supabase.from("tickets").select(LINKED_COLUMNS).in("id", missing);
-      setLinked((prev) => ({
-        ...prev,
-        ...Object.fromEntries(((others as LinkedTicket[]) ?? []).map((o) => [o.id, o])),
-      }));
-    }
+    const res = await fetch(`/api/tickets/${encodeURIComponent(id)}`).catch(() => null);
+    if (!res?.ok) return;
+    const json = (await res.json().catch(() => null)) as {
+      links?: TicketLink[];
+      linked?: Record<string, LinkedTicket>;
+    } | null;
+    setLinks((json?.links ?? []) as TicketLink[]);
+    setLinked((prev) => ({ ...prev, ...((json?.linked ?? {}) as Record<string, LinkedTicket>) }));
   }, []);
 
   const load = useCallback(
     async (id: string) => {
-      const supabase = createClient();
-      const [ticketRes, commentRes, activityRes, watcherRes, attachmentRes] = await Promise.all([
-        supabase.from("tickets").select("*").eq("id", id).maybeSingle(),
-        supabase.from("ticket_comments").select("*").eq("ticket_id", id).order("created_at", { ascending: true }),
-        supabase.from("ticket_activity").select("*").eq("ticket_id", id).order("created_at", { ascending: true }),
-        supabase.from("ticket_watchers").select("*").eq("ticket_id", id).order("created_at", { ascending: true }),
-        supabase.from("ticket_attachments").select("*").eq("ticket_id", id).order("created_at", { ascending: true }),
-      ]);
-      const row = (ticketRes.data as Ticket | null) ?? null;
-      setTicket(row);
-      setComments((commentRes.data as TicketComment[]) ?? []);
-      setActivity((activityRes.data as TicketActivity[]) ?? []);
-      setWatchers((watcherRes.data as TicketWatcher[]) ?? []);
-      setAttachments((attachmentRes.data as TicketAttachment[]) ?? []);
-      setLinked({});
-      setLinks([]);
-      setContact(null);
+      const res = await fetch(`/api/tickets/${encodeURIComponent(id)}`).catch(() => null);
+      const json = res?.ok
+        ? ((await res.json().catch(() => null)) as {
+            ticket?: Ticket;
+            contact?: Contact;
+            comments?: TicketComment[];
+            activity?: TicketActivity[];
+            watchers?: TicketWatcher[];
+            attachments?: TicketAttachment[];
+            links?: TicketLink[];
+            linked?: Record<string, LinkedTicket>;
+          } | null)
+        : null;
+      setTicket(json?.ticket ?? null);
+      setContact(json?.contact ?? null);
+      setComments(json?.comments ?? []);
+      setActivity(json?.activity ?? []);
+      setWatchers(json?.watchers ?? []);
+      setAttachments(json?.attachments ?? []);
+      setLinks((json?.links ?? []) as TicketLink[]);
+      setLinked((json?.linked ?? {}) as Record<string, LinkedTicket>);
       setLoadedId(id);
-      if (row) {
-        void loadLinks(id);
-        const { data: contactRow } = await supabase.from("contacts").select("*").eq("id", row.contact_id).maybeSingle();
-        setContact((contactRow as Contact) ?? null);
-      }
     },
-    [loadLinks],
+    [],
   );
 
   useEffect(() => {
@@ -193,12 +180,12 @@ export function useTicketDetail(
           const old = payload.old as { ticket_id?: string };
           const tid = row.ticket_id ?? old.ticket_id;
           if (tid !== ticketId) return;
-          void createClient()
-            .from("ticket_watchers")
-            .select("*")
-            .eq("ticket_id", ticketId)
-            .order("created_at", { ascending: true })
-            .then(({ data }) => setWatchers((data as TicketWatcher[]) ?? []));
+          void fetch(`/api/tickets/${encodeURIComponent(ticketId)}/watchers`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((json: { watchers?: TicketWatcher[] } | null) => {
+              if (json?.watchers) setWatchers(json.watchers);
+            })
+            .catch(() => undefined);
         }
       : undefined,
     !!ticketId,
@@ -293,17 +280,18 @@ export function useTicketDetail(
     async (id: string, body: string): Promise<boolean> => {
       const text = body.trim();
       if (!text) return false;
-      const { data, error } = await createClient()
-        .from("ticket_comments")
-        .update({ body: text })
-        .eq("id", id)
-        .select("*")
-        .maybeSingle();
-      if (error || !data) {
+      const current = ticketRef.current;
+      if (!current) return false;
+      const res = await fetch(
+        `/api/tickets/${encodeURIComponent(current.id)}/comments/${encodeURIComponent(id)}`,
+        { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: text }) },
+      ).catch(() => null);
+      if (!res?.ok) {
         toast.error(t("commentEditFailed"));
         return false;
       }
-      setComments((prev) => prev.map((c) => (c.id === id ? (data as TicketComment) : c)));
+      const json = (await res.json().catch(() => null)) as { comment?: TicketComment } | null;
+      if (json?.comment) setComments((prev) => prev.map((c) => (c.id === id ? json.comment! : c)));
       return true;
     },
     [t],
@@ -311,13 +299,18 @@ export function useTicketDetail(
 
   const deleteComment = useCallback(
     async (id: string): Promise<boolean> => {
-      const { error } = await createClient().from("ticket_comments").delete().eq("id", id);
-      if (error) {
+      const current = ticketRef.current;
+      if (!current) return false;
+      const res = await fetch(
+        `/api/tickets/${encodeURIComponent(current.id)}/comments/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      ).catch(() => null);
+      if (!res?.ok) {
         toast.error(t("commentDeleteFailed"));
         return false;
       }
       setComments((prev) => prev.filter((c) => c.id !== id));
-      if (ticketRef.current) onChanged?.(ticketRef.current.id);
+      onChanged?.(current.id);
       return true;
     },
     [onChanged, t],
@@ -327,16 +320,11 @@ export function useTicketDetail(
   const toggleWatch = useCallback(async () => {
     const current = ticketRef.current;
     if (!current || !user) return;
-    const supabase = createClient();
     if (watching) {
       const before = watchers;
       setWatchers((prev) => prev.filter((w) => w.user_id !== user.id));
-      const { error } = await supabase
-        .from("ticket_watchers")
-        .delete()
-        .eq("ticket_id", current.id)
-        .eq("user_id", user.id);
-      if (error) {
+      const res = await fetch(`/api/tickets/${encodeURIComponent(current.id)}/watchers`, { method: "DELETE" }).catch(() => null);
+      if (!res?.ok) {
         setWatchers(before);
         toast.error(t("watchFailed"));
       }
@@ -348,10 +336,8 @@ export function useTicketDetail(
         created_at: new Date().toISOString(),
       };
       setWatchers((prev) => [...prev, row]);
-      const { error } = await supabase
-        .from("ticket_watchers")
-        .insert({ ticket_id: current.id, user_id: user.id, account_id: current.account_id });
-      if (error) {
+      const res = await fetch(`/api/tickets/${encodeURIComponent(current.id)}/watchers`, { method: "POST" }).catch(() => null);
+      if (!res?.ok) {
         setWatchers((prev) => prev.filter((w) => w.user_id !== user.id));
         toast.error(t("watchFailed"));
       }
@@ -362,32 +348,37 @@ export function useTicketDetail(
     async (group: LinkGroupKey, other: LinkedTicket): Promise<boolean> => {
       const current = ticketRef.current;
       if (!current) return false;
-      const { data, error } = await createClient()
-        .from("ticket_links")
-        .insert({
-          account_id: current.account_id,
-          created_by: user?.id ?? null,
-          ...linkRowFor(group, current.id, other.id),
-        })
-        .select("*")
-        .single();
-      if (error || !data) {
-        toast.error(error?.code === "23505" ? tLinks("exists") : tLinks("addFailed"));
+      const linkRow = linkRowFor(group, current.id, other.id);
+      const res = await fetch(`/api/tickets/${encodeURIComponent(current.id)}/links`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(linkRow),
+      }).catch(() => null);
+      if (!res?.ok) {
+        const json = res ? ((await res.json().catch(() => null)) as { code?: string } | null) : null;
+        toast.error(json?.code === "23505" || res?.status === 409 ? tLinks("exists") : tLinks("addFailed"));
         return false;
       }
-      setLinked((prev) => ({ ...prev, [other.id]: other }));
-      setLinks((prev) => (prev.some((l) => l.id === (data as TicketLink).id) ? prev : [...prev, data as TicketLink]));
+      const json = (await res.json().catch(() => null)) as { link?: TicketLink } | null;
+      if (json?.link) {
+        setLinked((prev) => ({ ...prev, [other.id]: other }));
+        setLinks((prev) => (prev.some((l) => l.id === json.link!.id) ? prev : [...prev, json.link!]));
+      }
       return true;
     },
-    [user?.id, tLinks],
+    [tLinks],
   );
 
   const removeLink = useCallback(
     async (id: string) => {
+      const current = ticketRef.current;
       const before = links;
       setLinks((prev) => prev.filter((l) => l.id !== id));
-      const { error } = await createClient().from("ticket_links").delete().eq("id", id);
-      if (error) {
+      const res = await fetch(
+        `/api/tickets/${encodeURIComponent(current?.id ?? "_")}/links/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      ).catch(() => null);
+      if (!res?.ok) {
         setLinks(before);
         toast.error(tLinks("removeFailed"));
       }
@@ -454,8 +445,8 @@ export function useTicketDetail(
   const deleteTicket = useCallback(async (): Promise<boolean> => {
     const current = ticketRef.current;
     if (!current) return false;
-    const { error } = await createClient().from("tickets").delete().eq("id", current.id);
-    if (error) {
+    const res = await fetch(`/api/tickets/${encodeURIComponent(current.id)}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) {
       toast.error(t("deleteFailed"));
       return false;
     }
@@ -492,18 +483,9 @@ export function useTicketDetail(
 
 /** Search tickets to link to: by key / number or words in the summary. */
 export async function searchTicketsForLink(query: string, excludeId: string): Promise<LinkedTicket[]> {
-  const cleaned = query.replace(/[,()%*\\]/g, " ").trim();
-  if (!cleaned) return [];
-  const keyed = /^(?:[a-z][a-z0-9]{1,5}-|#)?(\d+)$/i.exec(cleaned);
-  const filter = keyed
-    ? `ticket_number.eq.${Number(keyed[1])},subject.ilike.%${cleaned}%`
-    : `subject.ilike.%${cleaned}%`;
-  const { data } = await createClient()
-    .from("tickets")
-    .select(LINKED_COLUMNS)
-    .or(filter)
-    .neq("id", excludeId)
-    .order("updated_at", { ascending: false })
-    .limit(8);
-  return (data as LinkedTicket[]) ?? [];
+  const params = new URLSearchParams({ q: query, exclude: excludeId });
+  const res = await fetch(`/api/tickets/link-search?${params.toString()}`).catch(() => null);
+  if (!res?.ok) return [];
+  const json = (await res.json().catch(() => null)) as { tickets?: LinkedTicket[] } | null;
+  return json?.tickets ?? [];
 }

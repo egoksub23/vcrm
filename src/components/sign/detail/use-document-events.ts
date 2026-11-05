@@ -15,9 +15,8 @@ import { useEffect, useState } from "react";
 
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
 import type { WritebackHistory } from "@/lib/sign/forms/api-types";
-import { createClient } from "@/lib/supabase/client";
 
-import { chainState, EVENT_COLUMNS, WRITEBACK_COLUMNS, writebackEventRow, type ChainState, type SignEventRow } from "./events";
+import { chainState, writebackEventRow, type ChainState, type SignEventRow } from "./events";
 
 interface Loaded {
   key: string;
@@ -34,24 +33,21 @@ export function useDocumentEvents(documentId: string, version: number) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const supabase = createClient();
-      // everything but the write-backs, in full; the write-backs without their values
-      const [rest, writes] = await Promise.all([
-        supabase.from("sign_events").select(EVENT_COLUMNS).eq("document_id", documentId).neq("type", "writeback").order("doc_seq", { ascending: true }).limit(1000),
-        supabase.from("sign_events").select(WRITEBACK_COLUMNS).eq("document_id", documentId).eq("type", "writeback").order("doc_seq", { ascending: true }).limit(500),
-      ]);
+      const eventsRes = await fetch(`/api/sign/documents/${encodeURIComponent(documentId)}/events`).then((r) => r.json()).catch(() => null);
       if (cancelled) return;
-      const error = rest.error ?? writes.error;
-      if (error) {
-        console.error("[sign] could not read the history:", error.message);
-        // Keep what was shown if there was something; otherwise say it failed.
+      if (!eventsRes || !eventsRes.events) {
+        console.error("[sign] could not read the history");
         setLoaded((prev) => (prev && prev.events ? { ...prev, key } : { key, events: null, chain: null, writebacks: null }));
         return;
       }
-      const events = [...((rest.data ?? []) as unknown as SignEventRow[]), ...((writes.data ?? []) as unknown as Parameters<typeof writebackEventRow>[0][]).map(writebackEventRow)];
-      setLoaded({ key, events, chain: null, writebacks: null });
+      const events: SignEventRow[] = [
+        ...(eventsRes.events as SignEventRow[]),
+        ...(eventsRes.writebackRows as Parameters<typeof writebackEventRow>[0][]).map(writebackEventRow),
+      ];
+      const chain: ChainState = eventsRes.chainError ? { state: "unknown" } : chainState(eventsRes.chainData);
+      setLoaded({ key, events, chain, writebacks: null });
       // The values of the write-backs come from the server, which decides who may see them.
-      if (writes.data && writes.data.length > 0) {
+      if ((eventsRes.writebackRows as unknown[]).length > 0) {
         let writebacks: WritebackHistory | null = null;
         try {
           writebacks = await signRequest<WritebackHistory>(`/api/sign/documents/${encodeURIComponent(documentId)}/writebacks`);
@@ -61,11 +57,6 @@ export function useDocumentEvents(documentId: string, version: number) {
         if (cancelled) return;
         setLoaded((prev) => (prev && prev.key === key ? { ...prev, writebacks } : prev));
       }
-      // The chain check is a second call: the list does not wait for it.
-      const check = await supabase.rpc("sign_verify_chain", { p_document: documentId });
-      if (cancelled) return;
-      const chain: ChainState = check.error ? { state: "unknown" } : chainState(check.data);
-      setLoaded((prev) => (prev && prev.key === key ? { ...prev, chain } : prev));
     })();
     return () => {
       cancelled = true;

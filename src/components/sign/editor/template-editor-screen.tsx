@@ -25,7 +25,6 @@ import { sameDefaults } from "@/lib/sign/client/template-defaults";
 import { validateForm } from "@/lib/sign/forms/validate";
 import { validateFields, validateRoles } from "@/lib/sign/rules";
 import type { SignTemplateVersionRow, TemplateDefaults } from "@/lib/sign/types";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import { FieldEditor } from "./field-editor";
@@ -134,9 +133,10 @@ function Screen({ data, focus }: { data: Loaded; focus: string | null }) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const { data: rows } = await createClient().from("sign_categories").select("id, name, archived").order("position", { ascending: true }).order("name", { ascending: true });
-      if (cancelled || !rows) return;
-      setCategories((rows as (Category & { archived: boolean })[]).filter((c) => !c.archived || c.id === template.category_id).map(({ id, name }) => ({ id, name })));
+      const res = await fetch("/api/sign/categories").catch(() => null);
+      const json = res?.ok ? await res.json().catch(() => null) : null;
+      if (cancelled || !json?.categories) return;
+      setCategories((json.categories as (Category & { archived: boolean })[]).filter((c) => !c.archived || c.id === template.category_id).map(({ id, name }: Category) => ({ id, name })));
     })();
     return () => {
       cancelled = true;

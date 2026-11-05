@@ -12,7 +12,6 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
 interface Contact {
@@ -30,12 +29,14 @@ export function IncidentContactForm() {
 
   useEffect(() => {
     if (!accountId) return;
-    void createClient()
-      .from("accounts")
-      .select("incident_contact_name, incident_contact_role, incident_contact_mobile, incident_contact_email")
-      .eq("id", accountId)
-      .single()
-      .then(({ data }) => setContact((data as Contact) ?? null));
+    let cancelled = false;
+    void fetch("/api/incidents/settings/contact")
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        setContact((json.contact as Contact) ?? null);
+      });
+    return () => { cancelled = true; };
   }, [accountId]);
 
   const save = async () => {

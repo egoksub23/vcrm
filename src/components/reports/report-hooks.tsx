@@ -1,20 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import type { DateRange } from "@/lib/reports/date-utils";
 
 /**
  * Shared fetch-on-range-change plumbing for every report panel —
- * loading/error/data state, re-fetching whenever `accountId` or
- * `range` changes, and ignoring a response that lands after a newer
- * request has already started (range flipped again while the first
- * request was in flight).
+ * loading/error/data state, re-fetching whenever `range` changes, and
+ * ignoring a response that lands after a newer request has already
+ * started (range flipped again while the first request was in flight).
  */
 export function useReportData<T>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  loader: (db: any, accountId: string, range: DateRange) => Promise<T>,
-  accountId: string | null,
+  queryName: string,
+  _ignored: string | null,
   range: DateRange,
 ): { data: T | null; loading: boolean; error: string | null } {
   const [data, setData] = useState<T | null>(null);
@@ -22,15 +19,16 @@ export function useReportData<T>(
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!accountId) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const supabase = createClient();
-    loader(supabase, accountId, range)
-      .then((result) => {
+    const url = `/api/reports?query=${queryName}&from=${range.from.toISOString()}&to=${range.to.toISOString()}`;
+    fetch(url)
+      .then((res) => res.json())
+      .then((json) => {
         if (cancelled) return;
-        setData(result);
+        if (json.error) throw new Error(json.error);
+        setData(json.data as T);
         setLoading(false);
       })
       .catch((err) => {
@@ -45,7 +43,7 @@ export function useReportData<T>(
     // `range` is a plain object recreated each render from `preset`, so
     // depend on its actual bounds rather than referential identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, range.from.getTime(), range.to.getTime()]);
+  }, [queryName, range.from.getTime(), range.to.getTime()]);
 
   return { data, loading, error };
 }

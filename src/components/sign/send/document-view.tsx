@@ -8,7 +8,6 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { DocumentDetail } from "@/components/sign/detail/document-detail";
 import { useAuth } from "@/hooks/use-auth";
-import { createClient } from "@/lib/supabase/client";
 import { SingleProcess } from "../process/single-process";
 
 interface Slot {
@@ -34,10 +33,12 @@ export function SignDocumentView({ documentId, asked }: { documentId: string; as
     if (!accountId) return;
     let cancelled = false;
     void (async () => {
-      const { data, error } = await createClient().from("sign_documents").select("status").eq("id", documentId).maybeSingle();
+      const res = await fetch(`/api/sign/documents/${documentId}`).catch(() => null);
+      const json = res?.ok ? await res.json().catch(() => null) : null;
       if (cancelled) return;
-      if (error) console.error("[SignDocumentView] fetch error:", error);
-      setSlot({ id: documentId, status: (data as { status: string } | null)?.status ?? null, failed: !!error });
+      const failed = !res?.ok;
+      if (failed) console.error("[SignDocumentView] fetch error");
+      setSlot({ id: documentId, status: (json?.document as { status: string } | null)?.status ?? null, failed });
     })();
     return () => {
       cancelled = true;

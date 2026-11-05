@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { useAuth } from "@/hooks/use-auth";
 import { useTeams } from "@/hooks/use-teams";
@@ -183,19 +182,17 @@ export function CreateTicketDialog({
     }
     let cancelled = false;
     setSearchingContacts(true);
-    const supabase = createClient();
-    // Characters that would break the PostgREST filter list are dropped.
     const q = contactQuery.replace(/[,()%*\\]/g, " ").trim();
     const handle = setTimeout(() => {
-      supabase
-        .from("contacts")
-        .select("*")
-        .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
-        .limit(8)
-        .then(({ data }) => {
+      fetch(`/api/contacts?q=${encodeURIComponent(q)}&limit=8`)
+        .then((r) => r.json())
+        .then((json) => {
           if (cancelled) return;
-          setContactMatches((data as Contact[]) ?? []);
+          setContactMatches((json.contacts as Contact[]) ?? []);
           setSearchingContacts(false);
+        })
+        .catch(() => {
+          if (!cancelled) setSearchingContacts(false);
         });
     }, 250);
     return () => {
@@ -290,21 +287,10 @@ export function CreateTicketDialog({
 
     setBusy(true);
     try {
-      const supabase = createClient();
-      const { data: ticketNumber, error: seqError } = await supabase.rpc(
-        "next_ticket_number",
-        { p_account_id: accountId },
-      );
-      if (seqError || ticketNumber == null) {
-        toast.error(t("createFailed"));
-        return;
-      }
-
-      const { data: inserted, error: insertError } = await supabase
-        .from("tickets")
-        .insert({
-          account_id: accountId,
-          ticket_number: ticketNumber,
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           contact_id: resolvedContactId,
           conversation_id: conversationId ?? null,
           subject: trimmedSubject,
@@ -316,16 +302,14 @@ export function CreateTicketDialog({
           labels,
           due_date: dueDate || null,
           custom_fields: sanitizeCustomValues(fieldDefs, category, customValues),
-          created_by: user.id,
-        })
-        .select("*")
-        .single();
-
-      if (insertError || !inserted) {
+        }),
+      });
+      if (!res.ok) {
         toast.error(t("createFailed"));
         return;
       }
-      const ticket = inserted as Ticket;
+      const json = await res.json();
+      const ticket = json.ticket as Ticket;
 
       // Files go up after the ticket exists (they are filed under it). A
       // failed file does not undo the ticket.

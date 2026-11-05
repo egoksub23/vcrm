@@ -1,14 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { DEFAULT_TICKET_PREFIX, ticketKey } from "@/lib/tickets/key";
 
-// The account's ticket key prefix (migration 081) is read once per session
-// and shared: dozens of cards and rows show a key, and the Settings screen
-// updates it in place. accounts is readable by every member, so this is a
-// plain select; until it lands the default prefix is shown.
 const cache = new Map<string, string>();
 const inflight = new Set<string>();
 const listeners = new Set<() => void>();
@@ -24,13 +19,11 @@ function subscribe(listener: () => void) {
   };
 }
 
-/** After an admin saves a new prefix: everything showing a key updates. */
 export function setCachedTicketKeyPrefix(accountId: string, prefix: string) {
   cache.set(accountId, prefix);
   emit();
 }
 
-/** The prefix (VIR) and a helper that turns a ticket number into its key. */
 export function useTicketKeyPrefix(): { prefix: string; keyOf: (ticketNumber: number) => string } {
   const { accountId } = useAuth();
 
@@ -43,18 +36,17 @@ export function useTicketKeyPrefix(): { prefix: string; keyOf: (ticketNumber: nu
   useEffect(() => {
     if (!accountId || cache.has(accountId) || inflight.has(accountId)) return;
     inflight.add(accountId);
-    void createClient()
-      .from("accounts")
-      .select("ticket_key_prefix")
-      .eq("id", accountId)
-      .maybeSingle()
-      .then(({ data }) => {
+    fetch("/api/account/ticket-key-prefix")
+      .then((r) => r.json())
+      .then(({ prefix: value }: { prefix?: string | null }) => {
         inflight.delete(accountId);
-        const value = (data as { ticket_key_prefix?: string } | null)?.ticket_key_prefix;
         if (value) {
           cache.set(accountId, value);
           emit();
         }
+      })
+      .catch(() => {
+        inflight.delete(accountId);
       });
   }, [accountId]);
 

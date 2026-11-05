@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
-
 /**
  * The proposed values of a live tag or snippet (migration 088 moved them out of
  * the live row, so other members can never read them). Row level security
@@ -26,14 +24,12 @@ export function usePendingEdit(
     let cancelled = false;
     void (async () => {
       try {
-        const { data } = await createClient()
-          .from("approval_pending_edits")
-          .select("patch")
-          .eq("entity_type", entityType)
-          .eq("entity_id", id)
-          .maybeSingle();
+        const res = await fetch(
+          `/api/account/approvals/pending-edit?entityType=${encodeURIComponent(entityType)}&entityId=${encodeURIComponent(id)}`,
+        );
+        const json = (await res.json().catch(() => null)) as { patch?: Record<string, unknown> | null } | null;
         if (!cancelled) {
-          setState({ key, patch: (data?.patch as Record<string, unknown> | null) ?? null });
+          setState({ key, patch: json?.patch ?? null });
         }
       } catch {
         if (!cancelled) setState({ key, patch: null });

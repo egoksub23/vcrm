@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
 import { errorMessageKey } from "@/lib/sign/client/layout";
-import { createClient } from "@/lib/supabase/client";
 
 import { FormRow, NativeSelect } from "./form-bits";
 
@@ -41,8 +40,9 @@ export function SaveAsTemplateDialog({ documentId, defaultName, open, onOpenChan
     if (!open) return;
     let cancelled = false;
     void (async () => {
-      const { data } = await createClient().from("sign_categories").select("id, name").eq("archived", false).order("position", { ascending: true }).order("name", { ascending: true });
-      if (!cancelled && data) setCategories(data as Category[]);
+      const res = await fetch("/api/sign/categories").catch(() => null);
+      const json = res?.ok ? await res.json().catch(() => null) : null;
+      if (!cancelled && json?.categories) setCategories((json.categories as (Category & { archived: boolean })[]).filter((c) => !c.archived));
     })();
     return () => {
       cancelled = true;

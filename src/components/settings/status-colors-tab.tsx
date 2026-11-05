@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { SwatchBook, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { createClient } from '@/lib/supabase/client';
 import { useAuth, useCapability } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,7 +71,6 @@ function ColorField({ label, value, onChange, disabled }: ColorFieldProps) {
  * RLS policy (017) already restricts it to admins+.
  */
 export function StatusColorsTab() {
-  const supabase = createClient();
   const { accountId, statusColors, profileLoading, refreshProfile } = useAuth();
   const canEditWorkspace = useCapability('settings.workspace');
   const t = useTranslations('Settings.statusColors');
@@ -97,11 +95,12 @@ export function StatusColorsTab() {
   async function handleSave() {
     if (!accountId || !dirty) return;
     setSaving(true);
-    const { error } = await supabase
-      .from('accounts')
-      .update({ status_colors: colors })
-      .eq('id', accountId);
-    if (error) {
+    const res = await fetch('/api/account/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status_colors: colors }),
+    });
+    if (!res.ok) {
       toast.error(t('saveFailed'));
       setSaving(false);
       return;

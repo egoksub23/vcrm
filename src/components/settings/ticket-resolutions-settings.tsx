@@ -21,7 +21,6 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { setCachedRequireResolution, useTicketResolutions } from "@/hooks/use-ticket-resolutions";
-import { createClient } from "@/lib/supabase/client";
 import type { TicketResolution } from "@/types";
 import { SettingsChip } from "./settings-chip";
 import { SettingsPanelHead } from "./settings-panel-head";
@@ -60,17 +59,21 @@ export function TicketResolutionsSettings() {
   const save = async () => {
     if (!draft || !accountId || !canSave) return;
     setSaving(true);
-    const supabase = createClient();
-    const { error } = draft.id
-      ? await supabase.from("ticket_resolutions").update({ name }).eq("id", draft.id)
-      : await supabase.from("ticket_resolutions").insert({
-          account_id: accountId,
-          name,
-          position: resolutions.reduce((max, r) => Math.max(max, r.position), 0) + 10,
-        });
+    const url = draft.id
+      ? `/api/account/ticket-resolutions/${encodeURIComponent(draft.id)}`
+      : "/api/account/ticket-resolutions";
+    const body = draft.id
+      ? { name }
+      : { name, position: resolutions.reduce((max, r) => Math.max(max, r.position), 0) + 10 };
+    const res = await fetch(url, {
+      method: draft.id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json().catch(() => null)) as { code?: string } | null;
     setSaving(false);
-    if (error) {
-      failure(error, name);
+    if (!res.ok) {
+      failure(json, name);
       return;
     }
     setDraft(null);
@@ -79,10 +82,15 @@ export function TicketResolutionsSettings() {
 
   const setActiveFlag = async (r: TicketResolution, is_active: boolean) => {
     setBusyId(r.id);
-    const { error } = await createClient().from("ticket_resolutions").update({ is_active }).eq("id", r.id);
+    const res = await fetch(`/api/account/ticket-resolutions/${encodeURIComponent(r.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active }),
+    });
+    const json = (await res.json().catch(() => null)) as { code?: string } | null;
     setBusyId(null);
-    if (error) {
-      failure(error, r.name);
+    if (!res.ok) {
+      failure(json, r.name);
       return;
     }
     await reload();
@@ -93,27 +101,35 @@ export function TicketResolutionsSettings() {
     const b = active[index + dir];
     if (!a || !b) return;
     setBusyId(a.id);
-    const supabase = createClient();
     // Swap positions. If two rows share a position, nudge so the swap still changes their order.
     const posA = a.position === b.position ? b.position + dir : b.position;
-    const [r1, r2] = await Promise.all([
-      supabase.from("ticket_resolutions").update({ position: posA }).eq("id", a.id),
-      supabase.from("ticket_resolutions").update({ position: a.position }).eq("id", b.id),
+    const [res1, res2] = await Promise.all([
+      fetch(`/api/account/ticket-resolutions/${encodeURIComponent(a.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: posA }),
+      }),
+      fetch(`/api/account/ticket-resolutions/${encodeURIComponent(b.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: a.position }),
+      }),
     ]);
     setBusyId(null);
-    if (r1.error || r2.error) toast.error(t("saveFailed"));
+    if (!res1.ok || !res2.ok) toast.error(t("saveFailed"));
     await reload();
   };
 
   const setRequired = async (next: boolean) => {
     if (!accountId) return;
     setSavingRequired(true);
-    const { error } = await createClient()
-      .from("accounts")
-      .update({ require_ticket_resolution: next })
-      .eq("id", accountId);
+    const res = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ require_ticket_resolution: next }),
+    });
     setSavingRequired(false);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("requireSaveFailed"));
       return;
     }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth, useCapability } from "@/hooks/use-auth";
 import { withCurrencyIncluded } from "@/lib/currency";
 import type {
@@ -56,7 +55,6 @@ export function DealForm({
   onSaved,
 }: DealFormProps) {
   const t = useTranslations("Pipelines.form");
-  const supabase = createClient();
   const { accountId, defaultCurrency, currencies } = useAuth();
   // The "link to conversation" chip opens the Inbox: only with menu.inbox.
   const canOpenInbox = useCapability("menu.inbox");
@@ -122,17 +120,17 @@ export function DealForm({
     let cancelled = false;
     (async () => {
       const [c, p] = await Promise.all([
-        supabase.from("contacts").select("*").order("name"),
-        supabase.from("profiles").select("*").order("full_name"),
+        fetch("/api/contacts?all=true&orderBy=name").then((r) => r.json()),
+        fetch("/api/account/profiles").then((r) => r.json()),
       ]);
       if (cancelled) return;
-      setContacts((c.data ?? []) as Contact[]);
-      setProfiles((p.data ?? []) as Profile[]);
+      setContacts((c.contacts ?? []) as Contact[]);
+      setProfiles((p.profiles ?? []) as Profile[]);
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, supabase]);
+  }, [open]);
 
   // Fetch linked conversation for the selected contact (newest open one).
   // Clearing on no-selection is sync with prop state; the populated
@@ -145,20 +143,15 @@ export function DealForm({
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("conversations")
-        .select("*")
-        .eq("contact_id", contactId)
-        .order("last_message_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const json = await fetch(`/api/conversations?contact_id=${encodeURIComponent(contactId)}`).then((r) => r.json());
       if (cancelled) return;
-      setLinkedConversation((data as Conversation | null) ?? null);
+      const list = json.conversations ?? json ?? [];
+      setLinkedConversation((Array.isArray(list) ? (list[0] as Conversation | undefined) : null) ?? null);
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, contactId, supabase]);
+  }, [open, contactId]);
 
   async function handleSave() {
     if (!canManageDeals) return;
@@ -181,34 +174,23 @@ export function DealForm({
     };
 
     if (deal) {
-      const { error } = await supabase
-        .from("deals")
-        .update(payload)
-        .eq("id", deal.id);
-      if (error) {
+      const res = await fetch(`/api/deals/${deal.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
         toast.error(t("toastFailedSave"));
         setSaving(false);
         return;
       }
     } else {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) {
-        toast.error(t("toastNotSignedIn"));
-        setSaving(false);
-        return;
-      }
-      if (!accountId) {
-        toast.error(t("toastNotLinked"));
-        setSaving(false);
-        return;
-      }
-      const { error } = await supabase
-        .from("deals")
-        .insert({ ...payload, user_id: user.id, account_id: accountId, status: "open" });
-      if (error) {
+      const res = await fetch("/api/deals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, status: "open" }),
+      });
+      if (!res.ok) {
         toast.error(t("toastFailedCreate"));
         setSaving(false);
         return;
@@ -224,12 +206,13 @@ export function DealForm({
   async function handleStatusChange(status: DealStatus) {
     if (!deal) return;
     setStatusAction(status);
-    const { error } = await supabase
-      .from("deals")
-      .update({ status })
-      .eq("id", deal.id);
+    const res = await fetch(`/api/deals/${deal.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
     setStatusAction(null);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("toastFailedStatus"));
       return;
     }
@@ -243,9 +226,9 @@ export function DealForm({
   async function handleDelete() {
     if (!canManageDeals || !deal) return;
     setDeleting(true);
-    const { error } = await supabase.from("deals").delete().eq("id", deal.id);
+    const res = await fetch(`/api/deals/${deal.id}`, { method: "DELETE" });
     setDeleting(false);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("toastFailedDelete"));
       return;
     }

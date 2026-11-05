@@ -7,7 +7,6 @@
 
 import { useEffect, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 
 export interface DocumentLinks {
   category: string | null;
@@ -33,23 +32,22 @@ export function useDocumentLinks(ids: LinkIds | null): DocumentLinks {
     if (!ids || !key || key === "null|null|null|null") return;
     let cancelled = false;
     (async () => {
-      const supabase = createClient();
-      const [category, contact, ticket, deal] = await Promise.all([
-        ids.categoryId ? supabase.from("sign_categories").select("name").eq("id", ids.categoryId).maybeSingle() : null,
-        ids.contactId ? supabase.from("contacts").select("id, name, phone").eq("id", ids.contactId).maybeSingle() : null,
-        ids.ticketId ? supabase.from("tickets").select("id, ticket_number, subject").eq("id", ids.ticketId).maybeSingle() : null,
-        ids.dealId ? supabase.from("deals").select("id, title").eq("id", ids.dealId).maybeSingle() : null,
+      const [categoryRes, contactRes, ticketRes, dealRes] = await Promise.all([
+        ids.categoryId ? fetch(`/api/sign/categories/${encodeURIComponent(ids.categoryId)}`).then((r) => r.json()).catch(() => ({})) : null,
+        ids.contactId ? fetch(`/api/contacts/${encodeURIComponent(ids.contactId)}`).then((r) => r.json()).catch(() => ({})) : null,
+        ids.ticketId ? fetch(`/api/tickets/${encodeURIComponent(ids.ticketId)}`).then((r) => r.json()).catch(() => ({})) : null,
+        ids.dealId ? fetch(`/api/deals/${encodeURIComponent(ids.dealId)}`).then((r) => r.json()).catch(() => ({})) : null,
       ]);
       if (cancelled) return;
-      const c = contact?.data as { id: string; name?: string | null; phone?: string | null } | null | undefined;
-      const t = ticket?.data as { id: string; ticket_number: number; subject: string } | null | undefined;
-      const d = deal?.data as { id: string; title: string } | null | undefined;
+      const c = contactRes?.contact as { id: string; name?: string | null; phone?: string | null } | null | undefined;
+      const ticket = ticketRes?.ticket as { id: string; ticket_number: number; subject: string } | null | undefined;
+      const d = dealRes?.deal as { id: string; title: string } | null | undefined;
       setLoaded({
         key,
         links: {
-          category: (category?.data as { name?: string } | null | undefined)?.name ?? null,
+          category: (categoryRes?.category as { name?: string } | null | undefined)?.name ?? null,
           contact: c ? { id: c.id, label: c.name?.trim() || c.phone || "" } : null,
-          ticket: t ? { id: t.id, number: t.ticket_number, subject: t.subject } : null,
+          ticket: ticket ? { id: ticket.id, number: ticket.ticket_number, subject: ticket.subject } : null,
           deal: d ? { id: d.id, title: d.title } : null,
         },
       });

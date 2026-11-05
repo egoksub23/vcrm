@@ -16,7 +16,6 @@ import { Loader2, UserPlus } from "lucide-react";
 
 import { MultiSelectPopover, type PickerOption } from "@/components/settings/team/multi-select-popover";
 import { useAccountMembers } from "@/hooks/use-account-members";
-import { createClient } from "@/lib/supabase/client";
 
 interface RecipientRow {
   id: string;
@@ -31,8 +30,9 @@ export function EscalationRecipientsTab() {
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
-    const { data } = await createClient().from("incident_escalation_recipients").select("id, level, user_id");
-    setRows((data as RecipientRow[]) ?? []);
+    const res = await fetch("/api/account/incidents/escalation-recipients").catch(() => null);
+    const json = (await res?.json().catch(() => null)) as { recipients?: RecipientRow[] } | null;
+    setRows(json?.recipients ?? []);
   };
 
   useEffect(() => {

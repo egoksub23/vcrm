@@ -16,7 +16,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { createClient } from "@/lib/supabase/client";
 import type { Pipeline, PipelineStage } from "@/types";
 import {
   Dialog,
@@ -72,7 +71,6 @@ export function PipelineSettings({
   onCreateNewPipeline,
 }: PipelineSettingsProps) {
   const t = useTranslations("Pipelines.settings");
-  const supabase = createClient();
   // Pipelines and their stages are configuration: pipelines.configure.
   const canConfigure = useCapability("pipelines.configure");
   const readOnlyHint = canConfigure ? undefined : readOnlyTitle("configure pipelines");
@@ -125,16 +123,21 @@ export function PipelineSettings({
     }));
 
     const [renameRes, stagesRes] = await Promise.all([
-      supabase
-        .from("pipelines")
-        .update({ name: name.trim() })
-        .eq("id", pipeline.id),
-      supabase.from("pipeline_stages").upsert(stageRows, { onConflict: "id" }),
+      fetch(`/api/pipelines/${pipeline.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      }),
+      fetch(`/api/pipelines/${pipeline.id}/stages`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stages: stageRows }),
+      }),
     ]);
 
     setSaving(false);
 
-    if (renameRes.error || stagesRes.error) {
+    if (!renameRes.ok || !stagesRes.ok) {
       toast.error(t("toastFailedSave"));
       return;
     }
@@ -148,21 +151,17 @@ export function PipelineSettings({
   async function handleAddStage() {
     const trimmed = newStageName.trim();
     if (!canConfigure || !trimmed) return;
-    const { data, error } = await supabase
-      .from("pipeline_stages")
-      .insert({
-        pipeline_id: pipeline.id,
-        name: trimmed,
-        color: newStageColor,
-        position: localStages.length,
-      })
-      .select()
-      .single();
-    if (error || !data) {
+    const res = await fetch(`/api/pipelines/${pipeline.id}/stages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed, color: newStageColor, position: localStages.length }),
+    });
+    if (!res.ok) {
       toast.error(t("toastFailedAddStage"));
       return;
     }
-    setLocalStages([...localStages, data as PipelineStage]);
+    const json = await res.json();
+    setLocalStages([...localStages, json.stage as PipelineStage]);
     setNewStageName("");
     setNewStageColor(STAGE_COLORS[(localStages.length + 1) % STAGE_COLORS.length]);
   }
@@ -170,19 +169,13 @@ export function PipelineSettings({
   async function handleRemoveStage(stageId: string) {
     if (!canConfigure) return;
     // Refuse to delete if deals still reference the stage (FK would fail).
-    const { count } = await supabase
-      .from("deals")
-      .select("id", { count: "exact", head: true })
-      .eq("stage_id", stageId);
-    if (count && count > 0) {
+    const countRes = await fetch(`/api/pipelines/stages/${stageId}?count=deals`).then((r) => r.json());
+    if ((countRes.count ?? 0) > 0) {
       toast.error(t("toastMoveOrDeleteDeals"));
       return;
     }
-    const { error } = await supabase
-      .from("pipeline_stages")
-      .delete()
-      .eq("id", stageId);
-    if (error) {
+    const res = await fetch(`/api/pipelines/stages/${stageId}`, { method: "DELETE" });
+    if (!res.ok) {
       toast.error(t("toastFailedDeleteStage"));
       return;
     }
@@ -193,12 +186,9 @@ export function PipelineSettings({
     if (!canConfigure) return;
     setDeleting(true);
     // ON DELETE CASCADE handles deals + stages.
-    const { error } = await supabase
-      .from("pipelines")
-      .delete()
-      .eq("id", pipeline.id);
+    const res = await fetch(`/api/pipelines/${pipeline.id}`, { method: "DELETE" });
     setDeleting(false);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("toastFailedDeletePipeline"));
       return;
     }

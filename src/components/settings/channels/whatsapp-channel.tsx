@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   RotateCcw,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { useAuth, useCapability } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { WhatsAppAppSecretCard } from './whatsapp-app-secret-card';
@@ -65,7 +64,6 @@ type WabaSubscription = {
 
 export function WhatsAppConfig() {
   const t = useTranslations('Settings.whatsapp');
-  const supabase = createClient();
   // After multi-user, whatsapp_config is one-row-per-account, not
   // one-row-per-user. We pull `accountId` straight off the auth
   // context and key every read off it — so a teammate who just
@@ -140,7 +138,7 @@ export function WhatsAppConfig() {
 
   const webhookUrl = `${publicOrigin()}/api/whatsapp/webhook`;
 
-  const fetchConfig = useCallback(async (acctId: string) => {
+  const fetchConfig = useCallback(async (_acctId: string) => {
     setLoading(true);
     try {
       // Load form values from Supabase (shows what's in DB).
@@ -149,11 +147,10 @@ export function WhatsAppConfig() {
       // account sees the same saved configuration. UNIQUE(account_id)
       // on the table guarantees the .maybeSingle() return type
       // remains accurate.
-      const { data, error } = await supabase
-        .from('whatsapp_config')
-        .select('*')
-        .eq('account_id', acctId)
-        .maybeSingle();
+      const settingsRes = await fetch('/api/whatsapp/config/settings');
+      const settingsJson = await settingsRes.json().catch(() => ({}));
+      const data = settingsJson.config ?? null;
+      const error = !settingsRes.ok ? settingsJson.error : null;
 
       if (error) {
         console.error('Failed to load config row:', error);
@@ -223,7 +220,7 @@ export function WhatsAppConfig() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, t]);
+  }, [t]);
 
   useEffect(() => {
     // Need both the auth session (`!authLoading`) AND the profile
@@ -250,11 +247,15 @@ export function WhatsAppConfig() {
     setMirrorMedia(next);
     setSavingMirror(true);
     try {
-      const { error } = await supabase
-        .from('whatsapp_config')
-        .update({ mirror_inbound_media: next })
-        .eq('account_id', accountId);
-      if (error) throw new Error(error.message);
+      const res = await fetch('/api/whatsapp/config/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mirror_inbound_media: next }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'update failed');
+      }
       setConfig({ ...config, mirror_inbound_media: next });
     } catch (error) {
       console.error('Failed to update media retention setting:', error);

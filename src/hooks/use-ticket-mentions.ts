@@ -2,12 +2,9 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import type { TicketMention } from "@/types";
 import { notifyTicketMentionsChanged } from "@/hooks/use-my-ticket-mentions";
-
-const COLUMNS = "id, account_id, ticket_id, comment_id, mentioned_user_id, requested_by, via_team_id, kind, status, created_at, resolved_at, resolved_by, resolved_reason, nudged_at";
 
 /**
  * The open "needs a response" requests on one ticket (both the ones asked of
@@ -23,19 +20,13 @@ export function useTicketMentions(ticketId: string | null): {
 
   const reload = useCallback(async () => {
     if (!ticketId) return;
-    const { data, error } = await createClient()
-      .from("ticket_mentions")
-      .select(COLUMNS)
-      .eq("ticket_id", ticketId)
-      .eq("status", "open")
-      .eq("kind", "response")
-      .order("created_at", { ascending: true });
-    if (error) {
-      console.error("[useTicketMentions] fetch error:", error);
+    const res = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/mentions`).catch(() => null);
+    if (!res?.ok) {
+      console.error("[useTicketMentions] fetch error");
       return;
     }
-    setRequests((data ?? []) as TicketMention[]);
-    // What the sidebar bubble counts may have moved with it.
+    const { mentions } = (await res.json().catch(() => ({ mentions: [] }))) as { mentions?: TicketMention[] };
+    setRequests(mentions ?? []);
     notifyTicketMentionsChanged();
   }, [ticketId]);
 

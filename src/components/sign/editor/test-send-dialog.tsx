@@ -28,7 +28,6 @@ import type { PlacedField } from "@/lib/sign/pdf/types";
 import type { TestSendResult } from "@/lib/sign/service/test-mode";
 import { isOwnAddress, rolesNeedingPeople, TEST_RETENTION_DAYS } from "@/lib/sign/test-mode";
 import type { SignRole } from "@/lib/sign/types";
-import { createClient } from "@/lib/supabase/client";
 
 interface Props {
   templateId: string;
@@ -76,9 +75,10 @@ export function TestSendRowButton({ templateId, name }: { templateId: string; na
     }
     setBusy(true);
     try {
-      const { data, error } = await createClient().from("sign_template_versions").select("roles, fields, form").eq("template_id", templateId).order("version_no", { ascending: false }).limit(1).maybeSingle();
-      if (error || !data) throw error ?? new Error("no version");
-      const v = data as { roles: SignRole[]; fields: PlacedField[]; form: FormDefinition | null };
+      const res = await fetch(`/api/sign/templates/${templateId}/versions`);
+      const json = res.ok ? await res.json().catch(() => null) : null;
+      if (!res.ok || !json?.version) throw new Error("no version");
+      const v = json.version as { roles: SignRole[]; fields: PlacedField[]; form: FormDefinition | null };
       setVersion({ roles: v.roles ?? [], fields: v.fields ?? [], form: v.form ?? null });
       setOpen(true);
     } catch {

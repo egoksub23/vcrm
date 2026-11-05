@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { Check, ClipboardCheck } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { IncidentObligation } from "@/lib/incidents/types";
 
@@ -40,17 +39,17 @@ export function ObligationsPanel({
 
   const toggleDone = async (row: IncidentObligation) => {
     const next = row.status === "done" ? "open" : "done";
-    const { data, error } = await createClient()
-      .from("incident_obligations")
-      .update({ status: next })
-      .eq("id", row.id)
-      .select("*")
-      .single();
-    if (error || !data) {
+    const res = await fetch(`/api/incidents/${row.incident_id}/obligations`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oblId: row.id, status: next }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.obligation) {
       toast.error(t("updateFailed"));
       return;
     }
-    onChanged(data as IncidentObligation);
+    onChanged(json.obligation as IncidentObligation);
   };
 
   const open = items.filter((r) => r.status === "open").length;

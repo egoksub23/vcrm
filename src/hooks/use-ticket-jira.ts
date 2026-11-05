@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
-import { directionOnAnywhere, normalizeSettings } from "@/lib/jira/settings";
+import { directionOnAnywhere } from "@/lib/jira/settings";
 import {
   MAX_LINKS_PER_TICKET,
   type JiraSettings,
@@ -263,42 +262,29 @@ export function useTicketJira(ticketId: string | null): TicketJira {
   }, [ticketId]);
 
   const load = useCallback(async (id: string, part: "all" | "links" = "all") => {
-    const supabase = createClient();
-    const linkRes = await supabase.from("ticket_jira_links").select("*").eq("ticket_id", id).order("created_at", { ascending: true });
-    const rows = (linkRes.data as TicketJiraLinkRow[] | null) ?? [];
-    let conn: JiraConnectionSummary | null | undefined;
     if (part === "all") {
-      const connRes = await supabase
-        .from("jira_connections")
-        .select("id, status, status_reason, site_name, site_url, settings")
-        .limit(1);
-      const c = ((connRes.data as ConnectionRow[] | null) ?? [])[0];
-      conn = c
-        ? { id: c.id, status: c.status, statusReason: c.status_reason, siteName: c.site_name, siteUrl: c.site_url, settings: normalizeSettings(c.settings) }
-        : null;
+      const res = await fetch(`/api/tickets/${encodeURIComponent(id)}/jira`).catch(() => null);
+      if (!res?.ok) return;
+      const json = (await res.json().catch(() => null)) as {
+        links?: TicketJiraLinkRow[];
+        connection?: JiraConnectionSummary | null;
+        sharedNoteIds?: string[];
+        attachmentMaps?: AttachmentMapRowLite[];
+      } | null;
+      if (!json || idRef.current !== id) return;
+      setLinks(json.links ?? []);
+      setSharedNoteIds(new Set(json.sharedNoteIds ?? []));
+      setAttachmentMaps(json.attachmentMaps ?? []);
+      setConnection(json.connection ?? null);
+      setLoadedId(id);
+    } else {
+      // links-only refresh after a realtime event
+      const res = await fetch(`/api/tickets/${encodeURIComponent(id)}/jira`).catch(() => null);
+      if (!res?.ok) return;
+      const json = (await res.json().catch(() => null)) as { links?: TicketJiraLinkRow[] } | null;
+      if (!json || idRef.current !== id) return;
+      setLinks(json.links ?? []);
     }
-    let shared = new Set<string>();
-    let maps: AttachmentMapRowLite[] = [];
-    if (rows.length > 0) {
-      const attRes = await supabase
-        .from("jira_attachment_map")
-        .select("id, ticket_attachment_id, direction, status, filename, jira_url")
-        .in("link_id", rows.map((r) => r.id));
-      maps = (attRes.data as AttachmentMapRowLite[] | null) ?? [];
-      const mapRes = await supabase
-        .from("jira_comment_map")
-        .select("ticket_comment_id")
-        .in("link_id", rows.map((r) => r.id))
-        .eq("origin", "vircle")
-        .not("ticket_comment_id", "is", null);
-      shared = new Set(((mapRes.data as { ticket_comment_id: string }[] | null) ?? []).map((r) => r.ticket_comment_id));
-    }
-    if (idRef.current !== id) return;
-    setLinks(rows);
-    setSharedNoteIds(shared);
-    setAttachmentMaps(maps);
-    if (conn !== undefined) setConnection(conn);
-    setLoadedId(id);
   }, []);
 
   useEffect(() => {
@@ -378,17 +364,6 @@ export function useTicketJira(ticketId: string | null): TicketJira {
 
 // ---- Chips for board cards and list rows --------------------------------------------
 
-interface ChipRow {
-  ticket_id: string;
-  issue_key: string;
-  status_category: string | null;
-  issue_url: string | null;
-  sync_state: SyncState;
-  created_at: string;
-}
-
-const CHIP_BATCH = 100;
-
 /**
  * The Jira keys linked to many tickets at once (one query per 100 ids), for
  * board cards and list rows. Cached rows only; kept fresh over realtime.
@@ -405,28 +380,24 @@ export function useJiraLinkChips(ticketIds: readonly string[]): Record<string, J
       setChips((prev) => (Object.keys(prev).length === 0 ? prev : {}));
       return;
     }
-    const supabase = createClient();
-    const batches: string[][] = [];
-    for (let i = 0; i < ids.length; i += CHIP_BATCH) batches.push(ids.slice(i, i + CHIP_BATCH));
-    const results = await Promise.all(
-      batches.map((batch) =>
-        supabase
-          .from("ticket_jira_links")
-          .select("ticket_id, issue_key, status_category, issue_url, sync_state, created_at")
-          .in("ticket_id", batch)
-          .order("created_at", { ascending: true }),
-      ),
-    );
+    const res = await fetch("/api/integrations/jira/chips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketIds: ids }),
+    }).catch(() => null);
+    if (!res?.ok) return;
+    const json = (await res.json().catch(() => null)) as {
+      chips?: Record<string, { key: string; status_category: string | null; issue_url: string | null; sync_state: SyncState; created_at: string }[]>;
+    } | null;
+    const raw = json?.chips ?? {};
     const next: Record<string, JiraChip[]> = {};
-    for (const res of results) {
-      for (const r of (res.data as ChipRow[] | null) ?? []) {
-        (next[r.ticket_id] ??= []).push({
-          key: r.issue_key,
-          category: r.status_category ? normalizeCategory(r.status_category) : null,
-          url: safeHttpUrl(r.issue_url),
-          state: r.sync_state,
-        });
-      }
+    for (const [ticketId, rows] of Object.entries(raw)) {
+      next[ticketId] = rows.map((r) => ({
+        key: r.key,
+        category: r.status_category ? normalizeCategory(r.status_category) : null,
+        url: safeHttpUrl(r.issue_url),
+        state: r.sync_state,
+      }));
     }
     setChips(next);
   }, []);

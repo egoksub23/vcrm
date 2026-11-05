@@ -15,7 +15,6 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useCapability } from "@/hooks/use-can";
 import { CONSENT_MAX_CHARS, withConsentText } from "@/lib/sign/client/admin-settings";
-import { createClient } from "@/lib/supabase/client";
 import { SIGN_LOCALES, type SignLocale, type SignSettingsRow } from "@/lib/sign/types";
 
 import type { SignSettingsData } from "./use-sign-settings";
@@ -59,12 +58,13 @@ function ConsentEditor({ locale, data, onSaved }: { locale: SignLocale; data: Si
   const save = async () => {
     if (emptyOwn) return;
     setSaving(true);
-    const { error } = await createClient()
-      .from("sign_settings")
-      .update({ consent_texts: withConsentText(settings.consent_texts, locale, next) } satisfies Partial<SignSettingsRow>)
-      .eq("id", settings.id);
+    const res = await fetch("/api/sign/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ consent_texts: withConsentText(settings.consent_texts, locale, next) } satisfies Partial<SignSettingsRow>),
+    });
     setSaving(false);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("saveFailed"));
       return;
     }

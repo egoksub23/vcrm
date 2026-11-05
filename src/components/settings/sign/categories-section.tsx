@@ -16,7 +16,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { formatReminderDays, keyFromName, reorderPositions, sortCategories, type CategoryValues, type SignCategoryRow } from "@/lib/sign/client/admin-settings";
-import { createClient } from "@/lib/supabase/client";
 
 import { CategoryDialog } from "./category-dialog";
 import { Loading } from "./shared";
@@ -38,14 +37,16 @@ export function CategoriesSection() {
 
   useEffect(() => {
     let live = true;
-    void createClient()
-      .from("sign_categories")
-      .select("*")
-      .order("position", { ascending: true })
-      .then(({ data, error }) => {
-        if (!live) return;
-        setLoad(error ? { status: "error" } : { status: "ready", rows: sortCategories((data ?? []) as SignCategoryRow[]) });
-      });
+    void (async () => {
+      const res = await fetch("/api/sign/categories").catch(() => null);
+      const json = res?.ok ? await res.json().catch(() => null) : null;
+      if (!live) return;
+      if (!res?.ok || !json?.categories) {
+        setLoad({ status: "error" });
+      } else {
+        setLoad({ status: "ready", rows: sortCategories(json.categories as SignCategoryRow[]) });
+      }
+    })();
     return () => {
       live = false;
     };
@@ -57,18 +58,19 @@ export function CategoriesSection() {
   const archivedCount = rows.filter((r) => r.archived).length;
 
   const submit = async (values: CategoryValues): Promise<string | null> => {
-    const supabase = createClient();
     if (editing && editing !== "new") {
-      // the key is never sent: it is fixed when the category is created
-      const { error } = await supabase.from("sign_categories").update(values).eq("id", editing.id);
-      if (error) return t("saveFailed");
+      const res = await fetch(`/api/sign/categories/${editing.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
+      if (!res.ok) return t("saveFailed");
       toast.success(t("saved"));
     } else {
       if (!accountId) return t("saveFailed");
       const key = keyFromName(values.name, rows.map((r) => r.key));
       const position = rows.reduce((m, r) => Math.max(m, r.position), 0) + 1;
-      const { error } = await supabase.from("sign_categories").insert({ ...values, account_id: accountId, key, position });
-      if (error) return error.code === "23505" ? t("duplicateKey") : t("saveFailed");
+      const res = await fetch("/api/sign/categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, key, position }) });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        return json?.code === "23505" ? t("duplicateKey") : t("saveFailed");
+      }
       toast.success(t("created"));
     }
     setEditing(null);
@@ -78,9 +80,9 @@ export function CategoriesSection() {
 
   const setArchived = async (row: SignCategoryRow, archived: boolean) => {
     setBusy(row.id);
-    const { error } = await createClient().from("sign_categories").update({ archived }).eq("id", row.id);
+    const res = await fetch(`/api/sign/categories/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ archived }) });
     setBusy(null);
-    if (error) {
+    if (!res.ok) {
       toast.error(t("saveFailed"));
       return;
     }
@@ -93,10 +95,11 @@ export function CategoriesSection() {
     const changes = reorderPositions(shown, row.id, dir);
     if (changes.length === 0) return;
     setBusy(row.id);
-    const supabase = createClient();
-    const results = await Promise.all(changes.map((c) => supabase.from("sign_categories").update({ position: c.position }).eq("id", c.id)));
+    const results = await Promise.all(
+      changes.map((c) => fetch(`/api/sign/categories/${c.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ position: c.position }) })),
+    );
     setBusy(null);
-    if (results.some((r) => r.error)) toast.error(t("saveFailed"));
+    if (results.some((r) => !r.ok)) toast.error(t("saveFailed"));
     reload();
   };
 

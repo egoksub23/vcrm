@@ -1,16 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import type { InboxView } from "@/types";
 
-/**
- * Saved inbox views (migration 051) — the caller's own views plus every
- * shared (owner_id IS NULL) one, per inbox_views_select RLS. A direct
- * table read is enough here since RLS already does the scoping; only
- * writes need the API route (create/delete enforce the shared/admin-only
- * rule, which the service-role write path can't get from RLS alone).
- */
 export function useInboxViews(): {
   views: InboxView[];
   loading: boolean;
@@ -24,19 +16,17 @@ export function useInboxViews(): {
 
   useEffect(() => {
     let cancelled = false;
-    const supabase = createClient();
-    supabase
-      .from("inbox_views")
-      .select("*")
-      .order("created_at", { ascending: true })
-      .then(({ data, error }) => {
+    setLoading(true);
+    fetch("/api/account/inbox-views")
+      .then((r) => r.json())
+      .then(({ views: data }: { views?: InboxView[] }) => {
         if (cancelled) return;
-        if (error) {
-          console.error("[useInboxViews] fetch error:", error);
-          setLoading(false);
-          return;
-        }
-        setViews((data as InboxView[]) ?? []);
+        setViews(data ?? []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("[useInboxViews] fetch error:", err);
         setLoading(false);
       });
     return () => {

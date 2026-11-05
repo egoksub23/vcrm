@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { HEARTBEAT_MS, IDLE_AFTER_MS, type StoredPresence } from "@/lib/presence";
 
@@ -33,7 +32,6 @@ export function PresenceHeartbeat() {
     // and log a spurious error. The effect re-runs once accountId lands.
     if (!accountId) return;
 
-    const supabase = createClient();
     let cancelled = false;
     let lastBeatAt = 0;
     lastActivityRef.current = Date.now();
@@ -56,13 +54,15 @@ export function PresenceHeartbeat() {
       const t = Date.now();
       if (t - lastBeatAt < 1_000) return;
       lastBeatAt = t;
-      const { error } = await supabase.rpc("touch_presence", {
-        p_status: currentStatus(),
+      const res = await fetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: currentStatus() }),
       });
-      if (error && !cancelled) {
+      if (!res.ok && !cancelled) {
         // Non-fatal: presence is best-effort. Log once per failure so a
-        // misconfigured RPC is visible without spamming.
-        console.error("[PresenceHeartbeat] touch_presence failed:", error.message);
+        // misconfigured route is visible without spamming.
+        console.error("[PresenceHeartbeat] touch_presence failed:", res.status);
       }
     };
 

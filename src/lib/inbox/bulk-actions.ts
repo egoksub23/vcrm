@@ -1,15 +1,11 @@
-import { type PgDb } from '@/lib/postgres/db'
 import type { Conversation } from '@/types'
 import { closeConversationsWithNote } from '@/lib/conversations/session-log-api'
-import { notifyVircleRead } from '@/lib/vircle-chat/client'
 
 /**
  * Bulk inbox actions (multi-select → assign / close / mark read / mark
  * unread). Each goes through the same write paths the single-conversation
- * controls use — a plain RLS-scoped UPDATE (whose triggers log the
- * session event and send the assignment notification per row) or the
- * `close_conversation_with_note` RPC (run by the server) — so a bulk action
- * leaves exactly the audit trail N single actions would.
+ * controls use — the server-side /api/conversations/bulk route applies RLS
+ * and triggers exactly the audit trail N single actions would.
  */
 
 export interface BulkResult {
@@ -21,39 +17,38 @@ export interface BulkResult {
 
 type ConvRef = Pick<Conversation, 'id' | 'status' | 'unread_count'> & Partial<Pick<Conversation, 'last_channel_type'>>
 
+async function bulkPost(body: object): Promise<BulkResult> {
+  try {
+    const res = await fetch('/api/conversations/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const json = await res.json().catch(() => ({}))
+    return { succeeded: json.succeeded ?? [], failed: json.failed ?? 0 }
+  } catch {
+    return { succeeded: [], failed: 0 }
+  }
+}
+
 export async function bulkAssign(
-  db: PgDb,
   ids: string[],
   agentId: string | null,
 ): Promise<BulkResult> {
   if (ids.length === 0) return { succeeded: [], failed: 0 }
-  const { error } = await db
-    .from('conversations')
-    .update({ assigned_agent_id: agentId })
-    .in('id', ids)
-  return error ? { succeeded: [], failed: ids.length } : { succeeded: ids, failed: 0 }
+  return bulkPost({ action: 'assign', ids, agentId })
 }
 
-export async function bulkMarkRead(db: PgDb, convs: ConvRef[]): Promise<BulkResult> {
-  const ids = convs.filter((c) => c.unread_count > 0).map((c) => c.id)
-  if (ids.length === 0) return { succeeded: [], failed: 0 }
-  const { error } = await db.from('conversations').update({ unread_count: 0 }).in('id', ids)
-  if (error) return { succeeded: [], failed: ids.length }
-  // Vircle Chat: the database has now marked their messages read, so tell the app (the "read"
-  // ticks). Fire-and-forget; a failure is retried the next time the conversation is opened.
-  for (const c of convs) {
-    if (c.unread_count > 0 && c.last_channel_type === 'vircle_chat') notifyVircleRead(c.id)
-  }
-  return { succeeded: ids, failed: 0 }
+export async function bulkMarkRead(convs: ConvRef[]): Promise<BulkResult> {
+  if (convs.length === 0) return { succeeded: [], failed: 0 }
+  return bulkPost({ action: 'markRead', convs })
 }
 
 /** Marks read conversations unread (count 1). Already-unread ones are
  *  left alone rather than reset to 1. */
-export async function bulkMarkUnread(db: PgDb, convs: ConvRef[]): Promise<BulkResult> {
-  const ids = convs.filter((c) => c.unread_count === 0).map((c) => c.id)
-  if (ids.length === 0) return { succeeded: [], failed: 0 }
-  const { error } = await db.from('conversations').update({ unread_count: 1 }).in('id', ids)
-  return error ? { succeeded: [], failed: ids.length } : { succeeded: ids, failed: 0 }
+export async function bulkMarkUnread(convs: ConvRef[]): Promise<BulkResult> {
+  if (convs.length === 0) return { succeeded: [], failed: 0 }
+  return bulkPost({ action: 'markUnread', convs })
 }
 
 /**

@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import type { Notification } from "@/types";
 
-/**
- * Count of unread notifications for the current user. Used by the
- * sidebar to surface a badge on the Notifications nav entry.
- */
 export function useUnreadNotifications(): number {
   const { user } = useAuth();
   const userId = user?.id;
@@ -17,18 +12,14 @@ export function useUnreadNotifications(): number {
 
   useEffect(() => {
     if (!userId) return;
-    const supabase = createClient();
     let cancelled = false;
-
-    (async () => {
-      const { count: unreadCount, error } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .is("read_at", null);
-      if (cancelled || error) return;
-      setCount(unreadCount ?? 0);
-    })();
-
+    fetch("/api/account/notifications/unread-count")
+      .then((r) => r.json())
+      .then(({ count: c }: { count?: number }) => {
+        if (cancelled) return;
+        setCount(c ?? 0);
+      })
+      .catch(() => {/* ignore */});
     return () => {
       cancelled = true;
     };

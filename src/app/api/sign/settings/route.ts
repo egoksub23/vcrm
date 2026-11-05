@@ -1,5 +1,6 @@
 // ============================================================
-// GET /api/sign/settings   (sign.settings)
+// GET   /api/sign/settings   (sign.settings)
+// PATCH /api/sign/settings   (sign.settings) — update the workspace's sign_settings row
 //
 // The workspace's Doc Sign settings row, and the consent wording in force for each language (the
 // workspace's own text if it set one, else the product default, with the version that is recorded with a
@@ -10,7 +11,7 @@
 // consent here, not in the browser, keeps the hashing module off the client bundle.
 // ============================================================
 import { consentFor } from "@/lib/sign/consent";
-import { json, staff } from "@/lib/sign/http";
+import { json, readJson, staff } from "@/lib/sign/http";
 import { loadSettings } from "@/lib/sign/service/context";
 import { SIGN_LOCALES } from "@/lib/sign/types";
 
@@ -21,5 +22,30 @@ export async function GET(request: Request) {
     // the default wording of each language, shown beside a custom one
     const defaults = Object.fromEntries(SIGN_LOCALES.map((l) => [l, consentFor(null, l)]));
     return json({ settings, consent, consentDefaults: defaults });
+  });
+}
+
+export async function PATCH(request: Request) {
+  return staff("sign.settings", request, async ({ ctx }) => {
+    const body = await readJson<Record<string, unknown>>(request);
+    const allowed = [
+      "default_expiry_days", "reminder_days", "default_language", "retention_years",
+      "sender_name", "whatsapp_template_name", "whatsapp_template_language",
+      "embed_certificate", "consent_texts",
+    ];
+    const patch: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (key in body) patch[key] = body[key];
+    }
+    if (Object.keys(patch).length === 0) return json({ ok: true });
+
+    const { data, error } = await ctx.admin
+      .from("sign_settings")
+      .update(patch)
+      .eq("account_id", ctx.accountId)
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    return json({ settings: data });
   });
 }

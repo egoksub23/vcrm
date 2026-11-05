@@ -1,102 +1,50 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
-import type { PgDb } from '@/lib/postgres/db'
 
 const notifyVircleRead = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/vircle-chat/client', () => ({ notifyVircleRead }))
 
 import { bulkAssign, bulkClose, bulkMarkRead, bulkMarkUnread } from './bulk-actions'
 
-interface UpdateCall {
-  payload: Record<string, unknown>
-  ids: string[]
-}
-
-function fakeDb(opts: { updateError?: boolean; failRpcFor?: string[] } = {}) {
-  const updates: UpdateCall[] = []
-  const rpcs: { fn: string; args: Record<string, unknown> }[] = []
-  const db = {
-    from() {
-      let payload: Record<string, unknown> = {}
-      const b = {
-        update(p: Record<string, unknown>) {
-          payload = p
-          return b
-        },
-        in(_col: string, ids: string[]) {
-          updates.push({ payload, ids })
-          return Promise.resolve({ error: opts.updateError ? { message: 'x' } : null })
-        },
-      }
-      return b
-    },
-    rpc(fn: string, args: Record<string, unknown>) {
-      rpcs.push({ fn, args })
-      const fail = opts.failRpcFor?.includes(args.p_conversation_id as string)
-      return Promise.resolve({ error: fail ? { message: 'nope' } : null })
-    },
-  } as unknown as PgDb
-  return { db, updates, rpcs }
-}
-
 const conv = (id: string, status: string, unread: number) =>
   ({ id, status, unread_count: unread }) as never
 
+function mockFetch(result: object) {
+  return vi.fn(() =>
+    Promise.resolve({ json: () => Promise.resolve(result) } as Response),
+  )
+}
+
 describe('bulkAssign', () => {
-  it('assigns every id in one update, and can unassign with null', async () => {
-    const { db, updates } = fakeDb()
-    expect(await bulkAssign(db, ['a', 'b'], 'u1')).toEqual({ succeeded: ['a', 'b'], failed: 0 })
-    expect(updates[0]).toEqual({ payload: { assigned_agent_id: 'u1' }, ids: ['a', 'b'] })
-    await bulkAssign(db, ['a'], null)
-    expect(updates[1].payload).toEqual({ assigned_agent_id: null })
+  it('calls bulk route and returns result', async () => {
+    global.fetch = mockFetch({ succeeded: ['a', 'b'], failed: 0 })
+    expect(await bulkAssign(['a', 'b'], 'u1')).toEqual({ succeeded: ['a', 'b'], failed: 0 })
   })
 
-  it('reports everything failed when the update errors, and does nothing for an empty selection', async () => {
-    expect(await bulkAssign(fakeDb({ updateError: true }).db, ['a', 'b'], 'u1')).toEqual({
-      succeeded: [],
-      failed: 2,
-    })
-    const { db, updates } = fakeDb()
-    expect(await bulkAssign(db, [], 'u1')).toEqual({ succeeded: [], failed: 0 })
-    expect(updates).toHaveLength(0)
+  it('does nothing for an empty selection', async () => {
+    global.fetch = mockFetch({})
+    expect(await bulkAssign([], 'u1')).toEqual({ succeeded: [], failed: 0 })
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })
 
 describe('bulkMarkRead / bulkMarkUnread', () => {
-  it('only touches conversations that actually change', async () => {
+  it('calls bulk route and returns result', async () => {
+    global.fetch = mockFetch({ succeeded: ['a', 'c'], failed: 0 })
     const convs = [conv('a', 'open', 3), conv('b', 'open', 0), conv('c', 'open', 1)]
-    const read = fakeDb()
-    expect((await bulkMarkRead(read.db, convs)).succeeded).toEqual(['a', 'c'])
-    expect(read.updates[0].payload).toEqual({ unread_count: 0 })
+    expect((await bulkMarkRead(convs)).succeeded).toEqual(['a', 'c'])
 
-    const unread = fakeDb()
-    expect((await bulkMarkUnread(unread.db, convs)).succeeded).toEqual(['b'])
-    expect(unread.updates[0].payload).toEqual({ unread_count: 1 })
+    global.fetch = mockFetch({ succeeded: ['b'], failed: 0 })
+    expect((await bulkMarkUnread(convs)).succeeded).toEqual(['b'])
   })
 
   it('makes no write when nothing needs changing', async () => {
-    const { db, updates } = fakeDb()
-    await bulkMarkRead(db, [conv('a', 'open', 0)])
-    await bulkMarkUnread(db, [conv('a', 'open', 2)])
-    expect(updates).toHaveLength(0)
-  })
-})
-
-describe('bulkMarkRead and Vircle Chat read ticks', () => {
-  beforeEach(() => notifyVircleRead.mockClear())
-  const vc = (id: string, unread: number, channel = 'vircle_chat') =>
-    ({ id, status: 'open', unread_count: unread, last_channel_type: channel }) as never
-
-  it('tells the app about the Vircle Chat conversations it marked read, and only those', async () => {
-    const { db } = fakeDb()
-    await bulkMarkRead(db, [vc('a', 2), vc('b', 1, 'whatsapp'), vc('c', 0), vc('d', 4)])
-    expect(notifyVircleRead.mock.calls.map((c) => c[0])).toEqual(['a', 'd'])
-  })
-
-  it('does not tell the app when the update failed or nothing changed', async () => {
-    await bulkMarkRead(fakeDb({ updateError: true }).db, [vc('a', 2)])
-    await bulkMarkRead(fakeDb().db, [vc('a', 0)])
-    await bulkMarkUnread(fakeDb().db, [vc('a', 0)])
-    expect(notifyVircleRead).not.toHaveBeenCalled()
+    global.fetch = mockFetch({})
+    // All already unread=0 means no-op for markRead
+    await bulkMarkRead([conv('a', 'open', 0)])
+    expect(global.fetch).not.toHaveBeenCalled()
+    // All already unread>0 means no-op for markUnread
+    await bulkMarkUnread([conv('a', 'open', 2)])
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })
 

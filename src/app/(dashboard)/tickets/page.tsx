@@ -13,7 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { useAuth } from "@/hooks/use-auth";
@@ -398,8 +397,8 @@ function TicketsPageInner() {
 
   /** The board has no bulk-select; a card's own menu deletes it directly. */
   const handleDeleteOne = async (id: string) => {
-    const { error } = await createClient().from("tickets").delete().eq("id", id);
-    if (error) {
+    const res = await fetch(`/api/tickets/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) {
       toast.error(tBulk("deleteFailed"));
       return;
     }
@@ -411,9 +410,13 @@ function TicketsPageInner() {
     const ids = selectedRows.map((r) => r.id);
     if (ids.length === 0) return;
     setBulkBusy(true);
-    const { error } = await createClient().from("tickets").delete().in("id", ids);
+    const res = await fetch('/api/tickets/bulk', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
     setBulkBusy(false);
-    if (error) {
+    if (!res.ok) {
       toast.error(tBulk("deleteFailed"));
       return;
     }

@@ -33,7 +33,6 @@ import { notifyApprovalsChanged, useApprovalsCount } from "@/hooks/use-approvals
 import { approveMany, decideApproval, fetchApprovals } from "@/lib/approvals/client";
 import { bulkApprovable, changedCount, buildDiff, itemKey } from "@/lib/approvals/rules";
 import type { ApprovalErrorCode, ApprovalItem } from "@/lib/approvals/types";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import { SettingsPanelHead } from "../settings-panel-head";
@@ -97,18 +96,15 @@ export function ApprovalsPanel() {
   useEffect(() => {
     if (authLoading || !accountId) return;
     let cancelled = false;
-    createClient()
-      .from("profiles")
-      .select("user_id, full_name, email")
-      .then(({ data }) => {
-        if (cancelled) return;
-        setPeople(
-          ((data ?? []) as { user_id: string; full_name: string | null; email: string | null }[])
-            .map((p) => ({ id: p.user_id, name: p.full_name?.trim() || p.email || "" }))
-            .filter((p) => p.name)
-            .sort((a, b) => a.name.localeCompare(b.name)),
-        );
-      });
+    fetch('/api/account/profiles').then((r) => r.json()).then((json) => {
+      if (cancelled) return;
+      setPeople(
+        ((json.profiles ?? []) as { user_id: string; full_name: string | null; email: string | null }[])
+          .map((p) => ({ id: p.user_id, name: p.full_name?.trim() || p.email || "" }))
+          .filter((p) => p.name)
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+    });
     return () => {
       cancelled = true;
     };

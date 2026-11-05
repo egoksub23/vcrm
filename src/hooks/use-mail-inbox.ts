@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { mailInboxOffChannels } from "@/lib/inbox/mail-inbox";
-import { createClient } from "@/lib/supabase/client";
 import type { ChannelType } from "@/types";
 
 // ============================================================
@@ -35,17 +33,10 @@ export function invalidateMailInbox(): void {
 async function fetchOffChannels(): Promise<ChannelType[]> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.off;
   if (inflight) return inflight;
-  const supabase = createClient();
   const load = (async () => {
-    const [email, gmail] = await Promise.all([
-      supabase.from("email_config").select("inbox_enabled").maybeSingle(),
-      supabase.from("gmail_config").select("inbox_enabled").maybeSingle(),
-    ]);
-    // a failed read is "nothing switched off": the Inbox behaves as before and the server still refuses
-    const off = mailInboxOffChannels({
-      email_config: email.error ? null : (email.data as { inbox_enabled?: boolean | null } | null),
-      gmail_config: gmail.error ? null : (gmail.data as { inbox_enabled?: boolean | null } | null),
-    });
+    const res = await fetch("/api/account/mail-inbox").catch(() => null);
+    const json = res?.ok ? (await res.json().catch(() => null)) : null;
+    const off = (Array.isArray(json?.offChannels) ? json.offChannels : []) as ChannelType[];
     cache = { at: Date.now(), off };
     return off;
   })();

@@ -16,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 
-import { requireCapability, toErrorResponse } from "@/lib/auth/account";
+import { getCurrentAccount, requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { notifyIncidentEmail } from "@/lib/email/incident-notification-email";
 import {
   checkRateLimit,
@@ -24,9 +24,29 @@ import {
   RATE_LIMITS,
 } from "@/lib/rate-limit";
 import { INCIDENT_DETECTION_SOURCES, isIncidentFlag } from "@/lib/incidents/constants";
+import { LIST_PAGE_SIZE } from "@/lib/incidents/constants";
 
 const MAX_TITLE_LEN = 200;
 const MAX_DESCRIPTION_LEN = 10000;
+
+export async function GET() {
+  try {
+    const ctx = await getCurrentAccount();
+    const { data, error } = await ctx.supabase
+      .from("incidents")
+      .select("*")
+      .eq("account_id", ctx.accountId)
+      .order("created_at", { ascending: false })
+      .limit(LIST_PAGE_SIZE);
+    if (error) {
+      console.error("[GET /api/incidents] fetch error:", error);
+      return NextResponse.json({ error: "Failed to load incidents" }, { status: 500 });
+    }
+    return NextResponse.json({ incidents: data ?? [] });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
 
 export async function POST(request: Request) {
   try {

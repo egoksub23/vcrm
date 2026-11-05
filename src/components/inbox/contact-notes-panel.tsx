@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Check, Loader2, Pencil, Plus, StickyNote, Trash2, X } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
@@ -48,22 +47,16 @@ export function ContactNotesPanel({ contactId }: { contactId: string | null }) {
 
   const load = useCallback(async () => {
     if (!contactId) return;
-    const supabase = createClient();
     const [notesRes, profilesRes] = await Promise.all([
-      supabase
-        .from("contact_notes")
-        .select("*")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("user_id, full_name, email"),
+      fetch(`/api/account/contact-notes?contactId=${encodeURIComponent(contactId)}`).then((r) => r.json()).catch(() => null) as Promise<{ notes?: ContactNote[] } | null>,
+      fetch("/api/account/profiles").then((r) => r.json()).catch(() => null) as Promise<{ profiles?: { user_id: string; full_name: string | null; email: string | null }[] } | null>,
     ]);
-    if (notesRes.error) console.error("[ContactNotesPanel] load failed:", notesRes.error);
-    setNotes((notesRes.data as ContactNote[]) ?? []);
+    setNotes(notesRes?.notes ?? []);
     setAuthors(
       new Map(
-        (profilesRes.data ?? []).map((p) => [
-          p.user_id as string,
-          ((p.full_name as string | null) || (p.email as string | null) || "").trim(),
+        (profilesRes?.profiles ?? []).map((p) => [
+          p.user_id,
+          (p.full_name || p.email || "").trim(),
         ]),
       ),
     );
@@ -87,44 +80,44 @@ export function ContactNotesPanel({ contactId }: { contactId: string | null }) {
 
   async function handleAdd() {
     const text = draft.trim();
-    if (!contactId || !accountId || !user || !text || adding) return;
+    if (!contactId || !text || adding) return;
     setAdding(true);
-    const { data, error } = await createClient()
-      .from("contact_notes")
-      .insert({ contact_id: contactId, account_id: accountId, user_id: user.id, note_text: text })
-      .select()
-      .single();
+    const res = await fetch("/api/account/contact-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contact_id: contactId, note_text: text }),
+    });
+    const json = (await res.json().catch(() => null)) as { note?: ContactNote } | null;
     setAdding(false);
-    if (error || !data) {
-      console.error("[ContactNotesPanel] add failed:", error);
+    if (!res.ok || !json?.note) {
+      console.error("[ContactNotesPanel] add failed");
       toast.error(tn("addFailed"));
       return;
     }
-    setNotes((prev) => [data as ContactNote, ...prev]);
+    setNotes((prev) => [json.note!, ...prev]);
     setDraft("");
   }
 
   async function handleSave(id: string, text: string): Promise<boolean> {
-    const { data, error } = await createClient()
-      .from("contact_notes")
-      .update({ note_text: text })
-      .eq("id", id)
-      .select()
-      .single();
-    if (error || !data) {
-      console.error("[ContactNotesPanel] update failed:", error);
+    const res = await fetch(`/api/account/contact-notes/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note_text: text }),
+    });
+    const json = (await res.json().catch(() => null)) as { note?: ContactNote } | null;
+    if (!res.ok || !json?.note) {
+      console.error("[ContactNotesPanel] update failed");
       toast.error(tn("saveFailed"));
       return false;
     }
-    // The database stamps edited_at / edited_by; take its row as the truth.
-    setNotes((prev) => prev.map((n) => (n.id === id ? (data as ContactNote) : n)));
+    setNotes((prev) => prev.map((n) => (n.id === id ? json.note! : n)));
     return true;
   }
 
   async function handleDelete(id: string): Promise<boolean> {
-    const { error } = await createClient().from("contact_notes").delete().eq("id", id);
-    if (error) {
-      console.error("[ContactNotesPanel] delete failed:", error);
+    const res = await fetch(`/api/account/contact-notes/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      console.error("[ContactNotesPanel] delete failed");
       toast.error(tn("deleteFailed"));
       return false;
     }

@@ -24,7 +24,6 @@ import { useAuth, useCapability } from "@/hooks/use-auth";
 import { notifyApprovalsChanged } from "@/hooks/use-approvals-count";
 import { withdrawProposal } from "@/lib/approvals/client";
 import { canWithdraw, chipState, isUsable, mergePendingEdit } from "@/lib/approvals/rules";
-import { createClient } from "@/lib/supabase/client";
 import {
   InteractiveBuilder,
   blankButtonsPayload,
@@ -75,19 +74,16 @@ export function QuickRepliesManager() {
   useEffect(() => {
     if (authLoading || !accountId) return;
     let cancelled = false;
-    createClient()
-      .from("profiles")
-      .select("user_id, full_name, email")
-      .then(({ data }) => {
-        if (cancelled) return;
-        setPeople(
-          new Map(
-            ((data ?? []) as { user_id: string; full_name: string | null; email: string | null }[]).map(
-              (p) => [p.user_id, p.full_name?.trim() || p.email || ""],
-            ),
+    fetch('/api/account/profiles').then((r) => r.json()).then((json) => {
+      if (cancelled) return;
+      setPeople(
+        new Map(
+          ((json.profiles ?? []) as { user_id: string; full_name: string | null; email: string | null }[]).map(
+            (p) => [p.user_id, p.full_name?.trim() || p.email || ""],
           ),
-        );
-      });
+        ),
+      );
+    });
     return () => {
       cancelled = true;
     };
@@ -118,13 +114,8 @@ export function QuickRepliesManager() {
     // proposer and reviewers, so they are fetched when the editor opens.
     let qr = row;
     if (row.edit_status && row.proposed_by === user?.id && !canManage) {
-      const { data } = await createClient()
-        .from("approval_pending_edits")
-        .select("patch")
-        .eq("entity_type", "snippet")
-        .eq("entity_id", row.id)
-        .maybeSingle();
-      if (data?.patch) qr = mergePendingEdit(row, data.patch as Partial<QuickReply>);
+      const pendingRes = await fetch(`/api/account/approvals/pending-edit?entityType=snippet&entityId=${encodeURIComponent(row.id)}`).then((r) => r.json()).catch(() => ({}));
+      if (pendingRes.patch) qr = mergePendingEdit(row, pendingRes.patch as Partial<QuickReply>);
     }
     setDraft({
       id: qr.id,

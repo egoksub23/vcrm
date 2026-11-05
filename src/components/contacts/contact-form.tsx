@@ -1,16 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/use-auth';
 import { useCapability } from '@/hooks/use-can';
 import { addContactTag, deleteContactTag } from '@/lib/contacts/tag-api';
 import { toast } from 'sonner';
 import type { Contact, Tag, ContactTag, LifecycleStage } from '@/types';
 import {
-  findExistingContact,
   isExactMatch,
-  isUniqueViolation,
   type ExistingContact,
 } from '@/lib/contacts/dedupe';
 import {
@@ -50,8 +46,6 @@ export function ContactForm({
 }: ContactFormProps) {
   const t = useTranslations('Contacts.form');
   const tUsage = useTranslations('Usage');
-  const supabase = createClient();
-  const { accountId } = useAuth();
   // Reached only from gated entry points; the submit button repeats the check (contacts.edit).
   const canEdit = useCapability('contacts.edit');
   // Merging two contacts is its own capability (POST /api/contacts/merge).
@@ -99,7 +93,6 @@ export function ContactForm({
   // being edited is excluded and an unchanged phone is not checked.
   // Runs on blur so we don't query on every keystroke.
   async function checkDuplicate() {
-    if (!accountId) return;
     const value = phone.trim();
     if (!value || (isEdit && value === contact?.phone)) {
       setDupMatch(null);
@@ -107,7 +100,11 @@ export function ContactForm({
     }
     setCheckingDup(true);
     try {
-      const existing = await findExistingContact(supabase as any, accountId, value, contact?.id);
+      const params = new URLSearchParams({ phone: value });
+      if (contact?.id) params.set('excludeId', contact.id);
+      const res = await fetch(`/api/contacts/check-duplicate?${params}`);
+      const json = await res.json().catch(() => ({}));
+      const existing = json.contact as ExistingContact | null;
       setDupMatch(
         existing
           ? { contact: existing, exact: isExactMatch(existing, value) }
@@ -120,15 +117,9 @@ export function ContactForm({
 
   async function fetchTags() {
     setLoadingTags(true);
-    // Contact tags only — conversation-only labels (migration 068) aren't offered here.
-    const { data } = await supabase
-      .from('tags')
-      .select('*')
-      .eq('for_contacts', true)
-      // A tag that still waits for approval (migration 084) is not offered.
-      .eq('approval_status', 'approved')
-      .order('name');
-    if (data) setTags(data);
+    const res = await fetch('/api/tags?for_contacts=true');
+    const json = await res.json().catch(() => ({ tags: [] }));
+    if (json.tags) setTags(json.tags);
     setLoadingTags(false);
   }
 
@@ -160,20 +151,14 @@ export function ContactForm({
     setSaving(true);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) throw new Error('Not authenticated');
-      if (!accountId) throw new Error('Your profile is not linked to an account.');
-
       let contactId = contact?.id;
 
       if (isEdit && contactId) {
         const stageChanged = lifecycleStage !== (contact?.lifecycle_stage ?? 'lead');
-        const { error } = await supabase
-          .from('contacts')
-          .update({
+        const res = await fetch(`/api/contacts/${contactId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             name: name.trim() || null,
             phone: phone.trim(),
             email: email.trim() || null,
@@ -181,26 +166,57 @@ export function ContactForm({
             lifecycle_stage: lifecycleStage,
             ...(stageChanged ? { lifecycle_stage_changed_at: new Date().toISOString() } : {}),
             updated_at: new Date().toISOString(),
-          })
-          .eq('id', contactId);
-        if (error) throw error;
+          }),
+        });
+        if (res.status === 409) {
+          const json = await res.json().catch(() => ({}));
+          const existing = (json.conflict ?? null) as ExistingContact | null;
+          if (existing) {
+            setDupMatch({ contact: existing, exact: true });
+            toast.error(t('toastConflictNamed', { name: existing.name || existing.phone }));
+          } else {
+            toast.error(t('toastConflict'));
+          }
+          return;
+        }
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.error ?? t('toastError'));
+        }
       } else {
-        const { data, error } = await supabase
-          .from('contacts')
-          .insert({
-            user_id: user.id,
-            account_id: accountId,
+        const res = await fetch('/api/contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             name: name.trim() || null,
             phone: phone.trim(),
             email: email.trim() || null,
             company: company.trim() || null,
             lifecycle_stage: lifecycleStage,
             lifecycle_stage_changed_at: lifecycleStage === 'lead' ? null : new Date().toISOString(),
-          })
-          .select('id')
-          .single();
-        if (error) throw error;
-        contactId = data.id;
+          }),
+        });
+        if (res.status === 409) {
+          const json = await res.json().catch(() => ({}));
+          const existing = (json.conflict ?? null) as ExistingContact | null;
+          if (existing) {
+            setDupMatch({ contact: existing, exact: true });
+            toast.error(t('toastConflictNamed', { name: existing.name || existing.phone }));
+          } else {
+            toast.error(t('toastConflict'));
+          }
+          return;
+        }
+        if (res.status === 422) {
+          toast.error(tUsage('contactLimitReached'));
+          return;
+        }
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.error ?? t('toastError'));
+        }
+        const json = await res.json().catch(() => ({}));
+        contactId = json.contact?.id;
       }
 
       // Sync tags
@@ -222,27 +238,6 @@ export function ContactForm({
       onOpenChange(false);
       onSaved();
     } catch (err: unknown) {
-      // The unique index (migration 022) rejects a duplicate phone that
-      // slipped past the on-blur check (race, or a format that
-      // normalizes equal). Surface it as the friendly duplicate notice
-      // and, for new contacts, point the user at the existing record.
-      if (isUniqueViolation(err)) {
-        const existing = accountId
-          ? await findExistingContact(supabase as any, accountId, phone.trim(), contact?.id)
-          : null;
-        if (existing) {
-          setDupMatch({ contact: existing, exact: true });
-          toast.error(t('toastConflictNamed', { name: existing.name || existing.phone }));
-        } else {
-          toast.error(t('toastConflict'));
-        }
-        return;
-      }
-      // The workspace's contact limit (migration 152) comes back from the database as a bare code.
-      if ((err as { message?: string } | null)?.message === 'contact_limit_reached') {
-        toast.error(tUsage('contactLimitReached'));
-        return;
-      }
       const message = err instanceof Error ? err.message : t('toastError');
       toast.error(message);
     } finally {

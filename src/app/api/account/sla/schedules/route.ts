@@ -12,10 +12,28 @@
 
 import { NextResponse } from "next/server";
 
-import { requireCapability } from "@/lib/auth/account";
+import { getCurrentAccount, requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { parseHolidays, slaCatch, slaDbFail, slaFail } from "@/lib/sla/api";
 import { validateSchedulePayload } from "@/lib/sla/policy";
+
+export async function GET() {
+  try {
+    const ctx = await getCurrentAccount();
+    const { data, error } = await ctx.supabase
+      .from("business_hours_schedules")
+      .select("*, holidays:business_hours_holidays(id, schedule_id, holiday_date, name)")
+      .eq("account_id", ctx.accountId)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("[GET /api/account/sla/schedules] fetch error:", error);
+      return NextResponse.json({ error: "Failed to load schedules" }, { status: 500 });
+    }
+    return NextResponse.json({ schedules: data ?? [] });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
 
 export async function POST(request: Request) {
   try {

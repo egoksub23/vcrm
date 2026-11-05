@@ -18,7 +18,6 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { buildAuditParams, resolveRange, type RangePreset } from "@/lib/audit/client";
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES, EMPTY_AUDIT_FILTERS, type AuditFilters } from "@/lib/audit/types";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import {
@@ -62,18 +61,15 @@ export function AuditActivityTab() {
   useEffect(() => {
     if (authLoading || !accountId) return;
     let cancelled = false;
-    createClient()
-      .from("profiles")
-      .select("user_id, full_name, email")
-      .then(({ data }) => {
-        if (cancelled) return;
-        setMembers(
-          ((data ?? []) as { user_id: string; full_name: string | null; email: string | null }[])
-            .map((p) => ({ id: p.user_id, name: p.full_name?.trim() || p.email || "" }))
-            .filter((m) => m.name)
-            .sort((a, b) => a.name.localeCompare(b.name)),
-        );
-      });
+    fetch('/api/account/profiles').then((r) => r.json()).then((json) => {
+      if (cancelled) return;
+      setMembers(
+        ((json.profiles ?? []) as { user_id: string; full_name: string | null; email: string | null }[])
+          .map((p) => ({ id: p.user_id, name: p.full_name?.trim() || p.email || "" }))
+          .filter((m) => m.name)
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+    });
     return () => {
       cancelled = true;
     };

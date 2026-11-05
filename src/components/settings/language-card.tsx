@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { normalizeLocale } from "@/lib/i18n/locales";
-import { createClient } from "@/lib/supabase/client";
 import { LanguageSelect } from "./language-select";
 
 /**
@@ -29,14 +28,11 @@ export function LanguageCard() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    void createClient()
-      .from("profiles")
-      .select("locale")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
+    void fetch('/api/account/me')
+      .then((r) => r.json())
+      .then((json) => {
         if (cancelled) return;
-        const current = normalizeLocale((data as { locale?: string | null } | null)?.locale) ?? "";
+        const current = normalizeLocale((json.profile as { locale?: string | null } | null)?.locale) ?? "";
         setSaved(current);
         setValue(current);
       });
@@ -51,11 +47,12 @@ export function LanguageCard() {
     if (!user) return;
     setBusy(true);
     try {
-      const { error } = await createClient()
-        .from("profiles")
-        .update({ locale: value || null })
-        .eq("user_id", user.id);
-      if (error) throw error;
+      const res = await fetch('/api/account/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: value || null }),
+      });
+      if (!res.ok) throw new Error('failed');
       setSaved(value);
       toast.success(t("saved"));
       // Re-render the page in the new language.

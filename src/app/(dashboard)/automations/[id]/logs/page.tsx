@@ -10,7 +10,6 @@ import {
 } from "lucide-react"
 import { useTranslations } from "next-intl"
 
-import { createClient } from "@/lib/supabase/client"
 import type { Automation, AutomationLog } from "@/types"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -35,30 +34,21 @@ export default function AutomationLogsPage({
   useEffect(() => {
     async function load() {
       try {
-        const supabase = createClient()
         const [autRes, logRes] = await Promise.all([
-          supabase
-            .from("automations")
-            .select("*")
-            .eq("id", id)
-            .maybeSingle(),
-          supabase
-            .from("automation_logs")
-            .select("*, contact:contacts(id, name, phone)")
-            .eq("automation_id", id)
-            .order("created_at", { ascending: false })
-            .limit(100),
+          fetch(`/api/automations/${id}`),
+          fetch(`/api/automations/${id}/logs`),
         ])
-        if (autRes.error) throw autRes.error
-        if (logRes.error) throw logRes.error
-        setAutomation(autRes.data as Automation | null)
-        setLogs((logRes.data ?? []) as AutomationLog[])
+        if (!autRes.ok) throw new Error((await autRes.json().catch(() => ({}))).error ?? t("loadError"))
+        if (!logRes.ok) throw new Error((await logRes.json().catch(() => ({}))).error ?? t("loadError"))
+        const [autJson, logJson] = await Promise.all([autRes.json(), logRes.json()])
+        setAutomation(autJson.automation as Automation | null)
+        setLogs((logJson.logs ?? []) as AutomationLog[])
       } catch (err) {
         setError(err instanceof Error ? err.message : t("loadError"))
       }
     }
     load()
-  }, [id])
+  }, [id, t])
 
   if (error) {
     return (

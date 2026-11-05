@@ -11,10 +11,29 @@
 
 import { NextResponse } from "next/server";
 
-import { requireCapability } from "@/lib/auth/account";
+import { getCurrentAccount, requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
 import { slaCatch, slaDbFail, slaFail } from "@/lib/sla/api";
 import { validatePolicyPayload } from "@/lib/sla/policy";
+
+export async function GET() {
+  try {
+    const ctx = await getCurrentAccount();
+    const { data, error } = await ctx.supabase
+      .from("ticket_sla_policies")
+      .select("*")
+      .eq("account_id", ctx.accountId)
+      .order("position", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("[GET /api/account/sla/policies] fetch error:", error);
+      return NextResponse.json({ error: "Failed to load policies" }, { status: 500 });
+    }
+    return NextResponse.json({ policies: data ?? [] });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
 
 export async function POST(request: Request) {
   try {

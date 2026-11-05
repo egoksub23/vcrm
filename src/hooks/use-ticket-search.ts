@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { normalize, SELECT, type RawTicket, type TicketRow } from "./use-ticket-store";
+import { normalize, type RawTicket, type TicketRow } from "./use-ticket-store";
 import { parseTicketQuery } from "@/lib/tickets/key";
 import { toDateInputValue } from "@/lib/tickets/due";
 import type { TicketFilters } from "@/lib/tickets/filters";
@@ -47,63 +46,48 @@ export function useTicketSearch(
     if (!accountId) return;
     const gen = ++generation.current;
     setLoading(true);
-    const supabase = createClient();
     const q = parseTicketQuery(filters.q);
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayEnd.getDate() + 1);
 
-    const { data, error } = await supabase.rpc("tickets_search", {
-      p_account: accountId,
-      p_search_text: q.text,
-      p_search_number: q.number,
-      p_search_prefix: q.prefix,
-      p_quick: filters.quick.filter((c) => c !== "mentioned"),
-      p_user_id: userId,
-      p_today: toDateInputValue(now),
-      p_today_start: todayStart.toISOString(),
-      p_today_end: todayEnd.toISOString(),
-      p_statuses: mode === "list" ? filters.statuses : null,
-      p_assignees: filters.assignees,
-      p_types: filters.types,
-      p_priorities: filters.priorities,
-      p_labels: filters.labels,
-      p_teams: filters.teams,
-      p_resolutions: filters.resolutions,
-      p_sort_key: sort.key,
-      p_sort_dir: sort.dir,
-      p_limit: SEARCH_LIMIT,
-      p_offset: 0,
-    });
+    const res = await fetch("/api/tickets/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_search_text: q.text,
+        p_search_number: q.number,
+        p_search_prefix: q.prefix,
+        p_quick: filters.quick.filter((c) => c !== "mentioned"),
+        p_user_id: userId,
+        p_today: toDateInputValue(now),
+        p_today_start: todayStart.toISOString(),
+        p_today_end: todayEnd.toISOString(),
+        p_statuses: mode === "list" ? filters.statuses : null,
+        p_assignees: filters.assignees,
+        p_types: filters.types,
+        p_priorities: filters.priorities,
+        p_labels: filters.labels,
+        p_teams: filters.teams,
+        p_resolutions: filters.resolutions,
+        p_sort_key: sort.key,
+        p_sort_dir: sort.dir,
+        p_limit: SEARCH_LIMIT,
+        p_offset: 0,
+      }),
+    }).catch(() => null);
     if (gen !== generation.current) return;
-    if (error) {
-      console.error("[useTicketSearch] search failed:", error);
+    if (!res?.ok) {
+      console.error("[useTicketSearch] search failed:", res?.status);
       setLoading(false);
       return;
     }
-    const matches = (data ?? []) as { id: string; total_count: number }[];
-    const ids = matches.map((m) => m.id);
-    const total = matches[0]?.total_count ?? 0;
-    if (ids.length === 0) {
-      setRows([]);
-      setTotalCount(0);
-      setLoading(false);
-      return;
-    }
-    const { data: hydrated, error: hydrateErr } = await supabase.from("tickets").select(SELECT).in("id", ids);
+    const json = (await res.json().catch(() => null)) as { tickets?: unknown[]; total?: number } | null;
     if (gen !== generation.current) return;
-    if (hydrateErr) {
-      console.error("[useTicketSearch] hydrate failed:", hydrateErr);
-      setLoading(false);
-      return;
-    }
-    const order = new Map(ids.map((id, i) => [id, i]));
-    const ordered = ((hydrated ?? []) as unknown as RawTicket[])
-      .map(normalize)
-      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+    const ordered = ((json?.tickets ?? []) as unknown as RawTicket[]).map(normalize);
     setRows(ordered);
-    setTotalCount(total);
+    setTotalCount(json?.total ?? 0);
     setLoading(false);
     // filters/sort/mode are plain data (not stable references) — depending on
     // them directly keeps this re-running on every real change, same shape as

@@ -6,7 +6,6 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Loader2, MessageCircleMore, RefreshCw, Search } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse } from "@/hooks/use-account-sse";
 import { useCapability } from "@/hooks/use-can";

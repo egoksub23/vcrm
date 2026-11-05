@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/use-auth';
 import { downloadCsv } from '@/lib/csv';
-import { createClient } from '@/lib/supabase/client';
 import {
   MAX_IMPORT_ROWS,
   TAG_NAME_MAX,
@@ -98,37 +97,19 @@ export function TagImportDialog({
   async function handleImport() {
     if (!plan || !user || !accountId || changes === 0) return;
     setImporting(true);
-    const supabase = createClient();
-    let failed = 0;
 
-    for (let i = 0; i < plan.create.length; i += INSERT_CHUNK) {
-      const chunk = plan.create.slice(i, i + INSERT_CHUNK).map((row) => ({
-        ...row,
-        user_id: user.id,
-        account_id: accountId,
-      }));
-      const { error } = await supabase.from('tags').insert(chunk);
-      if (error) {
-        console.error('[TagImportDialog] insert failed:', error);
-        failed += chunk.length;
-      }
-    }
-
-    for (let i = 0; i < plan.update.length; i += UPDATE_CONCURRENCY) {
-      const results = await Promise.all(
-        plan.update
-          .slice(i, i + UPDATE_CONCURRENCY)
-          .map((u) => supabase.from('tags').update(u.patch).eq('id', u.id)),
-      );
-      for (const { error } of results) {
-        if (error) {
-          console.error('[TagImportDialog] update failed:', error);
-          failed++;
-        }
-      }
-    }
+    const res = await fetch('/api/account/tags/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creates: plan.create.map((row) => ({ ...row, user_id: user.id })),
+        updates: plan.update.map((u) => ({ id: u.id, patch: u.patch })),
+      }),
+    });
+    const data = await res.json().catch(() => ({ ok: false, failed: changes }));
 
     setImporting(false);
+    const failed = data.failed ?? 0;
     const done = changes - failed;
     if (failed > 0) {
       toast.error(t('import.partial', { done, failed }));

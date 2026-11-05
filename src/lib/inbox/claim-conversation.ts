@@ -1,5 +1,3 @@
-import { createClient } from '@/lib/supabase/client';
-
 /**
  * "Claim on open": the first agent to open a still-live, unassigned
  * conversation is assigned it, so two agents never end up replying to the
@@ -18,21 +16,13 @@ import { createClient } from '@/lib/supabase/client';
  */
 export async function claimConversation(
   conversationId: string,
-  agentId: string
+  _agentId: string,
 ): Promise<boolean> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('conversations')
-    .update({ assigned_agent_id: agentId })
-    .eq('id', conversationId)
-    .is('assigned_agent_id', null)
-    .neq('status', 'closed')
-    .select('id')
-    .maybeSingle();
-
-  if (error) {
-    console.error('Failed to claim conversation:', error);
-    return false;
-  }
-  return !!data;
+  const res = await fetch(
+    `/api/conversations/${encodeURIComponent(conversationId)}/claim`,
+    { method: 'POST' },
+  ).catch(() => null);
+  if (!res) return false;
+  const json = (await res.json().catch(() => null)) as { claimed?: boolean } | null;
+  return json?.claimed ?? false;
 }

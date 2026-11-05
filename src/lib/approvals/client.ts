@@ -1,4 +1,3 @@
-import { type PgDb } from '@/lib/postgres/db'
 // ============================================================
 // Browser-side calls for propose and approve.
 //
@@ -7,7 +6,6 @@ import { type PgDb } from '@/lib/postgres/db'
 // instead, which record a pending proposal. Everything here returns a
 // friendly `{ ok, code }` so the screens can toast a translated message.
 // ============================================================
-
 
 import { approvalErrorCode } from "./rules";
 import type { ApprovalErrorCode, ApprovalItem, TagValues } from "./types";
@@ -27,7 +25,6 @@ function toResult(
 
 /** Propose a new contact tag or conversation label (or create it when the caller can manage tags). */
 export async function proposeTag(
-  supabase: PgDb,
   input: {
     kind: "tag" | "label";
     name: string;
@@ -36,27 +33,44 @@ export async function proposeTag(
     alsoOther: boolean;
   },
 ): Promise<ProposalResult> {
-  const { data, error } = await supabase.rpc("propose_tag", {
-    p_kind: input.kind,
-    p_name: input.name,
-    p_color: input.color,
-    p_description: input.description,
-    p_also_other: input.alsoOther,
-  });
-  return toResult(data, error);
+  try {
+    const res = await fetch("/api/account/tags/propose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "propose_tag",
+        p_kind: input.kind,
+        p_name: input.name,
+        p_color: input.color,
+        p_description: input.description,
+        p_also_other: input.alsoOther,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, code: approvalErrorCode(data) };
+    return toResult(data, null);
+  } catch {
+    return { ok: false, code: "unknown" };
+  }
 }
 
 /** Propose an edit of a tag or label (or apply it when the caller can manage tags). */
 export async function proposeTagEdit(
-  supabase: PgDb,
   id: string,
   patch: Partial<TagValues>,
 ): Promise<ProposalResult> {
-  const { data, error } = await supabase.rpc("propose_tag_edit", {
-    p_id: id,
-    p_patch: patch,
-  });
-  return toResult(data, error);
+  try {
+    const res = await fetch("/api/account/tags/propose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "propose_tag_edit", p_id: id, p_patch: patch }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, code: approvalErrorCode(data) };
+    return toResult(data, null);
+  } catch {
+    return { ok: false, code: "unknown" };
+  }
 }
 
 /** Withdraw a pending proposal, or dismiss a rejected one. Goes through the route (which checks the capability). */

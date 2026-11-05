@@ -15,8 +15,7 @@ import { FileSignature, Loader2, Plus } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useCapability } from "@/hooks/use-can";
-import { DOCUMENT_COLUMN, newDocumentHref, type PanelKind } from "@/lib/sign/client/record-links";
-import { createClient } from "@/lib/supabase/client";
+import { newDocumentHref, type PanelKind } from "@/lib/sign/client/record-links";
 import { documentBadgeClass, documentStatusKey, SIGN_STATUS_NAMESPACE } from "@/lib/sign/client/status";
 import { cn } from "@/lib/utils";
 
@@ -83,15 +82,11 @@ export function RecordDocuments({ kind, id, contactId = null }: Props) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await createClient()
-        .from("sign_documents")
-        .select("id, reference, title, status, test, created_at, sent_at, completed_at, cancelled_at")
-        .eq(DOCUMENT_COLUMN[kind], id)
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const res = await fetch(`/api/sign/documents/by-record?kind=${kind}&id=${id}`).catch(() => null);
+      const json = res?.ok ? await res.json().catch(() => null) : null;
       if (cancelled) return;
-      if (error) console.error(`[sign] could not read the documents of the ${kind}:`, error.message);
-      setState({ key, rows: error ? null : ((data ?? []) as Row[]) });
+      if (!res?.ok) console.error(`[sign] could not read the documents of the ${kind}`);
+      setState({ key, rows: res?.ok ? ((json?.documents ?? []) as Row[]) : null });
     })();
     return () => {
       cancelled = true;

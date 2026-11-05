@@ -40,7 +40,6 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { hasMinRole } from "@/lib/auth/roles";
-import { createClient } from "@/lib/supabase/client";
 import {
   addMessageToTask,
   editMessage,
@@ -96,13 +95,13 @@ export function MentionsColumn({ onCleared }: MentionsColumnProps) {
 
   const handleClear = async (item: SembangMentionItem) => {
     setClearingId(item.notificationId);
-    const supabase = createClient();
-    const { error: updateError } = await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", item.notificationId);
+    const res = await fetch(`/api/notifications/${item.notificationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ read_at: new Date().toISOString() }),
+    });
     setClearingId(null);
-    if (updateError) return;
+    if (!res.ok) return;
     setResults((prev) => prev?.filter((r) => r.notificationId !== item.notificationId) ?? prev);
     if (openMention?.notificationId === item.notificationId) setOpenMention(null);
     onCleared?.();

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Contact, CustomField, MessageTemplate } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -91,32 +90,23 @@ export function Step3Personalize({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const supabase = createClient();
-      const [fieldsRes, contactRes] = await Promise.all([
-        supabase.from('custom_fields').select('*').order('field_name'),
-        supabase
-          .from('contacts')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+      const [fieldsJson, contactsJson] = await Promise.all([
+        fetch('/api/account/custom-fields').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/contacts?limit=1').then((r) => r.json()).catch(() => ({})),
       ]);
       if (cancelled) return;
 
-      setCustomFields(fieldsRes.data ?? []);
+      setCustomFields((fieldsJson.fields as CustomField[]) ?? []);
       setLoadingFields(false);
 
-      const contact = contactRes.data ?? null;
+      const contact = (contactsJson.contacts as Contact[] | undefined)?.[0] ?? null;
       setFirstContact(contact);
 
       if (contact) {
-        const { data: customVals } = await supabase
-          .from('contact_custom_values')
-          .select('custom_field_id, value')
-          .eq('contact_id', contact.id);
+        const valJson = await fetch(`/api/contacts/${contact.id}/custom-values`).then((r) => r.json()).catch(() => ({}));
         if (!cancelled) {
           const map = new Map<string, string>();
-          for (const row of customVals ?? []) {
+          for (const row of (valJson.values as Array<{ custom_field_id: string; value: string }> | undefined) ?? []) {
             map.set(row.custom_field_id, row.value ?? '');
           }
           setFirstContactCustomValues(map);

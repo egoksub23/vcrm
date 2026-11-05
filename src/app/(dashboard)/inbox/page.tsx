@@ -654,7 +654,9 @@ function InboxPageInner() {
   const handleNewMessage = useCallback((msg: Message) => {
     setMessages((prev) => {
       if (prev.some((m) => m.id === msg.id)) return prev;
-      return [...prev, msg];
+      // Remove any temp (optimistic) bubbles so the real message replaces them
+      const withoutTemp = prev.filter((m) => !m.id.startsWith("temp-"));
+      return [...withoutTemp, msg];
     });
   }, []);
 

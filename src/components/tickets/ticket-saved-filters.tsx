@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { filtersFromJson, filtersToJson, type TicketFilters } from "@/lib/tickets/filters";
 import type { TicketSavedFilter } from "@/types";
@@ -55,12 +54,10 @@ export function SavedFiltersMenu({
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const { data, error } = await createClient()
-      .from("ticket_saved_filters")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) console.error("[SavedFiltersMenu] load failed:", error);
-    setSaved((data as TicketSavedFilter[]) ?? []);
+    const res = await fetch("/api/account/ticket-saved-filters");
+    const json = (await res.json().catch(() => null)) as { filters?: TicketSavedFilter[] } | null;
+    if (!res.ok) console.error("[SavedFiltersMenu] load failed");
+    setSaved(json?.filters ?? []);
     setLoading(false);
   }, []);
 
@@ -71,25 +68,20 @@ export function SavedFiltersMenu({
 
   const handleSave = async () => {
     const trimmed = name.trim();
-    if (!trimmed || !user || !accountId) return;
+    if (!trimmed) return;
     setSaving(true);
-    const { data, error } = await createClient()
-      .from("ticket_saved_filters")
-      .insert({
-        account_id: accountId,
-        user_id: user.id,
-        name: trimmed.slice(0, 80),
-        filter: filtersToJson(filters),
-        is_shared: shared,
-      })
-      .select("*")
-      .single();
+    const res = await fetch("/api/account/ticket-saved-filters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed, filter: filtersToJson(filters), is_shared: shared }),
+    });
+    const json = (await res.json().catch(() => null)) as { filter?: TicketSavedFilter } | null;
     setSaving(false);
-    if (error || !data) {
+    if (!res.ok || !json?.filter) {
       toast.error(t("saveFailed"));
       return;
     }
-    setSaved((prev) => [data as TicketSavedFilter, ...prev]);
+    setSaved((prev) => [json.filter!, ...prev]);
     toast.success(t("saved", { name: trimmed }));
     setDialogOpen(false);
     setName("");
@@ -97,8 +89,8 @@ export function SavedFiltersMenu({
   };
 
   const handleDelete = async (filter: TicketSavedFilter) => {
-    const { error } = await createClient().from("ticket_saved_filters").delete().eq("id", filter.id);
-    if (error) {
+    const res = await fetch(`/api/account/ticket-saved-filters/${encodeURIComponent(filter.id)}`, { method: "DELETE" });
+    if (!res.ok) {
       toast.error(t("deleteFailed"));
       return;
     }

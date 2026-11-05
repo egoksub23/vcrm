@@ -14,7 +14,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useCapability } from "@/hooks/use-can";
 import { formatReminderDays, parseReminderDays, parseWholeNumber } from "@/lib/sign/client/admin-settings";
-import { createClient } from "@/lib/supabase/client";
 import { SIGN_LOCALES, type SignLocale, type SignSettingsRow } from "@/lib/sign/types";
 
 import { Field, NativeSelect } from "./shared";
@@ -49,14 +48,11 @@ export function GeneralSection({ settings, onSaved }: { settings: SignSettingsRo
   // how many signed documents are past their retention date (people with menu.sign can read documents, so the count is theirs to see)
   useEffect(() => {
     let live = true;
-    void createClient()
-      .from("sign_documents")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "completed")
-      .lt("retain_until", new Date().toISOString())
-      .then(({ count, error }) => {
-        if (live && !error) setPastRetention(count ?? 0);
-      });
+    void (async () => {
+      const res = await fetch("/api/sign/documents/count?pastRetention=true").catch(() => null);
+      const json = res?.ok ? await res.json().catch(() => null) : null;
+      if (live && json != null) setPastRetention(json.count ?? 0);
+    })();
     return () => {
       live = false;
     };
@@ -78,9 +74,10 @@ export function GeneralSection({ settings, onSaved }: { settings: SignSettingsRo
     if (Object.keys(next).length > 0 || expiryDays === null || years === null || "problem" in parsed) return;
 
     setSaving(true);
-    const { data, error } = await createClient()
-      .from("sign_settings")
-      .update({
+    const res = await fetch("/api/sign/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         default_expiry_days: expiryDays,
         reminder_days: parsed.days,
         default_language: language,
@@ -89,17 +86,16 @@ export function GeneralSection({ settings, onSaved }: { settings: SignSettingsRo
         whatsapp_template_name: name || null,
         whatsapp_template_language: waLang.trim(),
         embed_certificate: embed,
-      })
-      .eq("id", settings.id)
-      .select("*")
-      .single();
+      }),
+    });
+    const json = res.ok ? await res.json().catch(() => null) : null;
     setSaving(false);
-    if (error || !data) {
+    if (!res.ok || !json?.settings) {
       toast.error(t("saveFailed"));
       return;
     }
     toast.success(t("saved"));
-    onSaved(data as SignSettingsRow);
+    onSaved(json.settings as SignSettingsRow);
   };
 
   return (

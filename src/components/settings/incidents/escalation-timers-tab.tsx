@@ -17,7 +17,6 @@ import { Loader2, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 import { escalationDefaultsFor } from "@/lib/incidents/constants";
 import { useIncidentStandard } from "@/hooks/use-incident-standard";
 
@@ -48,14 +47,13 @@ export function EscalationTimersTab() {
 
   const load = async () => {
     setLoading(true);
-    const supabase = createClient();
-    const [{ data: sch }, { data: pol }] = await Promise.all([
-      supabase.from("business_hours_schedules").select("id, name, timezone").order("name"),
-      supabase.from("incident_escalation_policies").select("*"),
+    const [schRes, polRes] = await Promise.all([
+      fetch("/api/account/sla/schedules").then((r) => r.json()).catch(() => ({ schedules: [] })),
+      fetch("/api/account/incidents/escalation-policies").then((r) => r.json()).catch(() => ({ policies: [] })),
     ]);
-    setSchedules((sch as ScheduleOption[]) ?? []);
+    setSchedules((schRes.schedules as ScheduleOption[]) ?? []);
     const bySeverity: Record<Severity, PolicyRow | null> = {};
-    for (const row of (pol as PolicyRow[]) ?? []) bySeverity[row.severity] = row;
+    for (const row of ((polRes.policies as PolicyRow[]) ?? [])) bySeverity[row.severity] = row;
     setPolicies(bySeverity);
     setLoading(false);
   };

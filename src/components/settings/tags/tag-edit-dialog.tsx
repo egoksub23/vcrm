@@ -11,7 +11,6 @@ import { notifyApprovalsChanged } from '@/hooks/use-approvals-count';
 import { proposeTag, proposeTagEdit } from '@/lib/approvals/client';
 import { buildEditPatch, mergePendingEdit, writeMode } from '@/lib/approvals/rules';
 import { usePendingEdit } from '@/lib/approvals/use-pending-edit';
-import { createClient } from '@/lib/supabase/client';
 import {
   DEFAULT_TAG_COLOR,
   TAG_DESCRIPTION_MAX,
@@ -112,7 +111,6 @@ export function TagEditDialog({
     if (!canSave || !user || !accountId) return;
     if (mode === 'deny') return;
     setSaving(true);
-    const supabase = createClient();
     const fields = {
       name: trimmed,
       description: description.trim() || null,
@@ -124,7 +122,6 @@ export function TagEditDialog({
     if (mode === 'propose') {
       const result = tag
         ? await proposeTagEdit(
-            supabase as any,
             tag.id,
             // Only what differs from the live tag; a pending creation is
             // edited in place, so it sends every field.
@@ -132,7 +129,7 @@ export function TagEditDialog({
               ? fields
               : buildEditPatch(tag as unknown as Record<string, unknown>, fields),
           )
-        : await proposeTag(supabase as any, {
+        : await proposeTag({
             kind,
             name: trimmed,
             color,
@@ -151,15 +148,22 @@ export function TagEditDialog({
       return;
     }
 
-    const { error } = tag
-      ? await supabase.from('tags').update(fields).eq('id', tag.id)
-      : await supabase
-          .from('tags')
-          .insert({ ...fields, user_id: user.id, account_id: accountId });
+    const res = tag
+      ? await fetch(`/api/account/tags/${encodeURIComponent(tag.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fields),
+        })
+      : await fetch('/api/account/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...fields, user_id: user.id }),
+        });
     setSaving(false);
-    if (error) {
-      console.error('[TagEditDialog] save failed:', error);
-      toast.error(error.code === '23505' ? t('duplicateName') : t('saveFailed'));
+    const resJson = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('[TagEditDialog] save failed:', resJson?.error);
+      toast.error(resJson?.error?.includes('23505') ? t('duplicateName') : t('saveFailed'));
       return;
     }
     toast.success(tag ? t(`${kind}.updated`) : t(`${kind}.created`));

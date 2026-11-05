@@ -2,19 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
-import { LIST_PAGE_SIZE } from "@/lib/incidents/constants";
 import type { Incident } from "@/lib/incidents/types";
 
-/**
- * The incidents this account member can see (RLS decides — a plain
- * reporter/watcher gets only their own, incidents.manage gets the whole
- * register). One unpaginated fetch: incident volume is expected to be
- * far lower than ticket volume, so this skips use-ticket-store's
- * per-column pagination machinery entirely.
- */
 export function useIncidents() {
   const { accountId } = useAuth();
   const [rows, setRows] = useState<Incident[]>([]);
@@ -28,28 +19,23 @@ export function useIncidents() {
   const reload = useCallback(async () => {
     setLoading(true);
     setError(false);
-    const { data, error: fetchError } = await createClient()
-      .from("incidents")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(LIST_PAGE_SIZE);
-    if (fetchError) {
+    try {
+      const res = await fetch("/api/incidents");
+      if (!res.ok) throw new Error("fetch failed");
+      const { incidents } = (await res.json()) as { incidents?: Incident[] };
+      setRows(incidents ?? []);
+    } catch (fetchError) {
       console.error("[useIncidents] fetch error:", fetchError);
       setError(true);
+    } finally {
       setLoading(false);
-      return;
     }
-    setRows((data as Incident[]) ?? []);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (accountId) void reload();
   }, [accountId, reload]);
 
-  // Optimistic patch: applied immediately, left in place if the write
-  // succeeds (the realtime UPDATE below is then a no-op merge).
   const applyPatch = useCallback((id: string, patch: Partial<Incident>) => {
     const prev = rowsRef.current;
     setRows((cur) => cur.map((r) => (r.id === id ? { ...r, ...patch } : r)));

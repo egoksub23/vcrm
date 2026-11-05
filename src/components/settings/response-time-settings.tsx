@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Timer, Loader2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth, useCapability } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +29,6 @@ import { SettingsPanelHead } from "./settings-panel-head";
  * admins+, mirroring `DealsSettings`'s currency field exactly.
  */
 export function ResponseTimeSettings() {
-  const supabase = createClient();
   const {
     accountId,
     slaResponseMinutes,
@@ -54,11 +52,12 @@ export function ResponseTimeSettings() {
   async function handleSave() {
     if (!accountId || !dirty) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("accounts")
-      .update({ sla_response_minutes: parsed })
-      .eq("id", accountId);
-    if (error) {
+    const res = await fetch("/api/account/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sla_response_minutes: parsed }),
+    });
+    if (!res.ok) {
       toast.error(t("saveFailed"));
       setSaving(false);
       return;

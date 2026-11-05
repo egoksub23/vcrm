@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
-
 import { jiraRequest, type JiraApiResult, type JiraNamed } from "./use-ticket-jira";
 
 // ============================================================
@@ -98,12 +96,12 @@ export function useBulkProgress(batchId: string | null, opts: { intervalMs?: num
 export function useJiraConnected(): { active: boolean; siteUrl: string | null } {
   const [state, setState] = useState<{ active: boolean; siteUrl: string | null }>({ active: false, siteUrl: null });
   const load = useCallback(async () => {
-    const { data } = await createClient().from("jira_connections").select("status, site_url").limit(1);
-    const row = ((data as { status: string; site_url: string }[] | null) ?? [])[0];
-    setState({ active: row?.status === "active", siteUrl: row?.site_url ?? null });
+    const res = await fetch("/api/integrations/jira/connected").catch(() => null);
+    if (!res?.ok) return;
+    const json = (await res.json().catch(() => null)) as { active?: boolean; siteUrl?: string | null } | null;
+    setState({ active: json?.active ?? false, siteUrl: json?.siteUrl ?? null });
   }, []);
   useEffect(() => {
-    // Loads over the network; the state is set after the await.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);

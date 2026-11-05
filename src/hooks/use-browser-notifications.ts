@@ -3,7 +3,6 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import type { Message } from "@/types";
@@ -106,13 +105,9 @@ export function useBrowserNotifications(): void {
           if (!shouldNotify) return;
 
           void (async () => {
-            const { data } = await createClient()
-              .from("conversations")
-              .select("contact:contacts(name, wa_username, phone, wallet_id)")
-              .eq("id", msg.conversation_id)
-              .maybeSingle();
+            const res = await fetch(`/api/conversations/${msg.conversation_id}`).catch(() => null);
             if (cancelledRef.current) return;
-
+            const data = res?.ok ? (await res.json().catch(() => null)) : null;
             const contact = (data as {
               contact?: {
                 name?: string | null;

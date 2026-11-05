@@ -1,7 +1,10 @@
 // ============================================================
+// GET  /api/sign/templates/[id]/versions   (sign.send)
 // POST /api/sign/templates/[id]/versions   (sign.templates)
 //
-// Save the editor: a new immutable version (fields, roles, defaults, form), made current. A document already
+// GET — returns the latest version's roles, fields and form (for the TestSendRowButton).
+//
+// POST — save the editor: a new immutable version (fields, roles, defaults, form), made current. A document already
 // sent from an older version keeps exactly what its signers were shown.
 // Body: { fields, roles, defaults?, form? }  (leave `form` out to keep the current form, send null to remove it)
 // Answer: { version, warnings } (201). An unsound layout or form is refused with 400 `invalid_layout` and the
@@ -13,6 +16,22 @@ import type { PlacedField } from "@/lib/sign/pdf/types";
 import { SignError } from "@/lib/sign/service/errors";
 import { saveTemplateVersion } from "@/lib/sign/service/templates";
 import type { SignRole, TemplateDefaults } from "@/lib/sign/types";
+
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  return staff("sign.send", request, async ({ ctx }) => {
+    const { id } = await params;
+    if (!UUID_RE.test(id)) throw new SignError("template_not_found", "That template was not found.", 404);
+    const { data, error } = await ctx.admin
+      .from("sign_template_versions")
+      .select("roles, fields, form")
+      .eq("template_id", id)
+      .order("version_no", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return json({ version: data ?? null });
+  });
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return staff("sign.templates", request, async ({ ctx }) => {

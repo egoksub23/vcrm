@@ -11,7 +11,6 @@ import {
   type ReactNode,
 } from "react";
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
-import { createClient } from "@/lib/supabase/client";
 
 /** Minimal user object — replaces @supabase/supabase-js's User. */
 interface AuthUser {
@@ -338,7 +337,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // refreshProfile() callback. Reads the current session's user id and
   // pulls the matching profile row along with its account summary.
   const fetchProfile = useCallback(async (userId: string) => {
-    const supabase = createClient();
     setProfileLoading(true);
     setStatusDetail(null);
     lastFetchedUserIdRef.current = userId;
@@ -351,120 +349,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     let capabilitiesStarted = false;
     try {
-      let data: ProfileRow | null = null;
+      // Retry the profile fetch on transient errors (issue #471: a
+      // hiccup used to lock the session read-only for good).
+      let json: { profile: ProfileRow | null; account: unknown; platform: unknown; isPlatformAdmin: boolean } | null = null;
       for (let attempt = 1; ; attempt++) {
-        const result = await supabase
-          .from("profiles")
-          .select(
-            "id, full_name, email, avatar_url, role, beta_features, account_id, account_role",
-          )
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (!result.error) {
-          data = result.data;
+        const res = await fetch("/api/auth/profile");
+        if (res.ok) {
+          json = await res.json();
           break;
         }
-
-        const error = result.error;
-        console.error("[AuthProvider] fetchProfile error:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-        });
-        // One hiccup here used to lock the session read-only for good:
-        // the profile stayed null, so every `useCan` gate answered
-        // false and no page offered a way to recover (issue #471).
-        // Retry, then hand the reason to the UI.
+        const errText = await res.text().catch(() => res.statusText);
+        console.error("[AuthProvider] fetchProfile error:", res.status, errText);
         if (attempt < PROFILE_FETCH_ATTEMPTS) {
           await sleep(PROFILE_FETCH_RETRY_MS);
           continue;
         }
         lastFetchedUserIdRef.current = null;
-        setStatusDetail(error.message);
+        setStatusDetail(errText);
         return;
       }
 
-      if (data) {
-        // Load the account with a plain lookup by id instead of an
-        // embedded FK join. The embed (`account:accounts!inner(...)`)
-        // forces PostgREST to resolve the profiles.account_id →
-        // accounts.id relationship from its schema cache; a stale cache
-        // (common right after a migration adds the FK) makes it fail
-        // hard with PGRST200 and blanks the whole profile — the user
-        // then loses account context everywhere (issue #294). A point
-        // lookup by id needs no relationship inference, so the profile
-        // (with account_id / account_role) still resolves even if the
-        // account name lookup itself can't.
-        let accountRow: AccountSummary | null = null;
-        if (data.account_id) {
-          const { data: account, error: accountErr } = await supabase
-            .from("accounts")
-            // default_currency added in migration 021, sla_response_minutes
-            // in migration 049, status_colors in migration 057; all
-            // narrowed to a fallback below for older schemas where
-            // they read null.
-            .select("id, name, default_currency, sla_response_minutes, status_colors")
-            .eq("id", data.account_id)
-            .maybeSingle();
-          if (accountErr) {
-            console.error("[AuthProvider] fetchAccount error:", {
-              message: accountErr.message,
-              details: accountErr.details,
-              hint: accountErr.hint,
-              code: accountErr.code,
-            });
-          } else if (account) {
-            // Read separately: `currencies` arrived in migration 068, and a
-            // select naming a missing column would fail the whole account
-            // lookup above. An error here just means "built-in list".
-            const { data: currencyRow } = await supabase
-              .from("accounts")
-              .select("currencies")
-              .eq("id", data.account_id)
-              .maybeSingle();
-            // Branding (migration 133), read on its own for the same
-            // reason: an error just means "neutral defaults".
-            const { data: brandRow } = await supabase
-              .from("accounts")
-              .select("brand_name, brand_logo_url, email_sender_name, email_reply_to, locale, timezone")
-              .eq("id", data.account_id)
-              .maybeSingle();
-            accountRow = {
-              id: account.id,
-              name: account.name,
-              currencies: resolveAccountCurrencies(currencyRow?.currencies),
-              default_currency: account.default_currency ?? DEFAULT_CURRENCY,
-              sla_response_minutes: account.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
-              status_colors: withStatusColorDefaults(account.status_colors),
-              brand_name: brandRow?.brand_name ?? null,
-              brand_logo_url: brandRow?.brand_logo_url ?? null,
-              email_sender_name: brandRow?.email_sender_name ?? null,
-              email_reply_to: brandRow?.email_reply_to ?? null,
-              locale: brandRow?.locale ?? null,
-              timezone: brandRow?.timezone ?? "UTC",
-            };
-          }
-        }
+      const data = json?.profile ?? null;
 
-        // Operator-set status/features (migration 132) and whether the
-        // caller is a platform operator. Both are best-effort reads: an
-        // error (older schema, transient) reads as the permissive
-        // default, never as a lock-out. The server enforces suspension
-        // on its own (getCurrentAccount / requireApiKey).
-        let platformRow: AccountPlatform = DEFAULT_PLATFORM;
-        if (data.account_id) {
-          const { data: pr, error: pe } = await supabase
-            .from("account_platform")
-            .select("status, plan, limits, features, suspended_reason, deletion_due_at")
-            .eq("account_id", data.account_id)
-            .maybeSingle();
-          if (!pe) platformRow = parsePlatformRow(pr);
-        }
+      if (data) {
+        const rawAccount = json?.account as {
+          id: string;
+          name: string;
+          default_currency?: string | null;
+          sla_response_minutes?: number | null;
+          status_colors?: unknown;
+          currencies?: unknown;
+          brand_name?: string | null;
+          brand_logo_url?: string | null;
+          email_sender_name?: string | null;
+          email_reply_to?: string | null;
+          locale?: string | null;
+          timezone?: string | null;
+        } | null;
+
+        const accountRow: AccountSummary | null = rawAccount
+          ? {
+              id: rawAccount.id,
+              name: rawAccount.name,
+              currencies: resolveAccountCurrencies(rawAccount.currencies),
+              default_currency: rawAccount.default_currency ?? DEFAULT_CURRENCY,
+              sla_response_minutes: rawAccount.sla_response_minutes ?? DEFAULT_SLA_MINUTES,
+              status_colors: withStatusColorDefaults(rawAccount.status_colors),
+              brand_name: rawAccount.brand_name ?? null,
+              brand_logo_url: rawAccount.brand_logo_url ?? null,
+              email_sender_name: rawAccount.email_sender_name ?? null,
+              email_reply_to: rawAccount.email_reply_to ?? null,
+              locale: rawAccount.locale ?? null,
+              timezone: rawAccount.timezone ?? "UTC",
+            }
+          : null;
+
+        // Operator-set status/features and whether the caller is a
+        // platform operator. Both are best-effort: an error (older
+        // schema, transient) reads as the permissive default, never as
+        // a lock-out. The server enforces suspension on its own.
+        const platformRow: AccountPlatform = parsePlatformRow(json?.platform ?? null);
         setPlatform(platformRow);
-        const { data: operator } = await supabase.rpc("is_platform_admin");
-        setIsPlatformAdmin(operator === true);
+        setIsPlatformAdmin(json?.isPlatformAdmin === true);
 
         // Narrow the DB enum into our AccountRole union. The DB
         // constraint should make this unconditional, but a future

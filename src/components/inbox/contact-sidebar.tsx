@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { useCapability } from "@/hooks/use-can";
 import { useTags } from "@/hooks/use-tags";
 import { toast } from "sonner";
@@ -77,28 +76,16 @@ export function ContactSidebar({
   const fetchContactData = useCallback(async () => {
     if (!contactId) return;
 
-    const supabase = createClient();
-
     // Fetch deals and tags in parallel (notes live in the column beside the chat).
-    const [dealsRes, tagsRes] = await Promise.all([
-      supabase
-        .from("deals")
-        .select("*, stage:pipeline_stages(*)")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("contact_tags")
-        .select("id, tag_id, tags(*)")
-        .eq("contact_id", contactId),
+    const [dealsJson, tagsJson] = await Promise.all([
+      fetch(`/api/deals?contactId=${encodeURIComponent(contactId)}&with_stage=true&limit=50`)
+        .then((r) => r.json()).catch(() => ({})),
+      fetch(`/api/contacts/${contactId}/tags?details=true`)
+        .then((r) => r.json()).catch(() => ({})),
     ]);
 
-    if (dealsRes.data) setDeals(dealsRes.data);
-    if (tagsRes.data) {
-      const mapped = tagsRes.data
-        .filter((ct: Record<string, unknown>) => ct.tags)
-        .map((ct: Record<string, unknown>) => ct.tags as Tag);
-      setTags(mapped);
-    }
+    if (dealsJson.deals) setDeals(dealsJson.deals);
+    if (tagsJson.tags) setTags(tagsJson.tags as Tag[]);
     // Keyed on the id, not the object: the inbox page re-creates the
     // contact whenever its tags change, which must not refetch deals.
   }, [contactId]);

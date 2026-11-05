@@ -12,7 +12,22 @@
 // ============================================================
 import { NextResponse } from "next/server";
 
-import { requireCapability, toErrorResponse } from "@/lib/auth/account";
+import { getCurrentAccount, requireCapability, toErrorResponse } from "@/lib/auth/account";
+
+export async function GET() {
+  try {
+    const ctx = await getCurrentAccount();
+    const { data, error } = await ctx.supabase
+      .from("accounts")
+      .select("incident_contact_name, incident_contact_role, incident_contact_mobile, incident_contact_email")
+      .eq("id", ctx.accountId)
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ contact: data });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
 
 export async function PATCH(request: Request) {
   try {

@@ -143,15 +143,14 @@ export function ProfileForm() {
       }
 
       // Persist name + avatar to profiles.
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          full_name: trimmedName,
-          avatar_url: nextAvatarUrl,
-        })
-        .eq('user_id', user.id);
-      if (updateError) {
-        throw new Error(t('saveFailed', { message: updateError.message }));
+      const profileRes = await fetch('/api/account/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: trimmedName, avatar_url: nextAvatarUrl }),
+      });
+      if (!profileRes.ok) {
+        const profileJson = await profileRes.json().catch(() => ({}));
+        throw new Error(t('saveFailed', { message: profileJson.error ?? 'unknown' }));
       }
 
       // Email change goes through Supabase Auth, which emails a

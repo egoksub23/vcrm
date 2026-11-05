@@ -1,14 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Profile } from "@/types";
 
-// The people in the caller's account, for assignee pickers, avatars and
-// @mentions. Shared across the ticket screens (a board card, a list row and
-// the open ticket all need names) and fetched once per session. RLS scopes
-// the read to the account.
 const EMPTY: Profile[] = [];
 let members: Profile[] = EMPTY;
 let loadedFor: string | null = null;
@@ -29,20 +24,21 @@ function subscribe(listener: () => void) {
 async function load(accountId: string) {
   if (inflight) return;
   inflight = true;
-  const { data, error } = await createClient().from("profiles").select("*").order("full_name");
-  inflight = false;
-  if (error) {
-    console.error("[useAccountMembers] fetch error:", error);
-    return;
+  try {
+    const res = await fetch("/api/account/profiles");
+    const { profiles } = (await res.json()) as { profiles?: Profile[] };
+    members = profiles ?? EMPTY;
+    loadedFor = accountId;
+    emit();
+  } catch (err) {
+    console.error("[useAccountMembers] fetch error:", err);
+  } finally {
+    inflight = false;
   }
-  members = (data as Profile[]) ?? EMPTY;
-  loadedFor = accountId;
-  emit();
 }
 
 export function useAccountMembers(): {
   members: Profile[];
-  /** A person's name, or `fallback` when unknown / unassigned. */
   nameOf: (userId: string | null | undefined, fallback?: string) => string;
   profileOf: (userId: string | null | undefined) => Profile | undefined;
 } {

@@ -20,7 +20,6 @@ import { Label } from "@/components/ui/label";
 import { useCapability } from "@/hooks/use-can";
 import { useAuth } from "@/hooks/use-auth";
 import { refreshTicketTypes, useTicketTypes } from "@/hooks/use-ticket-types";
-import { createClient } from "@/lib/supabase/client";
 import type { TicketType } from "@/types";
 import { SettingsChip } from "./settings-chip";
 import { SettingsPanelHead } from "./settings-panel-head";
@@ -72,18 +71,21 @@ export function TicketTypesSettings() {
   const save = async () => {
     if (!draft || !accountId || !canSave) return;
     setSaving(true);
-    const supabase = createClient();
-    const { error } = draft.id
-      ? await supabase.from("ticket_types").update({ name }).eq("id", draft.id)
-      : await supabase.from("ticket_types").insert({
-          account_id: accountId,
-          slug: slugify(name),
-          name,
-          position: types.reduce((max, ty) => Math.max(max, ty.position), 0) + 10,
-        });
+    const url = draft.id
+      ? `/api/account/ticket-types/${encodeURIComponent(draft.id)}`
+      : "/api/account/ticket-types";
+    const body = draft.id
+      ? { name }
+      : { name, slug: slugify(name), position: types.reduce((max, ty) => Math.max(max, ty.position), 0) + 10 };
+    const res = await fetch(url, {
+      method: draft.id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json().catch(() => null)) as { code?: string } | null;
     setSaving(false);
-    if (error) {
-      failure(error, name);
+    if (!res.ok) {
+      failure(json, name);
       return;
     }
     setDraft(null);
@@ -93,10 +95,15 @@ export function TicketTypesSettings() {
 
   const setActiveFlag = async (ty: TicketType, is_active: boolean) => {
     setBusyId(ty.id);
-    const { error } = await createClient().from("ticket_types").update({ is_active }).eq("id", ty.id);
+    const res = await fetch(`/api/account/ticket-types/${encodeURIComponent(ty.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active }),
+    });
+    const json = (await res.json().catch(() => null)) as { code?: string } | null;
     setBusyId(null);
-    if (error) {
-      failure(error, ty.name);
+    if (!res.ok) {
+      failure(json, ty.name);
       return;
     }
     await reload();
@@ -108,14 +115,21 @@ export function TicketTypesSettings() {
     const b = active[index + dir];
     if (!a || !b) return;
     setBusyId(a.id);
-    const supabase = createClient();
     const posA = a.position === b.position ? b.position + dir : b.position;
     const [r1, r2] = await Promise.all([
-      supabase.from("ticket_types").update({ position: posA }).eq("id", a.id),
-      supabase.from("ticket_types").update({ position: a.position }).eq("id", b.id),
+      fetch(`/api/account/ticket-types/${encodeURIComponent(a.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: posA }),
+      }),
+      fetch(`/api/account/ticket-types/${encodeURIComponent(b.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: a.position }),
+      }),
     ]);
     setBusyId(null);
-    if (r1.error || r2.error) toast.error(t("saveFailed"));
+    if (!r1.ok || !r2.ok) toast.error(t("saveFailed"));
     await reload();
     if (accountId) await refreshTicketTypes(accountId);
   };

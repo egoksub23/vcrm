@@ -7,7 +7,6 @@ import { ArrowDownUp, Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createClient } from "@/lib/supabase/client";
 import { endOfDueDay } from "@/lib/tickets/due";
 import { defaultsToResponse, mentionTokensFor, segmentBody, type MentionKind } from "@/lib/tickets/mentions";
 import type { LinkedTicket } from "@/hooks/use-ticket-detail";
@@ -171,13 +170,11 @@ export function TicketActivitySection({
   useEffect(() => {
     if (linkIds.length === 0) return;
     let cancelled = false;
-    void createClient()
-      .from("tickets")
-      .select("id, ticket_number")
-      .in("id", linkIds)
-      .then(({ data }) => {
+    void fetch(`/api/tickets?ids=${linkIds.map(encodeURIComponent).join(",")}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => {
         if (cancelled) return;
-        const found = Object.fromEntries(((data as { id: string; ticket_number: number }[]) ?? []).map((r) => [r.id, r.ticket_number]));
+        const found = Object.fromEntries(((json.tickets as { id: string; ticket_number: number }[]) ?? []).map((r) => [r.id, r.ticket_number]));
         // Ids that no longer exist are remembered as 0 so they are not asked for again.
         setExtraKeys((prev) => ({ ...prev, ...Object.fromEntries(linkIds.map((id) => [id, found[id] ?? 0])) }));
       });

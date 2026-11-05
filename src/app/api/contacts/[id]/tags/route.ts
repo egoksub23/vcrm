@@ -21,6 +21,39 @@ async function readTagId(request: Request): Promise<string | null> {
     : null;
 }
 
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const ctx = await requireCapability('contacts.view');
+    const { id: contactId } = await params;
+    const { searchParams } = new URL(req.url);
+    const details = searchParams.get('details') === 'true';
+
+    if (details) {
+      const { data, error } = await ctx.supabase
+        .from('contact_tags')
+        .select('id, tag_id, tags(*)')
+        .eq('contact_id', contactId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      const tags = (data ?? [])
+        .filter((ct: Record<string, unknown>) => ct.tags)
+        .map((ct: Record<string, unknown>) => ct.tags);
+      return NextResponse.json({ tags });
+    }
+
+    const { data, error } = await ctx.supabase
+      .from('contact_tags')
+      .select('tag_id')
+      .eq('contact_id', contactId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ tagIds: (data ?? []).map((r: { tag_id: string }) => r.tag_id) });
+  } catch (error) {
+    return toErrorResponse(error);
+  }
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

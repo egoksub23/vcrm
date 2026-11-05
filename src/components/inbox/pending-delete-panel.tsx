@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import {
   Sheet,
   SheetContent,
@@ -85,17 +84,8 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("messages")
-      .select(
-        "id, content_text, channel_type, pending_delete_at, conversation_id, media_url, conversation:conversations(contact:contacts(name, phone, email, wallet_id))",
-      )
-      .eq("pending_delete", true)
-      .order("pending_delete_at", { ascending: false });
-    if (!error && data) {
-      setRows(data as unknown as PendingDeleteRow[]);
-    }
+    const res = await fetch("/api/messages/pending").then((r) => r.json()).catch(() => ({ messages: [] }));
+    setRows((res.messages as PendingDeleteRow[]) ?? []);
     setLoading(false);
   }, []);
 
@@ -109,12 +99,8 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
     async (id: string) => {
       if (!canDelete) return;
       setBusyId(id);
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("messages")
-        .update({ pending_delete: false, pending_delete_at: null })
-        .eq("id", id);
-      if (error) {
+      const res = await fetch("/api/messages/pending", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restore", id }) });
+      if (!res.ok) {
         toast.error(t("restoreFailed"));
       } else {
         setRows((prev) => prev.filter((r) => r.id !== id));
@@ -130,9 +116,8 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
     async (id: string) => {
       if (!canDelete) return;
       setBusyId(id);
-      const supabase = createClient();
-      const { error } = await supabase.from("messages").delete().eq("id", id);
-      if (error) {
+      const res = await fetch("/api/messages/pending", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id }) });
+      if (!res.ok) {
         toast.error(t("deleteFailed"));
       } else {
         gcMedia(rows.filter((r) => r.id === id));
@@ -148,9 +133,8 @@ export function PendingDeletePanel({ open, onOpenChange, onChanged }: PendingDel
   const emptyTrash = useCallback(async () => {
     if (!canDelete) return;
     setEmptying(true);
-    const supabase = createClient();
-    const { error } = await supabase.from("messages").delete().eq("pending_delete", true);
-    if (error) {
+    const res = await fetch("/api/messages/pending", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "empty" }) });
+    if (!res.ok) {
       toast.error(t("deleteFailed"));
     } else {
       gcMedia(rows);

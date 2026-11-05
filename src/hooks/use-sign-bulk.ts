@@ -3,15 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { mergeKeysOf } from "@/lib/sign/client/layout";
 import { nextPollMs } from "@/lib/sign/client/bulk";
 import { SignApiError, signRequest } from "@/lib/sign/client/api";
-import { roleInfos } from "@/lib/sign/bulk/plan";
 import type { BulkJobView, BulkRoleInfo, BulkRowView } from "@/lib/sign/bulk/types";
-import type { PlacedField } from "@/lib/sign/pdf/types";
-import type { SignRole } from "@/lib/sign/types";
-import { createClient } from "@/lib/supabase/client";
-
 export interface TemplateFacts {
   roles: BulkRoleInfo[];
   mergeKeys: string[];
@@ -35,17 +29,10 @@ export function useTemplateFacts(templateId: string | null): { facts: TemplateFa
     let cancelled = false;
     void (async () => {
       try {
-        const supabase = createClient();
-        const t = await supabase.from("sign_templates").select("current_version_id").eq("id", templateId).maybeSingle();
-        if (t.error) throw t.error;
-        const versionId = (t.data as { current_version_id: string | null } | null)?.current_version_id;
-        if (!versionId) throw new Error("no version");
-        const v = await supabase.from("sign_template_versions").select("roles, fields").eq("id", versionId).maybeSingle();
-        if (v.error || !v.data) throw v.error ?? new Error("no version");
-        const row = v.data as { roles: SignRole[]; fields: PlacedField[] };
-        const fields = Array.isArray(row.fields) ? row.fields : [];
-        const roles = Array.isArray(row.roles) ? row.roles : [];
-        if (!cancelled) setLoaded({ templateId, facts: { roles: roleInfos(roles, fields), mergeKeys: mergeKeysOf(fields).map((k) => k.key) } });
+        const res = await fetch(`/api/sign/templates/${encodeURIComponent(templateId)}/facts`);
+        if (!res.ok) throw new Error("fetch failed");
+        const { facts } = (await res.json()) as { facts?: TemplateFacts | null };
+        if (!cancelled) setLoaded({ templateId, facts: facts ?? null });
       } catch (err) {
         console.error("[useTemplateFacts] fetch error:", err);
         if (!cancelled) setLoaded({ templateId, facts: null });

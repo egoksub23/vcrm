@@ -5,8 +5,6 @@
 
 import { useEffect, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
-
 /** The names of the workspace's contact fields (`custom_fields`), for mapping an answer to one. Empty until read. */
 export function useCustomContactFields(): string[] {
   const [names, setNames] = useState<string[]>([]);
@@ -14,8 +12,12 @@ export function useCustomContactFields(): string[] {
     let cancelled = false;
     void (async () => {
       try {
-        const { data } = await createClient().from("custom_fields").select("field_name").order("field_name");
-        if (!cancelled && data) setNames((data as { field_name: string }[]).map((r) => r.field_name).filter((n) => typeof n === "string" && n.length > 0));
+        const res = await fetch("/api/account/custom-fields");
+        const json = res.ok ? await res.json().catch(() => null) : null;
+        if (!cancelled && json?.fields) {
+          const fields = json.fields as Array<{ field_name?: string } | string>;
+          setNames(fields.map((f) => (typeof f === "string" ? f : (f.field_name ?? ""))).filter(Boolean));
+        }
       } catch {
         // without the list the built-in contact fields still work
       }
@@ -42,8 +44,9 @@ export function useTemplateUsed(versionIds: readonly string[]): boolean | null {
         return;
       }
       try {
-        const { count, error } = await createClient().from("sign_documents").select("id", { count: "exact", head: true }).in("template_version_id", ids.split(","));
-        if (!cancelled) setUsed(error ? null : (count ?? 0) > 0);
+        const res = await fetch(`/api/sign/documents/count?templateVersionIds=${encodeURIComponent(ids)}`);
+        const json = res.ok ? await res.json().catch(() => null) : null;
+        if (!cancelled) setUsed(json == null ? null : (json.count ?? 0) > 0);
       } catch {
         if (!cancelled) setUsed(null);
       }

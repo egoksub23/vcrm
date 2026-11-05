@@ -1,17 +1,29 @@
 // ============================================================
 // /api/account/incidents/escalation-recipients
 //
+//   GET  — returns { recipients: { id, level, user_id }[] }
 //   POST — body `{ level: 2 | 3, user_id: string }`. Adds one explicit
 //          recipient override for that escalation level. Idempotent —
 //          a duplicate add is a 409, not a 500 (the table's UNIQUE
 //          (account_id, level, user_id) is what actually enforces this).
-//
-// No GET — RLS already lets every account member read
-// incident_escalation_recipients directly.
 // ============================================================
 import { NextResponse } from "next/server";
 
-import { requireCapability, toErrorResponse } from "@/lib/auth/account";
+import { getCurrentAccount, requireCapability, toErrorResponse } from "@/lib/auth/account";
+
+export async function GET() {
+  try {
+    const ctx = await getCurrentAccount();
+    const { data, error } = await ctx.supabase
+      .from("incident_escalation_recipients")
+      .select("id, level, user_id")
+      .eq("account_id", ctx.accountId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ recipients: data ?? [] });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
 
 export async function POST(request: Request) {
   try {

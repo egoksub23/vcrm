@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { createClient } from "@/lib/supabase/client";
 
 export interface ActiveTemplate {
   id: string;
@@ -35,25 +34,11 @@ export function useActiveTemplates(): { templates: ActiveTemplate[]; loading: bo
     let cancelled = false;
     void (async () => {
       try {
-        const supabase = createClient();
-        const t = await supabase.from("sign_templates").select("id, name, description, category_id, current_version_id, mode").eq("status", "active").order("name", { ascending: true });
-        if (t.error) throw t.error;
-        const list = ((t.data as { id: string; name: string; description: string | null; category_id: string | null; current_version_id: string | null; mode?: string | null }[] | null) ?? []).filter((x) => x.current_version_id);
-        const versionIds = list.map((x) => x.current_version_id as string);
-        const info = new Map<string, { pages: number; roles: number }>();
-        if (versionIds.length) {
-          const v = await supabase.from("sign_template_versions").select("id, page_count, roles").in("id", versionIds);
-          if (v.error) throw v.error;
-          for (const row of (v.data as { id: string; page_count: number; roles: unknown }[] | null) ?? []) {
-            info.set(row.id, { pages: row.page_count, roles: Array.isArray(row.roles) ? row.roles.length : 0 });
-          }
-        }
+        const res = await fetch("/api/sign/templates");
+        if (!res.ok) throw new Error("fetch failed");
+        const { templates } = (await res.json()) as { templates?: ActiveTemplate[] };
         if (cancelled) return;
-        setLoaded({
-          accountId,
-          error: false,
-          rows: list.map((x) => ({ id: x.id, name: x.name, description: x.description, category_id: x.category_id, pages: info.get(x.current_version_id as string)?.pages ?? 0, roles: info.get(x.current_version_id as string)?.roles ?? 0, mode: x.mode === "form" ? "form" : "sign" })),
-        });
+        setLoaded({ accountId, error: false, rows: templates ?? [] });
       } catch (err) {
         if (cancelled) return;
         console.error("[useActiveTemplates] fetch error:", err);

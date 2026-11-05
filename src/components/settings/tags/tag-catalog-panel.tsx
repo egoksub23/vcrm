@@ -14,7 +14,6 @@ import { notifyApprovalsChanged } from '@/hooks/use-approvals-count';
 import { withdrawProposal } from '@/lib/approvals/client';
 import { canWithdraw, chipState, isUsable } from '@/lib/approvals/rules';
 import { downloadCsv } from '@/lib/csv';
-import { createClient } from '@/lib/supabase/client';
 import { isContactTag, isConversationLabel } from '@/lib/tags/scope';
 import { tagsToCsv, type TagKind } from '@/lib/tags/tag-csv';
 import { Button } from '@/components/ui/button';
@@ -91,30 +90,29 @@ export function TagCatalogPanel({
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
-    const supabase = createClient();
     const [tagsRes, usageRes, profilesRes] = await Promise.all([
-      supabase.from('tags').select('*').order('name'),
-      supabase.from('tag_usage_counts').select('tag_id, contact_count, conversation_count'),
-      supabase.from('profiles').select('user_id, full_name, email'),
+      fetch('/api/account/tags?all=true').then((r) => r.json()).catch(() => null) as Promise<{ tags?: Tag[] } | null>,
+      fetch('/api/account/tag-usage-counts').then((r) => r.json()).catch(() => null) as Promise<{ counts?: { tag_id: string; contact_count: number; conversation_count: number }[] } | null>,
+      fetch('/api/account/profiles').then((r) => r.json()).catch(() => null) as Promise<{ profiles?: { user_id: string; full_name: string | null; email: string | null }[] } | null>,
     ]);
-    if (tagsRes.error) {
-      console.error('[TagCatalogPanel] load failed:', tagsRes.error);
+    if (!tagsRes?.tags) {
+      console.error('[TagCatalogPanel] load failed');
       toast.error(t('loadFailed'));
     }
-    setTags((tagsRes.data as Tag[]) ?? []);
+    setTags(tagsRes?.tags ?? []);
     setUsage(
       new Map(
-        (usageRes.data ?? []).map((u) => [
-          u.tag_id as string,
-          { contacts: u.contact_count as number, conversations: u.conversation_count as number },
+        (usageRes?.counts ?? []).map((u) => [
+          u.tag_id,
+          { contacts: u.contact_count, conversations: u.conversation_count },
         ]),
       ),
     );
     setCreators(
       new Map(
-        (profilesRes.data ?? []).map((p) => [
-          p.user_id as string,
-          ((p.full_name as string | null) || (p.email as string | null) || '').trim(),
+        (profilesRes?.profiles ?? []).map((p) => [
+          p.user_id,
+          ((p.full_name) || (p.email) || '').trim(),
         ]),
       ),
     );
@@ -172,10 +170,10 @@ export function TagCatalogPanel({
   async function handleDelete() {
     if (!toDelete) return;
     setDeleting(true);
-    const { error } = await createClient().from('tags').delete().eq('id', toDelete.id);
+    const res = await fetch(`/api/account/tags/${encodeURIComponent(toDelete.id)}`, { method: 'DELETE' });
     setDeleting(false);
-    if (error) {
-      console.error('[TagCatalogPanel] delete failed:', error);
+    if (!res.ok) {
+      console.error('[TagCatalogPanel] delete failed');
       toast.error(t('deleteFailed'));
       return;
     }

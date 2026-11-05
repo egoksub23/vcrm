@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { createClient } from "@/lib/supabase/client";
 import type { SignSettingsRow } from "@/lib/sign/types";
 
 export interface SignCategory {
@@ -23,10 +22,6 @@ interface Loaded<T> {
   value: T;
 }
 
-/**
- * The workspace's document categories (archived ones included, so an old document can still name its
- * category; the pickers list only the live ones). Read through row level security (menu.sign).
- */
 export function useSignCategories(): { categories: SignCategory[]; live: SignCategory[]; loading: boolean } {
   const { accountId } = useAuth();
   const [loaded, setLoaded] = useState<Loaded<SignCategory[]> | null>(null);
@@ -34,16 +29,17 @@ export function useSignCategories(): { categories: SignCategory[]; live: SignCat
   useEffect(() => {
     if (!accountId) return;
     let cancelled = false;
-    void (async () => {
-      const { data, error } = await createClient()
-        .from("sign_categories")
-        .select("id, key, name, archived, expiry_days, reminder_days, code_required, sign_in_order, position")
-        .order("position", { ascending: true })
-        .order("name", { ascending: true });
-      if (cancelled) return;
-      if (error) console.error("[useSignCategories] fetch error:", error);
-      setLoaded({ accountId, value: error ? [] : ((data as SignCategory[]) ?? []) });
-    })();
+    fetch("/api/sign/categories")
+      .then((r) => r.json())
+      .then(({ categories }: { categories?: SignCategory[] }) => {
+        if (cancelled) return;
+        setLoaded({ accountId, value: categories ?? [] });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("[useSignCategories] fetch error:", err);
+        setLoaded({ accountId, value: [] });
+      });
     return () => {
       cancelled = true;
     };
@@ -53,7 +49,6 @@ export function useSignCategories(): { categories: SignCategory[]; live: SignCat
   return { categories, live: categories.filter((c) => !c.archived), loading: !loaded || loaded.accountId !== accountId };
 }
 
-/** The workspace's Doc Sign settings row (defaults for expiry, reminders, language), or null when there is none yet. */
 export function useSignSettings(): { settings: SignSettingsRow | null; loading: boolean } {
   const { accountId } = useAuth();
   const [loaded, setLoaded] = useState<Loaded<SignSettingsRow | null> | null>(null);
@@ -61,12 +56,17 @@ export function useSignSettings(): { settings: SignSettingsRow | null; loading: 
   useEffect(() => {
     if (!accountId) return;
     let cancelled = false;
-    void (async () => {
-      const { data, error } = await createClient().from("sign_settings").select("*").maybeSingle();
-      if (cancelled) return;
-      if (error) console.error("[useSignSettings] fetch error:", error);
-      setLoaded({ accountId, value: error ? null : ((data as SignSettingsRow | null) ?? null) });
-    })();
+    fetch("/api/sign/settings/basic")
+      .then((r) => r.json())
+      .then(({ settings }: { settings?: SignSettingsRow | null }) => {
+        if (cancelled) return;
+        setLoaded({ accountId, value: settings ?? null });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("[useSignSettings] fetch error:", err);
+        setLoaded({ accountId, value: null });
+      });
     return () => {
       cancelled = true;
     };

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Coins, ListPlus, Loader2, Plus, Trash2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
 import { useAuth, useCapability } from "@/hooks/use-auth";
 import {
   CURRENCIES,
@@ -42,7 +41,6 @@ import { SettingsPanelHead } from "./settings-panel-head";
  * non-admins see disabled, read-only controls.
  */
 export function DealsSettings() {
-  const supabase = createClient();
   const {
     accountId,
     defaultCurrency,
@@ -73,17 +71,16 @@ export function DealsSettings() {
   async function handleSave() {
     if (!accountId || !dirty) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("accounts")
-      .update({ default_currency: selected })
-      .eq("id", accountId);
-    if (error) {
+    const res = await fetch("/api/account/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ default_currency: selected }),
+    });
+    if (!res.ok) {
       toast.error(t("saveFailed"));
       setSaving(false);
       return;
     }
-    // Pull the new value back into the auth context so the deal form
-    // and every total pick it up without a full reload.
     await refreshProfile();
     setSaving(false);
     toast.success(t("saveSuccess"));
@@ -92,12 +89,13 @@ export function DealsSettings() {
   async function saveList(next: CurrencyOption[], successMessage: string): Promise<boolean> {
     if (!accountId) return false;
     setSavingList(true);
-    const { error } = await supabase
-      .from("accounts")
-      .update({ currencies: serializeCurrencies(next) })
-      .eq("id", accountId);
-    if (error) {
-      console.error("[DealsSettings] save currencies failed:", error);
+    const res = await fetch("/api/account/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currencies: serializeCurrencies(next) }),
+    });
+    if (!res.ok) {
+      console.error("[DealsSettings] save currencies failed");
       toast.error(t("saveCurrenciesFailed"));
       setSavingList(false);
       return false;
