@@ -34,9 +34,9 @@ services:
         max-size: '20m'
         max-file: '5'
     # Filesystem storage: host directory → /app/storage inside the container.
-    # Create /opt/wacrm-storage on the VPS before first deploy.
+    # Create /opt/halo-storage on the VPS before first deploy.
     volumes:
-      - /opt/wacrm-storage:/app/storage
+      - /opt/halo-storage:/app/storage
     # The second network reaches the Secure Sign converter below. It has no way out to the internet.
     networks:
       - default
