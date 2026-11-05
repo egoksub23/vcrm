@@ -21,7 +21,7 @@ import { PRIVATE_MEDIA_BUCKET, PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-u
 // (remote pictures, data: URLs, file: paths) is ignored, never inserted.
 // ============================================================
 
-/** Where this project's public files live (public-assets). */
+/** Where this project's public files live (public-assets), Supabase Storage form. */
 export function ownImagePrefix(): string | null {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) return null;
@@ -38,12 +38,27 @@ function legacyImagePrefix(): string | null {
   return prefix ? prefix.replace(`/${PUBLIC_MEDIA_BUCKET}/`, `/${PRIVATE_MEDIA_BUCKET}/`) : null;
 }
 
-/** True for a URL of one of this project's public files. */
+/** Where this project's public files live when served by the filesystem provider. */
+function ownFsImagePrefix(): string | null {
+  const base = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!base) return null;
+  try {
+    return `${new URL(base).origin}/api/fs/${PUBLIC_MEDIA_BUCKET}/`;
+  } catch {
+    return null;
+  }
+}
+
+/** True for a URL of one of this project's public files (Supabase Storage or filesystem). */
 export function isOwnImageUrl(src: string | null | undefined): boolean {
+  if (!src) return false;
   const prefix = ownImagePrefix();
-  if (!src || !prefix) return false;
+  if (prefix && src.startsWith(prefix)) return true;
   const legacy = legacyImagePrefix();
-  return src.startsWith(prefix) || (!!legacy && src.startsWith(legacy));
+  if (legacy && src.startsWith(legacy)) return true;
+  const fsPrefix = ownFsImagePrefix();
+  if (fsPrefix && src.startsWith(fsPrefix)) return true;
+  return false;
 }
 
 export interface InlineImageOptions {

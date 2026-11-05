@@ -316,11 +316,13 @@ function safeHref(raw: string | undefined): string | null {
 // keeps the same path), so an article saved in between keeps its images.
 // ------------------------------------------------------------
 
-/** Where an account's article images may live. `publicBaseUrl` is the
- *  project's Supabase URL (e.g. `https://abc.supabase.co`). */
+/** Where an account's article images may live.
+ *  `publicBaseUrl` is the Supabase URL (for files uploaded before the filesystem migration).
+ *  `fsBaseUrl` is the app's own origin (for files uploaded via /api/media/upload). */
 export interface KbImagePolicy {
   accountId: string
   publicBaseUrl: string
+  fsBaseUrl?: string
 }
 
 const ACCOUNT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -366,23 +368,62 @@ export function kbImageUrlForPath(policy: KbImagePolicy | null | undefined, stor
   return `${prefix}${rest}`
 }
 
+/** The URL prefix for images uploaded to the filesystem provider's public-assets bucket. */
+export function kbFsImageUrlPrefix(policy: KbImagePolicy | null | undefined): string | null {
+  if (!policy || !ACCOUNT_ID.test(policy.accountId) || !policy.fsBaseUrl) return null
+  let url: URL
+  try { url = new URL(policy.fsBaseUrl) } catch { return null }
+  if (url.username || url.password) return null
+  const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) return null
+  return `${url.origin}/api/fs/${PUBLIC_MEDIA_BUCKET}/account-${policy.accountId}/`
+}
+
+/** Filesystem-provider URL for a storage path, or null. */
+export function kbFsImageUrlForPath(policy: KbImagePolicy | null | undefined, storagePath: string): string | null {
+  const prefix = kbFsImageUrlPrefix(policy)
+  if (!prefix || !policy) return null
+  const own = `account-${policy.accountId}/`
+  if (!storagePath.startsWith(own)) return null
+  const rest = storagePath.slice(own.length)
+  if (!isPlainImagePath(rest)) return null
+  return `${prefix}${rest}`
+}
+
+/** All valid URL forms for a storage path: Supabase URL and/or filesystem URL. */
+export function kbImageUrlsForPath(policy: KbImagePolicy | null | undefined, storagePath: string): string[] {
+  const urls: string[] = []
+  const supabase = kbImageUrlForPath(policy, storagePath)
+  if (supabase) urls.push(supabase)
+  const fs = kbFsImageUrlForPath(policy, storagePath)
+  if (fs) urls.push(fs)
+  return urls
+}
+
 function isPlainImagePath(rest: string): boolean {
   return rest.length > 0 && rest.length <= MAX_IMAGE_PATH_CHARS && !rest.includes('..') && IMAGE_PATH.test(rest)
 }
 
-/** The image `src` to keep, or null. The value must already be exactly the
- *  canonical public URL: nothing is cleaned up on the way (a stray space,
- *  control character or encoded dot is a rejection, not a repair). */
+/** The image `src` to keep, or null. Accepts both Supabase Storage URLs (old images) and
+ *  filesystem /api/fs/ URLs (new images). Nothing is cleaned up on the way — a stray space,
+ *  control character or encoded dot is a rejection, not a repair. */
 export function safeImageSrc(raw: string | undefined, policy: KbImagePolicy | null | undefined): string | null {
   if (!raw) return null
   const prefix = kbImageUrlPrefix(policy)
-  if (!prefix) return null
+  const fsPrefix = kbFsImageUrlPrefix(policy)
+  if (!prefix && !fsPrefix) return null
   let src = decodeEntities(raw)
   if (src.length > MAX_IMAGE_SRC_CHARS) return null
-  const legacy = legacyKbImageUrlPrefix(policy)
-  if (legacy && src.startsWith(legacy)) src = prefix + src.slice(legacy.length)
-  if (!src.startsWith(prefix)) return null
-  return isPlainImagePath(src.slice(prefix.length)) ? src : null
+  // Legacy migration: chat-media → public-assets
+  if (prefix) {
+    const legacy = legacyKbImageUrlPrefix(policy)
+    if (legacy && src.startsWith(legacy)) src = prefix + src.slice(legacy.length)
+    if (src.startsWith(prefix)) return isPlainImagePath(src.slice(prefix.length)) ? src : null
+  }
+  if (fsPrefix && src.startsWith(fsPrefix)) {
+    return isPlainImagePath(src.slice(fsPrefix.length)) ? src : null
+  }
+  return null
 }
 
 /** A rule that keeps an image only when it is this account's own file (and,
@@ -391,7 +432,7 @@ function imageRuleFor(
   policy: KbImagePolicy | null | undefined,
   onlyUrls?: ReadonlySet<string>,
 ): ImageRule {
-  if (!kbImageUrlPrefix(policy)) return null
+  if (!kbImageUrlPrefix(policy) && !kbFsImageUrlPrefix(policy)) return null
   return (raw) => {
     const src = safeImageSrc(raw, policy)
     return src !== null && (!onlyUrls || onlyUrls.has(src)) ? src : null

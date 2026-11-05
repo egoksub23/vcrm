@@ -1,4 +1,4 @@
-import { kbImageUrlForPath, listKbImages, type KbImagePolicy } from '@/lib/knowledge-format'
+import { kbImageUrlsForPath, listKbImages, type KbImagePolicy } from '@/lib/knowledge-format'
 import type { StagedKnowledgeAttachment } from '@/lib/knowledge-types'
 
 // ============================================================
@@ -11,12 +11,16 @@ import type { StagedKnowledgeAttachment } from '@/lib/knowledge-types'
 // so the routes stay thin and the editor and the server agree.
 // ============================================================
 
-/** The images policy for an account, from the project's public Supabase URL.
- *  Null when the URL is not configured (then no article image is accepted). */
+/** The images policy for an account.
+ *  Null when neither a Supabase URL nor a site URL is configured. */
 export function kbImagePolicy(accountId: string): KbImagePolicy | null {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL
   if (!base) return null
-  return { accountId, publicBaseUrl: base }
+  return {
+    accountId,
+    publicBaseUrl: base,
+    fsBaseUrl: process.env.NEXT_PUBLIC_SITE_URL ?? undefined,
+  }
 }
 
 /**
@@ -73,13 +77,24 @@ export function reconcileInlineImages(input: {
   const { html, items, policy } = input
   // Images the sanitiser kept are, by construction, this account's own files.
   const srcs = listKbImages(html, { images: policy }).map((i) => i.src)
-  const urlOf = (item: StagedKnowledgeAttachment) => kbImageUrlForPath(policy, item.storage_path)
+  const srcSet = new Set(srcs)
 
+  // Returns the URL form that's actually in the HTML (Supabase or /api/fs/), or the
+  // first available form for items not in the HTML (non-inline attachments).
+  const urlOf = (item: StagedKnowledgeAttachment): string | null => {
+    const urls = kbImageUrlsForPath(policy, item.storage_path)
+    for (const url of urls) { if (srcSet.has(url)) return url }
+    return urls[0] ?? null
+  }
+
+  // Index every item under all its valid URL forms so old (Supabase) and new (/api/fs/) srcs both resolve.
   const known = new Map<string, StagedKnowledgeAttachment>()
   for (const item of items) {
-    const url = urlOf(item)
-    if (url !== null) known.set(url, item)
+    for (const url of kbImageUrlsForPath(policy, item.storage_path)) {
+      known.set(url, item)
+    }
   }
+
   const extra = new Set(input.extraUrls ?? [])
   for (const src of srcs) {
     if (extra.has(src)) continue
@@ -92,12 +107,11 @@ export function reconcileInlineImages(input: {
     }
   }
 
-  const used = new Set(srcs)
   const reconciled = items.map((item) => {
     if (!item.inline) return item
     const url = urlOf(item)
     const isImage = item.mime_type.toLowerCase().startsWith('image/')
-    return url !== null && used.has(url) && isImage ? item : { ...item, inline: false }
+    return url !== null && srcSet.has(url) && isImage ? item : { ...item, inline: false }
   })
   return { ok: true, items: orderForDocument(reconciled, srcs, urlOf) }
 }
