@@ -16,6 +16,7 @@
 // person's own user id AND the workspace, never by a signer id from the browser.
 // ============================================================
 
+import { getPool } from "@/lib/postgres/client";
 import { signersWithUndelivered } from "@/components/sign/detail/logic";
 
 import { isOwnAddress, normalizeEmail } from "../test-mode";
@@ -128,21 +129,11 @@ async function loginAddresses(ctx: SignCtx, userId: string): Promise<string[]> {
   const profile = (p.data as { email?: string | null } | null)?.email;
   if (profile?.trim()) found.add(normalizeEmail(profile));
   try {
-    const userRes = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${userId}`,
-      {
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        },
-      },
-    );
-    if (userRes.ok) {
-      const u = await userRes.json() as { email?: string };
-      if (u.email) found.add(normalizeEmail(u.email));
-    }
+    const sql = getPool();
+    const rows = await sql`SELECT email FROM auth.users WHERE id = ${userId} AND deleted_at IS NULL LIMIT 1` as unknown as Array<{ email: string }>;
+    if (rows[0]?.email) found.add(normalizeEmail(rows[0].email));
   } catch {
-    // the profile's address is enough when the sign-in record cannot be read
+    // the profile's address is enough when the auth record cannot be read
   }
   return [...found];
 }

@@ -18,6 +18,7 @@
 // document is under "Awaiting my signature" and can be opened from inside Halo with no email at all.
 // ============================================================
 
+import { getPool } from "@/lib/postgres/client";
 import { planTestSigners, nameFromEmail, normalizeEmail, type TestPlan } from "../test-mode";
 import type { SignDocumentRow } from "../types";
 import { loadDocument, type SignCtx } from "./context";
@@ -46,21 +47,11 @@ export async function ownAddresses(ctx: SignCtx): Promise<{ addresses: string[];
     if (row?.email?.trim()) found.add(normalizeEmail(row.email));
     if (row?.full_name?.trim()) name = row.full_name.trim();
     try {
-      const userRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${ctx.userId}`,
-        {
-          headers: {
-            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          },
-        },
-      );
-      if (userRes.ok) {
-        const u = await userRes.json() as { email?: string };
-        if (u.email) found.add(normalizeEmail(u.email));
-      }
+      const sql = getPool();
+      const rows = await sql`SELECT email FROM auth.users WHERE id = ${ctx.userId} AND deleted_at IS NULL LIMIT 1` as unknown as Array<{ email: string }>;
+      if (rows[0]?.email) found.add(normalizeEmail(rows[0].email));
     } catch {
-      // the profile's address is enough when the sign-in record cannot be read
+      // the profile's address is enough when the auth record cannot be read
     }
   }
   return { addresses: [...found], name };

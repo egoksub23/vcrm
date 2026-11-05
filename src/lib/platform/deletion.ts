@@ -1,4 +1,5 @@
 import { type PgDb } from '@/lib/postgres/db'
+import { getPool } from '@/lib/postgres/client'
 // ============================================================
 // Running a workspace deletion (migration 153).
 //
@@ -54,23 +55,10 @@ async function removeByPrefix(db: PgDb, prefix: string): Promise<number> {
 }
 
 async function deleteLogins(_db: PgDb, ids: string[]): Promise<void> {
-  for (const id of ids) {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${id}`,
-      {
-        method: 'DELETE',
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        },
-      },
-    )
-    // 404 = already gone is fine (a resumed run)
-    if (!res.ok && res.status !== 404) {
-      const body = await res.json().catch(() => ({})) as { message?: string }
-      throw new Error(`delete login: ${body.message ?? res.statusText}`)
-    }
-  }
+  if (ids.length === 0) return;
+  const sql = getPool();
+  // soft-delete: sets deleted_at so the row is excluded from lookups but kept for audit
+  await sql`UPDATE auth.users SET deleted_at = NOW() WHERE id = ANY(${ids}::uuid[])`;
 }
 
 async function note(
