@@ -1,18 +1,17 @@
-import { createClient } from "@/lib/supabase/client";
-
 /**
- * Shared media-upload helper for Supabase Storage buckets that use the
- * account-scoped path convention introduced in migration 020
- * (`flow-media`) and reused by migration 023 (`chat-media`, private since
- * wave C1) and the public `public-assets` bucket:
+ * Shared media-upload helper.
+ *
+ * Uploads are routed through POST /api/media/upload (server-side), which
+ * resolves the account, picks the active storage provider, and returns the
+ * stored path and URL. This keeps storage credentials server-side and lets
+ * the provider change (filesystem → S3) without touching client code.
+ *
+ * Account-scoped path convention (unchanged from the Supabase era):
  *
  *   <bucket>/account-<account_id>/<timestamp>-<basename>.<ext>
  *
- * The first path segment (`account-<uuid>`) is what the bucket's RLS
- * write policies match on, so every caller MUST go through here rather
- * than hand-rolling a path — a mismatched segment is silently rejected
- * by RLS. Both the Flows builder (`node-config-form`) and the inbox
- * composer call this so the logic lives in exactly one place.
+ * Both the Flows builder (`node-config-form`) and the inbox composer call
+ * this so the logic lives in exactly one place.
  */
 
 /** 16 MB — matches the `file_size_limit` on both buckets (migrations 016/020/023). */
@@ -92,10 +91,10 @@ export interface UploadAccountMediaResult {
 }
 
 /**
- * Upload a file to an account-scoped Storage bucket and return its stored
- * URL (a public link for `public-assets`, an identifier for the private
- * `chat-media`; see `UploadAccountMediaResult`). Throws with a user-facing message on auth / account-resolution /
- * upload failure — callers surface it via a toast.
+ * Upload a file to an account-scoped storage bucket and return its stored
+ * URL (a public link for `public-assets`, an identifier for private buckets;
+ * see `UploadAccountMediaResult`). Throws with a user-facing message on
+ * auth / account-resolution / upload failure — callers surface it via a toast.
  *
  * Size validation is the caller's responsibility (limits can differ per
  * feature); `MEDIA_MAX_BYTES` is exported for the common case.
@@ -108,56 +107,24 @@ export async function uploadAccountMedia(
   file: File,
   subfolder?: string,
 ): Promise<UploadAccountMediaResult> {
-  const supabase = createClient();
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("bucket", bucket);
+  if (subfolder) formData.append("subfolder", subfolder);
 
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabase.auth.getUser();
-  if (userErr || !user) {
-    throw new Error("Not signed in.");
+  const res = await fetch("/api/media/upload", { method: "POST", body: formData });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "Upload failed");
+    throw new Error(msg || "Upload failed");
   }
-
-  // Resolve account_id so the path is account-scoped (matches the
-  // bucket's RLS write policy from migration 020/023). User-scoped
-  // paths would be rejected.
-  const { data: profile, error: profileErr } = await supabase
-    .from("profiles")
-    .select("account_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (profileErr || !profile?.account_id) {
-    throw new Error("Could not resolve your account.");
-  }
-
-  const path = buildMediaPath(
-    profile.account_id as string,
-    file.name,
-    Date.now(),
-    subfolder,
-  );
-  const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, {
-    cacheControl: "3600",
-    upsert: false,
-    // Some files (.pptx from certain browsers, unknown extensions) arrive
-    // with an empty type; the bucket's allow-list accepts the generic one.
-    contentType: file.type || "application/octet-stream",
-  });
-  if (upErr) throw new Error(upErr.message);
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(bucket).getPublicUrl(path);
-
+  const { path, publicUrl } = (await res.json()) as { path: string; publicUrl: string };
   return { publicUrl, path };
 }
 
 /**
  * Delete a previously-uploaded object. Used to GC media that was staged
  * (uploaded) but never sent — a cancelled draft or a failed Meta send —
- * so abandoned attachments don't accumulate in the bucket. The
- * DELETE is gated by the same account-scoped RLS policy as the upload,
- * so a caller can only remove objects under their own account folder.
+ * so abandoned attachments don't accumulate in the bucket.
  *
  * Best-effort: callers fire-and-forget and swallow errors (a missed
  * delete is a storage nit, not something to surface to the user).
@@ -166,9 +133,12 @@ export async function deleteAccountMedia(
   bucket: string,
   path: string,
 ): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.storage.from(bucket).remove([path]);
-  if (error) throw new Error(error.message);
+  const res = await fetch("/api/media/upload", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bucket, path }),
+  });
+  if (!res.ok) throw new Error(await res.text().catch(() => "Delete failed"));
 }
 
 /**
