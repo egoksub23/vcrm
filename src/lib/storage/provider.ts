@@ -1,10 +1,14 @@
 // ============================================================
 // Storage provider abstraction.
 //
-// Wraps the self-hosted MinIO instance (STORAGE_PROVIDER=minio required).
 // All call sites use appStorage().from(bucket).<method>().
 //
-// MinIO env vars (required when STORAGE_PROVIDER=minio):
+// STORAGE_PROVIDER=filesystem (recommended — no extra service needed):
+//   STORAGE_FILEPATH   — absolute path on disk, e.g. /app/storage
+//   STORAGE_PUBLIC_URL — the app's own public origin, e.g. https://halo.vircle.tech
+//                        Files are served via GET /api/fs/<bucket>/<path>
+//
+// STORAGE_PROVIDER=minio (requires a running MinIO instance):
 //   MINIO_ENDPOINT    — hostname or IP (no protocol, no port)
 //   MINIO_PORT        — default 9000
 //   MINIO_USE_SSL     — "true" | "false" (default "false")
@@ -12,6 +16,9 @@
 //   MINIO_SECRET_KEY  — root password / secret key
 //   MINIO_PUBLIC_URL  — base URL for public-read buckets, e.g. https://files.example.com
 // ============================================================
+
+import { promises as fs } from 'fs'
+import path from 'path'
 
 import { Client as MinioClient } from 'minio'
 
@@ -205,17 +212,118 @@ function minioProvider(): AppStorage {
   }
 }
 
+// ── Filesystem implementation ────────────────────────────────────────────────
+
+function filesystemProvider(): AppStorage {
+  const base = (process.env.STORAGE_FILEPATH ?? '/app/storage').replace(/\/$/, '')
+  const publicOrigin = (process.env.STORAGE_PUBLIC_URL ?? '').replace(/\/$/, '')
+
+  function fileUrl(bucket: string, filePath: string): string {
+    return `${publicOrigin}/api/fs/${bucket}/${filePath}`
+  }
+
+  return {
+    from(bucket: string): AppStorageBucket {
+      const bucketDir = `${base}/${bucket}`
+      return {
+        async upload(filePath, data, opts) {
+          try {
+            const full = path.join(bucketDir, filePath)
+            // Prevent directory traversal
+            if (!full.startsWith(bucketDir + path.sep) && full !== bucketDir) {
+              return { data: null, error: { message: 'Invalid path' } }
+            }
+            await fs.mkdir(path.dirname(full), { recursive: true })
+            let buf: Buffer
+            if (data instanceof Uint8Array || Buffer.isBuffer(data)) {
+              buf = Buffer.from(data)
+            } else if (data instanceof Blob) {
+              buf = Buffer.from(await data.arrayBuffer())
+            } else {
+              buf = Buffer.from(await (data as File).arrayBuffer())
+            }
+            await fs.writeFile(full, buf)
+            return { data: { path: filePath }, error: null }
+          } catch (err) {
+            return { data: null, error: { message: String(err) } }
+          }
+        },
+
+        async download(filePath) {
+          try {
+            const buf = await fs.readFile(path.join(bucketDir, filePath))
+            return { data: new Blob([buf]), error: null }
+          } catch (err) {
+            return { data: null, error: { message: String(err) } }
+          }
+        },
+
+        async remove(paths) {
+          try {
+            await Promise.all(
+              paths.map((p) => fs.unlink(path.join(bucketDir, p)).catch(() => undefined)),
+            )
+            return { data: null, error: null }
+          } catch (err) {
+            return { data: null, error: { message: String(err) } }
+          }
+        },
+
+        async copy(from, to) {
+          try {
+            const dst = path.join(bucketDir, to)
+            await fs.mkdir(path.dirname(dst), { recursive: true })
+            await fs.copyFile(path.join(bucketDir, from), dst)
+            return { data: { path: to }, error: null }
+          } catch (err) {
+            return { data: null, error: { message: String(err) } }
+          }
+        },
+
+        async createSignedUrl(filePath, _ttlSeconds) {
+          return { data: { signedUrl: fileUrl(bucket, filePath) }, error: null }
+        },
+
+        async createSignedUrls(paths, _ttlSeconds) {
+          const data = paths.map((p) => ({ path: p, signedUrl: fileUrl(bucket, p), error: null as null }))
+          return { data, error: null }
+        },
+
+        async info(filePath) {
+          try {
+            const stat = await fs.stat(path.join(bucketDir, filePath))
+            return {
+              data: { size: stat.size, contentType: 'application/octet-stream', content_type: 'application/octet-stream' },
+              error: null,
+            }
+          } catch (err) {
+            return { data: null, error: { message: String(err) } }
+          }
+        },
+
+        getPublicUrl(filePath) {
+          return { data: { publicUrl: fileUrl(bucket, filePath) } }
+        },
+
+        async createSignedUploadUrl(filePath, _ttlSeconds = 3600) {
+          return { data: { path: filePath, token: '' }, error: null }
+        },
+      }
+    },
+  }
+}
+
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 /**
- * Server-side storage client. Defaults to Supabase Storage; set
- * STORAGE_PROVIDER=minio to switch to the self-hosted MinIO instance.
+ * Server-side storage client.
+ *   STORAGE_PROVIDER=filesystem  — stores files on the local disk (recommended for VPS)
+ *   STORAGE_PROVIDER=minio       — self-hosted MinIO S3-compatible store
  *
  * Usage: appStorage().from('bucket-name').upload(path, bytes, { contentType })
  */
 export function appStorage(): AppStorage {
-  if (process.env.STORAGE_PROVIDER !== 'minio') {
-    throw new Error('Set STORAGE_PROVIDER=minio — Supabase Storage is no longer supported')
-  }
-  return minioProvider()
+  if (process.env.STORAGE_PROVIDER === 'minio') return minioProvider()
+  if (process.env.STORAGE_PROVIDER === 'filesystem') return filesystemProvider()
+  throw new Error('Set STORAGE_PROVIDER=filesystem (or minio) in .env.local')
 }
