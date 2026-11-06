@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useCallback, useEffect, useReducer, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Conversation, ConversationPriority, Message, Contact, ConversationStatus, Tag } from "@/types";
 import { tabForChannel, unreadConversationCounts, type InboxTab } from "@/lib/inbox/channel-scope";
@@ -52,7 +52,6 @@ export default function InboxPage() {
 
 function InboxPageInner() {
   const t = useTranslations("Inbox.page");
-  const router = useRouter();
   const searchParams = useSearchParams();
   /**
    * `?c=<id>` deep-link support. Used when landing here from the
@@ -528,9 +527,9 @@ function InboxPageInner() {
       ) {
         autoSelectedForDeepLinkRef.current = deepLinkConvId;
         // If the deep-linked conversation is already the active one
-        // (e.g. because the user clicked it in the list and we
-        // router.replace()'d the URL, which made the ConversationList
-        // refetch and land us back here), do NOT re-apply it. Doing so
+        // (e.g. because the user clicked it in the list, which updates
+        // the URL and causes ConversationList to refetch and land us
+        // back here), do NOT re-apply it. Doing so
         // would setMessages([]) on a thread whose messages have
         // already been loaded by MessageThread — and because
         // conversationId didn't change, MessageThread wouldn't
@@ -587,18 +586,16 @@ function InboxPageInner() {
             : c,
         ),
       );
-      // Record the selection on the deep-link ref BEFORE we change the
-      // URL. The router.replace below flips `deepLinkConvId`, which can
-      // in turn cause ConversationList to refetch and eventually call
-      // handleConversationsLoaded again. Without this line, the ref
-      // still points at the previous value, the auto-select block
-      // sees `ref !== deepLinkConvId`, fires a second time, and
-      // clobbers the messages MessageThread just fetched.
+      // Record the selection on the deep-link ref so the auto-select
+      // effect doesn't fire again if the conversations list reloads.
       autoSelectedForDeepLinkRef.current = conv.id;
       // Reflect the selection in the URL so a refresh lands the user
       // back in the same thread, and so copy-paste links work. Use
-      // replace() to avoid polluting browser history with every click.
-      router.replace(`/inbox?c=${conv.id}`, { scroll: false });
+      // history.replaceState (not router.replace) so React's search-params
+      // state doesn't change — router.replace re-suspends InboxPageInner
+      // through the Suspense boundary on every click, which remounts the
+      // whole component and looks like a full-page refresh.
+      window.history.replaceState(null, '', `/inbox?c=${conv.id}`);
 
       // Claim on open: the first agent to open a still-live, unassigned
       // conversation is assigned it, so it doesn't sit unowned while
@@ -631,8 +628,8 @@ function InboxPageInner() {
     // Clearing the ref lets the deep-link auto-selector fire again if
     // the user later visits /inbox?c=<same-id> — desirable UX.
     autoSelectedForDeepLinkRef.current = null;
-    router.replace("/inbox", { scroll: false });
-  }, [router]);
+    window.history.replaceState(null, '', '/inbox');
+  }, []);
 
 
   const handleMessagesLoaded = useCallback((loaded: Message[]) => {
