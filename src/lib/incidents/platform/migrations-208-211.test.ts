@@ -180,3 +180,17 @@ describe("migration 216 (a school's own pack)", () => {
     expect(m216).toMatch(/NEW\.kind <> 'framework' OR NEW\.is_system/);
   });
 });
+
+describe("migration 217 (events to the portal)", () => {
+  const m217 = readMigration("217_incident_webhooks.sql").replace(/\r\n/g, "\n");
+  it("only stores an https address, and keeps the events where clients can read but not write", () => {
+    expect(m217).toContain("webhook_url ~ '^https://'");
+    expect(m217).toMatch(/incident_webhook_events_select ON public\.incident_webhook_events FOR SELECT USING \(has_capability\(account_id, 'incidents\.configure'\)\)/);
+    expect(m217).not.toMatch(/CREATE POLICY \w+ ON public\.incident_webhook_events FOR (INSERT|UPDATE|DELETE|ALL)/);
+  });
+  it("claims events without letting two senders take one, and keeps its functions to the service role", () => {
+    expect(m217).toContain("FOR UPDATE SKIP LOCKED");
+    expect(m217).toContain("REVOKE ALL ON FUNCTION public.claim_incident_webhook_events(INTEGER) FROM PUBLIC, anon, authenticated;");
+    expect(m217).toContain("GRANT EXECUTE ON FUNCTION public.purge_incident_webhook_events() TO service_role;");
+  });
+});

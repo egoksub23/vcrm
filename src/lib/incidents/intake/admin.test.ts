@@ -48,6 +48,8 @@ describe("the hand-off guide", () => {
   it("documents every message the page sends and the web-view settings", () => {
     for (const type of ["ready", "resize", "submitted", "error"]) expect(guide).toContain(`"type": "${type}"`);
     expect(guide).toContain("onShowFileChooser");
+    expect(guide).toContain("X-Halo-Signature: sha256=");
+    expect(guide).toContain("incident.created");
     expect(guide).toContain("allow=\"camera\"");
   });
 
@@ -60,5 +62,16 @@ describe("the hand-off guide", () => {
 
   it("uses made-up students for tests", () => {
     expect(TEST_ROSTER.every((s) => s.name.startsWith("Test "))).toBe(true);
+  });
+});
+
+describe("parseKeyPatch: the events address", () => {
+  it("accepts a public https address, and clears it with an empty value", () => {
+    expect(parseKeyPatch({ webhook_url: "https://coach.example.edu.my/hooks/halo" })).toEqual({ ok: true, value: { webhookUrl: "https://coach.example.edu.my/hooks/halo" } });
+    expect(parseKeyPatch({ webhook_url: "" })).toEqual({ ok: true, value: { webhookUrl: null } });
+    expect(parseKeyPatch({ webhook_url: null })).toEqual({ ok: true, value: { webhookUrl: null } });
+  });
+  it("refuses an address that points inside the network or is not https", () => {
+    for (const bad of ["http://coach.example.edu.my/x", "https://localhost/x", "https://10.1.2.3/x", "https://intranet/x", 5]) expect(parseKeyPatch({ webhook_url: bad })).toMatchObject({ ok: false });
   });
 });

@@ -5,6 +5,8 @@ import { defaultAdapters, type AdapterMap } from "./adapters";
 import { dispatchDue, runTrigger, sweepTimers, type DispatchSummary, type EngineStore, type SweepSummary, type TriggerResult } from "./engine";
 import { PgEngineStore, accountsWithTimedRules } from "./pg-store";
 import { autoPurgeAll } from "./retention-data";
+import { dispatchWebhooks, type Fetcher } from "@/lib/incidents/webhooks/sender";
+import { PgWebhookStore } from "@/lib/incidents/webhooks/pg-webhook-store";
 import { createAdminPgDb } from "@/lib/postgres/db";
 import type { RuleTrigger } from "./rules";
 
@@ -40,6 +42,8 @@ export async function accountHasRaisedRules(accountId: string, store?: EngineSto
 }
 
 export interface CronOutcome extends SweepSummary, DispatchSummary {
+  /** Events pushed to coach portals this minute. */
+  webhooks?: { sent: number; failed: number; dropped: number };
   /** Incidents removed today under a school's own retention period (only in the daily window). */
   autoPurged?: number;
 }
@@ -56,11 +60,17 @@ export async function runIncidentCron(deps: { store?: EngineStore; adapters?: Ad
   const swept = await sweepTimers(store, accounts);
   const sent = await dispatchDue(store, deps.adapters ?? defaultAdapters(), 100);
   const out: CronOutcome = { ...swept, ...sent };
+  try {
+    out.webhooks = await dispatchWebhooks(new PgWebhookStore(), fetch as unknown as Fetcher, undefined);
+  } catch (err) {
+    console.error("[incident-engine] webhooks failed:", err);
+  }
 
   // Daily housekeeping, never allowed to fail the heartbeat: forget expired report links, and remove records past a school's own retention period.
   if (isDailyWindow(new Date())) {
     try {
       await createAdminPgDb().rpc("purge_expired_incident_sessions");
+      await createAdminPgDb().rpc("purge_incident_webhook_events");
       out.autoPurged = (await autoPurgeAll()).reduce((n, r) => n + r.incidents, 0);
     } catch (err) {
       console.error("[incident-engine] daily housekeeping failed:", err);

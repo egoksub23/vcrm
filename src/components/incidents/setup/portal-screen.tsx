@@ -18,6 +18,7 @@ export interface PortalKey {
   prefix: string;
   scopes: string[];
   allowed_origins: string[];
+  webhook_url: string | null;
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
@@ -204,6 +205,8 @@ export function PortalScreen() {
 function KeyCard({ k, busy, onRotate, onRevoke, onSaved }: { k: PortalKey; busy: boolean; onRotate: () => void; onRevoke: () => void; onSaved: () => Promise<void> }) {
   const t = useTranslations("IncidentPlatform.portal");
   const [origins, setOrigins] = useState(k.allowed_origins.join(", "));
+  const [hook, setHook] = useState(k.webhook_url ?? "");
+  const [hookSecret, setHookSecret] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -213,6 +216,20 @@ function KeyCard({ k, busy, onRotate, onRevoke, onSaved }: { k: PortalKey; busy:
     if (!res.ok) return void toast.error(res.error);
     toast.success(t("saved"));
     await onSaved();
+  };
+
+  const saveHook = async () => {
+    setSaving(true);
+    const res = await api(`/api/incidents/setup/portal/keys/${k.id}`, "PATCH", { webhook_url: hook.trim() || null });
+    setSaving(false);
+    if (!res.ok) return void toast.error(res.error);
+    toast.success(t("saved"));
+    await onSaved();
+  };
+  const showSecret = async () => {
+    const res = await api<{ secret: string }>(`/api/incidents/setup/portal/keys/${k.id}/webhook-secret`);
+    if (!res.ok) return void toast.error(res.error);
+    setHookSecret(res.data.secret);
   };
 
   return (
@@ -231,6 +248,25 @@ function KeyCard({ k, busy, onRotate, onRevoke, onSaved }: { k: PortalKey; busy:
         </div>
         <span className="text-muted-foreground">{t("allowedHelp")}</span>
       </label>
+      <label className="mt-3 flex flex-col gap-1 text-xs">
+        {t("events")}
+        <div className="flex gap-2">
+          <Input value={hook} onChange={(e) => setHook(e.target.value)} placeholder="https://coach.example.edu.my/hooks/halo" />
+          <Button variant="outline" size="sm" className="h-8" onClick={() => void saveHook()} disabled={saving}>{t("saveEvents")}</Button>
+        </div>
+        <span className="text-muted-foreground">{t("eventsHelp")}</span>
+      </label>
+      {k.webhook_url ? (
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+          <Button variant="ghost" size="sm" onClick={() => void showSecret()}>{t("showSecret")}</Button>
+          {hookSecret ? (
+            <>
+              <code className="rounded bg-muted px-2 py-1 break-all select-all">{hookSecret}</code>
+              <CopyButton text={hookSecret} label={t("copy")} />
+            </>
+          ) : null}
+        </div>
+      ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" onClick={onRotate} disabled={busy}><RotateCw />{t("rotate")}</Button>
         <span className="text-xs text-muted-foreground">{t("rotateHelp")}</span>

@@ -14593,7 +14593,11 @@
       "noCalls": "Nothing yet.",
       "guideTitle": "Hand-off guide",
       "guideHelp": "Copy this and send it to whoever builds the coach portal. It never contains a key.",
-      "copyGuide": "Copy the guide"
+      "copyGuide": "Copy the guide",
+      "events": "Send events to (optional)",
+      "saveEvents": "Save address",
+      "eventsHelp": "Halo posts a signed message here when a report is filed through this key, and when a return-to-play date changes. The messages carry a reference and codes, never names. Needs a public https address.",
+      "showSecret": "Show the signing secret"
     },
     "retention": {
       "title": "Keeping records",

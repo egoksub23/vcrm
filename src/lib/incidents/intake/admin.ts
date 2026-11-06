@@ -2,6 +2,7 @@
 // Pure, so each rule has a test.
 
 import { parseOrigins, type KeyMode } from "./keys";
+import { validateWebhookUrl } from "@/lib/incidents/webhooks/core";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -23,10 +24,19 @@ export function parseKeyCreate(body: unknown): Parsed<KeyCreate> {
   return { ok: true, value: { mode: b.mode, label, allowedOrigins: origins.origins } };
 }
 
-export function parseKeyPatch(body: unknown): Parsed<{ label?: string; allowedOrigins?: string[]; revoke?: boolean }> {
+export function parseKeyPatch(body: unknown): Parsed<{ label?: string; allowedOrigins?: string[]; revoke?: boolean; webhookUrl?: string | null }> {
   if (typeof body !== "object" || body === null) return { ok: false, error: "Send the changes." };
   const b = body as Record<string, unknown>;
-  const out: { label?: string; allowedOrigins?: string[]; revoke?: boolean } = {};
+  const out: { label?: string; allowedOrigins?: string[]; revoke?: boolean; webhookUrl?: string | null } = {};
+  if (b.webhook_url !== undefined) {
+    if (b.webhook_url === null || b.webhook_url === "") out.webhookUrl = null;
+    else if (typeof b.webhook_url !== "string") return { ok: false, error: "The events address must be text." };
+    else {
+      const checked = validateWebhookUrl(b.webhook_url);
+      if (!checked.ok) return { ok: false, error: checked.error };
+      out.webhookUrl = checked.url;
+    }
+  }
   if (b.label !== undefined) {
     if (typeof b.label !== "string" || !b.label.trim()) return { ok: false, error: "Give the key a name." };
     out.label = b.label.trim().slice(0, 80);
@@ -110,6 +120,15 @@ export function buildHandoffGuide(args: { address: string | null; keyPrefix: str
     "Authorization: Bearer <key>",
     "200 OK  ->  { \"clearances\": [ { \"student_id\": \"S-3321\", \"type\": \"concussion\", \"not_before\": \"2026-11-20\", \"incident\": \"INC-2026-31\" } ] }",
     "Show a warning beside the student. Do not stop the student being added to an activity.",
+    "",
+    "5. Events pushed to your portal (optional, not needed to go live)",
+    "If the school gives your key an events address (https, a public host name), Halo posts a signed message there when a report is filed through your links and when a",
+    "return-to-play date is set or cleared. They carry a reference and codes, never names.",
+    "POST <your address>   X-Halo-Event: incident.created | clearance.updated   X-Halo-Delivery: <id, the same on every retry>   X-Halo-Timestamp: <unix seconds>",
+    "X-Halo-Signature: sha256=<hex HMAC-SHA256 of \"<timestamp>.<raw body>\" using the signing secret the school can show you>",
+    "Check the signature and that the timestamp is within five minutes, then answer 2xx. Any other answer is retried (1, 5, 15, 60, 240 minutes), except 4xx other than 408/429 and redirects.",
+    "{ \"id\": \"...\", \"event\": \"incident.created\", \"created_at\": \"...\", \"data\": { \"reference\": \"INC-2026-31\", \"category\": \"CCA\", \"severity\": \"high\", \"flags\": [\"injury\"], \"activity_id\": \"A-1187\", \"mode\": \"live\" } }",
+    "{ \"id\": \"...\", \"event\": \"clearance.updated\", \"created_at\": \"...\", \"data\": { \"student_id\": \"S-3321\", \"type\": \"concussion\", \"not_before\": \"2026-11-20\", \"incident\": \"INC-2026-31\", \"cleared\": false } }",
     "",
     "Testing",
     "Use the TEST key first. A test report is marked TEST everywhere and notifies only the school's admins. Switch to the live key when the school has signed off.",

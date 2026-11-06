@@ -11,13 +11,13 @@ export async function GET() {
     const [keys, calls, settings] = await Promise.all([
       ctx.supabase
         .from("incident_intake_keys")
-        .select("id, label, mode, prefix, scopes, allowed_origins, created_at, last_used_at, revoked_at")
+        .select("id, label, mode, prefix, scopes, allowed_origins, webhook_url, created_at, last_used_at, revoked_at")
         .eq("account_id", ctx.accountId)
         .order("created_at", { ascending: false }),
       ctx.supabase.from("incident_intake_calls").select("id, route, status, summary, created_at").eq("account_id", ctx.accountId).order("created_at", { ascending: false }).limit(15),
       ctx.supabase.from("incident_settings").select("retention_years").eq("account_id", ctx.accountId).maybeSingle(),
     ]);
-    const rows = (keys.data ?? []) as { id: string; label: string; mode: string; prefix: string; scopes: string[]; allowed_origins: string[]; created_at: string; last_used_at: string | null; revoked_at: string | null }[];
+    const rows = (keys.data ?? []) as { id: string; label: string; mode: string; prefix: string; scopes: string[]; allowed_origins: string[]; webhook_url: string | null; created_at: string; last_used_at: string | null; revoked_at: string | null }[];
     const address = process.env.NEXT_PUBLIC_SITE_URL?.trim() || null;
     const live = rows.find((k) => k.mode === "live" && !k.revoked_at) ?? rows.find((k) => !k.revoked_at) ?? null;
     return NextResponse.json({

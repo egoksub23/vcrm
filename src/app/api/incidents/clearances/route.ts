@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { isActive, parseClearance } from "@/lib/incidents/platform/clearance";
 import { incidentKey } from "@/lib/incidents/types";
+import { enqueueClearanceUpdated } from "@/lib/incidents/webhooks/pg-webhook-store";
 import { createAdminPgDb } from "@/lib/postgres/db";
 
 type Clearance = { id: string; external_student_id: string; student_name: string; type: string; not_before: string; note: string | null; incident_id: string | null; cleared_at: string | null; created_at: string };
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
       ? await admin.from("person_clearances").update(row).eq("id", (existing as { id: string }).id).select("*").single()
       : await admin.from("person_clearances").insert({ ...row, account_id: ctx.accountId, external_student_id: v.studentId, student_name: (person as { name: string }).name, incident_id: v.incidentId }).select("*").single();
     if (res.error || !res.data) return NextResponse.json({ error: "Could not save the date." }, { status: 500 });
+    await enqueueClearanceUpdated({ accountId: ctx.accountId, studentId: v.studentId, type: v.type, notBefore: v.notBefore, incidentId: v.incidentId, cleared: false }, admin);
     return NextResponse.json({ clearance: res.data }, { status: existing ? 200 : 201 });
   } catch (err) {
     return toErrorResponse(err);

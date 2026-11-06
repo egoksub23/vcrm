@@ -17,6 +17,7 @@ export async function PATCH(request: Request, { params }: Params) {
     const patch: Record<string, unknown> = {};
     if (parsed.value.label !== undefined) patch.label = parsed.value.label;
     if (parsed.value.allowedOrigins !== undefined) patch.allowed_origins = parsed.value.allowedOrigins;
+    if (parsed.value.webhookUrl !== undefined) patch.webhook_url = parsed.value.webhookUrl;
     if (parsed.value.revoke) patch.revoked_at = new Date().toISOString();
 
     const { data, error } = await ctx.supabase
@@ -25,7 +26,7 @@ export async function PATCH(request: Request, { params }: Params) {
       .eq("id", id)
       .eq("account_id", ctx.accountId)
       .is("revoked_at", null)
-      .select("id, label, mode, prefix, scopes, allowed_origins, created_at, last_used_at, revoked_at")
+      .select("id, label, mode, prefix, scopes, allowed_origins, webhook_url, created_at, last_used_at, revoked_at")
       .maybeSingle();
     if (error) return NextResponse.json({ error: "Could not save the changes." }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Key not found, or it was already revoked." }, { status: 404 });
