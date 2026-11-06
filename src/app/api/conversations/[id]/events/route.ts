@@ -11,7 +11,6 @@ export async function GET(_req: Request, { params }: Params) {
       .from("conversation_events")
       .select("*")
       .eq("conversation_id", id)
-      .eq("account_id", ctx.accountId)
       .order("created_at", { ascending: true });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ events: data ?? [] });

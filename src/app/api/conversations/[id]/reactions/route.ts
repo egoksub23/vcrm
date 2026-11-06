@@ -10,8 +10,7 @@ export async function GET(_req: Request, { params }: Params) {
     const { data, error } = await ctx.supabase
       .from("message_reactions")
       .select("*")
-      .eq("conversation_id", conversationId)
-      .eq("account_id", ctx.accountId);
+      .eq("conversation_id", conversationId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ reactions: data ?? [] });
   } catch (err) {

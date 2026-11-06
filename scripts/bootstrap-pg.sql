@@ -98,3 +98,15 @@ END $$;
 -- Grant public schema usage to all roles
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT USAGE ON SCHEMA auth   TO anon, authenticated, service_role;
+
+-- service_role bypasses RLS (mirrors Supabase behaviour)
+ALTER ROLE service_role BYPASSRLS;
+
+-- Default privileges: tables and sequences created by wacrm are readable/writable
+-- by authenticated and service_role without per-table GRANT statements.
+ALTER DEFAULT PRIVILEGES FOR ROLE wacrm IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE wacrm IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE wacrm IN SCHEMA public
+  GRANT ALL ON FUNCTIONS TO authenticated, service_role;
