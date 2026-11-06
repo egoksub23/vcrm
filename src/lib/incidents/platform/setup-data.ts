@@ -118,3 +118,15 @@ export function previewResolver(directory: Directory, today = todayUtc()) {
     return resolveRole({ role, members: role.members, contacts: directory.contacts, today });
   };
 }
+
+/** The keys of the incident roles a person holds (through the contact linked to their Halo user). */
+export async function roleKeysForUser(db: PgDb, accountId: string, userId: string): Promise<string[]> {
+  const { data: contacts } = await db.from("incident_contacts").select("id").eq("account_id", accountId).eq("user_id", userId).eq("is_active", true);
+  const ids = ((contacts ?? []) as { id: string }[]).map((c) => c.id);
+  if (ids.length === 0) return [];
+  const { data: members } = await db.from("incident_role_members").select("role_id").eq("account_id", accountId).in("contact_id", ids);
+  const roleIds = [...new Set(((members ?? []) as { role_id: string }[]).map((m) => m.role_id))];
+  if (roleIds.length === 0) return [];
+  const { data: roles } = await db.from("incident_roles").select("key").eq("account_id", accountId).in("id", roleIds);
+  return ((roles ?? []) as { key: string }[]).map((r) => r.key);
+}

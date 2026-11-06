@@ -55,7 +55,15 @@
     "sign": "Secure Sign",
     "kyc": "KYC 검토",
     "compliance": "컴플라이언스",
-    "share": "Secure Share"
+    "share": "Secure Share",
+    "incidentsOverview": "개요",
+    "incidentsAll": "모든 사고",
+    "incidentsTasks": "내 작업",
+    "incidentsSetup": "설정",
+    "incidentsSetupGuide": "설정 가이드",
+    "incidentsRoles": "역할 및 연락처",
+    "incidentsRules": "규칙",
+    "incidentsPacks": "컴플라이언스 팩"
   },
   "Header": {
     "dashboard": "대시보드",

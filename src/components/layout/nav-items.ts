@@ -1,4 +1,4 @@
-import { BarChart3, Bell, Bot, BookMarked, BookOpen, Building2, FileSignature, GitBranch, LayoutDashboard, Link2, MessageCircle, MessageSquare, Radio, Settings, ShieldAlert, ShieldCheck, ClipboardCheck, Ticket, Users, Workflow, Zap } from "lucide-react";
+import { BarChart3, ListChecks, ListTree, ScrollText, UserCog, LayoutList, Gauge, Bell, Bot, BookMarked, BookOpen, Building2, FileSignature, GitBranch, LayoutDashboard, Link2, MessageCircle, MessageSquare, Radio, Settings, ShieldAlert, ShieldCheck, ClipboardCheck, Ticket, Users, Workflow, Zap } from "lucide-react";
 
 // The sidebar's rows, in order. A plain module (no hooks), so the order and the capability of each row can be tested.
 
@@ -17,6 +17,20 @@ export interface NavItem {
    * guarded by the same capability in the dashboard shell.
    */
   capability?: string;
+  /**
+   * Pages that open under this row when the person is inside the section (the Incidents group). Each child is gated by its own capability,
+   * and `setup` children are listed under a "Setup" heading.
+   */
+  children?: NavChild[];
+}
+
+export interface NavChild {
+  href: string;
+  /** Key in the `Sidebar` i18n namespace. */
+  labelKey: string;
+  icon: typeof LayoutDashboard;
+  capability?: string;
+  setup?: boolean;
 }
 
 export const navItems: NavItem[] = [
@@ -46,7 +60,21 @@ export const bottomNavItems: NavItem[] = [
   // Incident Reporting: internal, next to Sembang, not a customer-facing
   // tool — open to every role (anyone can raise one); per-incident
   // visibility is enforced separately (migration 116).
-  { href: "/incidents", labelKey: "incidents", icon: ShieldAlert, capability: "menu.incidents" },
+  {
+    href: "/incidents",
+    labelKey: "incidents",
+    icon: ShieldAlert,
+    capability: "menu.incidents",
+    children: [
+      { href: "/incidents/overview", labelKey: "incidentsOverview", icon: Gauge, capability: "menu.incidents" },
+      { href: "/incidents", labelKey: "incidentsAll", icon: LayoutList, capability: "menu.incidents" },
+      { href: "/incidents/tasks", labelKey: "incidentsTasks", icon: ListChecks, capability: "menu.incidents" },
+      { href: "/incidents/setup", labelKey: "incidentsSetupGuide", icon: ListTree, capability: "incidents.configure", setup: true },
+      { href: "/incidents/setup/roles", labelKey: "incidentsRoles", icon: UserCog, capability: "incidents.configure", setup: true },
+      { href: "/incidents/setup/rules", labelKey: "incidentsRules", icon: ScrollText, capability: "incidents.configure", setup: true },
+      { href: "/settings?tab=incidents", labelKey: "incidentsPacks", icon: ClipboardCheck, capability: "incidents.configure", setup: true },
+    ],
+  },
   // KYC review (compliance: the ID verification back end), directly below Incidents and above Secure Sign. Gated by menu.kyc and the operator's `kyc` flag (off by default).
   { href: "/kyc", labelKey: "kyc", icon: ShieldCheck, capability: "menu.kyc" },
   // Compliance requests (account closure, withdrawal, phone change with a clock and a sign-off): directly below KYC review, above Secure Sign. Gated by

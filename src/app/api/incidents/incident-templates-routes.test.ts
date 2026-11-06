@@ -14,6 +14,9 @@ const h = vi.hoisted(() => ({
   caps: new Set<string>(["incidents.raise", "incidents.manage"]),
 }));
 
+// The role-based notification engine has its own tests (src/lib/incidents/platform); here it is switched off.
+vi.mock("@/lib/incidents/platform/run", () => ({ accountHasRaisedRules: async () => false, processIncidentEvent: async () => null }));
+
 vi.mock("@/lib/auth/account", () => {
   const denied = (what: string) => Object.assign(new Error(`This action requires the '${what}' permission`), { status: 403 });
   return {

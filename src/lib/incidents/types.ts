@@ -202,6 +202,8 @@ export interface IncidentObligation {
   description: string | null;
   /** A recipient_party value when the item is "tell somebody". */
   party: string | null;
+  /** The incident role that owns the step (migration 210), for example "principal"; null when the incident lead does it. */
+  role_key: string | null;
   due_at: string | null;
   status: "open" | "done" | "not_applicable";
   note: string | null;

@@ -17,7 +17,7 @@ const names: Namer = {
   role: (k) => ({ head_of_sport: "Head of Sport", school_nurse: "School nurse", principal: "Principal" })[k] ?? k,
   category: (c) => ({ CCA: "CCA / sports injury", INJ: "Injury" })[c] ?? c,
   severity: (s) => ({ high: "Serious", critical: "Critical" })[s] ?? s,
-  flag: (f) => ({ injury: "Someone injured", personal_data: "Personal data" })[f] ?? f,
+  flag: (f) => ({ injury: "someone injured", personal_data: "personal data" })[f] ?? f,
 };
 
 describe("ruleMatches", () => {

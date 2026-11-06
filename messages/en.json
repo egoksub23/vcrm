@@ -55,7 +55,15 @@
     "sign": "Secure Sign",
     "kyc": "KYC review",
     "compliance": "Compliance",
-    "share": "Secure Share"
+    "share": "Secure Share",
+    "incidentsOverview": "Overview",
+    "incidentsAll": "All incidents",
+    "incidentsTasks": "My tasks",
+    "incidentsSetup": "Setup",
+    "incidentsSetupGuide": "Setup guide",
+    "incidentsRoles": "Roles & contacts",
+    "incidentsRules": "Rules",
+    "incidentsPacks": "Compliance packs"
   },
   "Header": {
     "dashboard": "Dashboard",

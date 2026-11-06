@@ -32,6 +32,7 @@ import {
 import type { AccountRole } from "@/lib/auth/roles";
 import { filterByCapability } from "@/lib/auth/page-access";
 import { bottomNavItems, navItems, platformNavItem } from "./nav-items";
+import { NavChildren } from "./nav-children";
 
 // Per-role chip metadata used in the sidebar's account strip + the
 // Members tab roster. Keeping this near both consumers in a single
@@ -414,6 +415,15 @@ export function Sidebar({
                       </span>
                     )}
                   </Link>
+                  {/* A section with pages of its own (Incidents) opens them under its row while the person is inside it. */}
+                  {item.children && isActive && expanded ? (
+                    <NavChildren
+                      children={filterByCapability(item.children, hasCap)}
+                      pathname={pathname}
+                      label={(key) => t(key)}
+                      setupLabel={t("incidentsSetup")}
+                    />
+                  ) : null}
                 </li>
               );
             })}

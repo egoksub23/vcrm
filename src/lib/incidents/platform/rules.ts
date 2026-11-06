@@ -98,6 +98,7 @@ export interface Namer {
   role: (key: string) => string;
   category: (code: string) => string;
   severity: (slug: string) => string;
+  /** A noun phrase that follows "it involves": "an injury", "personal data". */
   flag: (flag: string) => string;
 }
 
@@ -133,7 +134,7 @@ export function describeRule(rule: Pick<IncidentRule, "trigger" | "wait_minutes"
   const parts: string[] = [];
   const c = rule.conditions;
   if (c.categories?.length) parts.push(`the category is ${list(c.categories.map(names.category))}`);
-  if (c.flags?.length) parts.push(`it involves ${list(c.flags.map(names.flag).map((f) => f.toLowerCase()))}`);
+  if (c.flags?.length) parts.push(`it involves ${list(c.flags.map(names.flag))}`);
   if (c.min_severity) parts.push(`the severity is ${names.severity(c.min_severity)} or worse`);
   const onlyIf = parts.length ? `Only if ${parts.join(" and ")}` : null;
 

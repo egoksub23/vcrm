@@ -212,6 +212,7 @@ describe.each(["en", "ko"])("incident surfaces render (%s)", (locale) => {
       title: "Notify the PDP Commissioner",
       description: "Within 72 hours.",
       party: "pdp_commissioner",
+      role_key: "dpo",
       due_at: new Date(Date.now() + day).toISOString(),
       status: "open",
       note: null,

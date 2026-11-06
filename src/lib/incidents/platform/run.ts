@@ -29,9 +29,9 @@ export async function processIncidentEvent(
 }
 
 /** Does this school have a notification rule switched on for newly raised incidents? When it does, the old "email every manager" message is not sent as well. */
-export async function accountHasRaisedRules(accountId: string, store: EngineStore = new PgEngineStore()): Promise<boolean> {
+export async function accountHasRaisedRules(accountId: string, store?: EngineStore): Promise<boolean> {
   try {
-    return (await store.loadRules(accountId, "raised")).some((r) => r.enabled);
+    return ((await (store ?? new PgEngineStore()).loadRules(accountId, "raised"))).some((r) => r.enabled);
   } catch {
     return false;
   }
