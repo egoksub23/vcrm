@@ -51,9 +51,9 @@ CREATE OR REPLACE FUNCTION auth.uid()
 RETURNS UUID
 LANGUAGE sql STABLE
 AS $$
-  SELECT NULLIF(
+  SELECT (NULLIF(
     current_setting('request.jwt.claims', true), ''
-  )::json->>'sub'
+  )::json->>'sub')::UUID
 $$;
 
 -- auth.role() → role string from JWT claims ('authenticated' | 'anon' | …)
