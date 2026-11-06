@@ -167,6 +167,18 @@ describe("timers", () => {
     expect(s.deliveries).toHaveLength(1);
   });
 
+  it("tells the incident lead and the Principal when an incident stays open, once", async () => {
+    const s = seeded();
+    s.rules = [ruleFromRecipe("resolve_by", "r7")];
+    s.dynamic = { incident_lead: [{ name: "Lead", emails: ["lead@school.test"], phones: [] }] };
+    s.unresolved = ["i1"];
+    const out = await sweepTimers(s, ["school-a"].map(() => "a1"));
+    expect(out.unresolved).toBe(1);
+    expect(s.deliveries.map((d) => [d.role_key, d.reason])).toEqual([["incident_lead", "reminder"], ["principal", "reminder"]]);
+    expect((await sweepTimers(s, ["a1"])).unresolved).toBe(0);
+    expect(s.deliveries).toHaveLength(2);
+  });
+
   it("chases an overdue step once, telling the step's role (from its party) and the lead", async () => {
     const s = seeded();
     s.rules = [ruleFromRecipe("step_overdue", "r8")];

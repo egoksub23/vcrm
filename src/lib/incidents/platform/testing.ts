@@ -57,6 +57,7 @@ export class MemoryStore implements EngineStore {
   errors = new Map<string, string>();
   nextAt = new Map<string, Date | null>();
   unacknowledged: string[] = [];
+  unresolved: string[] = [];
   overdue: OverdueStep[] = [];
   url: string | null = "https://halo.test";
   private n = 0;
@@ -92,7 +93,7 @@ export class MemoryStore implements EngineStore {
     due.forEach((d) => (d.status = "sending"));
     return due.map((d) => ({ ...d }));
   }
-  async markSent(id: string) {
+  async markSent(id: string, _now?: Date) {
     const d = this.deliveries.find((x) => x.id === id)!;
     d.status = "sent";
     d.attempts += 1;
@@ -110,8 +111,11 @@ export class MemoryStore implements EngineStore {
     i.escalation_level = level;
     return true;
   }
-  async listUnacknowledged() {
+  async listUnacknowledged(_account?: string, _askedBefore?: Date) {
     return this.unacknowledged;
+  }
+  async listUnresolved() {
+    return this.unresolved;
   }
   async listOverdueSteps() {
     return this.overdue;

@@ -90,6 +90,8 @@ export interface EngineStore {
   raiseEscalationLevel(incidentId: string, level: 2 | 3): Promise<boolean>;
   /** Incidents with an acknowledge-asking notice sent at or before `askedBefore`, still unacknowledged and not closed. */
   listUnacknowledged(accountId: string, askedBefore: Date, limit: number): Promise<string[]>;
+  /** Incidents not closed that were raised at or before `openedBefore` (the "resolve by" timer). */
+  listUnresolved(accountId: string, openedBefore: Date, limit: number): Promise<string[]>;
   /** Open required steps that became overdue at or before `dueBefore`, on incidents that are not closed. */
   listOverdueSteps(accountId: string, dueBefore: Date, limit: number): Promise<OverdueStep[]>;
   appUrl(): string | null;
@@ -104,6 +106,7 @@ const REASON: Record<RuleTrigger, NoticeReason> = {
   raised: "raised",
   unacknowledged: "reminder",
   step_overdue: "step_overdue",
+  unresolved: "reminder",
   closed: "closed",
 };
 
@@ -300,11 +303,12 @@ export async function dispatchDue(store: EngineStore, adapters: AdapterMap, limi
 export interface SweepSummary {
   unacknowledged: number;
   overdueSteps: number;
+  unresolved: number;
 }
 
 /** Run the rules that wait for something: nobody acknowledged in time, a required step overdue. Safe to run every minute. */
 export async function sweepTimers(store: EngineStore, accountIdsWithRules: readonly string[], limit = 100): Promise<SweepSummary> {
-  const summary: SweepSummary = { unacknowledged: 0, overdueSteps: 0 };
+  const summary: SweepSummary = { unacknowledged: 0, overdueSteps: 0, unresolved: 0 };
   const now = store.now();
 
   for (const accountId of accountIdsWithRules) {
@@ -315,6 +319,14 @@ export async function sweepTimers(store: EngineStore, accountIdsWithRules: reado
       for (const incidentId of ids) {
         const out = await runTrigger(store, { incidentId, trigger: "unacknowledged", only: rule.id });
         if (out.queued > 0 || out.escalatedTo) summary.unacknowledged += 1;
+      }
+    }
+    const unresolved = (await store.loadRules(accountId, "unresolved")).filter((r) => r.enabled);
+    for (const rule of unresolved) {
+      const openedBefore = new Date(now.getTime() - (rule.wait_minutes ?? 0) * 60_000);
+      for (const incidentId of await store.listUnresolved(accountId, openedBefore, limit)) {
+        const out = await runTrigger(store, { incidentId, trigger: "unresolved", only: rule.id });
+        if (out.queued > 0 || out.escalatedTo) summary.unresolved += 1;
       }
     }
     const overdue = (await store.loadRules(accountId, "step_overdue")).filter((r) => r.enabled);

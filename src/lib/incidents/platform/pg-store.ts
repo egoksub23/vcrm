@@ -254,6 +254,11 @@ export class PgEngineStore implements EngineStore {
     return rpcIds(data);
   }
 
+  async listUnresolved(accountId: string, openedBefore: Date, limit: number): Promise<string[]> {
+    const { data } = await this.db.rpc("incident_unresolved", { p_account_id: accountId, p_before: openedBefore.toISOString(), p_limit: limit });
+    return rpcIds(data);
+  }
+
   async listOverdueSteps(accountId: string, dueBefore: Date, limit: number): Promise<OverdueStep[]> {
     const { data } = await this.db.rpc("incident_overdue_steps", { p_account_id: accountId, p_before: dueBefore.toISOString(), p_limit: limit });
     return rpcRows<{ obligation_id: string; incident_id: string; party: string | null }>(data).map((r) => ({

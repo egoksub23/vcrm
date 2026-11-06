@@ -13,6 +13,7 @@ import { describeRule, WARNING_TEXT, type IncidentRule, type Namer } from "@/lib
 import { labelOf, type LangMap, type ResolveWarning } from "@/lib/incidents/platform/roles";
 import type { IncidentSeverityLevel, IncidentTypeCatalogueEntry } from "@/lib/incidents/standard-types";
 import { api } from "./api";
+import { RuleEditor } from "./rule-editor";
 
 export interface RulesResponse {
   rules: IncidentRule[];
@@ -79,6 +80,7 @@ export function RulesScreen() {
 /** The screen once the data is in. Separate from the loader so it can be rendered with sample data in tests. */
 export function RulesView({ data, namer, reload: load }: { data: RulesResponse; namer: Namer; reload: () => Promise<void> }) {
   const t = useTranslations("IncidentPlatform.rules");
+  const [editing, setEditing] = useState<string | "new" | null>(null);
   const toAdd = data.recipes.filter((r) => !r.added);
   const starterLeft = toAdd.filter((r) => r.inStarterSet).length;
   const emptyRoles = new Map(data.roles.filter((r) => r.warnings.length > 0).map((r) => [r.key, r.warnings]));
@@ -126,16 +128,48 @@ export function RulesView({ data, namer, reload: load }: { data: RulesResponse; 
           </div>
         ) : null}
 
+        <div>
+          <Button variant="outline" size="sm" onClick={() => setEditing("new")}><Plus />{t("newRule")}</Button>
+        </div>
+        {editing === "new" ? (
+          <RuleEditor
+            data={data}
+            namer={namer}
+            onCancel={() => setEditing(null)}
+            onSaved={async () => {
+              setEditing(null);
+              await load();
+            }}
+          />
+        ) : null}
+
         {data.rules.length === 0 ? <p className="text-sm text-muted-foreground">{t("noRules")}</p> : null}
         <ul className="flex flex-col gap-3">
           {data.rules.map((rule) => {
             const sentence = describeRule(rule, namer);
             const missing = rule.actions.flatMap((a) => (a.type === "notify" && emptyRoles.has(a.role_key) ? [namer.role(a.role_key)] : []));
+            if (editing === rule.id) {
+              return (
+                <li key={rule.id}>
+                  <RuleEditor
+                    data={data}
+                    rule={rule}
+                    namer={namer}
+                    onCancel={() => setEditing(null)}
+                    onSaved={async () => {
+                      setEditing(null);
+                      await load();
+                    }}
+                  />
+                </li>
+              );
+            }
             return (
               <li key={rule.id} className={cn("rounded-xl border bg-card p-4", rule.enabled ? "border-border" : "border-dashed border-border opacity-80")}>
                 <div className="flex items-start gap-3">
                   <h3 className="min-w-0 flex-1 text-sm font-semibold">{rule.name}</h3>
                   <Switch checked={rule.enabled} onCheckedChange={(v) => void toggle(rule, v)} aria-label={t("switch", { name: rule.name })} />
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(rule.id)}>{t("editRule")}</Button>
                   <Button variant="ghost" size="icon-sm" aria-label={t("delete")} onClick={() => void remove(rule)}><Trash2 /></Button>
                 </div>
                 <dl className="mt-2 grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-1 text-sm">

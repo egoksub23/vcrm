@@ -51,6 +51,8 @@ describe("validateRule", () => {
     expect(validateRule({ ...ok, actions: [{ type: "notify", role_key: "ghost" }] }, roles)).toEqual(['There is no role "ghost".']);
     expect(validateRule({ ...ok, trigger: "unacknowledged", wait_minutes: null }, roles)[0]).toMatch(/how long to wait/);
     expect(validateRule({ ...ok, wait_minutes: 30 }, roles)[0]).toMatch(/Only rules that wait/);
+    expect(validateRule({ ...ok, trigger: "unresolved", wait_minutes: null }, roles)[0]).toMatch(/how long to wait/);
+    expect(validateRule({ ...ok, trigger: "unresolved", wait_minutes: 20160, actions: [{ type: "escalate", level: 3 }] }, roles)).toEqual([]);
     expect(validateRule({ ...ok, actions: [{ type: "notify", role_key: STEP_ROLE }] }, roles)[0]).toMatch(/overdue step/);
     expect(validateRule({ ...ok, trigger: "step_overdue", wait_minutes: 60, actions: [{ type: "escalate", level: 2 }] }, roles)[0]).toMatch(/cannot escalate/);
   });
@@ -71,6 +73,9 @@ describe("describeRule", () => {
     expect(s.when).toBe("Nobody has acknowledged it within 30 minutes");
     expect(s.onlyIf).toBeNull();
     expect(s.then).toEqual(["Tell Principal by email and ask them to acknowledge", "Mark the incident Level 2"]);
+  });
+  it("words the 'still open' timer", () => {
+    expect(describeRule({ trigger: "unresolved", wait_minutes: 14 * 1440, conditions: {}, actions: [] }, names).when).toBe("An incident is still open 14 days after it was raised");
   });
   it("words hours and days", () => {
     const base = { conditions: {}, actions: [] };

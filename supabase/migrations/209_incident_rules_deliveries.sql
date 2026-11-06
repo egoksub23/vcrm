@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.incident_rules (
   -- Which starter recipe it came from, if any (one rule per recipe per school).
   recipe_key   TEXT,
   name         TEXT        NOT NULL CHECK (length(btrim(name)) > 0),
-  trigger      TEXT        NOT NULL CHECK (trigger IN ('raised', 'unacknowledged', 'step_overdue', 'closed')),
+  trigger      TEXT        NOT NULL CHECK (trigger IN ('raised', 'unacknowledged', 'step_overdue', 'unresolved', 'closed')),
   wait_minutes INTEGER     CHECK (wait_minutes IS NULL OR wait_minutes BETWEEN 1 AND 43200),
   conditions   JSONB       NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(conditions) = 'object'),
   actions      JSONB       NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(actions) = 'array' AND jsonb_array_length(actions) > 0),
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.incident_rules (
   created_by   UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK ((trigger IN ('unacknowledged', 'step_overdue')) = (wait_minutes IS NOT NULL))
+  CHECK ((trigger IN ('unacknowledged', 'step_overdue', 'unresolved')) = (wait_minutes IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS idx_incident_rules_account ON public.incident_rules (account_id, enabled, position);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_incident_rules_recipe ON public.incident_rules (account_id, recipe_key) WHERE recipe_key IS NOT NULL;
@@ -187,6 +187,25 @@ AS $$
    LIMIT GREATEST(p_limit, 1);
 $$;
 
+-- Incidents still open (not closed) that were raised at or before p_before: the "resolve by" timer.
+CREATE OR REPLACE FUNCTION public.incident_unresolved(p_account_id UUID, p_before TIMESTAMPTZ, p_limit INTEGER DEFAULT 100)
+RETURNS SETOF UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT i.id
+    FROM public.incidents i
+   WHERE i.account_id = p_account_id
+     AND i.status <> 'closed'
+     AND i.created_at <= p_before
+     AND i.created_at > now() - interval '365 days'
+     AND NOT i.is_test
+   ORDER BY i.created_at
+   LIMIT GREATEST(p_limit, 1);
+$$;
+
 -- Accounts that have at least one enabled timed rule: the sweep only looks at these.
 CREATE OR REPLACE FUNCTION public.incident_accounts_with_timed_rules()
 RETURNS SETOF UUID
@@ -196,16 +215,18 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT DISTINCT account_id FROM public.incident_rules
-   WHERE enabled AND trigger IN ('unacknowledged', 'step_overdue');
+   WHERE enabled AND trigger IN ('unacknowledged', 'step_overdue', 'unresolved');
 $$;
 
 REVOKE ALL ON FUNCTION public.claim_incident_deliveries(INTEGER) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.incident_unacknowledged(UUID, TIMESTAMPTZ, INTEGER) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.incident_overdue_steps(UUID, TIMESTAMPTZ, INTEGER) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.incident_unresolved(UUID, TIMESTAMPTZ, INTEGER) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.incident_accounts_with_timed_rules() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_incident_deliveries(INTEGER) TO service_role;
 GRANT EXECUTE ON FUNCTION public.incident_unacknowledged(UUID, TIMESTAMPTZ, INTEGER) TO service_role;
 GRANT EXECUTE ON FUNCTION public.incident_overdue_steps(UUID, TIMESTAMPTZ, INTEGER) TO service_role;
+GRANT EXECUTE ON FUNCTION public.incident_unresolved(UUID, TIMESTAMPTZ, INTEGER) TO service_role;
 GRANT EXECUTE ON FUNCTION public.incident_accounts_with_timed_rules() TO service_role;
 
 NOTIFY pgrst, 'reload schema';

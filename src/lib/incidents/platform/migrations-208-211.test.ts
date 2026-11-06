@@ -50,6 +50,7 @@ describe("functions the browser must not call", () => {
     "claim_incident_deliveries(INTEGER)",
     "incident_unacknowledged(UUID, TIMESTAMPTZ, INTEGER)",
     "incident_overdue_steps(UUID, TIMESTAMPTZ, INTEGER)",
+    "incident_unresolved(UUID, TIMESTAMPTZ, INTEGER)",
     "incident_accounts_with_timed_rules()",
   ];
   for (const fn of SERVICE_ONLY) {

@@ -26,6 +26,7 @@ vi.mock("next/navigation", () => ({
 import { RolesView, type DirectoryResponse } from "./roles-screen";
 import { RulesView, RulesScreen, makeNamer, type RulesResponse } from "./rules-screen";
 import { SetupGuide } from "./setup-guide";
+import { RuleEditor } from "./rule-editor";
 import { OverviewScreen } from "../overview-screen";
 import { TasksScreen } from "../tasks-screen";
 import { AckButton } from "@/app/incident-ack/[token]/ack-button";
@@ -122,6 +123,17 @@ describe("Rules", () => {
     expect(html).toContain("Switch on the starter set");
     expect(html).toContain("Try it");
     expect(html).toContain("School nurse has nobody to tell today");
+  });
+
+  it("renders the rule editor for a new rule and for an existing timed rule, with the sentence it would make", () => {
+    const namer = makeNamer(data, (f) => f);
+    const fresh = render(<RuleEditor data={data} namer={namer} onSaved={async () => {}} onCancel={() => {}} />);
+    expect(fresh).toContain("New rule");
+    expect(fresh).toContain("This rule says");
+    const timed = rules.find((r) => r.trigger === "unacknowledged") ?? { ...rules[0], trigger: "unacknowledged" as const, wait_minutes: 30 };
+    const edit = render(<RuleEditor data={data} rule={timed} namer={namer} onSaved={async () => {}} onCancel={() => {}} />);
+    expect(edit).toContain("Edit rule");
+    expect(edit).toContain("Nobody has acknowledged it within 30 minutes");
   });
 
   it("renders Try it without a template, and the loading state of the loader", () => {

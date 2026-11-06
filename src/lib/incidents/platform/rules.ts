@@ -4,7 +4,10 @@
 import { severityRank } from "@/lib/incidents/constants";
 import type { ResolveResult, ResolveWarning } from "./roles";
 
-export const RULE_TRIGGERS = ["raised", "unacknowledged", "step_overdue", "closed"] as const;
+export const RULE_TRIGGERS = ["raised", "unacknowledged", "step_overdue", "unresolved", "closed"] as const;
+
+/** The triggers that wait for something, and so carry a wait time. */
+export const TIMED_TRIGGERS: readonly RuleTrigger[] = ["unacknowledged", "step_overdue", "unresolved"];
 export type RuleTrigger = (typeof RULE_TRIGGERS)[number];
 
 /** The role a step's `party` points at: used by the rule "tell the step's role". */
@@ -29,7 +32,7 @@ export interface IncidentRule {
   recipe_key: string | null;
   name: string;
   trigger: RuleTrigger;
-  /** Minutes after the trigger moment: used by unacknowledged and step_overdue. */
+  /** Minutes after the trigger moment: used by the timed triggers (unacknowledged, step_overdue, unresolved). */
   wait_minutes: number | null;
   conditions: RuleConditions;
   actions: RuleAction[];
@@ -70,7 +73,7 @@ export function validateRule(draft: RuleDraft, knownRoles: readonly string[]): s
   const problems: string[] = [];
   if (!draft.name.trim()) problems.push("Give the rule a name.");
   if (!RULE_TRIGGERS.includes(draft.trigger)) problems.push("Pick when the rule applies.");
-  const timed = draft.trigger === "unacknowledged" || draft.trigger === "step_overdue";
+  const timed = TIMED_TRIGGERS.includes(draft.trigger);
   if (timed) {
     const w = draft.wait_minutes;
     if (w == null || !Number.isInteger(w) || w < 1 || w > 60 * 24 * 30) problems.push("Say how long to wait, between 1 minute and 30 days.");
@@ -129,7 +132,9 @@ export function describeRule(rule: Pick<IncidentRule, "trigger" | "wait_minutes"
         ? "An incident is closed"
         : rule.trigger === "unacknowledged"
           ? `Nobody has acknowledged it within ${minutesText(w)}`
-          : `A required step is overdue by ${minutesText(w)}`;
+          : rule.trigger === "unresolved"
+            ? `An incident is still open ${minutesText(w)} after it was raised`
+            : `A required step is overdue by ${minutesText(w)}`;
 
   const parts: string[] = [];
   const c = rule.conditions;
@@ -278,6 +283,22 @@ export const RECIPES: readonly Recipe[] = [
       actions: [
         { type: "notify", role_key: STEP_ROLE },
         { type: "notify", role_key: "incident_lead" },
+      ],
+    }),
+  },
+  {
+    key: "resolve_by",
+    name: "Chase incidents that stay open",
+    description: "If an incident is still open two weeks after it was raised, tell the incident lead and the Principal.",
+    inStarterSet: false,
+    build: () => ({
+      name: "Still open after 14 days: tell the lead and the Principal",
+      trigger: "unresolved",
+      wait_minutes: 14 * 1440,
+      conditions: {},
+      actions: [
+        { type: "notify", role_key: "incident_lead" },
+        { type: "notify", role_key: "principal" },
       ],
     }),
   },
