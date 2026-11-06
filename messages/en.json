@@ -14867,6 +14867,20 @@
         "save": "Save step",
         "cancel": "Cancel"
       }
+    },
+    "answers": {
+      "title": "Coach's report",
+      "version": "Form version {version}",
+      "builtIn": "Built-in form",
+      "reportedBy": "Reported by",
+      "activity": "Activity",
+      "people": "People named",
+      "parentReachable": "parent can be reached",
+      "involvement": {
+        "injured": "injured",
+        "involved": "involved",
+        "witness": "witness"
+      }
     }
   }
 }

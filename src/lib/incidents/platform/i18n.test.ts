@@ -25,6 +25,7 @@ const FILES = [
   "src/components/incidents/setup/rule-editor.tsx",
   "src/components/incidents/setup/workflow-panel.tsx",
   "src/components/incidents/approvals-panel.tsx",
+  "src/components/incidents/report-answers-panel.tsx",
   "src/components/incidents/registers-screen.tsx",
   "src/components/incidents/setup/form-builder.tsx",
   "src/components/incidents/setup/pack-screen.tsx",
@@ -75,6 +76,7 @@ describe("incident platform strings", () => {
       ...["involved", "choice", "text", "longtext", "yesno", "photo"].map((k) => `IncidentPlatform.builder.type.${k}`),
       ...["minor", "first_aid", "cannot_continue", "hospital"].map((k) => `IncidentPlatform.builder.band.${k}`),
       ...["published", "archived", "draft"].map((k) => `IncidentPlatform.builder.status.${k}`),
+      ...["injured", "involved", "witness"].map((k) => `IncidentPlatform.answers.involvement.${k}`),
       ...["approved", "rejected"].map((k) => `IncidentPlatform.approvals.decision.${k}`),
     ];
     for (const p of paths) expect(typeof get(p), p).toBe("string");
