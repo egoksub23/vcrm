@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       .insert({
         account_id: ctx.accountId,
         name: body.name.trim(),
-        slug: body.slug ?? body.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40) || "type",
+        slug: (body.slug ?? body.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40)) || "type",
         position: body.position ?? 0,
       })
       .select()
