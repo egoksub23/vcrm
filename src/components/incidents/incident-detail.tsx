@@ -59,6 +59,7 @@ import { linkifySegments } from "@/lib/sembang/linkify";
 import { EscalationChip, SeverityBadge, StatusLozenge } from "./incident-visuals";
 import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { ObligationsPanel } from "./obligations-panel";
+import { MessageLogPanel } from "./message-log-panel";
 
 /** Plain text with any URL turned into a clickable link — same link
  *  definition Sembang uses (findLinkTokens), so a link pasted into an
@@ -636,6 +637,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             canManage={canManage}
             onChanged={(row) => setObligations((prev) => prev.map((o) => (o.id === row.id ? row : o)))}
           />
+
+          {canManage ? <MessageLogPanel incidentId={incident.id} canManage={canManage} /> : null}
 
           <ActionsPanel
             incidentId={incident.id}

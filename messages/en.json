@@ -14422,6 +14422,30 @@
       "markDone": "Mark {title} done",
       "overdueBy": "overdue by {time}",
       "dueIn": "due in {time}"
+    },
+    "log": {
+      "title": "Message log",
+      "waiting": "Nobody has acknowledged yet.",
+      "acknowledge": "I have seen this",
+      "test": "Test",
+      "retry": "Retry",
+      "failedUnknown": "The message could not be sent.",
+      "status": {
+        "queued": "Waiting to send",
+        "sending": "Sending",
+        "sent": "Sent",
+        "acknowledged": "Acknowledged",
+        "failed": "Failed",
+        "skipped": "Skipped"
+      },
+      "reason": {
+        "raised": "Incident raised",
+        "reminder": "Reminder",
+        "escalated": "Escalated",
+        "step_overdue": "Overdue step",
+        "closed": "Incident closed",
+        "test": "Test"
+      }
     }
   }
 }

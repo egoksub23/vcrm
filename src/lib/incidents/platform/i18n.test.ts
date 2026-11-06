@@ -19,6 +19,7 @@ const FILES = [
   "src/components/incidents/setup/setup-guide.tsx",
   "src/components/incidents/overview-screen.tsx",
   "src/components/incidents/tasks-screen.tsx",
+  "src/components/incidents/message-log-panel.tsx",
   "src/app/(dashboard)/incidents/setup/page.tsx",
   "src/app/(dashboard)/incidents/setup/roles/page.tsx",
   "src/app/(dashboard)/incidents/setup/rules/page.tsx",
@@ -51,6 +52,8 @@ describe("incident platform strings", () => {
       ...INCIDENT_FLAGS.map((f) => `IncidentPlatform.flagNoun.${f}`),
       ...["template", "roles", "rules", "packs"].flatMap((s) => ["title", "help", "doneFact", "todoFact"].map((k) => `IncidentPlatform.guide.steps.${s}.${k}`)),
       ...["unacknowledged", "overdue", "serious"].map((k) => `IncidentPlatform.overview.needs.${k}`),
+      ...["queued", "sending", "sent", "acknowledged", "failed", "skipped"].map((k) => `IncidentPlatform.log.status.${k}`),
+      ...["raised", "reminder", "escalated", "step_overdue", "closed", "test"].map((k) => `IncidentPlatform.log.reason.${k}`),
     ];
     for (const p of paths) expect(typeof get(p), p).toBe("string");
   });

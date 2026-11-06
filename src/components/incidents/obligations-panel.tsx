@@ -8,6 +8,7 @@ import { Check, ClipboardCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { IncidentObligation } from "@/lib/incidents/types";
+import { roleLabel } from "./message-log-panel";
 
 /**
  * The checklist the account's active frameworks (PDPA, ISO 45001, school
@@ -87,7 +88,11 @@ export function ObligationsPanel({
                   <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{r.description}</p>
                 ) : null}
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[10.5px] text-muted-foreground">
-                  {r.party ? <span className="font-medium text-foreground/80">{tParty(r.party)}</span> : null}
+                  {r.role_key ? (
+                    <span className="font-medium text-foreground/80">{roleLabel(r.role_key)}</span>
+                  ) : r.party ? (
+                    <span className="font-medium text-foreground/80">{tParty(r.party)}</span>
+                  ) : null}
                   {done && r.completed_at ? (
                     <span>{t("doneAt", { when: format(new Date(r.completed_at), "d MMM, HH:mm") })}</span>
                   ) : dueMs !== null ? (
