@@ -10,13 +10,9 @@
 // already allows loader.js needs no extra CSP entries.
 //
 // Run via `npm run build:widget`, and wired into `npm run build`
-// ahead of `next build` so every deploy ships a current bundle. Reads
-// NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY from
-// process.env (already present in CI/Docker — see Dockerfile's
-// builder stage ARGs) or, for local dev, from .env.local — and
-// inlines them into the bundle via esbuild's `define`. There is no
-// other way to hand them to the widget: it has to authenticate an
-// anonymous Supabase session before it can call our own API at all.
+// ahead of `next build` so every deploy ships a current bundle.
+// No Supabase keys needed: auth is now a self-issued JWT from
+// /api/widget/anon-auth, stored in localStorage by the widget.
 // ============================================================
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
@@ -51,17 +47,6 @@ function loadDotEnvLocal() {
 
 loadDotEnvLocal()
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(
-    '[build-widget] NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set ' +
-      '(via .env.local or the environment) to build the widget bundle.',
-  )
-  process.exit(1)
-}
-
 const watch = process.argv.includes('--watch')
 const outDir = resolve(root, 'public/widget')
 mkdirSync(outDir, { recursive: true })
@@ -89,8 +74,6 @@ const loaderOptions = {
   entryPoints: [resolve(root, 'widget/src/main.tsx')],
   outfile: resolve(outDir, 'loader.js'),
   define: {
-    __SUPABASE_URL__: JSON.stringify(supabaseUrl),
-    __SUPABASE_ANON_KEY__: JSON.stringify(supabaseAnonKey),
     __WIDGET_BUILD__: JSON.stringify(buildId),
   },
 }

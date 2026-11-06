@@ -115,10 +115,8 @@ describe('Realtime / history rows', () => {
 
 describe('requests can not hang forever', () => {
   async function loadApi() {
-    // api.ts reads document.currentScript at import time and inlines build-time constants.
+    // api.ts reads document.currentScript at import time.
     vi.stubGlobal('document', { currentScript: null, querySelector: () => null })
-    vi.stubGlobal('__SUPABASE_URL__', 'http://localhost:54321')
-    vi.stubGlobal('__SUPABASE_ANON_KEY__', 'anon')
     return import('./api')
   }
 

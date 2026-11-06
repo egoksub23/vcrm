@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
-import type { RealtimeChannel } from '@supabase/supabase-js'
 
 import {
   ApiError,
@@ -11,7 +10,6 @@ import {
   sendWidgetMessage,
   sessionNeedsIdentity,
   startSession,
-  supabase,
   uploadMedia,
   verifyCode,
   type Claim,
@@ -20,7 +18,7 @@ import {
   type StartSessionOptions,
 } from './api'
 import { makeTranslator, type Translate } from './i18n'
-import { applyMediaLinks, mediaUrlsToResolve, rawMediaUrlOf } from './media-links'
+import { applyMediaLinks, mediaUrlsToResolve } from './media-links'
 import { canRecordVoice } from './recorder'
 import type { VoiceResult } from './recorder-strategy'
 import { isReturning, markReturning, readLastSeen, writeLastSeen } from './storage'
@@ -47,7 +45,6 @@ import {
   receiptTargets,
   safeGroupMessages,
   TEMP_PREFIX,
-  toWidgetMessage,
   validateFile,
   type UnreadMarker,
 } from './util'
@@ -152,10 +149,9 @@ export function App({
   const [canRecord, setCanRecord] = useState(() => canRecordVoice(DEFAULT_LIMITS.allowedMimeTypes))
 
   const bootstrapped = useRef(false)
-  const channelRef = useRef<RealtimeChannel | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const convRef = useRef<string | null>(null)
-  // Set only once history was attempted AND the live channel is open; see needsConnect().
+  // Set only once history was attempted; see needsConnect().
   const connectedRef = useRef<string | null>(null)
   const messagesRef = useRef<LocalMessage[]>([])
   const hasMoreRef = useRef(false)
@@ -164,7 +160,6 @@ export function App({
   const stickRef = useRef(true)
   const anchorRef = useRef<{ height: number; top: number } | null>(null)
   const snapshotDone = useRef(false)
-  const everSubscribed = useRef(false)
   const reported = useRef(new Map<string, 'delivered' | 'read'>())
   const identityRef = useRef<IdentityInput>({ ...initialIdentity })
   const identityLevelRef = useRef<string | null>(null)
@@ -204,23 +199,6 @@ export function App({
     setMessages((prev) => applyMediaLinks(prev, links))
   }, [])
 
-  // A Realtime row arrives with the stored media_url: swap in its signed link first (so an
-  // image never flashes broken), but never wait on that for a row without media, and never
-  // lose a row because the link lookup failed (resolveMessageMedia does not throw).
-  const landRow = useCallback(
-    (convId: string, row: WidgetMessage, apply: (prev: LocalMessage[], row: WidgetMessage) => LocalMessage[]) => {
-      const run = (r: WidgetMessage) => {
-        if (convRef.current === convId) setMessages((prev) => apply(prev, r))
-      }
-      if (!rawMediaUrlOf(row)) {
-        run(row)
-        return
-      }
-      void resolveMessageMedia(convId, [row]).then(([resolved]) => run(resolved ?? row))
-    },
-    [],
-  )
-
   // The Try again button under a failed history load: fetches the newest page again.
   const retryHistory = useCallback(async () => {
     const id = convRef.current
@@ -237,19 +215,13 @@ export function App({
     }
   }, [])
 
-  // Fetches the newest page + opens the Realtime subscription for `id`,
-  // tearing down any previous one first — reused by the initial
-  // bootstrap and by every later re-identify, where the conversationId
-  // can change out from under an open chat if a guest thread is merged
-  // into an existing contact's.
+  // Fetches the newest page for `id`, tearing down the previous conversation
+  // first — reused by the initial bootstrap and by every later re-identify.
+  // Poll-only mode: live updates arrive via the safety-net poll timer
+  // (pollDelayMs returns 8 s when live=false).
   const connectConversation = useCallback(async (id: string) => {
-    if (channelRef.current) {
-      void supabase.removeChannel(channelRef.current)
-      channelRef.current = null
-    }
     convRef.current = id
     connectedRef.current = null
-    everSubscribed.current = false
     reported.current = new Map()
     snapshotDone.current = false
     setConversationId(id)
@@ -259,48 +231,6 @@ export function App({
     setMessages([])
     lastSeenRef.current = readLastSeen(id)
     setLastSeen(lastSeenRef.current)
-
-    // Live channel first, then history: a message sent in between is merged, never lost.
-    const filter = `conversation_id=eq.${id}`
-    try {
-      const channel = supabase
-        .channel(`widget-messages-${id}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, (payload) => {
-          const row = toWidgetMessage(payload.new as Record<string, unknown>)
-          // is_internal is also excluded server-side by RLS (migration 046) - belt and braces.
-          if (!row || row.is_internal) return
-          landRow(id, row, (prev, r) => {
-            if (r.sender_type === 'customer') {
-              // The visitor's own sends are rendered optimistically and reconciled
-              // from the /message response; only adopt one that this browser is
-              // not in the middle of sending (e.g. sent from another tab).
-              if (prev.some((m) => m.id === r.id)) return mergeMessages(prev, [r])
-              if (prev.some((m) => isTemp(m) && m.pending)) return prev
-            }
-            return mergeMessages(prev, [r])
-          })
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter }, (payload) => {
-          const row = toWidgetMessage(payload.new as Record<string, unknown>)
-          if (!row || row.is_internal) return
-          // Animates the ticks; mergeMessages never lets a status go backwards.
-          // The row re-sends the stored media_url; mergeMessages keeps the signed link already held for it.
-          landRow(id, row, (prev, r) => (prev.some((m) => m.id === r.id) ? mergeMessages(prev, [r]) : prev))
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            setLive(true)
-            // Anything sent while the socket was down is fetched now.
-            if (everSubscribed.current) void refreshLatest()
-            everSubscribed.current = true
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            setLive(false)
-          }
-        })
-      channelRef.current = channel
-    } catch {
-      setLive(false) // the poll below still keeps the chat current
-    }
 
     try {
       const { rows, hasMore: more } = await fetchMessages(id)
@@ -316,7 +246,7 @@ export function App({
     }
     setHistoryReady(true)
     connectedRef.current = id
-  }, [landRow, refreshLatest])
+  }, [])
 
   // Shared by every path that resolves (or re-resolves) identity.
   // Returns true when the visitor ended up in a conversation.
@@ -427,23 +357,6 @@ export function App({
     })
   }, [onIdentifyReady, runIdentity])
 
-  // When the Supabase anonymous session expires and cannot be refreshed (e.g. after a
-  // long background idle on mobile where the refresh timer never fired), Supabase emits
-  // SIGNED_OUT. At that point any Realtime subscription has lost its auth and will stay
-  // stuck in CHANNEL_ERROR. We dispatch `vircle-widget:session-expired` so the host app
-  // can call window.VircleWidget.identify({ token }) with a fresh signed identity token;
-  // that call triggers runIdentity(), which creates a new widget_visitors row for the
-  // new anonymous session and reconnects the Realtime channel.
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        window.dispatchEvent(new CustomEvent('vircle-widget:session-expired'))
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [])
 
   // ---------- form handlers ----------
 
@@ -865,7 +778,6 @@ export function App({
 
   useEffect(
     () => () => {
-      if (channelRef.current) void supabase.removeChannel(channelRef.current)
       for (const m of messagesRef.current) if (m.localUrl) URL.revokeObjectURL(m.localUrl)
     },
     [],

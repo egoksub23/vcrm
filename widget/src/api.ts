@@ -1,24 +1,14 @@
 // ============================================================
-// Supabase client + the widget API calls:
-//   POST /api/widget/session      identity + conversation bootstrap
-//   POST /api/widget/enquiry      the "I have an enquiry" form
-//   POST /api/widget/message      text and/or media
-//   POST /api/widget/upload-url   signed upload token for chat-media
-//   POST /api/widget/receipt      delivered / read reports for agent messages
-//   POST /api/widget/media-url    signed links for the (private) chat media
-// plus RLS reads of `messages` straight through the visitor's own
-// Supabase client.
-//
-// SUPABASE_URL / SUPABASE_ANON_KEY are inlined at build time by
-// esbuild's `define` (see ../../scripts/build-widget.mjs) — the exact
-// same NEXT_PUBLIC_* values already public in the dashboard's own
-// client bundle, so baking them into this one too is not a new
-// exposure. There is no other way to get them: the widget has to
-// authenticate an anonymous Supabase session BEFORE it can call our
-// API at all, and that session needs a Supabase client already.
+// Widget API calls:
+//   POST /api/widget/anon-auth  anonymous visitor JWT (no Supabase)
+//   POST /api/widget/session    identity + conversation bootstrap
+//   POST /api/widget/enquiry    the "I have an enquiry" form
+//   GET  /api/widget/messages   chat history (replaces PostgREST)
+//   POST /api/widget/message    text and/or media
+//   POST /api/widget/upload     file upload (replaces supabase.storage)
+//   POST /api/widget/receipt    delivered / read reports for agent messages
+//   POST /api/widget/media-url  signed links for the (private) chat media
 // ============================================================
-import { createClient } from '@supabase/supabase-js'
-
 import { createMediaLinkResolver, resolveMessageMedia as resolveRowsMedia } from './media-links'
 import { toWidgetMessages } from './util'
 import type {
@@ -29,11 +19,6 @@ import type {
   WidgetLimits,
   WidgetMessage,
 } from './types'
-
-declare const __SUPABASE_URL__: string
-declare const __SUPABASE_ANON_KEY__: string
-
-export const supabase = createClient(__SUPABASE_URL__, __SUPABASE_ANON_KEY__)
 
 // `document.currentScript` is only reliable while THIS script is
 // synchronously executing — which is exactly now, at module-evaluation
@@ -103,14 +88,57 @@ export function withTimeout<T>(p: PromiseLike<T>, ms: number = REQUEST_TIMEOUT_M
   })
 }
 
-async function currentAccessToken(): Promise<string> {
-  const { data } = await supabase.auth.getSession()
-  if (data.session?.access_token) return data.session.access_token
-  const { data: signedIn, error } = await supabase.auth.signInAnonymously()
-  if (error || !signedIn.session) {
-    throw new ApiError(error?.message ?? 'Failed to start an anonymous session', 401, 'auth')
+// ---------- anonymous auth (localStorage-persisted JWT) ----------
+
+const TOKEN_STORAGE_KEY = '__vw_token'
+
+function readStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY)
+  } catch {
+    return null
   }
-  return signedIn.session.access_token
+}
+
+function writeStoredToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token)
+  } catch {
+    /* ignore — session will work, just won't persist */
+  }
+}
+
+function isTokenExpiringSoon(token: string): boolean {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return true
+    const payload = JSON.parse(atob(parts[1])) as { exp?: unknown }
+    if (typeof payload.exp !== 'number') return true
+    // Refresh when < 1 hour remains
+    return payload.exp < Math.floor(Date.now() / 1000) + 3600
+  } catch {
+    return true
+  }
+}
+
+async function fetchNewToken(): Promise<string> {
+  const res = await fetch(`${API_ORIGIN}/api/widget/anon-auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!res.ok) {
+    throw new ApiError('Failed to start an anonymous session', 401, 'auth')
+  }
+  const { token } = (await res.json()) as { token: string }
+  if (!token) throw new ApiError('No token in anon-auth response', 401, 'auth')
+  writeStoredToken(token)
+  return token
+}
+
+async function currentAccessToken(): Promise<string> {
+  const existing = readStoredToken()
+  if (existing && !isTokenExpiringSoon(existing)) return existing
+  return fetchNewToken()
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -227,45 +255,50 @@ export function sendEnquiry(widgetToken: string, input: EnquiryInput): Promise<S
 
 // ---------- messages ----------
 
-const MESSAGE_COLUMNS =
-  'id, sender_type, content_text, content_type, media_url, status, created_at, is_internal'
-
 export const HISTORY_PAGE_SIZE = 50
 
 /**
- * History + live updates both go straight through the visitor's own
- * RLS-scoped Supabase client rather than a server route — the same
- * `messages_widget_visitor_select` policy (migration 046) that scopes
- * the Realtime subscription also scopes this plain SELECT, and
- * `is_internal IS NOT TRUE` there is what keeps a teammate's internal
- * comment out of both.
- *
- * Newest page first (`before` = created_at cursor of the oldest row
- * already shown for older pages); returned oldest-first for display.
+ * Fetches one page of history via the server API (GET /api/widget/messages).
+ * Newest page first (`before` = created_at cursor of the oldest row already shown
+ * for older pages); returned oldest-first for display.
  */
 export async function fetchMessages(
   conversationId: string,
   before?: string,
 ): Promise<{ rows: WidgetMessage[]; hasMore: boolean }> {
-  let q = supabase
-    .from('messages')
-    .select(MESSAGE_COLUMNS)
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: false })
-    .limit(HISTORY_PAGE_SIZE)
-  if (before) q = q.lt('created_at', before)
-  let result
+  const token = await withTimeout(currentAccessToken())
+  const params = new URLSearchParams({ conversationId })
+  if (before) params.set('before', before)
+
+  let res: Response
   try {
-    result = await withTimeout(q)
-  } catch (err) {
-    if (err instanceof ApiError) throw err
+    const controller = typeof AbortController === 'function' ? new AbortController() : null
+    const timer = setTimeout(() => controller?.abort(), REQUEST_TIMEOUT_MS)
+    try {
+      res = await fetch(`${API_ORIGIN}/api/widget/messages?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller?.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+    }
+  } catch {
     throw new ApiError('Network error', 0, 'network')
   }
-  const { data, error } = result
-  if (error) throw new ApiError(error.message, 500, 'history')
-  // Rows the widget cannot place (no id / bad timestamp) are dropped, not rendered.
-  const rows = await resolveMessageMedia(conversationId, toWidgetMessages(data).filter((m) => !m.is_internal).reverse())
-  return { rows, hasMore: (data ?? []).length >= HISTORY_PAGE_SIZE }
+
+  const data = (await res.json().catch(() => ({}))) as {
+    rows?: unknown[]
+    hasMore?: boolean
+    error?: string
+    code?: string
+  }
+  if (!res.ok) {
+    throw new ApiError(data.error ?? `Request failed (${res.status})`, res.status, data.code)
+  }
+
+  // is_internal is filtered server-side; .reverse() for oldest-first display.
+  const rows = await resolveMessageMedia(conversationId, toWidgetMessages(data.rows ?? []).reverse())
+  return { rows, hasMore: data.hasMore ?? false }
 }
 
 // ---------- media links ----------
@@ -274,7 +307,7 @@ export async function fetchMessages(
  * chat-media is a private bucket: a stored `media_url` no longer serves the file,
  * so every file shown goes through a short-lived signed link from the server.
  * Links are cached by the stored url for a little under their lifetime, so
- * polling, Realtime updates and re-renders never ask twice.
+ * polling, re-renders and re-opens never ask twice.
  */
 const mediaLinks = createMediaLinkResolver(async (conversationId, urls) => {
   const res = await post<{ urls?: Record<string, string> }>('/api/widget/media-url', { conversationId, urls })
@@ -326,16 +359,9 @@ export async function sendWidgetMessage(
 
 // ---------- uploads ----------
 
-interface UploadUrlResponse {
-  bucket: string
-  path: string
-  token: string
-}
-
 /**
- * Two steps: ask the server for a signed upload token (it validates
- * type / size and scopes the path to this conversation), then upload
- * straight to Storage with it — no file bytes pass through our API.
+ * Uploads a media file straight to the server (POST /api/widget/upload)
+ * which stores it via appStorage() and returns the path.
  * Returns the storage path to hand to /api/widget/message.
  */
 export async function uploadMedia(
@@ -343,20 +369,44 @@ export async function uploadMedia(
   file: Blob,
   info: { fileName: string; mimeType: string; kind: MediaKind },
 ): Promise<string> {
-  const slot = await post<UploadUrlResponse>('/api/widget/upload-url', {
-    conversationId,
-    fileName: info.fileName,
-    mimeType: info.mimeType,
-    sizeBytes: file.size,
-    kind: info.kind,
-  })
-  const { error } = await supabase.storage
-    .from(slot.bucket || 'chat-media')
-    .uploadToSignedUrl(slot.path, slot.token, file, { contentType: info.mimeType })
-  if (error) {
-    throw new ApiError(error.message, 500, 'upload_failed')
+  const token = await withTimeout(currentAccessToken())
+
+  const form = new FormData()
+  form.append('conversationId', conversationId)
+  form.append('fileName', info.fileName)
+  form.append('mimeType', info.mimeType)
+  form.append('kind', info.kind)
+  form.append('sizeBytes', String(file.size))
+  form.append('file', file, info.fileName)
+
+  let res: Response
+  try {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null
+    const timer = setTimeout(() => controller?.abort(), REQUEST_TIMEOUT_MS)
+    try {
+      res = await fetch(`${API_ORIGIN}/api/widget/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+        signal: controller?.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+    }
+  } catch {
+    throw new ApiError('Network error', 0, 'network')
   }
-  return slot.path
+
+  const data = (await res.json().catch(() => ({}))) as { path?: string; error?: string; code?: string }
+  if (!res.ok) {
+    throw new ApiError(
+      data.error ?? `Upload failed (${res.status})`,
+      res.status,
+      data.code ?? 'upload_failed',
+    )
+  }
+  if (!data.path) throw new ApiError('Upload returned no path', 500, 'upload_failed')
+  return data.path
 }
 
 // ---------- receipts ----------
