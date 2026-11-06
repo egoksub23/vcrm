@@ -32,6 +32,7 @@ const migrationFiles = [
   "183_compliance_requests.sql",
   "184_compliance_intake.sql",
   "188_kyc_decisions.sql",
+  "208_incident_roles_contacts.sql",
 ];
 
 const migrationTexts = migrationFiles.map((f) => readMigration(f));

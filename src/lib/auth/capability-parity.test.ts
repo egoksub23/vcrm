@@ -463,6 +463,10 @@ const UI_ONLY_ALLOW_LIST: ReadonlySet<string> = new Set([
   "menu.incidents",
   "incidents.raise",
   "incidents.manage",
+  // Migration 208: new capabilities, no earlier floor. configure is database-tier (RLS on the role, contact and rule tables).
+  "incidents.configure",
+  "incidents.medical",
+  "incidents.export",
   // Migration 157: Doc Sign is a brand new feature, no earlier floor to compare against. The
   // reading gate and the write guards are database-tier (has_capability() in every sign_*
   // policy); void and sign act through server routes.

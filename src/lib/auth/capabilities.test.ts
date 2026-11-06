@@ -97,6 +97,7 @@ describe("catalogue", () => {
         "deals.manage",
         "flows.manage",
         "inbox.shared-views",
+        "incidents.configure",
         "incidents.manage",
         "incidents.raise",
         "knowledge.draft",
@@ -168,6 +169,9 @@ describe("catalogue", () => {
         "compliance.execute",
         "compliance.manage",
         "compliance.raise",
+        // Incident platform (migration 208): medical sections and exports are served by server routes
+        "incidents.medical",
+        "incidents.export",
       ].sort(),
     );
   });
