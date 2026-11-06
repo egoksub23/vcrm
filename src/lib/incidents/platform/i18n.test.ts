@@ -27,6 +27,7 @@ const FILES = [
   "src/components/incidents/approvals-panel.tsx",
   "src/components/incidents/registers-screen.tsx",
   "src/components/incidents/setup/form-builder.tsx",
+  "src/components/incidents/setup/pack-screen.tsx",
   "src/components/incidents/reports-screen.tsx",
   "src/components/incidents/record-view.tsx",
   "src/components/incidents/setup/retention-panel.tsx",

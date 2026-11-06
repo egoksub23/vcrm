@@ -21,6 +21,7 @@ describe("the Incidents group", () => {
       "/incidents/setup/rules",
       "/incidents/setup/form",
       "/incidents/setup/portal",
+      "/incidents/setup/steps",
       "/settings?tab=incidents",
     ]);
     // managers see the registers and reports; the setup pages need incidents.configure
@@ -40,6 +41,7 @@ describe("the Incidents group", () => {
     expect(activeOn("/incidents/setup/rules")).toEqual(["/incidents/setup/rules"]);
     expect(activeOn("/incidents/setup/portal")).toEqual(["/incidents/setup/portal"]);
     expect(activeOn("/incidents/setup/form")).toEqual(["/incidents/setup/form"]);
+    expect(activeOn("/incidents/setup/steps")).toEqual(["/incidents/setup/steps"]);
     expect(activeOn("/incidents/clearances")).toEqual(["/incidents/clearances"]);
     expect(activeOn("/incidents/registers")).toEqual(["/incidents/registers"]);
     expect(activeOn("/incidents/reports")).toEqual(["/incidents/reports"]);

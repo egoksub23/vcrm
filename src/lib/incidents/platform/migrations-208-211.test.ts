@@ -163,3 +163,20 @@ describe("migration 215 (report form versions)", () => {
     expect(m215).toContain("ALTER TABLE public.incidents                ADD COLUMN IF NOT EXISTS form_version INTEGER");
   });
 });
+
+describe("migration 216 (a school's own pack)", () => {
+  const m216 = readMigration("216_incident_school_pack.sql").replace(/\r\n/g, "\n");
+
+  it("shows a school's pack only to that school, and the built-in packs to everyone", () => {
+    expect(m216).toMatch(/incident_standards_select" ON public\.incident_standards\s+FOR SELECT USING \(account_id IS NULL OR is_account_member\(account_id\)\)/);
+    expect(m216).toContain("s.account_id IS NULL OR is_account_member(s.account_id)");
+  });
+  it("lets only a configurer write a school's own pack, never a built-in one", () => {
+    expect(m216).toMatch(/incident_standards_write ON public\.incident_standards FOR ALL\s+USING \(account_id IS NOT NULL AND has_capability\(account_id, 'incidents\.configure'\)\)/);
+    expect(m216).toMatch(/incident_obligation_rules_write[\s\S]*s\.account_id IS NOT NULL AND has_capability\(s\.account_id, 'incidents\.configure'\)/);
+  });
+  it("keeps a school's pack a framework, one per school", () => {
+    expect(m216).toContain("uq_incident_standards_account_pack ON public.incident_standards (account_id) WHERE account_id IS NOT NULL AND kind = 'framework'");
+    expect(m216).toMatch(/NEW\.kind <> 'framework' OR NEW\.is_system/);
+  });
+});

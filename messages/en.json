@@ -68,7 +68,8 @@
     "incidentsClearances": "Return to play",
     "incidentsRegisters": "Registers",
     "incidentsReports": "Reports",
-    "incidentsForm": "Report form"
+    "incidentsForm": "Report form",
+    "incidentsSteps": "Our own steps"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -14836,6 +14837,32 @@
       },
       "restore": "Start a draft from this",
       "wordingIn": "Edit the wording in"
+    },
+    "pack": {
+      "title": "Our own required steps",
+      "pageHelp": "Steps your school adds itself, on top of the PDPA, ISO and school-policy packs. Each says what the incident involves, who must act, and by when.",
+      "help": "These are added to every new incident that involves what the step names. Incidents already raised keep the steps they have.",
+      "loading": "Loading",
+      "startHelp": "You have not added any steps of your own yet. Start your own pack to add one.",
+      "start": "Start our own pack",
+      "off": "This pack is switched off, so its steps are not added to new incidents. Switch it on under Compliance packs.",
+      "add": "Add a step",
+      "none": "No steps yet.",
+      "lead": "The incident lead",
+      "edit": "Edit this step",
+      "remove": "Delete this step",
+      "rowSentence": "When it involves {involves}: {role}, {due}",
+      "form": {
+        "title": "The step",
+        "titlePlaceholder": "For example Phone the parents",
+        "when": "When the incident involves",
+        "who": "Who must do it",
+        "hours": "Within how many hours",
+        "noDeadline": "No deadline",
+        "description": "More detail (optional)",
+        "save": "Save step",
+        "cancel": "Cancel"
+      }
     }
   }
 }
