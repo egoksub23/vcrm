@@ -160,7 +160,7 @@ AS $$
      AND s.first_ask_at IS NOT NULL
      AND s.first_ask_at <= p_before
      AND NOT s.acknowledged
-     AND i.status <> 'closed'
+     AND i.status = 'reported'
      AND i.created_at > now() - interval '60 days'
    ORDER BY s.first_ask_at
    LIMIT GREATEST(p_limit, 1);
