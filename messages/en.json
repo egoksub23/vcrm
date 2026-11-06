@@ -14448,6 +14448,47 @@
         "closed": "Incident closed",
         "test": "Test"
       }
+    },
+    "report": {
+      "notice": {
+        "invalid": {
+          "title": "This link is not valid",
+          "body": "It may have been copied incompletely, or it was replaced. Go back to the coach portal and tap Report again."
+        },
+        "expired": {
+          "title": "This link has expired",
+          "body": "Links last for 2 hours. Go back to the coach portal and tap Report again. Nothing you typed was sent."
+        },
+        "submitted": {
+          "title": "This report was already sent",
+          "body": "It is filed as {reference}. To report something else, go back to the coach portal and tap Report again."
+        }
+      },
+      "backToPortal": "Back to the coach portal",
+      "back": "Back",
+      "stepOf": "Step {n} of {total}",
+      "next": "Next",
+      "send": "Send report",
+      "waitingToSend": "Waiting for a connection",
+      "sendFailed": "The report could not be sent. Your answers are kept on this phone. Try again.",
+      "testBanner": "Test report. Nothing is sent to real people.",
+      "offline": "No connection. Your report is saved on this phone and will be sent as soon as you are back online. Photos can be added after it sends.",
+      "yes": "Yes",
+      "no": "No",
+      "noRoster": "There is no list of students for this activity. Type the name below.",
+      "someoneElse": "Someone else or a visitor",
+      "addOther": "Add this person",
+      "removeOther": "Remove {name}",
+      "addPhoto": "Add a photo",
+      "removePhoto": "Remove {name}",
+      "photoNote": "Up to 5 files, 10 MB each. Photos are added after the report is sent.",
+      "sent": {
+        "title": "Report sent",
+        "testNote": "This was a test report, so only the school's admins were told.",
+        "told": "Told: {roles}.",
+        "toldNobody": "The school office has it. Nobody has been told automatically yet.",
+        "photoFailed": "Not added. Tell the school office."
+      }
     }
   }
 }

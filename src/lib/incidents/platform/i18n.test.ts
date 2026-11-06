@@ -20,6 +20,7 @@ const FILES = [
   "src/components/incidents/overview-screen.tsx",
   "src/components/incidents/tasks-screen.tsx",
   "src/components/incidents/message-log-panel.tsx",
+  "src/components/incidents/report/report-app.tsx",
   "src/app/(dashboard)/incidents/setup/page.tsx",
   "src/app/(dashboard)/incidents/setup/roles/page.tsx",
   "src/app/(dashboard)/incidents/setup/rules/page.tsx",

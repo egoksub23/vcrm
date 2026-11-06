@@ -1,7 +1,19 @@
 import { auth } from "@/auth";
 import { NextResponse, type NextRequest } from "next/server";
+import { frameAncestors, readSessionToken } from "@/lib/incidents/intake/keys";
 
 export async function proxy(request: NextRequest) {
+  // The coach's report page (/report/<token>) and the acknowledge page are opened by people with no Halo login, often inside another site's frame or a
+  // phone web view where third-party cookies are blocked. They need no session and must not set a cookie, so they skip the session handling below.
+  // The report may be framed only by the origins registered for the key that issued the link; they are signed into the token, so no lookup is needed.
+  if (request.nextUrl.pathname.startsWith("/report/")) {
+    const token = decodeURIComponent(request.nextUrl.pathname.split("/")[2] ?? "");
+    const response = NextResponse.next();
+    response.headers.set("Content-Security-Policy", frameAncestors(readSessionToken(token)?.origins ?? []));
+    return response;
+  }
+  if (request.nextUrl.pathname.startsWith("/incident-ack/")) return NextResponse.next();
+
   const session = await auth();
   const user = session?.user ?? null;
 
