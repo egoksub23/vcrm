@@ -25,6 +25,9 @@ const FILES = [
   "src/components/incidents/setup/rule-editor.tsx",
   "src/components/incidents/setup/workflow-panel.tsx",
   "src/components/incidents/approvals-panel.tsx",
+  "src/components/incidents/registers-screen.tsx",
+  "src/components/incidents/reports-screen.tsx",
+  "src/components/incidents/record-view.tsx",
   "src/components/incidents/setup/retention-panel.tsx",
   "src/components/incidents/clearances-screen.tsx",
   "src/components/incidents/clearance-panel.tsx",
@@ -66,6 +69,7 @@ describe("incident platform strings", () => {
       ...["export", "purge", "auto_purge"].map((k) => `IncidentPlatform.retention.log.${k}`),
       ...["queued", "sending", "sent", "acknowledged", "failed", "skipped"].map((k) => `IncidentPlatform.log.status.${k}`),
       ...["raised", "reminder", "escalated", "step_overdue", "closed", "approval", "test"].map((k) => `IncidentPlatform.log.reason.${k}`),
+      ...["all", "injury", "breach", "near_miss", "property", "safeguarding"].map((k) => `IncidentPlatform.registers.names.${k}`),
       ...["approved", "rejected"].map((k) => `IncidentPlatform.approvals.decision.${k}`),
     ];
     for (const p of paths) expect(typeof get(p), p).toBe("string");

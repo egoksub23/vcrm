@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -128,12 +129,14 @@ function EvidenceLink({ attachment: a }: { attachment: IncidentAttachment }) {
 
 export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onBack: () => void }) {
   const t = useTranslations("Incidents.detail");
+  const tRecord = useTranslations("IncidentPlatform.record");
   const tActivity = useTranslations("Incidents.detail.activity");
   const tFlags = useTranslations("Incidents.flags");
   const { user } = useAuth();
   const { members, nameOf, profileOf } = useAccountMembers();
   const canManage = useCapability("incidents.manage");
   const canMedical = useCapability("incidents.medical");
+  const canExport = useCapability("incidents.export");
 
   const [incident, setIncident] = useState<Incident | null>(null);
   const [comments, setComments] = useState<IncidentComment[]>([]);
@@ -642,6 +645,12 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             canManage={canManage}
             onChanged={(row) => setObligations((prev) => prev.map((o) => (o.id === row.id ? row : o)))}
           />
+
+          {canExport ? (
+            <Link href={`/incidents/${incident.id}/record`} className="rounded-xl border border-border bg-card px-4 py-3 text-xs font-medium text-primary hover:bg-muted/40">
+              {tRecord("open")}
+            </Link>
+          ) : null}
 
           <ApprovalsPanel incidentId={incident.id} />
 

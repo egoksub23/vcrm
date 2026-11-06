@@ -65,7 +65,9 @@
     "incidentsRules": "Rules",
     "incidentsPacks": "Compliance packs",
     "incidentsPortal": "Coach portal & API",
-    "incidentsClearances": "Return to play"
+    "incidentsClearances": "Return to play",
+    "incidentsRegisters": "Registers",
+    "incidentsReports": "Reports"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -14663,6 +14665,83 @@
       "approve": "Approve",
       "reject": "Do not approve",
       "rejectNeedsReason": "If you do not approve, say why, so it can be put right."
+    },
+    "registers": {
+      "title": "Registers",
+      "help": "The school's incidents by kind: injuries, data breaches, near misses, property damage and child-welfare concerns. An incident appears in every register it belongs to.",
+      "loading": "Loading",
+      "register": "Register",
+      "from": "From",
+      "to": "To",
+      "download": "Download CSV",
+      "count": "{count, plural, =0 {No incidents match} one {1 incident} other {# incidents}}",
+      "truncated": "Showing the newest 5,000. Narrow the dates to see the rest.",
+      "test": "Test",
+      "names": {
+        "all": "All incidents",
+        "injury": "Injuries",
+        "breach": "Data and security breaches",
+        "near_miss": "Near misses",
+        "property": "Property damage",
+        "safeguarding": "Child welfare concerns"
+      },
+      "col": {
+        "reference": "Reference",
+        "raised": "Raised",
+        "category": "Category",
+        "severity": "Severity",
+        "status": "Status",
+        "activity": "Activity",
+        "people": "People named"
+      }
+    },
+    "reports": {
+      "title": "Reports",
+      "help": "Where and when incidents happen, and which places keep seeing the same thing. The last 12 months; test reports are left out.",
+      "loading": "Loading",
+      "total": "{count, plural, =0 {No incidents in the last 12 months} one {1 incident in the last 12 months} other {# incidents in the last 12 months}}",
+      "repeat": "Places where it keeps happening",
+      "repeatHelp": "Three or more incidents at the same place in 90 days. Worth a look before the next one.",
+      "repeatRow": "{place}: {count} incidents, the latest on {latest}",
+      "byMonth": "By month",
+      "byCategory": "By category",
+      "bySeverity": "By severity",
+      "byActivity": "By activity (top 10)"
+    },
+    "record": {
+      "title": "Incident record",
+      "loading": "Loading the record",
+      "back": "Back to the incident",
+      "print": "Print or save as PDF",
+      "json": "Download data (JSON)",
+      "test": "test",
+      "generated": "Produced {when}",
+      "summary": "Summary",
+      "category": "Category",
+      "severity": "Severity",
+      "status": "Status",
+      "raised": "Raised",
+      "closed": "Closed",
+      "activity": "Activity",
+      "reportedBy": "Reported by",
+      "viaPortal": "coach portal",
+      "flags": "Involves",
+      "rootCause": "Root cause",
+      "people": "People named",
+      "returnToPlay": "Return to play",
+      "notBefore": "not before",
+      "clearedEarly": "cleared early",
+      "steps": "Required steps",
+      "due": "due",
+      "done": "done",
+      "approvals": "Approvals",
+      "waiting": "waiting",
+      "timeline": "Timeline",
+      "comment": "Comment",
+      "messages": "Message log",
+      "acknowledged": "acknowledged",
+      "files": "Files",
+      "open": "Print or save the incident record"
     }
   }
 }
