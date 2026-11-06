@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createAdminPgDb } from "@/lib/postgres/db";
 import { toErrorResponse, UnauthorizedError } from "@/lib/auth/account";
+import { createPgDb } from "@/lib/postgres/db";
 
 export async function GET() {
   try {
@@ -10,6 +11,9 @@ export async function GET() {
     const userId = session.user.id;
 
     const adminDb = createAdminPgDb();
+    // is_platform_admin uses auth.uid() internally, so it must run on a
+    // user-scoped connection (SET LOCAL role + jwt claims), not adminDb.
+    const userDb = createPgDb(userId);
 
     const [profileResult, adminResult] = await Promise.all([
       adminDb
@@ -17,7 +21,7 @@ export async function GET() {
         .select("id, full_name, email, avatar_url, role, beta_features, account_id, account_role")
         .eq("user_id", userId)
         .maybeSingle(),
-      adminDb.rpc("is_platform_admin"),
+      userDb.rpc("is_platform_admin"),
     ]);
 
     if (profileResult.error) {
