@@ -170,6 +170,9 @@ export async function runTrigger(
   const today = dayOf(store.now());
   const refKey = args.refKey ?? "";
   const rows: NewDelivery[] = [];
+  // One notice per address per event: two rules that both tell the nurse (a concussion and a serious injury) send her one message, which asks for an
+  // acknowledgement if either rule does.
+  const byAddress = new Map<string, NewDelivery>();
 
   for (const rule of matching) {
     for (const action of rule.actions) {
@@ -192,7 +195,12 @@ export async function runTrigger(
         const key = deliveryKey(rule.id, roleKey, rcpt.channel, rcpt.address, refKey);
         if (existing.has(key)) continue;
         existing.add(key);
-        rows.push({
+        const sameAddress = byAddress.get(`${rcpt.channel}|${rcpt.address.toLowerCase()}`);
+        if (sameAddress) {
+          sameAddress.ask_ack = sameAddress.ask_ack || Boolean(action.ask_ack);
+          continue;
+        }
+        const row: NewDelivery = {
           account_id: incident.account_id,
           incident_id: incident.id,
           rule_id: rule.id,
@@ -205,7 +213,9 @@ export async function runTrigger(
           ask_ack: Boolean(action.ask_ack),
           ref_key: refKey,
           is_test: incident.is_test,
-        });
+        };
+        byAddress.set(`${rcpt.channel}|${rcpt.address.toLowerCase()}`, row);
+        rows.push(row);
       }
     }
   }

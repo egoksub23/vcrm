@@ -1,166 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdapterMap, ChannelAdapter } from "./adapters";
-import {
-  ackToken,
-  dispatchDue,
-  nextAttemptAfter,
-  runTrigger,
-  sweepTimers,
-  verifyAckToken,
-  type DeliveryRow,
-  type Directory,
-  type EngineIncident,
-  type EngineStore,
-  type NewDelivery,
-  type OverdueStep,
-} from "./engine";
-import { RECIPES, STEP_ROLE, type IncidentRule } from "./rules";
-import type { DynamicPeople, IncidentContact, IncidentRole, IncidentRoleMember, Recipient } from "./roles";
-
-const NOW = new Date("2026-11-11T10:00:00Z");
-
-const role = (key: string, over: Partial<IncidentRole> = {}): IncidentRole => ({
-  id: `role-${key}`,
-  account_id: "a1",
-  key,
-  name: { en: key },
-  description: null,
-  kind: "fixed",
-  dynamic_source: null,
-  notify_mode: "all",
-  sort_order: 0,
-  is_system: true,
-  ...over,
-});
-const contact = (id: string, over: Partial<IncidentContact> = {}): IncidentContact => ({
-  id,
-  account_id: "a1",
-  user_id: null,
-  name: id,
-  kind: "staff",
-  emails: [`${id}@school.test`],
-  phones: [],
-  preferred_channels: ["email"],
-  is_active: true,
-  ...over,
-});
-const member = (roleKey: string, contactId: string, position = 1): IncidentRoleMember => ({
-  id: `m-${roleKey}-${contactId}`,
-  account_id: "a1",
-  role_id: `role-${roleKey}`,
-  contact_id: contactId,
-  position,
-  away_from: null,
-  away_to: null,
-  is_backup: false,
-});
-
-function ruleFromRecipe(key: string, id: string, over: Partial<IncidentRule> = {}): IncidentRule {
-  const draft = RECIPES.find((r) => r.key === key)!.build({ serious: "high" });
-  return { id, account_id: "a1", recipe_key: key, position: 0, enabled: true, ...draft, ...over };
-}
-
-class MemoryStore implements EngineStore {
-  incidents = new Map<string, EngineIncident>();
-  rules: IncidentRule[] = [];
-  directory: Directory = { roles: [], members: [], contacts: [] };
-  dynamic: DynamicPeople = {};
-  testPeople: Recipient[] = [];
-  deliveries: DeliveryRow[] = [];
-  errors = new Map<string, string>();
-  nextAt = new Map<string, Date | null>();
-  unacknowledged: string[] = [];
-  overdue: OverdueStep[] = [];
-  url: string | null = "https://halo.test";
-  private n = 0;
-
-  async loadIncident(id: string) {
-    return this.incidents.get(id) ?? null;
-  }
-  async loadRules(_a: string, trigger: string) {
-    return this.rules.filter((r) => r.trigger === trigger);
-  }
-  async loadDirectory() {
-    return this.directory;
-  }
-  async loadDynamicPeople() {
-    return this.dynamic;
-  }
-  async loadTestRecipients() {
-    return this.testPeople;
-  }
-  async loadLabels() {
-    return { categoryName: "CCA / sports injury", severityName: "Serious" };
-  }
-  async existingKeys(incidentId: string) {
-    return new Set(this.deliveries.filter((d) => d.incident_id === incidentId).map((d) => `${d.rule_id ?? "-"}|${d.role_key}|${d.channel}|${d.address.toLowerCase()}|${d.ref_key}`));
-  }
-  async insertDeliveries(rows: NewDelivery[]) {
-    const out = rows.map((r) => ({ ...r, id: `00000000-0000-0000-0000-${String(++this.n).padStart(12, "0")}`, attempts: 0, status: "queued" as const }));
-    this.deliveries.push(...out);
-    return out;
-  }
-  async claimDue() {
-    const due = this.deliveries.filter((d) => d.status === "queued" || (d.status === "failed" && d.attempts < 5));
-    due.forEach((d) => (d.status = "sending"));
-    return due.map((d) => ({ ...d }));
-  }
-  async markSent(id: string) {
-    const d = this.deliveries.find((x) => x.id === id)!;
-    d.status = "sent";
-    d.attempts += 1;
-  }
-  async markFailed(id: string, error: string, next: Date | null) {
-    const d = this.deliveries.find((x) => x.id === id)!;
-    d.status = "failed";
-    d.attempts += 1;
-    this.errors.set(id, error);
-    this.nextAt.set(id, next);
-  }
-  async raiseEscalationLevel(incidentId: string, level: 2 | 3) {
-    const i = this.incidents.get(incidentId)!;
-    if (i.escalation_level >= level) return false;
-    i.escalation_level = level;
-    return true;
-  }
-  async listUnacknowledged() {
-    return this.unacknowledged;
-  }
-  async listOverdueSteps() {
-    return this.overdue;
-  }
-  appUrl() {
-    return this.url;
-  }
-  async senderName() {
-    return "Test School";
-  }
-  now() {
-    return NOW;
-  }
-}
-
-function seeded(): MemoryStore {
-  const s = new MemoryStore();
-  s.incidents.set("i1", { id: "i1", account_id: "a1", reference: "INC-2026-31", category: "CCA", severity: "high", flags: ["injury", "child_involved"], status: "reported", escalation_level: 1, is_test: false });
-  s.directory = {
-    roles: [role("head_of_sport"), role("school_nurse"), role("principal"), role("incident_lead", { kind: "per_incident", dynamic_source: "incident_lead" }), role("reporter", { kind: "per_incident", dynamic_source: "reporter" }), role("dpo")],
-    members: [member("head_of_sport", "rahim"), member("school_nurse", "aminah"), member("principal", "head")],
-    contacts: [contact("rahim"), contact("aminah"), contact("head")],
-  };
-  return s;
-}
-
-const okAdapter = (calls: { to: string; subject: string; text: string }[] = []): AdapterMap => ({
-  email: {
-    channel: "email",
-    async send({ to, notice }) {
-      calls.push({ to, subject: notice.subject, text: notice.text });
-      return { ok: true, providerRef: "test" };
-    },
-  } satisfies ChannelAdapter,
-});
+import { ackToken, dispatchDue, nextAttemptAfter, runTrigger, sweepTimers, verifyAckToken } from "./engine";
+import type { AdapterMap } from "./adapters";
+import { STEP_ROLE } from "./rules";
+import { NOW, member, okAdapter, ruleFromRecipe, seeded } from "./testing";
 
 describe("runTrigger: raised", () => {
   it("tells the roles a matching rule names, one row per address, asking for acknowledgement", async () => {
@@ -221,6 +64,17 @@ describe("runTrigger: raised", () => {
     s.rules = [ruleFromRecipe("confirm_reporter", "r1")];
     await runTrigger(s, { incidentId: "i1", trigger: "raised" });
     expect(s.deliveries.map((d) => d.address)).toEqual(["coach@club.test"]);
+  });
+
+  it("sends one message to a person two rules both tell, asking for an acknowledgement if either does", async () => {
+    const s = seeded();
+    s.incidents.get("i1")!.flags = ["injury", "concussion"];
+    s.rules = [
+      ruleFromRecipe("serious_injury", "r1", { actions: [{ type: "notify", role_key: "school_nurse" }] }),
+      ruleFromRecipe("concussion", "r2", { actions: [{ type: "notify", role_key: "school_nurse", ask_ack: true }, { type: "notify", role_key: "head_of_sport", ask_ack: true }] }),
+    ];
+    await runTrigger(s, { incidentId: "i1", trigger: "raised" });
+    expect(s.deliveries.map((d) => [d.address, d.ask_ack])).toEqual([["aminah@school.test", true], ["rahim@school.test", true]]);
   });
 
   it("sends a test-key report only to the test recipients", async () => {
