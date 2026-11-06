@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const session = await auth();
   const user = session?.user ?? null;
 
@@ -56,10 +56,9 @@ export async function middleware(request: NextRequest) {
     response = NextResponse.next();
   }
 
-  // Forward the Supabase-compatible JWT in a non-HTTP-only cookie so the
-  // browser supabase-js client can inject it as the Authorization header.
-  // This lets PostgREST see the correct auth.uid() and role on every
-  // client-side query without any code changes to existing components.
+  // Forward the JWT in a non-HTTP-only cookie (sb-access-token) so any
+  // server-side code that still reads it for PostgREST-style role checks
+  // continues to work without changes.
   //
   // Exception: /reset-password uses sb-access-token as the recovery JWT
   // set by /auth/confirm — never overwrite or delete it on that path.

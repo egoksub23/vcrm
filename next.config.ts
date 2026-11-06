@@ -18,17 +18,16 @@ function buildCsp(extra: { script?: string; frame?: string; connect?: string } =
     list("script-src 'self' 'unsafe-inline' 'unsafe-eval'", extra.script),
     // Tailwind + inline style attributes on lots of components.
     "style-src 'self' 'unsafe-inline'",
-    // Supabase public-bucket avatars, contact avatars (arbitrary
-    // https URLs paste-able from the UI), OG images, data URLs for
-    // tiny inline assets.
+    // Contact avatars (arbitrary https URLs paste-able from the UI),
+    // OG images, data URLs for tiny inline assets.
     "img-src 'self' data: blob: https:",
     // Outbound media previews (blob: from MediaRecorder + file picker)
-    // and Supabase public-bucket audio/video the inbox renders.
-    "media-src 'self' blob: https://*.supabase.co",
+    // and self-hosted audio/video the inbox renders.
+    "media-src 'self' blob: https:",
     "font-src 'self' data:",
-    // Supabase REST + realtime (WSS). All Meta API calls happen
-    // server-side, so graph.facebook.com does not belong here.
-    list("connect-src 'self' https://*.supabase.co wss://*.supabase.co", extra.connect),
+    // All Meta API calls happen server-side, so graph.facebook.com
+    // does not belong here.
+    list("connect-src 'self'", extra.connect),
     // The PDF viewer of Doc Sign (pdfjs) runs its parser in a worker from this site.
     "worker-src 'self' blob:",
     // Frames fall back to default-src ('self') unless a route names its own.
@@ -105,7 +104,7 @@ const nextConfig: NextConfig = {
   // both middleware and the route handler can read it; that clone is capped at 10 MB by
   // default. Share uploads can be up to 25 MB, so we raise the cap to 30 MB.
   experimental: {
-    middlewareClientMaxBodySize: "30mb",
+    proxyClientMaxBodySize: "30mb",
   },
   // The Docker image build skips Next's own type check (SKIP_TYPECHECK=1 in the Dockerfile): it needs more memory than a small server has
   // (the build was killed at ~2 GB), and `npx tsc --noEmit` already runs in CI and before every release.
@@ -184,10 +183,9 @@ const nextConfig: NextConfig = {
    *
    *   Note: dynamic dashboard routes (/inbox, /contacts, /pipelines,
    *   /broadcasts, etc.) are server-rendered per request — Next.js
-   *   and Supabase auth already prevent them from being served
-   *   from a shared cache. The s-maxage here is a ceiling; Next.js
-   *   and auth middleware still set `private` / `no-store` for
-   *   per-user responses.
+   *   and Auth.js already prevent them from being served from a
+   *   shared cache. The s-maxage here is a ceiling; the proxy still
+   *   sets `private` / `no-store` for per-user responses.
    *
    * Security headers are appended via a separate catch-all rule
    * below — Next.js merges headers from every matching rule, so
