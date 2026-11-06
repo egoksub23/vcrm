@@ -14,7 +14,7 @@ import { labelOf, type LangMap, type ResolveWarning } from "@/lib/incidents/plat
 import type { IncidentSeverityLevel, IncidentTypeCatalogueEntry } from "@/lib/incidents/standard-types";
 import { api } from "./api";
 
-interface RulesResponse {
+export interface RulesResponse {
   rules: IncidentRule[];
   recipes: { key: string; name: string; description: string; inStarterSet: boolean; needs: string | null; added: boolean }[];
   template: { id: string; name: string; categories: IncidentTypeCatalogueEntry[]; severities: IncidentSeverityLevel[] } | null;
@@ -30,6 +30,19 @@ interface TryResponse {
 
 const selectClass =
   "h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+/** Words for the names that appear in a rule's sentence, from the school's template and roles. */
+export function makeNamer(data: RulesResponse | null, flagNoun: (flag: string) => string): Namer {
+  const cats = new Map((data?.template?.categories ?? []).map((c) => [c.code, c.name]));
+  const sevs = new Map((data?.template?.severities ?? []).map((s) => [s.slug, s.label]));
+  const roles = new Map((data?.roles ?? []).map((r) => [r.key, labelOf(r.name)]));
+  return {
+    role: (k) => roles.get(k) ?? k,
+    category: (c) => cats.get(c) ?? c,
+    severity: (s) => sevs.get(s) ?? s,
+    flag: (f) => ((INCIDENT_FLAGS as readonly string[]).includes(f) ? flagNoun(f) : f),
+  };
+}
 
 function whenText(after: number, t: (k: string, v?: Record<string, string | number>) => string): string {
   if (after === 0) return t("tryNow");
@@ -56,21 +69,16 @@ export function RulesScreen() {
     void load();
   }, [load]);
 
-  const namer: Namer = useMemo(() => {
-    const cats = new Map((data?.template?.categories ?? []).map((c) => [c.code, c.name]));
-    const sevs = new Map((data?.template?.severities ?? []).map((s) => [s.slug, s.label]));
-    const roles = new Map((data?.roles ?? []).map((r) => [r.key, labelOf(r.name)]));
-    return {
-      role: (k) => roles.get(k) ?? k,
-      category: (c) => cats.get(c) ?? c,
-      severity: (s) => sevs.get(s) ?? s,
-      flag: (f) => (INCIDENT_FLAGS as readonly string[]).includes(f) ? tFlag(f) : f,
-    };
-  }, [data, tFlag]);
+  const namer: Namer = useMemo(() => makeNamer(data, tFlag), [data, tFlag]);
 
   if (error) return <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>;
   if (!data) return <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label={t("loading")} />;
+  return <RulesView data={data} namer={namer} reload={load} />;
+}
 
+/** The screen once the data is in. Separate from the loader so it can be rendered with sample data in tests. */
+export function RulesView({ data, namer, reload: load }: { data: RulesResponse; namer: Namer; reload: () => Promise<void> }) {
+  const t = useTranslations("IncidentPlatform.rules");
   const toAdd = data.recipes.filter((r) => !r.added);
   const starterLeft = toAdd.filter((r) => r.inStarterSet).length;
   const emptyRoles = new Map(data.roles.filter((r) => r.warnings.length > 0).map((r) => [r.key, r.warnings]));

@@ -155,15 +155,43 @@ export class PgEngineStore implements EngineStore {
   }
 
   async insertDeliveries(rows: NewDelivery[]): Promise<DeliveryRow[]> {
+    let kept: DeliveryRow[] = [];
     const batch = await this.db.from("incident_deliveries").insert(rows as unknown as Record<string, unknown>[]).select("*");
-    if (!batch.error) return (batch.data ?? []) as DeliveryRow[];
-    // A concurrent run inserted the same message first (unique index): insert one by one and keep what is new.
-    const kept: DeliveryRow[] = [];
-    for (const row of rows) {
-      const one = await this.db.from("incident_deliveries").insert(row as unknown as Record<string, unknown>).select("*");
-      if (!one.error && one.data) kept.push(...(one.data as DeliveryRow[]));
+    if (!batch.error) {
+      kept = (batch.data ?? []) as DeliveryRow[];
+    } else {
+      // A concurrent run inserted the same message first (unique index): insert one by one and keep what is new.
+      for (const row of rows) {
+        const one = await this.db.from("incident_deliveries").insert(row as unknown as Record<string, unknown>).select("*");
+        if (!one.error && one.data) kept.push(...(one.data as DeliveryRow[]));
+      }
     }
+    await this.watchRecipients(kept);
     return kept;
+  }
+
+  /**
+   * A person who is told about an incident and has a Halo login must be able to open it from the link: row-level security lets a watcher read an
+   * incident, so recipients who are Halo users are added as watchers. Best effort; a failure only means the link asks them to ask a manager.
+   */
+  private async watchRecipients(rows: DeliveryRow[]): Promise<void> {
+    try {
+      const contactIds = [...new Set(rows.map((r) => r.contact_id).filter((id): id is string => Boolean(id)))];
+      if (contactIds.length === 0) return;
+      const { data } = await this.db.from("incident_contacts").select("id, user_id").in("id", contactIds);
+      const userOf = new Map(((data ?? []) as { id: string; user_id: string | null }[]).filter((c) => c.user_id).map((c) => [c.id, c.user_id as string]));
+      const seen = new Set<string>();
+      const watchers: Record<string, unknown>[] = [];
+      for (const r of rows) {
+        const userId = r.contact_id ? userOf.get(r.contact_id) : undefined;
+        if (!userId || seen.has(`${r.incident_id}|${userId}`)) continue;
+        seen.add(`${r.incident_id}|${userId}`);
+        watchers.push({ incident_id: r.incident_id, user_id: userId, account_id: r.account_id });
+      }
+      if (watchers.length) await this.db.from("incident_watchers").upsert(watchers, { onConflict: "incident_id,user_id", ignoreDuplicates: true });
+    } catch (err) {
+      console.error("[incident-engine] could not add watchers:", err);
+    }
   }
 
   async claimDue(_now: Date, limit: number): Promise<DeliveryRow[]> {

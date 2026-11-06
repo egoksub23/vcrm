@@ -6422,6 +6422,18 @@
       "share_send": {
         "label": "Send share links",
         "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
+      },
+      "incidents_configure": {
+        "label": "设置事件通知",
+        "description": "决定谁会收到事件通知：角色及其成员、通知规则、合规包、表单和教练门户密钥。默认仅限所有者和管理员。"
+      },
+      "incidents_medical": {
+        "label": "查看医疗详情",
+        "description": "查看并设置恢复参赛日期以及事件报告中的医疗部分。默认仅限所有者和管理员，可向下授予客服（例如校医）。"
+      },
+      "incidents_export": {
+        "label": "导出事件记录",
+        "description": "下载登记册和证据包。默认仅限所有者和管理员。"
       }
     },
     "group": {

@@ -13,7 +13,7 @@ import { labelOf, type IncidentContact } from "@/lib/incidents/platform/roles";
 import type { RoleView } from "@/lib/incidents/platform/setup-data";
 import { api } from "./api";
 
-interface DirectoryResponse {
+export interface DirectoryResponse {
   roles: RoleView[];
   contacts: IncidentContact[];
 }
@@ -32,8 +32,6 @@ export function RolesScreen() {
   const t = useTranslations("IncidentPlatform.roles");
   const [data, setData] = useState<DirectoryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"roles" | "people">("roles");
 
   const load = useCallback(async () => {
     const res = await api<DirectoryResponse>("/api/incidents/setup/directory");
@@ -43,7 +41,6 @@ export function RolesScreen() {
     }
     setError(null);
     setData(res.data);
-    setSelectedId((cur) => cur ?? res.data.roles[0]?.id ?? null);
   }, []);
 
   useEffect(() => {
@@ -53,8 +50,15 @@ export function RolesScreen() {
 
   if (error) return <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>;
   if (!data) return <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label={t("loading")} />;
+  return <RolesView data={data} onChanged={load} />;
+}
 
-  const selected = data.roles.find((r) => r.id === selectedId) ?? null;
+/** The screen once the data is in. Separate from the loader so it can be rendered with sample data in tests. */
+export function RolesView({ data, onChanged }: { data: DirectoryResponse; onChanged: () => Promise<void> }) {
+  const t = useTranslations("IncidentPlatform.roles");
+  const [selectedId, setSelectedId] = useState<string | null>(data.roles[0]?.id ?? null);
+  const [tab, setTab] = useState<"roles" | "people">("roles");
+  const selected = data.roles.find((r) => r.id === selectedId) ?? data.roles[0] ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,11 +78,11 @@ export function RolesScreen() {
 
       {tab === "roles" ? (
         <div className="grid gap-4 md:grid-cols-[260px_1fr]">
-          <RoleList roles={data.roles} selectedId={selectedId} onSelect={setSelectedId} onChanged={load} />
-          {selected ? <RoleDetail key={selected.id} role={selected} contacts={data.contacts} onChanged={load} /> : null}
+          <RoleList roles={data.roles} selectedId={selected?.id ?? null} onSelect={setSelectedId} onChanged={onChanged} />
+          {selected ? <RoleDetail key={selected.id} role={selected} contacts={data.contacts} onChanged={onChanged} /> : null}
         </div>
       ) : (
-        <PeopleList contacts={data.contacts} roles={data.roles} onChanged={load} />
+        <PeopleList contacts={data.contacts} roles={data.roles} onChanged={onChanged} />
       )}
     </div>
   );

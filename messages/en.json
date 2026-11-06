@@ -5101,12 +5101,12 @@
         "templatesHeading": "Incident template",
         "templatesHint": "The categories and severity scale people choose from when they raise an incident. One template is active at a time.",
         "useTemplate": "Use this template",
-        "frameworksHeading": "Compliance frameworks",
-        "frameworksHint": "Switch on as many as you need. Each adds its obligations to an incident that matches, with a due time.",
+        "frameworksHeading": "Compliance packs",
+        "frameworksHint": "Switch on as many as you need. Each adds required steps, with a due time, to an incident that matches.",
         "switchOn": "Switch on",
         "switchOff": "Switch off",
-        "rulesCount": "obligations",
-        "frameworksNote": "The deadlines and wording in these frameworks are starting points. Have your data protection officer or school leadership confirm them against the current regulation and your own policy."
+        "rulesCount": "required steps",
+        "frameworksNote": "The deadlines and wording in these packs are starting points. Have your data protection officer or school leadership confirm them against the current regulation and your own policy."
       },
       "timers": {
         "intro": "How long an incident can sit at a level before it auto-escalates. Attach a business-hours schedule to count only working time — leave it on \"All hours\" to count real time, 24/7.",
@@ -7185,6 +7185,18 @@
       "share_send": {
         "label": "Send share links",
         "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
+      },
+      "incidents_configure": {
+        "label": "Set up incident notifications",
+        "description": "Choose who is told about incidents: roles and the people in them, notification rules, compliance packs, the form and the coach-portal key. Default: Owner and Admin only."
+      },
+      "incidents_medical": {
+        "label": "See medical details",
+        "description": "See and set return-to-play dates and the medical parts of an incident report. Default: Owner and Admin only. Grant it down to Agent for the school nurse."
+      },
+      "incidents_export": {
+        "label": "Export incident records",
+        "description": "Download registers and evidence packs. Default: Owner and Admin only."
       }
     },
     "group": {
@@ -8048,7 +8060,7 @@
       "evidenceEmpty": "No evidence uploaded yet.",
       "uploadEvidence": "Upload evidence",
       "obligations": {
-        "title": "Obligations",
+        "title": "Required steps",
         "openCount": "{open} of {total} open",
         "markDone": "Mark done",
         "markOpen": "Mark open",
@@ -14229,6 +14241,182 @@
       "page": "Page {current} of {total}",
       "sharedVia": "Shared via {product}",
       "tooManyRequests": "Too many requests. Please try again in a moment."
+    }
+  },
+  "IncidentPlatform": {
+    "flagNoun": {
+      "injury": "an injury",
+      "child_involved": "a child or student",
+      "personal_data": "personal data",
+      "infosec": "computer systems or accounts",
+      "property_damage": "damaged or lost property",
+      "security_breach": "an intruder or security breach",
+      "safeguarding": "a child welfare concern",
+      "outside_agency": "police, fire or ambulance"
+    },
+    "warnings": {
+      "no_members": "Nobody is in this role yet, so nobody would be told. Add a person.",
+      "everyone_away": "Everyone in this role is away today and there is no backup. Add a backup or change the away dates.",
+      "no_address": "Someone in this role has no email address, so they would not be told.",
+      "no_people_on_incident": "Nobody is named for this role on the incident."
+    },
+    "roles": {
+      "title": "Roles & contacts",
+      "help": "A role is a job, like Head of Sport. Rules tell the role, so the people in it can change at any time without touching a rule.",
+      "loading": "Loading roles",
+      "tab": {
+        "roles": "Roles",
+        "people": "People"
+      },
+      "needsAttention": "Needs attention",
+      "newRole": "New role",
+      "newRolePlaceholder": "For example Bursar",
+      "newRoleName": "Name of the new role",
+      "add": "Add",
+      "perIncident": "Worked out for each incident",
+      "perIncidentHelp": "This role has no fixed people. It points at someone on each incident, such as whoever reported it or the incident lead.",
+      "roleName": "Role name",
+      "usedBy": "{count, plural, =0 {No rule tells this role yet} one {Told by 1 rule} other {Told by # rules}}",
+      "deleteRole": "Delete role",
+      "tell": "Tell",
+      "modeAll": "everyone in the role",
+      "modeFirst": "the first person who is available",
+      "noMembers": "Nobody is in this role yet.",
+      "unknownPerson": "Unknown person",
+      "backup": "Backup",
+      "awayFrom": "Away from",
+      "awayTo": "to",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeFromRole": "Remove from role",
+      "choosePerson": "Choose a person",
+      "addToRole": "Add to role",
+      "newPerson": "New person",
+      "noPeople": "No people yet. Add the staff and outside contacts who should be told about incidents.",
+      "inactive": "(not active)",
+      "noRoles": "Not in any role",
+      "edit": "Edit",
+      "activate": "Make active",
+      "deactivate": "Make inactive",
+      "deletePerson": "Delete person",
+      "form": {
+        "name": "Name",
+        "kind": "Kind",
+        "staff": "Staff",
+        "outside": "Outside contact",
+        "emails": "Email addresses",
+        "emailsHelp": "One or more, separated by commas. Everyone listed is told.",
+        "phones": "Phone numbers",
+        "phonesHelp": "Kept for WhatsApp and SMS, which are not connected yet. Email is used until then.",
+        "save": "Save",
+        "cancel": "Cancel"
+      }
+    },
+    "rules": {
+      "title": "Rules",
+      "help": "Each rule reads as a sentence: when something happens, and only if it matches, tell a role. Start from a recipe, then use Try it to see who would be told before a real incident does it.",
+      "loading": "Loading rules",
+      "starterHelp": "Switch on the starter set: {count, plural, one {1 ready-made rule} other {# ready-made rules}} for injuries, personal data, property damage, safeguarding and overdue steps. You can change or switch off any of them.",
+      "starterButton": "Switch on the starter set",
+      "starterAdded": "{count, plural, one {1 rule added} other {# rules added}}",
+      "noRules": "No rules yet. Nobody will be told automatically until you add some.",
+      "switch": "Switch {name} on or off",
+      "delete": "Delete rule",
+      "when": "When",
+      "onlyIf": "Only if",
+      "then": "Then",
+      "waitMinutes": "Wait (minutes)",
+      "severityAtLeast": "Severity at least",
+      "anySeverity": "Any",
+      "roleEmpty": "{roles} has nobody to tell today, so this rule would reach no one for that part.",
+      "recipes": "Recipes you can add",
+      "addRecipe": "Add",
+      "noTemplate": "Choose an incident template first (Setup guide, step 1). Then you can try rules against its categories.",
+      "tryTitle": "Try it",
+      "tryHelp": "Pretend an incident has just been raised. Nothing is sent.",
+      "tryCategory": "Category",
+      "trySeverity": "Severity",
+      "tryFlags": "It involves",
+      "tryRun": "Show what would happen",
+      "tryNothingSent": "Nothing was sent.",
+      "tryNobody": "No rule would do anything for this incident ({count, plural, =0 {no rules are switched on} one {1 rule is on} other {# rules are on}}).",
+      "tryAck": "asks them to acknowledge",
+      "tryNoOne": "Nobody to tell",
+      "tryLevel": "Marked Level {level}",
+      "tryNow": "Straight away",
+      "tryAfterMinutes": "After {n} min if nobody has acknowledged",
+      "tryAfterHours": "After {n} h",
+      "tryAfterDays": "After {n} d"
+    },
+    "guide": {
+      "title": "Setup guide",
+      "help": "From an empty school to a live one. Each step opens the right page and ticks itself when it is done.",
+      "loading": "Loading the setup guide",
+      "progress": "{done} of {total} steps done",
+      "done": "Done",
+      "todo": "To do",
+      "change": "Change",
+      "open": "Open",
+      "steps": {
+        "template": {
+          "title": "Choose a template",
+          "help": "The categories and severity levels people pick from when they report.",
+          "doneFact": "Using {name}",
+          "todoFact": "No template chosen yet"
+        },
+        "roles": {
+          "title": "Add roles and people",
+          "help": "Who is told about what. Put at least one person in each role you plan to use.",
+          "doneFact": "{staffed} of {roles} roles have people; {people, plural, one {1 person} other {# people}} in total",
+          "todoFact": "Nobody has been added yet"
+        },
+        "rules": {
+          "title": "Switch on rules",
+          "help": "Start with the starter set. Use Try it to check who would be told.",
+          "doneFact": "{count, plural, one {1 rule is on} other {# rules are on}}",
+          "todoFact": "No rules are on, so nobody is told automatically"
+        },
+        "packs": {
+          "title": "Pick compliance packs",
+          "help": "PDPA, ISO and school-policy steps that are added to matching incidents, each with a due time.",
+          "doneFact": "On: {names}",
+          "todoFact": "None switched on. Optional, but recommended for personal-data incidents."
+        }
+      },
+      "test": {
+        "title": "Send yourself a test notice",
+        "help": "Sends one clearly marked test email to your own address, so you can see what people will receive. Nothing is recorded on any incident.",
+        "send": "Send test"
+      },
+      "testSent": "Test notice sent to {to}"
+    },
+    "overview": {
+      "title": "Incidents overview",
+      "loading": "Loading the overview",
+      "raise": "Raise incident",
+      "stats": {
+        "open": "Open incidents",
+        "overdue": "Required steps overdue",
+        "unacknowledged": "Not yet acknowledged",
+        "nearMisses": "Near misses this month"
+      },
+      "needsTitle": "Needs action now",
+      "nothing": "Nothing needs action right now.",
+      "needs": {
+        "unacknowledged": "not acknowledged for {time}",
+        "overdue": "overdue by {time}",
+        "serious": "{severity}, still open"
+      },
+      "byCategory": "By category, last 90 days"
+    },
+    "tasks": {
+      "title": "My tasks",
+      "help": "Required steps that belong to the incident roles you hold, and steps on incidents you lead.",
+      "loading": "Loading your tasks",
+      "empty": "You have no open tasks.",
+      "markDone": "Mark {title} done",
+      "overdueBy": "overdue by {time}",
+      "dueIn": "due in {time}"
     }
   }
 }

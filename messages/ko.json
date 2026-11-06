@@ -7185,6 +7185,18 @@
       "share_send": {
         "label": "Send share links",
         "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
+      },
+      "incidents_configure": {
+        "label": "인시던트 알림 설정",
+        "description": "인시던트를 누구에게 알릴지 정합니다: 역할과 구성원, 알림 규칙, 컴플라이언스 팩, 양식, 코치 포털 키. 기본값: 소유자와 관리자만 해당합니다."
+      },
+      "incidents_medical": {
+        "label": "의료 정보 보기",
+        "description": "복귀 가능 날짜와 인시던트 보고서의 의료 항목을 보고 설정합니다. 기본값: 소유자와 관리자만 해당하며, 학교 보건 담당자를 위해 에이전트까지 권한을 부여할 수 있습니다."
+      },
+      "incidents_export": {
+        "label": "인시던트 기록 내보내기",
+        "description": "대장과 증거 자료 묶음을 내려받습니다. 기본값: 소유자와 관리자만 해당합니다."
       }
     },
     "group": {

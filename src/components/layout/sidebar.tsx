@@ -418,7 +418,7 @@ export function Sidebar({
                   {/* A section with pages of its own (Incidents) opens them under its row while the person is inside it. */}
                   {item.children && isActive && expanded ? (
                     <NavChildren
-                      children={filterByCapability(item.children, hasCap)}
+                      items={filterByCapability(item.children, hasCap)}
                       pathname={pathname}
                       label={(key) => t(key)}
                       setupLabel={t("incidentsSetup")}

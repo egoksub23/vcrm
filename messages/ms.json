@@ -6422,6 +6422,18 @@
       "share_send": {
         "label": "Send share links",
         "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
+      },
+      "incidents_configure": {
+        "label": "Sediakan pemberitahuan insiden",
+        "description": "Tentukan siapa dimaklumkan tentang insiden: peranan dan orang di dalamnya, peraturan pemberitahuan, pek pematuhan, borang dan kunci portal jurulatih. Lalai: Pemilik dan Pentadbir sahaja."
+      },
+      "incidents_medical": {
+        "label": "Lihat butiran perubatan",
+        "description": "Lihat dan tetapkan tarikh kembali bermain serta bahagian perubatan dalam laporan insiden. Lalai: Pemilik dan Pentadbir sahaja. Berikan kepada Ejen untuk jururawat sekolah."
+      },
+      "incidents_export": {
+        "label": "Eksport rekod insiden",
+        "description": "Muat turun daftar dan pek bukti. Lalai: Pemilik dan Pentadbir sahaja."
       }
     },
     "group": {

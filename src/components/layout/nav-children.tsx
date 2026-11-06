@@ -23,20 +23,20 @@ export function isChildActive(child: Pick<NavChild, "href">, pathname: string, s
 }
 
 export function NavChildren({
-  children,
+  items,
   pathname,
   label,
   setupLabel,
 }: {
-  children: NavChild[];
+  items: NavChild[];
   pathname: string;
   label: (key: string) => string;
   setupLabel: string;
 }) {
-  const main = children.filter((c) => !c.setup);
-  const setup = children.filter((c) => c.setup);
+  const main = items.filter((c) => !c.setup);
+  const setup = items.filter((c) => c.setup);
   const row = (c: NavChild) => {
-    const active = isChildActive(c, pathname, children);
+    const active = isChildActive(c, pathname, items);
     return (
       <li key={c.href}>
         <Link
