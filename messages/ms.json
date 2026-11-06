@@ -55,7 +55,21 @@
     "sign": "Secure Sign",
     "kyc": "Semakan KYC",
     "compliance": "Pematuhan",
-    "share": "Secure Share"
+    "share": "Secure Share",
+    "incidentsOverview": "Gambaran keseluruhan",
+    "incidentsAll": "Semua insiden",
+    "incidentsTasks": "Tugas saya",
+    "incidentsSetup": "Tetapan",
+    "incidentsSetupGuide": "Panduan persediaan",
+    "incidentsRoles": "Peranan & kenalan",
+    "incidentsRules": "Peraturan",
+    "incidentsPacks": "Pek pematuhan",
+    "incidentsPortal": "Portal jurulatih & API",
+    "incidentsClearances": "Kembali bermain",
+    "incidentsRegisters": "Daftar",
+    "incidentsReports": "Laporan",
+    "incidentsForm": "Borang laporan",
+    "incidentsSteps": "Langkah sendiri"
   },
   "Header": {
     "dashboard": "Papan pemuka",

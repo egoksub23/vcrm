@@ -55,7 +55,21 @@
     "sign": "Secure Sign",
     "kyc": "KYC 审核",
     "compliance": "合规",
-    "share": "Secure Share"
+    "share": "Secure Share",
+    "incidentsOverview": "概览",
+    "incidentsAll": "所有事件",
+    "incidentsTasks": "我的任务",
+    "incidentsSetup": "设置",
+    "incidentsSetupGuide": "设置向导",
+    "incidentsRoles": "角色与联系人",
+    "incidentsRules": "规则",
+    "incidentsPacks": "合规包",
+    "incidentsPortal": "教练门户与 API",
+    "incidentsClearances": "恢复参赛",
+    "incidentsRegisters": "登记册",
+    "incidentsReports": "报表",
+    "incidentsForm": "报告表单",
+    "incidentsSteps": "自定义步骤"
   },
   "Header": {
     "dashboard": "仪表板",

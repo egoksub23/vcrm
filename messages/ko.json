@@ -63,7 +63,13 @@
     "incidentsSetupGuide": "설정 가이드",
     "incidentsRoles": "역할 및 연락처",
     "incidentsRules": "규칙",
-    "incidentsPacks": "컴플라이언스 팩"
+    "incidentsPacks": "컴플라이언스 팩",
+    "incidentsPortal": "코치 포털 및 API",
+    "incidentsClearances": "복귀 가능 여부",
+    "incidentsRegisters": "대장",
+    "incidentsReports": "보고서",
+    "incidentsForm": "보고 양식",
+    "incidentsSteps": "자체 필수 단계"
   },
   "Header": {
     "dashboard": "대시보드",
