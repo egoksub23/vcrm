@@ -170,6 +170,8 @@ export const INCIDENT_FLAGS = [
   "security_breach",
   "safeguarding",
   "outside_agency",
+  // A knock to the head or a dazed student: the school nurse is told at once (the coach report sets it; migration 212 era).
+  "concussion",
 ] as const;
 export type IncidentFlag = (typeof INCIDENT_FLAGS)[number];
 

@@ -7999,7 +7999,8 @@
       "property_damage": "Property damaged or lost",
       "security_breach": "Intruder or security breach",
       "safeguarding": "Child welfare concern",
-      "outside_agency": "Police, fire or ambulance called"
+      "outside_agency": "Police, fire or ambulance called",
+      "concussion": "Suspected concussion (hit to the head)"
     },
     "raise": {
       "title": "Raise an Incident",
@@ -14252,7 +14253,8 @@
       "property_damage": "damaged or lost property",
       "security_breach": "an intruder or security breach",
       "safeguarding": "a child welfare concern",
-      "outside_agency": "police, fire or ambulance"
+      "outside_agency": "police, fire or ambulance",
+      "concussion": "a suspected concussion"
     },
     "warnings": {
       "no_members": "Nobody is in this role yet, so nobody would be told. Add a person.",

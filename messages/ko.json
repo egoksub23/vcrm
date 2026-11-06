@@ -7999,7 +7999,8 @@
       "property_damage": "재산 손상 또는 분실",
       "security_breach": "침입자 또는 보안 침해",
       "safeguarding": "아동 복지 우려",
-      "outside_agency": "경찰, 소방 또는 구급차 호출"
+      "outside_agency": "경찰, 소방 또는 구급차 호출",
+      "concussion": "뇌진탕 의심 (머리를 부딪힘)"
     },
     "raise": {
       "title": "인시던트 등록",

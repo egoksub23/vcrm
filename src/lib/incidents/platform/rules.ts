@@ -179,6 +179,22 @@ export const RECIPES: readonly Recipe[] = [
     }),
   },
   {
+    key: "concussion",
+    name: "Tell the nurse at once about a suspected concussion",
+    description: "A knock to the head is never left waiting, however minor it looked.",
+    inStarterSet: true,
+    build: () => ({
+      name: "Suspected concussion: tell the nurse and Head of Sport",
+      trigger: "raised",
+      wait_minutes: null,
+      conditions: { flags: ["concussion"] },
+      actions: [
+        { type: "notify", role_key: "school_nurse", ask_ack: true },
+        { type: "notify", role_key: "head_of_sport", ask_ack: true },
+      ],
+    }),
+  },
+  {
     key: "remind_unacknowledged",
     name: "Remind me if nobody acknowledges",
     description: "If a notice is not acknowledged in 30 minutes, tell the Principal and raise the incident to Level 2.",
