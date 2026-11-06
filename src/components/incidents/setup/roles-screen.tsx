@@ -16,6 +16,7 @@ import { api } from "./api";
 export interface DirectoryResponse {
   roles: RoleView[];
   contacts: IncidentContact[];
+  legacyToImport?: number;
 }
 
 const splitList = (value: string) =>
@@ -60,8 +61,21 @@ export function RolesView({ data, onChanged }: { data: DirectoryResponse; onChan
   const [tab, setTab] = useState<"roles" | "people">("roles");
   const selected = data.roles.find((r) => r.id === selectedId) ?? data.roles[0] ?? null;
 
+  const importLegacy = async () => {
+    const res = await api<{ imported: number }>("/api/incidents/setup/import-legacy", "POST");
+    if (!res.ok) return void toast.error(res.error);
+    toast.success(t("legacy.done", { count: res.data.imported }));
+    await onChanged();
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      {data.legacyToImport ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <p className="min-w-0 flex-1 text-sm">{t("legacy.help", { count: data.legacyToImport })}</p>
+          <Button size="sm" onClick={() => void importLegacy()}>{t("legacy.button")}</Button>
+        </div>
+      ) : null}
       <div className="flex items-center gap-1 border-b border-border">
         {(["roles", "people"] as const).map((k) => (
           <button

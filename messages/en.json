@@ -14310,6 +14310,11 @@
         "phonesHelp": "Kept for WhatsApp and SMS, which are not connected yet. Email is used until then.",
         "save": "Save",
         "cancel": "Cancel"
+      },
+      "legacy": {
+        "help": "You already have {count, plural, one {1 person} other {# people}} on the old escalation lists (level 2 and level 3). Bring them across as roles, so rules can tell them like anyone else.",
+        "button": "Bring them across",
+        "done": "{count, plural, =0 {Nothing new to add} one {1 person added to a role} other {# people added to roles}}"
       }
     },
     "rules": {

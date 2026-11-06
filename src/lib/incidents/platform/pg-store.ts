@@ -238,13 +238,13 @@ export class PgEngineStore implements EngineStore {
       .lt("escalation_level", level)
       .select("id");
     if (error || !data || (data as unknown[]).length === 0) return false;
-    await this.db.from("incident_activity").insert({
+    // The same log the timed sweep and the manual button write to (reason added in migration 211).
+    await this.db.from("incident_escalation_events").insert({
       incident_id: incidentId,
       account_id: row.account_id,
-      actor_id: null,
-      event_type: "escalated",
-      from_value: String(row.escalation_level),
-      to_value: String(level),
+      from_level: row.escalation_level,
+      to_level: level,
+      reason: "rule",
     });
     return true;
   }
