@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { labelOf } from "@/lib/incidents/platform/roles";
 import type { Answers, FormField, InvolvedAnswer } from "@/lib/incidents/intake/form-schema";
+import { REPORT_LANGS, REPORT_LANG_NAMES, type ReportLang } from "@/lib/incidents/intake/lang";
 import { visibleFields } from "@/lib/incidents/intake/form-schema";
 import type { ReportView } from "@/lib/incidents/intake/service";
 import {
@@ -60,7 +61,7 @@ export function ReportNotice({ kind, reference, returnUrl, origins }: { kind: "i
  * `preview` is for the form builder: the page works as it does for a coach, but keeps nothing on the device, tells no parent page and sends nothing; the
  * Send button just shows the confirmation.
  */
-export function ReportApp({ token, view, origins, preview = false }: { token: string; view: Open; origins: string[]; preview?: boolean }) {
+export function ReportApp({ token, view, origins, preview = false, lang = "en" }: { token: string; view: Open; origins: string[]; preview?: boolean; lang?: ReportLang }) {
   const t = useTranslations("IncidentPlatform.report");
   const notify = useParentNotifier(origins);
   const { schema, roster } = view;
@@ -243,6 +244,15 @@ export function ReportApp({ token, view, origins, preview = false }: { token: st
   return (
     <main className="mx-auto flex max-w-md flex-col gap-5 px-4 pt-5 pb-28">
       {view.mode === "test" ? <p role="status" className="rounded-lg bg-amber-500/15 px-3 py-2 text-sm font-medium">{t("testBanner")}</p> : null}
+      {!preview ? (
+        <nav aria-label="Language" className="flex justify-end gap-3 text-xs">
+          {REPORT_LANGS.map((l) => (
+            <a key={l} href={`?lang=${l}`} hrefLang={l} aria-current={l === lang ? "true" : undefined} className={cn("underline-offset-2", l === lang ? "font-semibold" : "text-muted-foreground hover:underline")}>
+              {REPORT_LANG_NAMES[l]}
+            </a>
+          ))}
+        </nav>
+      ) : null}
       <header className="flex flex-col gap-1">
         <p className="text-xs text-muted-foreground">
           {view.activity.name}
@@ -254,7 +264,7 @@ export function ReportApp({ token, view, origins, preview = false }: { token: st
               <ChevronLeft className="size-5" />
             </button>
           ) : null}
-          <h1 className="text-xl font-semibold">{labelOf(current.title)}</h1>
+          <h1 className="text-xl font-semibold">{labelOf(current.title, lang)}</h1>
         </div>
         <p className="text-xs text-muted-foreground" aria-label={t("stepOf", { n: step + 1, total: schema.steps.length })}>
           {schema.steps.map((s, i) => (
@@ -264,7 +274,7 @@ export function ReportApp({ token, view, origins, preview = false }: { token: st
       </header>
 
       {fields.map((f) => (
-        <FieldView key={f.key} field={f} answers={answers} problem={problems[f.key]} setAnswer={setAnswer} roster={roster} photos={photos} setPhotos={setPhotos} />
+        <FieldView key={f.key} lang={lang} field={f} answers={answers} problem={problems[f.key]} setAnswer={setAnswer} roster={roster} photos={photos} setPhotos={setPhotos} />
       ))}
 
       {offline ? (
@@ -290,6 +300,7 @@ export function ReportApp({ token, view, origins, preview = false }: { token: st
 // ---- fields -----------------------------------------------------------------------------------------------------
 
 function FieldView({
+  lang,
   field,
   answers,
   problem,
@@ -298,6 +309,7 @@ function FieldView({
   photos,
   setPhotos,
 }: {
+  lang: ReportLang;
   field: FormField;
   answers: Answers;
   problem?: string;
@@ -313,10 +325,10 @@ function FieldView({
   return (
     <fieldset className="flex flex-col gap-2" aria-describedby={problem ? `${id}-err` : undefined}>
       <legend className="text-sm font-medium">
-        {labelOf(field.label)}
+        {labelOf(field.label, lang)}
         {field.required ? <span className="text-red-500"> *</span> : null}
       </legend>
-      {field.help ? <p className="-mt-1 text-xs text-muted-foreground">{labelOf(field.help)}</p> : null}
+      {field.help ? <p className="-mt-1 text-xs text-muted-foreground">{labelOf(field.help, lang)}</p> : null}
 
       {field.type === "involved" ? <InvolvedField value={(v as InvolvedAnswer) ?? emptyInvolved} roster={roster} onChange={(next) => setAnswer(field.key, next)} /> : null}
 
@@ -333,8 +345,8 @@ function FieldView({
                 onClick={() => setAnswer(field.key, o.value)}
                 className={cn("flex min-h-14 flex-col items-start justify-center rounded-xl border px-4 py-2 text-left", on ? "border-primary bg-primary/10" : "border-border hover:bg-muted")}
               >
-                <span className="text-base font-medium">{labelOf(o.label)}</span>
-                {o.help ? <span className="text-xs text-muted-foreground">{labelOf(o.help)}</span> : null}
+                <span className="text-base font-medium">{labelOf(o.label, lang)}</span>
+                {o.help ? <span className="text-xs text-muted-foreground">{labelOf(o.help, lang)}</span> : null}
               </button>
             );
           })}

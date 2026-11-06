@@ -14834,7 +14834,8 @@
         "archived": "Replaced",
         "draft": "Draft"
       },
-      "restore": "Start a draft from this"
+      "restore": "Start a draft from this",
+      "wordingIn": "Edit the wording in"
     }
   }
 }

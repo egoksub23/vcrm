@@ -12821,5 +12821,48 @@
       "sharedVia": "Shared via {product}",
       "tooManyRequests": "Too many requests. Please try again in a moment."
     }
+  },
+  "IncidentPlatform": {
+    "report": {
+      "notice": {
+        "invalid": {
+          "title": "Pautan ini tidak sah",
+          "body": "Pautan mungkin tersalin tidak lengkap, atau sudah diganti. Kembali ke portal jurulatih dan ketik Lapor sekali lagi."
+        },
+        "expired": {
+          "title": "Pautan ini telah tamat tempoh",
+          "body": "Pautan sah selama 2 jam. Kembali ke portal jurulatih dan ketik Lapor sekali lagi. Tiada yang anda taip telah dihantar."
+        },
+        "submitted": {
+          "title": "Laporan ini sudah dihantar",
+          "body": "Ia direkodkan sebagai {reference}. Untuk melaporkan perkara lain, kembali ke portal jurulatih dan ketik Lapor sekali lagi."
+        }
+      },
+      "backToPortal": "Kembali ke portal jurulatih",
+      "back": "Kembali",
+      "stepOf": "Langkah {n} daripada {total}",
+      "next": "Seterusnya",
+      "send": "Hantar laporan",
+      "waitingToSend": "Menunggu sambungan",
+      "sendFailed": "Laporan tidak dapat dihantar. Jawapan anda disimpan pada telefon ini. Cuba lagi.",
+      "testBanner": "Laporan ujian. Tiada apa dihantar kepada orang sebenar.",
+      "offline": "Tiada sambungan. Laporan anda disimpan pada telefon ini dan akan dihantar sebaik sahaja anda kembali dalam talian. Gambar boleh ditambah selepas ia dihantar.",
+      "yes": "Ya",
+      "no": "Tidak",
+      "noRoster": "Tiada senarai pelajar untuk aktiviti ini. Taip nama di bawah.",
+      "someoneElse": "Orang lain atau pelawat",
+      "addOther": "Tambah orang ini",
+      "removeOther": "Buang {name}",
+      "addPhoto": "Tambah gambar",
+      "removePhoto": "Buang {name}",
+      "photoNote": "Sehingga 5 fail, 10 MB setiap satu. Gambar ditambah selepas laporan dihantar.",
+      "sent": {
+        "title": "Laporan dihantar",
+        "testNote": "Ini laporan ujian, jadi hanya pentadbir sekolah dimaklumkan.",
+        "told": "Dimaklumkan: {roles}.",
+        "toldNobody": "Pejabat sekolah telah menerimanya. Belum ada sesiapa dimaklumkan secara automatik.",
+        "photoFailed": "Tidak ditambah. Beritahu pejabat sekolah."
+      }
+    }
   }
 }

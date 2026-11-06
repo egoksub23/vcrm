@@ -31,6 +31,8 @@ import {
 } from "@/lib/incidents/intake/form-edit";
 import { SEVERITY_BANDS, type Effects, type FieldType, type FormField, type FormSchema } from "@/lib/incidents/intake/form-schema";
 import { ReportApp } from "@/components/incidents/report/report-app";
+import { REPORT_LANGS, REPORT_LANG_NAMES, type ReportLang } from "@/lib/incidents/intake/lang";
+import type { LangMap } from "@/lib/incidents/platform/roles";
 import { api } from "./api";
 
 export interface VersionRow {
@@ -50,6 +52,15 @@ export interface FormData {
   categories: { code: string; name: string }[];
 }
 
+/** The wording in one language. English is required; another language that is left empty falls back to English on the coach's phone. */
+const getL = (map: LangMap | undefined, lang: ReportLang) => map?.[lang] ?? "";
+function setL(map: LangMap | undefined, lang: ReportLang, value: string): LangMap {
+  const next: LangMap = { ...(map ?? {}) };
+  if (lang !== "en" && value === "") delete next[lang];
+  else next[lang] = value;
+  return next;
+}
+
 const FIELD_MIME = "application/x-halo-field-key";
 const TYPE_MIME = "application/x-halo-field-type";
 const selectClass = "h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -62,6 +73,7 @@ export function FormBuilder() {
   const [schema, setSchema] = useState<FormSchema | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "dirty" | "saving" | "saved">("idle");
+  const [lang, setLang] = useState<ReportLang>("en");
   const [busy, setBusy] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -132,6 +144,12 @@ export function FormBuilder() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-sm">
+          {t("wordingIn")}
+          <select className={selectClass} value={lang} onChange={(e) => setLang(e.target.value as ReportLang)}>
+            {REPORT_LANGS.map((l) => <option key={l} value={l}>{REPORT_LANG_NAMES[l]}</option>)}
+          </select>
+        </label>
         <p className="text-sm text-muted-foreground" aria-live="polite">
           {state === "saving" ? t("saving") : state === "dirty" ? t("unsaved") : state === "saved" ? t("saved") : t("draftOf", { version: data.draft?.version ?? 0 })}
         </p>
@@ -150,9 +168,9 @@ export function FormBuilder() {
 
       <div className="grid gap-4 lg:grid-cols-[180px_1fr_300px]">
         <Palette onAdd={(type) => { const out = addField(schema, schema.steps[schema.steps.length - 1].key, type); edit(out.schema); setSelected(out.key); }} />
-        <Canvas schema={schema} selected={selected} onSelect={setSelected} edit={edit} />
+        <Canvas schema={schema} selected={selected} onSelect={setSelected} edit={edit} lang={lang} />
         <div className="flex flex-col gap-4">
-          {selectedField ? <FieldSettings key={selectedField.key} schema={schema} field={selectedField} categories={data.categories} edit={edit} onDeleted={() => setSelected(null)} /> : <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">{t("selectHelp")}</p>}
+          {selectedField ? <FieldSettings key={selectedField.key} schema={schema} field={selectedField} categories={data.categories} edit={edit} onDeleted={() => setSelected(null)} lang={lang} /> : <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">{t("selectHelp")}</p>}
         </div>
       </div>
 
@@ -160,7 +178,7 @@ export function FormBuilder() {
         <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t("preview")}</h2>
         <p className="text-xs text-muted-foreground">{t("previewHelp")}</p>
         <div className="mx-auto h-[640px] w-[360px] max-w-full overflow-y-auto rounded-[28px] border-8 border-foreground/80 bg-background shadow-lg">
-          <ReportApp key={JSON.stringify(schema).length + schema.steps.length} token="preview" view={previewView} origins={[]} preview />
+          <ReportApp key={JSON.stringify(schema).length + schema.steps.length + lang} token="preview" view={previewView} origins={[]} preview lang={lang} />
         </div>
       </section>
 
@@ -225,7 +243,7 @@ function DropZone({ onDropType, onDropField, label }: { onDropType: (type: Field
   );
 }
 
-export function Canvas({ schema, selected, onSelect, edit }: { schema: FormSchema; selected: string | null; onSelect: (key: string | null) => void; edit: (next: FormSchema) => void }) {
+export function Canvas({ schema, selected, onSelect, edit, lang = "en" }: { schema: FormSchema; selected: string | null; onSelect: (key: string | null) => void; edit: (next: FormSchema) => void; lang?: ReportLang }) {
   const t = useTranslations("IncidentPlatform.builder");
   const tType = useTranslations("IncidentPlatform.builder.type");
   return (
@@ -234,7 +252,7 @@ export function Canvas({ schema, selected, onSelect, edit }: { schema: FormSchem
         <section key={step.key} className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground tabular-nums">{si + 1}</span>
-            <Input value={step.title.en ?? ""} onChange={(e) => edit(updateStep(schema, step.key, { ...step.title, en: e.target.value }))} aria-label={t("stepTitle")} className="h-8 flex-1 font-semibold" />
+            <Input value={getL(step.title, lang)} placeholder={lang === "en" ? undefined : step.title.en} onChange={(e) => edit(updateStep(schema, step.key, setL(step.title, lang, e.target.value)))} aria-label={t("stepTitle")} className="h-8 flex-1 font-semibold" />
             <Button variant="ghost" size="icon-sm" aria-label={t("stepUp")} disabled={si === 0} onClick={() => edit(moveStep(schema, step.key, si - 1))}><ArrowUp /></Button>
             <Button variant="ghost" size="icon-sm" aria-label={t("stepDown")} disabled={si === schema.steps.length - 1} onClick={() => edit(moveStep(schema, step.key, si + 1))}><ArrowDown /></Button>
             <Button variant="ghost" size="icon-sm" aria-label={t("stepDelete")} disabled={schema.steps.length <= 1} onClick={() => edit(removeStep(schema, step.key))}><Trash2 /></Button>
@@ -258,7 +276,7 @@ export function Canvas({ schema, selected, onSelect, edit }: { schema: FormSchem
                 >
                   <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground" aria-hidden />
                   <button type="button" onClick={() => onSelect(f.key)} className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-sm font-medium">{labelOf(f.label)}{f.required ? <span className="text-red-500"> *</span> : null}</span>
+                    <span className="block truncate text-sm font-medium">{labelOf(f.label, lang)}{f.required ? <span className="text-red-500"> *</span> : null}</span>
                     <span className="block truncate text-xs text-muted-foreground">{tType(f.type)}{f.showIf ? ` · ${t("conditional")}` : ""}</span>
                   </button>
                   <Button variant="ghost" size="icon-sm" aria-label={t("fieldUp")} disabled={fi === 0 && si === 0} onClick={() => edit(fi > 0 ? moveField(schema, f.key, step.key, fi - 1) : moveField(schema, f.key, schema.steps[si - 1].key, schema.steps[si - 1].fields.length))}><ArrowUp /></Button>
@@ -324,7 +342,7 @@ function EffectsEditor({ effects, categories, withCategory, onChange }: { effect
   );
 }
 
-export function FieldSettings({ schema, field, categories, edit, onDeleted }: { schema: FormSchema; field: FormField; categories: { code: string; name: string }[]; edit: (next: FormSchema) => void; onDeleted: () => void }) {
+export function FieldSettings({ schema, field, categories, edit, onDeleted, lang = "en" }: { schema: FormSchema; field: FormField; categories: { code: string; name: string }[]; edit: (next: FormSchema) => void; onDeleted: () => void; lang?: ReportLang }) {
   const t = useTranslations("IncidentPlatform.builder");
   const tType = useTranslations("IncidentPlatform.builder.type");
   const candidates = conditionCandidates(schema, field.key);
@@ -335,11 +353,11 @@ export function FieldSettings({ schema, field, categories, edit, onDeleted }: { 
       <h2 className="text-sm font-semibold">{tType(field.type)}</h2>
       <label className="flex flex-col gap-1 text-xs">
         {t("label")}
-        <Input value={field.label.en ?? ""} onChange={(e) => edit(updateField(schema, field.key, { label: { ...field.label, en: e.target.value } }))} />
+        <Input value={getL(field.label, lang)} placeholder={lang === "en" ? undefined : field.label.en} onChange={(e) => edit(updateField(schema, field.key, { label: setL(field.label, lang, e.target.value) }))} />
       </label>
       <label className="flex flex-col gap-1 text-xs">
         {t("help")}
-        <Input value={field.help?.en ?? ""} onChange={(e) => edit(updateField(schema, field.key, { help: e.target.value ? { ...(field.help ?? {}), en: e.target.value } : undefined }))} />
+        <Input value={getL(field.help, lang)} placeholder={lang === "en" ? undefined : field.help?.en} onChange={(e) => edit(updateField(schema, field.key, { help: e.target.value || lang !== "en" && field.help?.en ? setL(field.help, lang, e.target.value) : undefined }))} />
       </label>
       {field.type !== "photo" ? (
         <label className="flex items-center gap-2 text-sm">
@@ -360,10 +378,10 @@ export function FieldSettings({ schema, field, categories, edit, onDeleted }: { 
           {(field.options ?? []).map((o) => (
             <div key={o.value} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
               <div className="flex gap-1">
-                <Input value={o.label.en ?? ""} onChange={(e) => edit(updateOption(schema, field.key, o.value, { label: { ...o.label, en: e.target.value } }))} aria-label={t("optionLabel")} className="h-8" />
+                <Input value={getL(o.label, lang)} placeholder={lang === "en" ? undefined : o.label.en} onChange={(e) => edit(updateOption(schema, field.key, o.value, { label: setL(o.label, lang, e.target.value) }))} aria-label={t("optionLabel")} className="h-8" />
                 <Button variant="ghost" size="icon-sm" aria-label={t("optionDelete")} onClick={() => edit(removeOption(schema, field.key, o.value))}><Trash2 /></Button>
               </div>
-              <Input value={o.help?.en ?? ""} onChange={(e) => edit(updateOption(schema, field.key, o.value, { help: e.target.value ? { ...(o.help ?? {}), en: e.target.value } : undefined }))} placeholder={t("optionHelp")} aria-label={t("optionHelp")} className="h-8" />
+              <Input value={getL(o.help, lang)} onChange={(e) => edit(updateOption(schema, field.key, o.value, { help: e.target.value || lang !== "en" && o.help?.en ? setL(o.help, lang, e.target.value) : undefined }))} placeholder={lang === "en" ? t("optionHelp") : o.help?.en ?? t("optionHelp")} aria-label={t("optionHelp")} className="h-8" />
               <EffectsEditor effects={o.effects} categories={categories} withCategory onChange={(fx) => edit(updateOption(schema, field.key, o.value, { effects: fx }))} />
             </div>
           ))}

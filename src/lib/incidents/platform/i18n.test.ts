@@ -92,3 +92,34 @@ describe("incident platform strings", () => {
     }
   });
 });
+
+describe("the coach report in Malay and Chinese", () => {
+  const leaves = (node: unknown, prefix = ""): string[] =>
+    typeof node === "object" && node !== null ? Object.entries(node as Json).flatMap(([k, v]) => leaves(v, `${prefix}${prefix ? "." : ""}${k}`)) : [prefix];
+  const load = (lang: string) => JSON.parse(readFileSync(join(process.cwd(), "messages", `${lang}.json`), "utf8")) as Json;
+
+  for (const lang of ["ms", "zh"]) {
+    it(`${lang} has every word of the page`, () => {
+      const m = load(lang);
+      const expected = leaves((en as Json & { IncidentPlatform: { report: Json } }).IncidentPlatform.report);
+      const at = (path: string) => path.split(".").reduce<unknown>((n, k) => (n && typeof n === "object" ? (n as Json)[k] : undefined), (m as Json & { IncidentPlatform: { report: Json } }).IncidentPlatform.report);
+      for (const p of expected) expect(typeof at(p), `${lang}: ${p}`).toBe("string");
+    });
+    it(`${lang} keeps the placeholders of the English text`, () => {
+      const m = load(lang) as Json & { IncidentPlatform: { report: Json } };
+      const pick = (root: Json, path: string) => path.split(".").reduce<unknown>((n, k) => (n as Json)[k], root) as string;
+      for (const p of leaves((en as Json & { IncidentPlatform: { report: Json } }).IncidentPlatform.report)) {
+        const holes = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join(",");
+        expect(holes(pick(m.IncidentPlatform.report, p)), `${lang}: ${p}`).toBe(holes(pick((en as Json & { IncidentPlatform: { report: Json } }).IncidentPlatform.report, p)));
+      }
+    });
+  }
+
+  it("labels every word of the built-in form in all three languages", async () => {
+    const { CCA_FORM } = await import("@/lib/incidents/intake/form-schema");
+    const maps = CCA_FORM.steps.flatMap((s) => [s.title, ...s.fields.flatMap((f) => [f.label, ...(f.help ? [f.help] : []), ...(f.options ?? []).flatMap((o) => [o.label, ...(o.help ? [o.help] : [])])])]);
+    for (const m of maps) {
+      expect(Object.keys(m).sort(), m.en).toEqual(["en", "ms", "zh"]);
+    }
+  });
+});

@@ -12821,5 +12821,48 @@
       "sharedVia": "Shared via {product}",
       "tooManyRequests": "Too many requests. Please try again in a moment."
     }
+  },
+  "IncidentPlatform": {
+    "report": {
+      "notice": {
+        "invalid": {
+          "title": "此链接无效",
+          "body": "链接可能复制不完整，或已被替换。请返回教练门户，再点一次“报告”。"
+        },
+        "expired": {
+          "title": "此链接已过期",
+          "body": "链接有效期为 2 小时。请返回教练门户，再点一次“报告”。您输入的内容没有发送。"
+        },
+        "submitted": {
+          "title": "此报告已发送",
+          "body": "已登记为 {reference}。如需报告其他事件，请返回教练门户，再点一次“报告”。"
+        }
+      },
+      "backToPortal": "返回教练门户",
+      "back": "返回",
+      "stepOf": "第 {n} 步，共 {total} 步",
+      "next": "下一步",
+      "send": "发送报告",
+      "waitingToSend": "等待网络连接",
+      "sendFailed": "报告未能发送。您的答案已保存在这部手机上，请再试一次。",
+      "testBanner": "测试报告。不会发送给真实的人。",
+      "offline": "没有网络。您的报告已保存在这部手机上，恢复网络后会自动发送。照片可在发送后再添加。",
+      "yes": "是",
+      "no": "否",
+      "noRoster": "此活动没有学生名单。请在下面输入姓名。",
+      "someoneElse": "其他人或访客",
+      "addOther": "添加此人",
+      "removeOther": "移除 {name}",
+      "addPhoto": "添加照片",
+      "removePhoto": "移除 {name}",
+      "photoNote": "最多 5 个文件，每个 10 MB。照片在报告发送后添加。",
+      "sent": {
+        "title": "报告已发送",
+        "testNote": "这是测试报告，所以只通知了学校管理员。",
+        "told": "已通知：{roles}。",
+        "toldNobody": "学校办公室已收到。目前还没有自动通知任何人。",
+        "photoFailed": "未添加。请告知学校办公室。"
+      }
+    }
   }
 }
