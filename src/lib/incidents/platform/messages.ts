@@ -1,7 +1,7 @@
 // The message an incident notice carries. Minimal on purpose (PDPA): the reference, the category, the severity and a link. Names, medical detail and
 // anything about a child stay inside Halo; the link opens Halo (or a one-tap acknowledge page for people with no login).
 
-export type NoticeReason = "raised" | "reminder" | "escalated" | "step_overdue" | "closed" | "test";
+export type NoticeReason = "raised" | "reminder" | "escalated" | "step_overdue" | "closed" | "approval" | "test";
 
 export interface NoticeInput {
   reference: string;
@@ -30,6 +30,7 @@ const HEADLINE: Record<NoticeReason, string> = {
   escalated: "An incident has been escalated",
   step_overdue: "A required step on an incident is overdue",
   closed: "An incident has been closed",
+  approval: "Your approval is needed on an incident",
   test: "This is a test notice",
 };
 

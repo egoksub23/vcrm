@@ -23,6 +23,8 @@ const FILES = [
   "src/components/incidents/report/report-app.tsx",
   "src/components/incidents/setup/portal-screen.tsx",
   "src/components/incidents/setup/rule-editor.tsx",
+  "src/components/incidents/setup/workflow-panel.tsx",
+  "src/components/incidents/approvals-panel.tsx",
   "src/components/incidents/setup/retention-panel.tsx",
   "src/components/incidents/clearances-screen.tsx",
   "src/components/incidents/clearance-panel.tsx",
@@ -63,7 +65,8 @@ describe("incident platform strings", () => {
       ...["injury", "concussion", "illness", "other"].map((k) => `IncidentPlatform.clearances.type_${k}`),
       ...["export", "purge", "auto_purge"].map((k) => `IncidentPlatform.retention.log.${k}`),
       ...["queued", "sending", "sent", "acknowledged", "failed", "skipped"].map((k) => `IncidentPlatform.log.status.${k}`),
-      ...["raised", "reminder", "escalated", "step_overdue", "closed", "test"].map((k) => `IncidentPlatform.log.reason.${k}`),
+      ...["raised", "reminder", "escalated", "step_overdue", "closed", "approval", "test"].map((k) => `IncidentPlatform.log.reason.${k}`),
+      ...["approved", "rejected"].map((k) => `IncidentPlatform.approvals.decision.${k}`),
     ];
     for (const p of paths) expect(typeof get(p), p).toBe("string");
   });

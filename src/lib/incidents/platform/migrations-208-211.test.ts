@@ -103,3 +103,44 @@ describe("running a migration twice", () => {
     expect(body).toContain("CREATE TRIGGER on_incident_obligation_role");
   });
 });
+
+describe("migrations 212 to 214 (coach intake, retention, workflow)", () => {
+  const m212 = readMigration("212_incident_coach_intake.sql").replace(/\r\n/g, "\n");
+  const m213 = readMigration("213_incident_retention_log.sql").replace(/\r\n/g, "\n");
+  const m214 = readMigration("214_incident_workflow.sql").replace(/\r\n/g, "\n");
+
+  it("keeps only a hash of each key, and never exposes the roster of a link to a client", () => {
+    expect(m212).toMatch(/key_hash\s+TEXT\s+NOT NULL UNIQUE/);
+    expect(m212).not.toMatch(/CREATE POLICY \w+ ON public\.incident_intake_sessions/);
+    expect(m212).toContain("ALTER TABLE public.incident_intake_sessions ENABLE ROW LEVEL SECURITY");
+  });
+
+  it("reads Return to Play with incidents.medical and gives clients no write policy on it", () => {
+    expect(m212).toMatch(/CREATE POLICY person_clearances_select ON public\.person_clearances FOR SELECT USING \(has_capability\(account_id, 'incidents\.medical'\)\)/);
+    expect(m212).not.toMatch(/CREATE POLICY \w+ ON public\.person_clearances FOR (INSERT|UPDATE|DELETE|ALL)/);
+  });
+
+  it("limits what an incident's source and a person's involvement can be", () => {
+    expect(m212).toContain("CHECK (source IN ('halo', 'coach_portal', 'api'))");
+    expect(m212).toContain("CHECK (involvement IN ('injured', 'involved', 'witness'))");
+  });
+
+  it("allows 1 to 50 years of retention, or none", () => {
+    expect(m212).toContain("retention_years IS NULL OR retention_years BETWEEN 1 AND 50");
+  });
+
+  it("logs deletes in a table clients can only read", () => {
+    expect(m213).toMatch(/CREATE POLICY incident_retention_log_select ON public\.incident_retention_log FOR SELECT/);
+    expect(m213).not.toMatch(/CREATE POLICY \w+ ON public\.incident_retention_log FOR (INSERT|UPDATE|DELETE|ALL)/);
+  });
+
+  it("allows one pending approval per role per incident, and writes by the server only", () => {
+    expect(m214).toMatch(/uq_incident_approvals_pending ON public\.incident_approvals \(incident_id, role_key\) WHERE decision IS NULL/);
+    expect(m214).not.toMatch(/CREATE POLICY \w+ ON public\.incident_approvals FOR (INSERT|UPDATE|DELETE|ALL)/);
+    expect(m214).toMatch(/incident_workflow_guards_write ON public\.incident_workflow_guards FOR ALL\s+USING \(has_capability\(account_id, 'incidents\.configure'\)\)/);
+  });
+
+  it("never lets a requirement be set on 'reported'", () => {
+    expect(m214).toContain("to_status IN ('triaged', 'contained', 'investigating', 'recovered', 'closed')");
+  });
+});

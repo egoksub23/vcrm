@@ -61,6 +61,7 @@ import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { ObligationsPanel } from "./obligations-panel";
 import { MessageLogPanel } from "./message-log-panel";
 import { ClearancePanel } from "./clearance-panel";
+import { ApprovalsPanel } from "./approvals-panel";
 
 /** Plain text with any URL turned into a clickable link — same link
  *  definition Sembang uses (findLinkTokens), so a link pasted into an
@@ -230,7 +231,9 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     });
     if (!res.ok) {
       setIncident(prev);
-      toast.error(t("updateFailed"));
+      // A move the school's requirements hold back comes with the reasons in plain words.
+      const reason = res.status === 409 ? ((await res.json().catch(() => ({}))) as { error?: string }).error : null;
+      toast.error(reason || t("updateFailed"));
     }
   };
 
@@ -639,6 +642,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             canManage={canManage}
             onChanged={(row) => setObligations((prev) => prev.map((o) => (o.id === row.id ? row : o)))}
           />
+
+          <ApprovalsPanel incidentId={incident.id} />
 
           {canMedical ? <ClearancePanel incidentId={incident.id} /> : null}
 

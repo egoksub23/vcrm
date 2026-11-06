@@ -14500,7 +14500,8 @@
         "escalated": "Escalated",
         "step_overdue": "Overdue step",
         "closed": "Incident closed",
-        "test": "Test"
+        "test": "Test",
+        "approval": "Approval requested"
       }
     },
     "report": {
@@ -14634,6 +14635,34 @@
       "save": "Save date",
       "saved": "Date saved",
       "current": "Warning until {date}"
+    },
+    "workflow": {
+      "title": "Before an incident moves on",
+      "help": "Choose what must be true before an incident can be moved to each status. Leave a row empty and that status can be reached freely. The check happens on the server, so it holds on the board, the list and the incident page.",
+      "before": "Before it can be moved to {status}",
+      "rootCause": "A root cause is written",
+      "stepsDone": "Every required step is done",
+      "leadAssigned": "An incident lead is assigned",
+      "approvedBy": "Approved by",
+      "nobody": "Nobody",
+      "allowBackward": "Allow an incident to move back to an earlier status",
+      "save": "Save requirements",
+      "saved": "Requirements saved"
+    },
+    "approvals": {
+      "title": "Approvals",
+      "waiting": "Waiting",
+      "decision": {
+        "approved": "Approved",
+        "rejected": "Not approved"
+      },
+      "forStatus": "to move to {status}",
+      "yourAnswer": "Your answer",
+      "note": "Reason or note",
+      "notePlaceholder": "A note (needed if you do not approve)",
+      "approve": "Approve",
+      "reject": "Do not approve",
+      "rejectNeedsReason": "If you do not approve, say why, so it can be put right."
     }
   }
 }

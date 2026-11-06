@@ -347,3 +347,47 @@ export async function sweepTimers(store: EngineStore, accountIdsWithRules: reado
   }
   return summary;
 }
+
+// ---- one-off notices (not from a rule) --------------------------------------------------------------------------
+
+/**
+ * Tell one role about one thing outside the rules: "your approval is needed". `refKey` says what it is about (the approval's id), so asking twice for the
+ * same thing sends once. Returns how many messages were queued and why nobody was told, if so.
+ */
+export async function notifyRole(
+  store: EngineStore,
+  args: { incidentId: string; roleKey: string; reason: NoticeReason; refKey: string; askAck?: boolean },
+): Promise<{ queued: number; warnings: string[] }> {
+  const incident = await store.loadIncident(args.incidentId);
+  if (!incident) return { queued: 0, warnings: ["no_such_incident"] };
+  const [directory, dynamic, existing] = await Promise.all([store.loadDirectory(incident.account_id), store.loadDynamicPeople(incident.id), store.existingKeys(incident.id)]);
+  const role = directory.roles.find((r) => r.key === args.roleKey);
+  if (!role) return { queued: 0, warnings: ["no_such_role"] };
+
+  const resolved = incident.is_test
+    ? { recipients: (await store.loadTestRecipients(incident.account_id)).map((p) => ({ ...p, roleKey: args.roleKey })), warnings: [] as string[] }
+    : resolveRole({ role, members: directory.members.filter((m) => m.role_id === role.id), contacts: directory.contacts, dynamic, today: dayOf(store.now()) });
+
+  const rows: NewDelivery[] = [];
+  for (const rcpt of resolved.recipients) {
+    const key = deliveryKey(null, args.roleKey, rcpt.channel, rcpt.address, args.refKey);
+    if (existing.has(key)) continue;
+    existing.add(key);
+    rows.push({
+      account_id: incident.account_id,
+      incident_id: incident.id,
+      rule_id: null,
+      role_key: args.roleKey,
+      contact_id: rcpt.contactId,
+      recipient_name: rcpt.name,
+      channel: rcpt.channel,
+      address: rcpt.address,
+      reason: incident.is_test ? "test" : args.reason,
+      ask_ack: Boolean(args.askAck),
+      ref_key: args.refKey,
+      is_test: incident.is_test,
+    });
+  }
+  const queued = rows.length ? (await store.insertDeliveries(rows)).length : 0;
+  return { queued, warnings: [...resolved.warnings] };
+}

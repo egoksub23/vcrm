@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ackToken, dispatchDue, nextAttemptAfter, runTrigger, sweepTimers, verifyAckToken } from "./engine";
+import { ackToken, dispatchDue, nextAttemptAfter, notifyRole, runTrigger, sweepTimers, verifyAckToken } from "./engine";
 import type { AdapterMap } from "./adapters";
 import { STEP_ROLE } from "./rules";
 import { NOW, member, okAdapter, ruleFromRecipe, seeded } from "./testing";
@@ -215,5 +215,19 @@ describe("acknowledge tokens", () => {
   });
   it("never verifies when no secret is configured", () => {
     expect(verifyAckToken(ackToken(id, ""), "")).toBeNull();
+  });
+});
+
+describe("notifyRole (one-off notices such as an approval request)", () => {
+  it("tells the role once for the same thing, and says why when nobody can be told", async () => {
+    const s = seeded();
+    const first = await notifyRole(s, { incidentId: "i1", roleKey: "principal", reason: "approval", refKey: "approval:1" });
+    const again = await notifyRole(s, { incidentId: "i1", roleKey: "principal", reason: "approval", refKey: "approval:1" });
+    expect(first.queued).toBe(1);
+    expect(again.queued).toBe(0);
+    expect(s.deliveries.map((d) => [d.role_key, d.reason, d.rule_id, d.ref_key])).toEqual([["principal", "approval", null, "approval:1"]]);
+    s.directory.members = s.directory.members.filter((m) => m.role_id !== "role-principal");
+    expect(await notifyRole(s, { incidentId: "i1", roleKey: "principal", reason: "approval", refKey: "approval:2" })).toEqual({ queued: 0, warnings: ["no_members"] });
+    expect(await notifyRole(s, { incidentId: "i1", roleKey: "ghost", reason: "approval", refKey: "x" })).toEqual({ queued: 0, warnings: ["no_such_role"] });
   });
 });

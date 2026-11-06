@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS public.incident_deliveries (
   recipient_name  TEXT        NOT NULL,
   channel         TEXT        NOT NULL CHECK (channel IN ('email', 'whatsapp', 'sms', 'push')),
   address         TEXT        NOT NULL,
-  reason          TEXT        NOT NULL DEFAULT 'raised' CHECK (reason IN ('raised', 'reminder', 'escalated', 'step_overdue', 'closed', 'test')),
+  reason          TEXT        NOT NULL DEFAULT 'raised' CHECK (reason IN ('raised', 'reminder', 'escalated', 'step_overdue', 'closed', 'approval', 'test')),
   ask_ack         BOOLEAN     NOT NULL DEFAULT FALSE,
   -- What this row is about when a rule can fire several times for one incident (for example the id of an overdue step).
   ref_key         TEXT        NOT NULL DEFAULT '',

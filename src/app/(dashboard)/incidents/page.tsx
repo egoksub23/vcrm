@@ -86,7 +86,9 @@ export default function IncidentsPage() {
     });
     if (!moveRes.ok) {
       undo();
-      toast.error(t("moveFailed"));
+      // A move the school's requirements hold back comes with the reasons in plain words.
+      const reason = moveRes.status === 409 ? ((await moveRes.json().catch(() => ({}))) as { error?: string }).error : null;
+      toast.error(reason || t("moveFailed"));
     }
   };
 
