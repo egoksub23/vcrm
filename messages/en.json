@@ -67,7 +67,8 @@
     "incidentsPortal": "Coach portal & API",
     "incidentsClearances": "Return to play",
     "incidentsRegisters": "Registers",
-    "incidentsReports": "Reports"
+    "incidentsReports": "Reports",
+    "incidentsForm": "Report form"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -14444,6 +14445,12 @@
           "help": "Create a key, add the portal's address, and send the hand-off guide to whoever builds the portal. Try it with a test key first.",
           "doneFact": "{count, plural, one {1 live key is active} other {# live keys are active}}",
           "todoFact": "No live key yet. Coaches can still report from inside Halo."
+        },
+        "form": {
+          "title": "Check the report form",
+          "help": "The three short screens a coach fills in. The built-in form works as it is; change it only if the school needs different questions.",
+          "doneFact": "Using the school's own form, version {version}",
+          "todoFact": "Using the built-in form"
         }
       },
       "test": {
@@ -14742,6 +14749,92 @@
       "acknowledged": "acknowledged",
       "files": "Files",
       "open": "Print or save the incident record"
+    },
+    "builder": {
+      "title": "Report form",
+      "help": "Help text",
+      "loading": "Loading the form",
+      "liveVersion": "Live: version {version}",
+      "builtIn": "Live: the built-in form",
+      "startHelp": "To change it, start a draft. Nothing changes for coaches until you publish.",
+      "startDraft": "Edit the form",
+      "saving": "Saving...",
+      "unsaved": "Unsaved changes",
+      "saved": "Draft saved",
+      "draftOf": "Draft: version {version}",
+      "discard": "Discard draft",
+      "discardConfirm": "Throw away this draft? The live form is not affected.",
+      "publish": "Publish",
+      "published": "Published. New report links use this form.",
+      "beforePublish": "Before you can publish",
+      "selectHelp": "Select a field to change its wording, options and rules.",
+      "preview": "Phone preview",
+      "previewHelp": "This is exactly what a coach sees. Nothing you do here is sent.",
+      "previewActivity": "Sample activity",
+      "previewCoach": "Sample coach",
+      "restoreReplaces": "This replaces your current draft with that version. Continue?",
+      "palette": "Fields",
+      "paletteHelp": "Drag onto the form, or click to add at the end.",
+      "type": {
+        "involved": "Who was involved",
+        "choice": "Choice",
+        "text": "Short answer",
+        "longtext": "Long answer",
+        "yesno": "Yes or no",
+        "photo": "Photo"
+      },
+      "canvas": "The form",
+      "stepTitle": "Step title",
+      "stepUp": "Move step up",
+      "stepDown": "Move step down",
+      "stepDelete": "Delete step (its fields move to the step before)",
+      "dropHere": "Drop here",
+      "emptyStep": "Empty. Drag a field here.",
+      "conditional": "shown only sometimes",
+      "fieldUp": "Move up",
+      "fieldDown": "Move down",
+      "fieldDelete": "Delete field",
+      "addStep": "Add a step",
+      "settings": "Field settings",
+      "label": "Question",
+      "required": "Required",
+      "maxLength": "Longest answer",
+      "options": "Options",
+      "optionLabel": "Option wording",
+      "optionHelp": "Help text under the option",
+      "optionDelete": "Delete option",
+      "addOption": "Add an option",
+      "filesUnder": "Files under",
+      "noCategory": "(no category)",
+      "severityIs": "Severity is",
+      "noBand": "(no change)",
+      "flags": "It involves",
+      "band": {
+        "minor": "Minor",
+        "first_aid": "Needs first aid or the nurse",
+        "cannot_continue": "Could not continue",
+        "hospital": "Needs a doctor or hospital"
+      },
+      "ifYes": "When the answer is yes",
+      "showOnlyIf": "Show only if",
+      "noCandidates": "Only a choice that comes earlier in the form can decide this.",
+      "always": "Always shown",
+      "is": "is",
+      "versions": "Versions",
+      "changesFromLive": "Changes from the live form",
+      "noChanges": "No changes yet.",
+      "diffAdded": "Added: {name}",
+      "diffRemoved": "Removed: {name}",
+      "diffChanged": "Changed: {name}",
+      "diffMoved": "Moved: {name}",
+      "noVersions": "No version has been published yet.",
+      "versionNumber": "Version {version}",
+      "status": {
+        "published": "Live",
+        "archived": "Replaced",
+        "draft": "Draft"
+      },
+      "restore": "Start a draft from this"
     }
   }
 }

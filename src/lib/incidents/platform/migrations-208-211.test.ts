@@ -144,3 +144,22 @@ describe("migrations 212 to 214 (coach intake, retention, workflow)", () => {
     expect(m214).toContain("to_status IN ('triaged', 'contained', 'investigating', 'recovered', 'closed')");
   });
 });
+
+describe("migration 215 (report form versions)", () => {
+  const m215 = readMigration("215_incident_form_versions.sql").replace(/\r\n/g, "\n");
+
+  it("allows one draft and one published version per school and form", () => {
+    expect(m215).toMatch(/uq_incident_form_draft\s+ON public\.incident_form_versions \(account_id, form_key\) WHERE status = 'draft'/);
+    expect(m215).toMatch(/uq_incident_form_published ON public\.incident_form_versions \(account_id, form_key\) WHERE status = 'published'/);
+    expect(m215).toContain("UNIQUE (account_id, form_key, version)");
+  });
+  it("only a configurer writes a form, and publishing is a single service-only step", () => {
+    expect(m215).toMatch(/incident_form_versions_write ON public\.incident_form_versions FOR ALL\s+USING \(has_capability\(account_id, 'incidents\.configure'\)\)/);
+    expect(m215).toContain("REVOKE ALL ON FUNCTION public.publish_incident_form(UUID, TEXT, INTEGER, UUID) FROM PUBLIC, anon, authenticated;");
+    expect(m215).toMatch(/SET status = 'archived'[\s\S]*SET status = 'published'/);
+  });
+  it("records the version on the link and on the incident", () => {
+    expect(m215).toContain("ALTER TABLE public.incident_intake_sessions ADD COLUMN IF NOT EXISTS form_version INTEGER");
+    expect(m215).toContain("ALTER TABLE public.incidents                ADD COLUMN IF NOT EXISTS form_version INTEGER");
+  });
+});

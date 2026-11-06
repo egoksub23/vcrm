@@ -10,7 +10,8 @@ import { buildMediaPath } from "@/lib/storage/upload-media";
 import { incidentKey } from "@/lib/incidents/types";
 import { loadActiveTemplate } from "@/lib/incidents/platform/setup-data";
 import { labelOf } from "@/lib/incidents/platform/roles";
-import type { ClearanceRow, IntakeStore, KeyRow, NewIncident, SessionRow } from "./service";
+import type { FormSchema } from "./form-schema";
+import { builtInForm, type ClearanceRow, type IntakeStore, type KeyRow, type NewIncident, type ResolvedForm, type SessionRow } from "./service";
 
 const BUCKET = "chat-media";
 
@@ -50,6 +51,17 @@ export class PgIntakeStore implements IntakeStore {
     const t = await loadActiveTemplate(this.db, accountId);
     if (!t) return null;
     return { standardId: t.standardId, categoryCodes: t.categories.map((c) => c.code), severities: t.severities.map((s) => ({ slug: s.slug, position: s.position })) };
+  }
+
+  async formFor(accountId: string, formKey: string, version: number | null | undefined): Promise<ResolvedForm | null> {
+    // Coaches only ever get a published (or since-archived) version, never a draft.
+    let q = this.db.from("incident_form_versions").select("version, schema").eq("account_id", accountId).eq("form_key", formKey);
+    q = version != null ? q.eq("version", version).in("status", ["published", "archived"]) : q.eq("status", "published");
+    const { data } = await q.limit(1).maybeSingle();
+    const row = data as { version: number; schema: FormSchema } | null;
+    if (row) return { version: row.version, schema: row.schema };
+    // A link issued under a version that is gone is not served the built-in form in its place: the answers would not mean the same thing.
+    return version != null ? null : builtInForm(formKey);
   }
 
   async sessionByIdempotency(keyId: string, idem: string): Promise<SessionRow | null> {
@@ -100,6 +112,7 @@ export class PgIntakeStore implements IntakeStore {
         reporter_phone: input.coach.phone,
         is_test: input.mode === "test",
         activity: input.activity,
+        form_version: input.formVersion,
         custom_fields: input.answers,
       })
       .select("id, created_at, incident_number")

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { addPhoto, clearances, launch, loadReport, submit, SESSION_HOURS, MAX_PHOTOS, type ClearanceRow } from "./service";
+import { CCA_FORM } from "./form-schema";
 import { generateKey, hashKey, readSessionToken, type KeyMode } from "./keys";
 import { ORIGIN, SECRET, T0, answers, payload, school, setup, tokenOf } from "./testing";
 
@@ -224,5 +225,64 @@ describe("Return to Play", () => {
     expect(await clearances(deps, { authorization: a.key, studentIds: [] })).toEqual({ status: 200, body: { clearances: [] } });
     expect(store.calls.at(-1)?.summary).toBe("0 asked, 0 found");
     expect(hashKey(a.key)).toBeTruthy();
+  });
+});
+
+describe("versioned forms", () => {
+  const withExtra = (version: number, label: string) => {
+    const schema = JSON.parse(JSON.stringify(CCA_FORM)) as typeof CCA_FORM;
+    schema.steps[1].fields.push({ key: "venue_note", type: "text", label: { en: label }, required: true });
+    return { version, schema };
+  };
+
+  it("uses the school's published form for new links and records the version on the link and the incident", async () => {
+    const { store, deps } = setup();
+    store.forms.set("school-a", [withExtra(1, "Where on the field?")]);
+    const { key } = store.addKey("school-a");
+    const out = await launch(deps, { authorization: key, idempotencyKey: null, body: payload });
+    const token = tokenOf(out.body.url as string);
+    expect(store.sessions[0].form_version).toBe(1);
+    const view = await loadReport(deps, token);
+    expect(view.state === "open" && view.schema.steps[1].fields.some((f) => f.key === "venue_note")).toBe(true);
+
+    const missing = await submit(deps, { token, answers });
+    expect(missing.body).toMatchObject({ error: { code: "invalid_answers", fields: { venue_note: expect.any(String) } } });
+    const ok = await submit(deps, { token, answers: { ...answers, venue_note: "Near the left goal" } });
+    expect(ok.status).toBe(201);
+    expect(store.incidents[0]).toMatchObject({ formVersion: 1 });
+    expect(store.incidents[0].answers).toMatchObject({ venue_note: "Near the left goal" });
+  });
+
+  it("keeps a link on the version it was issued with when a newer one is published", async () => {
+    const { store, deps } = setup();
+    store.forms.set("school-a", [withExtra(1, "Where on the field?")]);
+    const { key } = store.addKey("school-a");
+    const out = await launch(deps, { authorization: key, idempotencyKey: null, body: payload });
+    const token = tokenOf(out.body.url as string);
+    store.forms.set("school-a", [withExtra(1, "Where on the field?"), withExtra(2, "Which pitch?")]);
+    const view = await loadReport(deps, token);
+    expect(view.state === "open" && view.schema.steps[1].fields.at(-1)?.label.en).toBe("Where on the field?");
+    // a new link gets the new version
+    const next = await launch(deps, { authorization: key, idempotencyKey: null, body: payload });
+    const v2 = await loadReport(deps, tokenOf(next.body.url as string));
+    expect(v2.state === "open" && v2.schema.steps[1].fields.at(-1)?.label.en).toBe("Which pitch?");
+  });
+
+  it("falls back to the built-in form for a school that has published nothing, and drops answers the form never asked", async () => {
+    const { store, deps } = setup();
+    const { key } = store.addKey("school-a");
+    const out = await launch(deps, { authorization: key, idempotencyKey: null, body: payload });
+    expect(store.sessions[0].form_version).toBeNull();
+    await submit(deps, { token: tokenOf(out.body.url as string), answers: { ...answers, venue_note: "x" } });
+    expect(store.incidents[0].formVersion).toBeNull();
+    expect(store.incidents[0].answers).not.toHaveProperty("venue_note");
+  });
+
+  it("refuses a form that files under a category the school's template does not have", async () => {
+    const { store, deps } = setup();
+    store.forms.set("school-a", [withExtra(1, "x")]);
+    store.templates.set("school-a", { ...school, categoryCodes: ["SB"] });
+    const { key } = store.addKey("school-a");
+    expect((await launch(deps, { authorization: key, idempotencyKey: null, body: payload })).status).toBe(422);
   });
 });

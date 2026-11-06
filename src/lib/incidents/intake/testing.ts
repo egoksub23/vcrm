@@ -1,6 +1,8 @@
 // Shared in-memory pieces for the intake service's tests: a store that keeps everything in arrays, a small school, and a sample launch payload and answers.
 import { generateKey, type KeyMode } from "./keys";
-import type { ClearanceRow, IntakeStore, KeyRow, NewIncident, ServiceDeps, SessionRow } from "./service";
+import { CCA_FORM } from "./form-schema";
+import type { FormSchema } from "./form-schema";
+import { builtInForm, type ClearanceRow, type IntakeStore, type KeyRow, type NewIncident, type ResolvedForm, type ServiceDeps, type SessionRow } from "./service";
 
 export const SECRET = "test-secret";
 export const T0 = new Date("2026-11-11T10:00:00Z");
@@ -69,6 +71,18 @@ export class MemoryStore implements IntakeStore {
   }
   async incidentReference(incidentId: string) {
     return this.incidents.find((i) => i.id === incidentId)?.reference ?? null;
+  }
+  /** Published forms by account; an account without one uses the built-in form. Older versions stay readable for links already issued. */
+  forms = new Map<string, { version: number; schema: FormSchema }[]>();
+  async formFor(accountId: string, formKey: string, version: number | null | undefined): Promise<ResolvedForm | null> {
+    const list = this.forms.get(accountId) ?? [];
+    if (version != null) {
+      const hit = list.find((f) => f.version === version);
+      if (hit) return hit;
+    } else if (list.length > 0) {
+      return list[list.length - 1];
+    }
+    return formKey === CCA_FORM.id ? builtInForm(formKey) : null;
   }
   async toldRoles() {
     return this.told;

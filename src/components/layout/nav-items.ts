@@ -1,4 +1,4 @@
-import { BarChart3, FileSpreadsheet, TrendingUp, HeartPulse, PlugZap, ListChecks, ListTree, ScrollText, UserCog, LayoutList, Gauge, Bell, Bot, BookMarked, BookOpen, Building2, FileSignature, GitBranch, LayoutDashboard, Link2, MessageCircle, MessageSquare, Radio, Settings, ShieldAlert, ShieldCheck, ClipboardCheck, Ticket, Users, Workflow, Zap } from "lucide-react";
+import { BarChart3, FilePenLine, FileSpreadsheet, TrendingUp, HeartPulse, PlugZap, ListChecks, ListTree, ScrollText, UserCog, LayoutList, Gauge, Bell, Bot, BookMarked, BookOpen, Building2, FileSignature, GitBranch, LayoutDashboard, Link2, MessageCircle, MessageSquare, Radio, Settings, ShieldAlert, ShieldCheck, ClipboardCheck, Ticket, Users, Workflow, Zap } from "lucide-react";
 
 // The sidebar's rows, in order. A plain module (no hooks), so the order and the capability of each row can be tested.
 
@@ -75,6 +75,7 @@ export const bottomNavItems: NavItem[] = [
       { href: "/incidents/setup", labelKey: "incidentsSetupGuide", icon: ListTree, capability: "incidents.configure", setup: true },
       { href: "/incidents/setup/roles", labelKey: "incidentsRoles", icon: UserCog, capability: "incidents.configure", setup: true },
       { href: "/incidents/setup/rules", labelKey: "incidentsRules", icon: ScrollText, capability: "incidents.configure", setup: true },
+      { href: "/incidents/setup/form", labelKey: "incidentsForm", icon: FilePenLine, capability: "incidents.configure", setup: true },
       { href: "/incidents/setup/portal", labelKey: "incidentsPortal", icon: PlugZap, capability: "incidents.configure", setup: true },
       { href: "/settings?tab=incidents", labelKey: "incidentsPacks", icon: ClipboardCheck, capability: "incidents.configure", setup: true },
     ],

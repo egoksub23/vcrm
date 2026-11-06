@@ -32,6 +32,8 @@ export interface SessionRow {
   key_id: string;
   mode: KeyMode;
   form: string;
+  /** The published version the link was issued with (null = the built-in form). A link keeps its version even if a newer one is published. */
+  form_version: number | null;
   coach: LaunchInput["coach"];
   activity: LaunchInput["activity"];
   roster: RosterEntry[];
@@ -55,6 +57,8 @@ export interface NewIncident {
   activity: LaunchInput["activity"];
   involved: { studentId: string | null; name: string; className: string | null; guardians: NonNullable<RosterEntry["guardians"]> }[];
   answers: Answers;
+  /** The form version it was filed under (null = the built-in form). */
+  formVersion: number | null;
 }
 
 export interface ClearanceRow {
@@ -78,6 +82,8 @@ export interface IntakeStore {
   markSubmitted(sessionId: string, incidentId: string, now: Date): Promise<void>;
   incidentReference(incidentId: string): Promise<string | null>;
   toldRoles(incidentId: string): Promise<string[]>;
+  /** The form to use: that version when asked for, else the newest published one, else the built-in form (version null). */
+  formFor(accountId: string, formKey: string, version: number | null | undefined): Promise<ResolvedForm | null>;
   clearances(accountId: string, studentIds: string[], today: string): Promise<ClearanceRow[]>;
   photoCount(incidentId: string): Promise<number>;
   savePhoto(args: { accountId: string; incidentId: string; filename: string; mime: string; bytes: Uint8Array }): Promise<void>;
@@ -85,6 +91,11 @@ export interface IntakeStore {
   now(): Date;
   /** How many calls this key may make in a minute (checked by the caller's limiter). */
   rateLimit(keyId: string): boolean;
+}
+
+export interface ResolvedForm {
+  version: number | null;
+  schema: FormSchema;
 }
 
 export interface ServiceDeps {
@@ -148,8 +159,8 @@ export async function launch(deps: ServiceDeps, args: { authorization: string | 
   }
 
   const template = await store.template(key.account_id);
-  const schema = formFor(parsed.value.form);
-  if (!template || !schema || !supportsForm(schema, template)) {
+  const form = await store.formFor(key.account_id, parsed.value.form, null);
+  if (!template || !form || !supportsForm(form.schema, template)) {
     await store.logCall(key.account_id, key.id, "POST launch", 422, "template not supported");
     return err(422, "template_not_supported", "The school's incident template does not have the categories this report form files under. Switch the school to the School Incident Management template.");
   }
@@ -166,6 +177,7 @@ export async function launch(deps: ServiceDeps, args: { authorization: string | 
       key_id: key.id,
       mode: key.mode,
       form: parsed.value.form,
+      form_version: form.version,
       coach: parsed.value.coach,
       activity: parsed.value.activity,
       roster: parsed.value.roster,
@@ -179,8 +191,9 @@ export async function launch(deps: ServiceDeps, args: { authorization: string | 
   return reply(201, { url: `${base.replace(/\/+$/, "")}/report/${token}`, expires_at: session.expires_at, mode: key.mode });
 }
 
-export function formFor(id: string): FormSchema | null {
-  return id === CCA_FORM.id ? CCA_FORM : null;
+/** The form built into Halo: used until a school publishes its own. */
+export function builtInForm(id: string): ResolvedForm | null {
+  return id === CCA_FORM.id ? { version: null, schema: CCA_FORM } : null;
 }
 
 /** The form files reports under categories; the school's template must have them all. */
@@ -227,11 +240,11 @@ export async function loadReport(deps: ServiceDeps, token: string): Promise<Repo
     return { state: "submitted", reference, returnUrl: session.return_url };
   }
   if (new Date(session.expires_at).getTime() < deps.store.now().getTime()) return { state: "expired" };
-  const schema = formFor(session.form);
-  if (!schema) return { state: "invalid" };
+  const form = await deps.store.formFor(session.account_id, session.form, session.form_version);
+  if (!form) return { state: "invalid" };
   return {
     state: "open",
-    schema,
+    schema: form.schema,
     mode: session.mode,
     activity: session.activity,
     coachName: session.coach.name,
@@ -260,9 +273,10 @@ export async function submit(deps: ServiceDeps, args: { token: string; answers: 
     return err(410, "link_expired", "This link has expired. Go back to the coach portal and tap Report again.");
   }
 
-  const schema = formFor(session.form);
+  const form = await store.formFor(session.account_id, session.form, session.form_version);
   const template = await store.template(session.account_id);
-  if (!schema || !template || !supportsForm(schema, template)) return err(422, "template_not_supported", "The school's incident template cannot take this report.");
+  const schema = form?.schema;
+  if (!form || !schema || !template || !supportsForm(schema, template)) return err(422, "template_not_supported", "The school's incident template cannot take this report.");
 
   const answers = (typeof args.answers === "object" && args.answers !== null && !Array.isArray(args.answers) ? args.answers : {}) as Answers;
   const problems = validateAnswers(schema, answers, session.roster);
@@ -284,7 +298,8 @@ export async function submit(deps: ServiceDeps, args: { token: string; answers: 
     coach: session.coach,
     activity: session.activity,
     involved: d.involved,
-    answers: pickAnswers(answers),
+    answers: pickAnswers(schema, answers),
+    formVersion: form.version,
   });
   await store.markSubmitted(session.id, created.id, store.now());
   await store.logCall(session.account_id, key.id, "POST report", 201, `${created.reference} (${session.mode})`);
@@ -294,8 +309,8 @@ export async function submit(deps: ServiceDeps, args: { token: string; answers: 
 }
 
 /** Keep only the answers the form asks for, so a crafted request cannot stuff extra data onto an incident. */
-function pickAnswers(answers: Answers): Answers {
-  const allowed = new Set(CCA_FORM.steps.flatMap((s) => s.fields.map((f) => f.key)));
+function pickAnswers(schema: FormSchema, answers: Answers): Answers {
+  const allowed = new Set(schema.steps.flatMap((s) => s.fields.map((f) => f.key)));
   return Object.fromEntries(Object.entries(answers).filter(([k]) => allowed.has(k)));
 }
 
@@ -350,8 +365,8 @@ export async function createTestSession(deps: ServiceDeps, key: KeyRow, coach: {
   const base = deps.appUrl();
   if (!base) return { error: "Halo's public address is not configured on the server (NEXT_PUBLIC_SITE_URL)." };
   const template = await deps.store.template(key.account_id);
-  const schema = formFor("cca");
-  if (!template || !schema || !supportsForm(schema, template)) return { error: "The school's incident template does not have the categories this report form files under. Switch to the School Incident Management template." };
+  const form = await deps.store.formFor(key.account_id, "cca", null);
+  if (!template || !form || !supportsForm(form.schema, template)) return { error: "The school's incident template does not have the categories this report form files under. Switch to the School Incident Management template." };
   const now = deps.store.now();
   const session = await deps.store.createSession({
     id: deps.store.newId(),
@@ -359,6 +374,7 @@ export async function createTestSession(deps: ServiceDeps, key: KeyRow, coach: {
     key_id: key.id,
     mode: "test",
     form: "cca",
+    form_version: form.version,
     coach: { id: "TEST-COACH", name: coach.name, email: coach.email, phone: null },
     activity: { id: "TEST-ACTIVITY", name: "Test activity", venue: "Test field", date: now.toISOString().slice(0, 10) },
     roster,

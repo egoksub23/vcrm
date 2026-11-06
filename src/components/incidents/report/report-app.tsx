@@ -16,6 +16,7 @@ import {
   loadDraft,
   notifyParent,
   parentMessage,
+  memoryStorage,
   pickStorage,
   saveDraft,
   stepProblems,
@@ -55,7 +56,11 @@ export function ReportNotice({ kind, reference, returnUrl, origins }: { kind: "i
   );
 }
 
-export function ReportApp({ token, view, origins }: { token: string; view: Open; origins: string[] }) {
+/**
+ * `preview` is for the form builder: the page works as it does for a coach, but keeps nothing on the device, tells no parent page and sends nothing; the
+ * Send button just shows the confirmation.
+ */
+export function ReportApp({ token, view, origins, preview = false }: { token: string; view: Open; origins: string[]; preview?: boolean }) {
   const t = useTranslations("IncidentPlatform.report");
   const notify = useParentNotifier(origins);
   const { schema, roster } = view;
@@ -75,7 +80,7 @@ export function ReportApp({ token, view, origins }: { token: string; view: Open;
 
   // Restore a draft once the page is in the browser (storage does not exist while it is rendered on the server).
   useEffect(() => {
-    storage.current = pickStorage(() => window.localStorage);
+    storage.current = preview ? memoryStorage() : pickStorage(() => window.localStorage);
     const draft = loadDraft(storage.current, token);
     if (draft) {
       setAnswers(draft.answers);
@@ -135,6 +140,10 @@ export function ReportApp({ token, view, origins }: { token: string; view: Open;
   );
 
   const send = useCallback(async () => {
+    if (preview) {
+      setSent({ reference: "INC-PREVIEW", told: [], returnUrl: null, duplicate: false });
+      return;
+    }
     setSending(true);
     setFailure(null);
     let res: Response | null = null;
@@ -178,7 +187,7 @@ export function ReportApp({ token, view, origins }: { token: string; view: Open;
     }
     // Anything else (a busy server, too many tries): keep the draft and let the coach try again.
     setFailure(json.error?.message ?? t("sendFailed"));
-  }, [token, answers, photos, schema, view.returnUrl, notify, uploadPhotos, t]);
+  }, [preview, token, answers, photos, schema, view.returnUrl, notify, uploadPhotos, t]);
 
   // While a report is waiting to go, try again when the phone says it is back online, and every 20 seconds.
   useEffect(() => {

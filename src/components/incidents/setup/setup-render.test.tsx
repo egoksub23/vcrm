@@ -27,6 +27,9 @@ import { RolesView, type DirectoryResponse } from "./roles-screen";
 import { RulesView, RulesScreen, makeNamer, type RulesResponse } from "./rules-screen";
 import { SetupGuide } from "./setup-guide";
 import { RuleEditor } from "./rule-editor";
+import { Canvas, FieldSettings, FormBuilder, Palette, Versions, type FormData } from "./form-builder";
+import { CCA_FORM } from "@/lib/incidents/intake/form-schema";
+import { ReportApp } from "@/components/incidents/report/report-app";
 import { OverviewScreen } from "../overview-screen";
 import { TasksScreen } from "../tasks-screen";
 import { AckButton } from "@/app/incident-ack/[token]/ack-button";
@@ -140,6 +143,39 @@ describe("Rules", () => {
     const namer = makeNamer({ ...data, template: null }, (f) => f);
     expect(() => render(<RulesView data={{ ...data, template: null }} namer={namer} reload={async () => {}} />)).not.toThrow();
     expect(render(<RulesScreen />)).toContain("Loading rules");
+  });
+});
+
+describe("report form builder", () => {
+  const categories = [{ code: "CCA", name: "CCA / sports injury" }, { code: "PRD", name: "Property damage" }];
+  const noop = () => {};
+
+  it("renders the palette, the canvas with every step and field, and the settings of a choice and a yes/no field", () => {
+    expect(render(<Palette onAdd={noop} />)).toContain("Who was involved");
+    const canvas = render(<Canvas schema={CCA_FORM} selected="kind" onSelect={noop} edit={noop} />);
+    expect(canvas).toContain("What kind of incident was it?");
+    expect(canvas).toContain("Add a step");
+    const choice = render(<FieldSettings schema={CCA_FORM} field={CCA_FORM.steps[1].fields[0]} categories={categories} edit={noop} onDeleted={noop} />);
+    expect(choice).toContain("Options");
+    expect(choice).toContain("Files under");
+    const yesno = render(<FieldSettings schema={CCA_FORM} field={CCA_FORM.steps[2].fields[2]} categories={categories} edit={noop} onDeleted={noop} />);
+    expect(yesno).toContain("When the answer is yes");
+    expect(yesno).toContain("Show only if");
+  });
+
+  it("renders the versions list with a comparison against the live form, and the loading state", () => {
+    const edited = JSON.parse(JSON.stringify(CCA_FORM)) as typeof CCA_FORM;
+    edited.steps[1].fields[1].label = { en: "Describe it" };
+    const data: FormData = { builtIn: CCA_FORM, draft: null, published: null, categories, allVersions: [{ id: "v1", version: 1, status: "archived", schema: CCA_FORM, note: null, created_at: "2026-11-01T00:00:00Z", published_at: "2026-11-02T00:00:00Z" }] };
+    const html = render(<Versions data={data} draft={edited} onRestore={noop} busy={false} />);
+    expect(html).toContain("Changed: Describe it");
+    expect(html).toContain("Version 1");
+    expect(render(<FormBuilder />)).toContain("Loading the form");
+  });
+
+  it("renders the phone preview of a form without sending anything", () => {
+    const view = { state: "open" as const, schema: CCA_FORM, mode: "test" as const, activity: { id: "P", name: "Sample", venue: null, date: null }, coachName: "Sample coach", roster: [{ student_id: "P-1", name: "Test Student A" }], returnUrl: null, expiresAt: "" };
+    expect(() => render(<ReportApp token="preview" view={view} origins={[]} preview />)).not.toThrow();
   });
 });
 
