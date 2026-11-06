@@ -187,6 +187,10 @@ AS $$
    LIMIT GREATEST(p_limit, 1);
 $$;
 
+-- incident_unresolved (a LANGUAGE sql function) is checked when it is created, so the test-report flag it filters on must exist by now.
+-- Migration 212 adds the same column with IF NOT EXISTS, so running both is safe.
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- Incidents still open (not closed) that were raised at or before p_before: the "resolve by" timer.
 CREATE OR REPLACE FUNCTION public.incident_unresolved(p_account_id UUID, p_before TIMESTAMPTZ, p_limit INTEGER DEFAULT 100)
 RETURNS SETOF UUID
