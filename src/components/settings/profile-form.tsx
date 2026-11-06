@@ -121,23 +121,16 @@ export function ProfileForm() {
 
       // Upload a newly-staged image, if any.
       if (pendingAvatar) {
-        const ext =
-          pendingAvatar.name.split('.').pop()?.toLowerCase() || 'png';
-        const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(path, pendingAvatar, {
-            cacheControl: '3600',
-            upsert: true,
-            contentType: pendingAvatar.type,
-          });
-        if (uploadError) {
-          throw new Error(t('uploadFailed', { message: uploadError.message }));
+        const fd = new FormData()
+        fd.append('file', pendingAvatar)
+        fd.append('bucket', 'avatars')
+        const uploadRes = await fetch('/api/media/upload', { method: 'POST', body: fd })
+        if (!uploadRes.ok) {
+          const uploadJson = await uploadRes.json().catch(() => ({})) as { error?: string }
+          throw new Error(t('uploadFailed', { message: uploadJson.error ?? 'upload failed' }))
         }
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from('avatars').getPublicUrl(path);
-        nextAvatarUrl = publicUrl;
+        const { publicUrl } = await uploadRes.json() as { publicUrl: string }
+        nextAvatarUrl = publicUrl
       } else if (removeAvatar) {
         nextAvatarUrl = null;
       }

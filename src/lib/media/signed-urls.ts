@@ -13,7 +13,6 @@
 // the widget gets its links from the server (/api/widget/media-url).
 // ============================================================
 
-import { createClient } from '@/lib/supabase/client'
 import {
   PRIVATE_MEDIA_BUCKET,
   VIEW_URL_TTL_SECONDS,
@@ -37,12 +36,15 @@ let scheduled = false
 let signer: Signer = defaultSigner
 
 async function defaultSigner(paths: string[], ttlSeconds: number): Promise<Map<string, string>> {
-  const { data, error } = await createClient().storage.from(PRIVATE_MEDIA_BUCKET).createSignedUrls(paths, ttlSeconds)
-  if (error) throw new Error(error.message)
+  const res = await fetch('/api/media/sign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bucket: PRIVATE_MEDIA_BUCKET, paths, ttl: ttlSeconds }),
+  })
+  if (!res.ok) throw new Error('Could not sign the file link')
+  const json = await res.json() as { urls: Record<string, string> }
   const out = new Map<string, string>()
-  for (const row of data ?? []) {
-    if (row.path && row.signedUrl && !row.error) out.set(row.path, row.signedUrl)
-  }
+  for (const [p, url] of Object.entries(json.urls)) out.set(p, url)
   return out
 }
 

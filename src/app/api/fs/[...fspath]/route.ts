@@ -1,10 +1,14 @@
 // GET /api/fs/<bucket>/<path…>
 // Serves files written by the filesystem storage provider (STORAGE_PROVIDER=filesystem).
 // Path is validated against STORAGE_FILEPATH to prevent directory traversal.
+// Private buckets (not in PUBLIC_BUCKETS) require an authenticated session.
 
 import { NextResponse } from 'next/server'
 import { promises as fsPromises } from 'fs'
 import path from 'path'
+import { auth } from '@/auth'
+
+const PUBLIC_BUCKETS = new Set(['avatars', 'post-media', 'share'])
 
 const MIME: Record<string, string> = {
   pdf: 'application/pdf',
@@ -31,6 +35,14 @@ export async function GET(
   const segments = (await params).fspath
   if (!segments || segments.length < 2) {
     return new NextResponse('Not found', { status: 404 })
+  }
+
+  const bucket = segments[0]
+  if (!PUBLIC_BUCKETS.has(bucket)) {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
   }
 
   const joined = segments.join('/')
