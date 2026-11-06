@@ -58,13 +58,12 @@ function SignupPageInner() {
 
   useEffect(() => {
     let active = true;
-    // This RPC is public (anon key, no auth required) — the data client
-    // with no token works fine here.
-    import("@/lib/supabase/client").then(({ createClient }) => {
-      void createClient().rpc("signup_is_open").then(({ data, error: rpcError }) => {
-        if (active && !rpcError && typeof data === "boolean") setSignupOpen(data);
-      });
-    });
+    void fetch("/api/signup-open")
+      .then((r) => r.json() as Promise<{ open: boolean | null }>)
+      .then(({ open }) => {
+        if (active && typeof open === "boolean") setSignupOpen(open);
+      })
+      .catch(() => {/* leave signupOpen null on error */});
     return () => {
       active = false;
     };

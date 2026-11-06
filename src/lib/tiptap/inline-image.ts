@@ -21,7 +21,8 @@ import { PRIVATE_MEDIA_BUCKET, PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-u
 // (remote pictures, data: URLs, file: paths) is ignored, never inserted.
 // ============================================================
 
-/** Where this project's public files live (public-assets), Supabase Storage form. */
+/** Where this project's public files live (public-assets), legacy Supabase Storage form.
+ *  Returns null when NEXT_PUBLIC_SUPABASE_URL is not set (filesystem-only deploy). */
 export function ownImagePrefix(): string | null {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) return null;
@@ -52,12 +53,12 @@ function ownFsImagePrefix(): string | null {
 /** True for a URL of one of this project's public files (Supabase Storage or filesystem). */
 export function isOwnImageUrl(src: string | null | undefined): boolean {
   if (!src) return false;
+  const fsPrefix = ownFsImagePrefix();
+  if (fsPrefix && src.startsWith(fsPrefix)) return true;
   const prefix = ownImagePrefix();
   if (prefix && src.startsWith(prefix)) return true;
   const legacy = legacyImagePrefix();
   if (legacy && src.startsWith(legacy)) return true;
-  const fsPrefix = ownFsImagePrefix();
-  if (fsPrefix && src.startsWith(fsPrefix)) return true;
   return false;
 }
 

@@ -28,6 +28,7 @@
 // ============================================================
 import { NextResponse, after } from 'next/server'
 import { createAdminPgDb } from '@/lib/postgres/db'
+import { appStorage } from '@/lib/storage/provider'
 
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
@@ -201,7 +202,7 @@ async function processMessage(config: Record<string, unknown>, graphMessageId: s
       })
       if (downloaded) {
         const mirrored = await mirrorInboundMedia({
-          storage: admin.storage,
+          storage: appStorage(),
           accountId,
           mediaId: `${message.id}-${first.id}`,
           messageTimestamp: new Date(message.receivedDateTime).getTime(),

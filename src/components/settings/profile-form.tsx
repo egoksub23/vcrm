@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Upload, Trash2, Mail, CircleAlert } from 'lucide-react';
 
-import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +36,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function ProfileForm() {
   const t = useTranslations('Settings.profile');
   const { user, profile, refreshProfile } = useAuth();
-  const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState('');
@@ -146,26 +144,25 @@ export function ProfileForm() {
         throw new Error(t('saveFailed', { message: profileJson.error ?? 'unknown' }));
       }
 
-      // Email change goes through Supabase Auth, which emails a
-      // confirmation to both the old and new addresses. We don't
-      // touch profiles.email — Supabase will push the change there
-      // after the user clicks the link (handled by the handle_new_user
-      // trigger pattern in production deployments).
-      let emailSent = false;
+      // Email change: update auth.users + profiles.email in one PATCH.
+      // The change takes effect immediately (no confirmation email).
       if (trimmedEmail.toLowerCase() !== profile.email.toLowerCase()) {
-        const { error: emailError } = await supabase.auth.updateUser({
-          email: trimmedEmail,
+        const emailRes = await fetch('/api/account/me/email', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: trimmedEmail }),
         });
-        if (emailError) {
+        if (!emailRes.ok) {
+          const emailJson = await emailRes.json().catch(() => ({})) as { error?: string };
           // Partial success: name/avatar saved but email didn't.
           toast.success(t('profileSaved'));
-          toast.error(t('emailChangeFailed', { message: emailError.message }));
+          toast.error(t('emailChangeFailed', { message: emailJson.error ?? 'unknown' }));
           setSaving(false);
           await refreshProfile();
           return;
         }
-        emailSent = true;
       }
+      const emailSent = false;
 
       setEmailChangePending(emailSent);
       setPendingAvatar(null);

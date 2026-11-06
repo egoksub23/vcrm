@@ -16,6 +16,7 @@
 import { NextResponse, after } from 'next/server'
 import { hasCommentChanges, processMetaCommentChanges, type MetaEntryWithChanges } from '@/lib/comments/meta-webhook'
 import { createAdminPgDb } from '@/lib/postgres/db'
+import { appStorage } from '@/lib/storage/provider'
 
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
@@ -246,7 +247,7 @@ async function processMessagingEvent(
 
     if (contentType !== 'text') {
       const mirrored = await mirrorInboundMedia({
-        storage: createAdminPgDb().storage,
+        storage: appStorage(),
         accountId,
         mediaId: message.mid,
         downloadUrl: attachment.payload.url,

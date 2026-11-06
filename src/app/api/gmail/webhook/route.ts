@@ -23,6 +23,7 @@
 import { NextResponse, after } from 'next/server'
 
 import { createAdminPgDb, type PgDb } from '@/lib/postgres/db'
+import { appStorage } from '@/lib/storage/provider'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
 import { escapeLike, tokensEqual } from '@/lib/security/safe-compare'
 import { findOrCreateContactByExternalId } from '@/lib/meta/contact-identity'
@@ -233,7 +234,7 @@ async function processMessage(
     })
     if (bytes) {
       const mirrored = await mirrorInboundMedia({
-        storage: admin.storage,
+        storage: appStorage(),
         accountId,
         mediaId: `${message.id}-${firstAttachment.attachmentId}`,
         messageTimestamp: Number(message.internalDate) || Date.now(),

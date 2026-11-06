@@ -52,7 +52,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { createClient } from '@/lib/supabase/client';
+import { useSession, signOut as nextAuthSignOut } from 'next-auth/react';
 
 interface PeekOk {
   ok: true;
@@ -87,16 +87,15 @@ export default function JoinPage() {
   const tRoles = useTranslations('Settings.roles');
 
   const [peek, setPeek] = useState<PeekResult | null>(null);
-  // Local auth probe — the AuthProvider lives inside the (dashboard)
-  // route group, so it doesn't reach this page. We hit Supabase
-  // directly the same way `/login` and `/signup` do.
-  const [authedUserId, setAuthedUserId] = useState<string | null | undefined>(
-    undefined, // undefined = unknown / still loading; null = signed out
-  );
+  // Auth state from NextAuth — AuthProvider lives inside the (dashboard)
+  // route group and doesn't reach this page; useSession() works standalone.
+  // undefined = still loading; null = signed out; string = authenticated user id
+  const { data: session, status: sessionStatus } = useSession();
+  const authedUserId = sessionStatus === 'loading' ? undefined : (session?.user?.id ?? null);
   // Only meaningful once authedUserId is a real id — used to pre-empt an
   // email-targeted invite's mismatch error with a clear message instead
   // of letting the visitor find out only after clicking Accept.
-  const [authedEmail, setAuthedEmail] = useState<string | null>(null);
+  const authedEmail = session?.user?.email ?? null;
   const [accepting, setAccepting] = useState(false);
   // `redeem_invitation` returns 409 when the caller's current account
   // has domain data, or they're already a member of a shared account.
@@ -110,52 +109,36 @@ export default function JoinPage() {
   const loadPeekAndAuth = useCallback(async () => {
     if (!token) return;
     setPeek(null);
-    setAuthedUserId(undefined);
     try {
-      const [peekRes, authRes] = await Promise.all([
-        fetch(`/api/invitations/${encodeURIComponent(token)}/peek`, {
-          cache: 'no-store',
-        }),
-        createClient().auth.getUser(),
-      ]);
+      const peekRes = await fetch(`/api/invitations/${encodeURIComponent(token)}/peek`, {
+        cache: 'no-store',
+      });
       const peekBody = (await peekRes.json()) as PeekResult;
       setPeek(peekBody);
-      setAuthedUserId(authRes.data.user?.id ?? null);
-      setAuthedEmail(authRes.data.user?.email ?? null);
     } catch (err) {
       console.error('[join] peek error:', err);
       setPeek({ ok: false, reason: 'server_error' });
-      setAuthedUserId(null);
-      setAuthedEmail(null);
     }
   }, [token]);
 
-  // Fetch peek + auth state on mount. The peek endpoint is
-  // rate-limited per-IP (30/min) so double-mounting in React 19
-  // strict mode dev is harmless. We also use the `cancelled` flag
-  // to drop setState calls if the component unmounts mid-fetch.
+  // Fetch peek on mount. Rate-limited per-IP (30/min) so double-mounting
+  // in React 19 strict mode dev is harmless. Auth state comes from
+  // useSession() above. `cancelled` flag drops setState if unmounted mid-fetch.
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
     (async () => {
       try {
-        const [peekRes, authRes] = await Promise.all([
-          fetch(`/api/invitations/${encodeURIComponent(token)}/peek`, {
-            cache: 'no-store',
-          }),
-          createClient().auth.getUser(),
-        ]);
+        const peekRes = await fetch(`/api/invitations/${encodeURIComponent(token)}/peek`, {
+          cache: 'no-store',
+        });
         const peekBody = (await peekRes.json()) as PeekResult;
         if (cancelled) return;
         setPeek(peekBody);
-        setAuthedUserId(authRes.data.user?.id ?? null);
-        setAuthedEmail(authRes.data.user?.email ?? null);
       } catch (err) {
         console.error('[join] peek error:', err);
         if (cancelled) return;
         setPeek({ ok: false, reason: 'server_error' });
-        setAuthedUserId(null);
-        setAuthedEmail(null);
       }
     })();
     return () => {
@@ -202,7 +185,7 @@ export default function JoinPage() {
   const handleSignOutAndRetry = useCallback(async () => {
     setSigningOut(true);
     try {
-      await createClient().auth.signOut();
+      await nextAuthSignOut({ redirect: false });
       // Hard reload so the new auth state propagates everywhere
       // (middleware, AuthProvider). Preserves the invite token in
       // the URL so the rebuilt page renders the signed-out CTA path.

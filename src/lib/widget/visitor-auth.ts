@@ -8,7 +8,7 @@
 // contract shape: `{ error: string, code?: string }`.
 // ============================================================
 import { NextResponse } from 'next/server'
-import { type SupabaseClient } from '@supabase/supabase-js'
+import { jwtVerify } from 'jose'
 
 import { createAdminPgDb, type PgDb } from '@/lib/postgres/db'
 import { checkRateLimit, rateLimitResponse, type RateLimitOptions } from '@/lib/rate-limit'
@@ -51,18 +51,16 @@ export function bearerToken(request: Request): string {
   return authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
 }
 
-/** Verify the visitor's anonymous-auth JWT; returns the auth uid or null. */
+/** Verify the visitor's anonymous-auth JWT locally; returns the auth uid or null. */
 export async function verifyVisitorJwt(token: string): Promise<string | null> {
   if (!token) return null
-  const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    },
-  })
-  if (!res.ok) return null
-  const data = await res.json() as { id?: string }
-  return data.id ?? null
+  try {
+    const secret = new TextEncoder().encode(process.env.SUPABASE_JWT_SECRET!)
+    const { payload } = await jwtVerify(token, secret, { audience: 'authenticated' })
+    return typeof payload.sub === 'string' ? payload.sub : null
+  } catch {
+    return null
+  }
 }
 
 export interface WidgetVisitorContext {

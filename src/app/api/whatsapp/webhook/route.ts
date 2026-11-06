@@ -1,5 +1,6 @@
 import { NextResponse, after } from 'next/server'
 import { createAdminPgDb } from '@/lib/postgres/db'
+import { appStorage } from '@/lib/storage/provider'
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
@@ -1107,7 +1108,7 @@ async function parseMessageContent(
 
       if (mirror) {
         const mirrored = await mirrorInboundMedia({
-          storage: createAdminPgDb().storage,
+          storage: appStorage(),
           accountId: mirror.accountId,
           mediaId,
           downloadUrl: info.url,
