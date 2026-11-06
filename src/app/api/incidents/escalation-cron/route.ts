@@ -1,6 +1,7 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
 import { createAdminPgDb } from '@/lib/postgres/db'
 import { notifyIncidentEmail } from '@/lib/email/incident-notification-email'
+import { runIncidentCron } from '@/lib/incidents/platform/run'
 
 interface SweepNotified {
   user_id: string
@@ -53,6 +54,14 @@ export const GET = cronRoute('incident-escalation', CRON_INTERVALS['incident-esc
     )
   }
 
+  // Role-based rules (migration 209): timed rules (nobody acknowledged, step overdue), then the outbox. Failures are logged and never fail the heartbeat.
+  let rules: { unacknowledged: number; overdueSteps: number; sent: number; failed: number } | null = null
+  try {
+    rules = await runIncidentCron()
+  } catch (err) {
+    console.error('[incidents-escalation-cron] rules sweep failed:', err)
+  }
+
   // The per-recipient detail stays out of the stored heartbeat result.
-  return { body: { escalated: rpcData?.escalated ?? 0, notifications: rpcData?.notifications ?? 0 } }
+  return { body: { escalated: rpcData?.escalated ?? 0, notifications: rpcData?.notifications ?? 0, rules } }
 })

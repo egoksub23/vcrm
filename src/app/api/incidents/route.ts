@@ -18,6 +18,7 @@ import { NextResponse } from "next/server";
 
 import { getCurrentAccount, requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { notifyIncidentEmail } from "@/lib/email/incident-notification-email";
+import { accountHasRaisedRules, processIncidentEvent } from "@/lib/incidents/platform/run";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -184,8 +185,10 @@ export async function POST(request: Request) {
     // Best-effort email on top of the in-app notification the raise
     // trigger already inserted — read back exactly who it notified
     // rather than re-deriving recipients here.
+    // When the school has notification rules switched on, the rules decide who is told (by role), so the old "email every manager" message is not sent as well.
+    const rulesDecide = await accountHasRaisedRules(ctx.accountId);
     const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    if (appBaseUrl) {
+    if (appBaseUrl && !rulesDecide) {
       const { data: notifiedRows } = await ctx.supabase
         .from("notifications")
         .select("user_id")
@@ -207,6 +210,9 @@ export async function POST(request: Request) {
         console.error("[POST /api/incidents] notify email error:", err);
       }
     }
+
+    // Role-based notices (migration 208/209): never throws, and a problem shows in the incident's message log.
+    await processIncidentEvent(inserted.id as string, "raised");
 
     return NextResponse.json({ incident: inserted }, { status: 201 });
   } catch (err) {
