@@ -19,8 +19,11 @@ describe("the Incidents group", () => {
       "/incidents/setup",
       "/incidents/setup/roles",
       "/incidents/setup/rules",
+      "/incidents/setup/portal",
       "/settings?tab=incidents",
     ]);
+    // the nurse sees Return to play without being able to configure anything
+    expect(names(["menu.incidents", "incidents.medical"])).toEqual(["/incidents/overview", "/incidents", "/incidents/tasks", "/incidents/clearances"]);
     expect(names([])).toEqual([]);
   });
 
@@ -32,6 +35,8 @@ describe("the Incidents group", () => {
     expect(activeOn("/incidents/setup")).toEqual(["/incidents/setup"]);
     expect(activeOn("/incidents/setup/roles")).toEqual(["/incidents/setup/roles"]);
     expect(activeOn("/incidents/setup/rules")).toEqual(["/incidents/setup/rules"]);
+    expect(activeOn("/incidents/setup/portal")).toEqual(["/incidents/setup/portal"]);
+    expect(activeOn("/incidents/clearances")).toEqual(["/incidents/clearances"]);
     expect(activeOn("/settings")).toEqual([]);
   });
 

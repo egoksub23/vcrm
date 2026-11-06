@@ -18,7 +18,7 @@ export function isChildActive(child: Pick<NavChild, "href">, pathname: string, s
     (s) => s.href !== child.href && !s.href.includes("?") && s.href.length > path.length && (pathname === s.href || pathname.startsWith(`${s.href}/`)),
   );
   if (moreSpecific) return false;
-  if (path === "/incidents") return !/^\/incidents\/(overview|tasks|setup)(\/|$)/.test(pathname);
+  if (path === "/incidents") return !/^\/incidents\/(overview|tasks|clearances|setup)(\/|$)/.test(pathname);
   return true;
 }
 

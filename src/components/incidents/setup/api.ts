@@ -2,7 +2,7 @@
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; status: number };
 
-export async function api<T = Record<string, unknown>>(path: string, method: "GET" | "POST" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<ApiResult<T>> {
+export async function api<T = Record<string, unknown>>(path: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<ApiResult<T>> {
   try {
     const res = await fetch(path, {
       method,

@@ -63,7 +63,9 @@
     "incidentsSetupGuide": "Setup guide",
     "incidentsRoles": "Roles & contacts",
     "incidentsRules": "Rules",
-    "incidentsPacks": "Compliance packs"
+    "incidentsPacks": "Compliance packs",
+    "incidentsPortal": "Coach portal & API",
+    "incidentsClearances": "Return to play"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -14388,6 +14390,12 @@
           "help": "PDPA, ISO and school-policy steps that are added to matching incidents, each with a due time.",
           "doneFact": "On: {names}",
           "todoFact": "None switched on. Optional, but recommended for personal-data incidents."
+        },
+        "portal": {
+          "title": "Connect the coach portal",
+          "help": "Create a key, add the portal's address, and send the hand-off guide to whoever builds the portal. Try it with a test key first.",
+          "doneFact": "{count, plural, one {1 live key is active} other {# live keys are active}}",
+          "todoFact": "No live key yet. Coaches can still report from inside Halo."
         }
       },
       "test": {
@@ -14489,6 +14497,97 @@
         "toldNobody": "The school office has it. Nobody has been told automatically yet.",
         "photoFailed": "Not added. Tell the school office."
       }
+    },
+    "portal": {
+      "title": "Coach portal & API",
+      "help": "Coaches report from the coach portal. The portal asks Halo for a one-time link with a key, and opens it for the coach. Create a test key first, try a test report, then create the live key.",
+      "loading": "Loading",
+      "addressTitle": "Halo address",
+      "addressNotSet": "The Halo address is not set on the server (NEXT_PUBLIC_SITE_URL), so report links cannot be built. Ask whoever runs the server to set it.",
+      "addressHelp": "The portal never builds links itself; it uses the address Halo returns when it asks for a link.",
+      "keysTitle": "Keys",
+      "noKeys": "No keys yet.",
+      "createLive": "Create live key",
+      "createTest": "Create test key",
+      "live": "Live",
+      "test": "Test",
+      "revoked": "Revoked",
+      "lastUsed": "Last used {when}",
+      "neverUsed": "Never used",
+      "allowed": "Addresses allowed to show the report",
+      "allowedHelp": "The portal's address, for example https://coach.example.edu.my. Separate several with commas. Only these can put the report in a frame, and the return address must be on one of them.",
+      "saveAllowed": "Save addresses",
+      "saved": "Saved",
+      "rotate": "Rotate",
+      "rotateHelp": "Makes a new key. The old one keeps working until you revoke it.",
+      "revoke": "Revoke",
+      "revokeConfirm": "Revoke this key? Every link it issued stops working and the portal can no longer ask for new ones. This cannot be undone.",
+      "secretTitle": "Copy this key now",
+      "secretHelp": "It is shown once. Halo keeps only a fingerprint, so a lost key cannot be recovered; make a new one instead. Give it to the portal's developer by a safe route, not by chat or email.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "dismissSecret": "I have copied it",
+      "testTitle": "Send a test report",
+      "testHelp": "Opens the report with made-up students under a test key. A test report is marked TEST and tells only your admins.",
+      "testButton": "Open a test report",
+      "testReady": "Test report ready",
+      "testOpen": "Open it in a new tab",
+      "callsTitle": "Recent calls",
+      "noCalls": "Nothing yet.",
+      "guideTitle": "Hand-off guide",
+      "guideHelp": "Copy this and send it to whoever builds the coach portal. It never contains a key.",
+      "copyGuide": "Copy the guide"
+    },
+    "retention": {
+      "title": "Keeping records",
+      "help": "Reports and photos are kept for as long as you want. By default they are kept until you delete them.",
+      "keepForever": "Keep until I delete them",
+      "afterYears": "Delete closed incidents automatically after",
+      "years": "years",
+      "save": "Save",
+      "saved": "Saved",
+      "deleteTitle": "Delete old records",
+      "deleteHelp": "Removes closed incidents up to a date, with their steps, comments, messages, people named and photos. Open incidents are never removed. Download the export first.",
+      "before": "Closed on or before",
+      "check": "Check how many",
+      "count": "{count, plural, =0 {No closed incidents are that old} one {1 closed incident is that old} other {# closed incidents are that old}}",
+      "export": "Download export",
+      "typeToConfirm": "To delete them for good, type {phrase}",
+      "delete": "Delete permanently",
+      "deleted": "{incidents, plural, one {1 incident} other {# incidents}} and {files, plural, one {1 file} other {# files}} deleted",
+      "exportFirst": "Download the export before deleting.",
+      "logTitle": "What was exported or deleted",
+      "log": {
+        "export": "Exported",
+        "purge": "Deleted",
+        "auto_purge": "Deleted automatically"
+      },
+      "logRow": "{action} {count, plural, one {1 incident} other {# incidents}} closed on or before {cutoff}"
+    },
+    "clearances": {
+      "title": "Return to play",
+      "help": "Dates set by the nurse after an injury. The coach portal shows them as a warning. They never stop a student from joining anything.",
+      "loading": "Loading",
+      "empty": "No student has a return-to-play date right now.",
+      "student": "Student",
+      "type": "Type",
+      "notBefore": "Not before",
+      "incident": "Incident",
+      "clearNow": "Clear now",
+      "type_injury": "Injury",
+      "type_concussion": "Concussion",
+      "type_illness": "Illness",
+      "type_other": "Other"
+    },
+    "clearancePanel": {
+      "title": "Return to play",
+      "help": "Set the first day each student may play. The coach portal shows a warning until then. Nothing is blocked.",
+      "none": "No students with a portal record are named on this incident, so there is nobody to set a date for.",
+      "date": "Not before",
+      "type": "Type",
+      "save": "Save date",
+      "saved": "Date saved",
+      "current": "Warning until {date}"
     }
   }
 }

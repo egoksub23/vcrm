@@ -60,6 +60,7 @@ import { EscalationChip, SeverityBadge, StatusLozenge } from "./incident-visuals
 import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { ObligationsPanel } from "./obligations-panel";
 import { MessageLogPanel } from "./message-log-panel";
+import { ClearancePanel } from "./clearance-panel";
 
 /** Plain text with any URL turned into a clickable link — same link
  *  definition Sembang uses (findLinkTokens), so a link pasted into an
@@ -131,6 +132,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const { user } = useAuth();
   const { members, nameOf, profileOf } = useAccountMembers();
   const canManage = useCapability("incidents.manage");
+  const canMedical = useCapability("incidents.medical");
 
   const [incident, setIncident] = useState<Incident | null>(null);
   const [comments, setComments] = useState<IncidentComment[]>([]);
@@ -637,6 +639,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             canManage={canManage}
             onChanged={(row) => setObligations((prev) => prev.map((o) => (o.id === row.id ? row : o)))}
           />
+
+          {canMedical ? <ClearancePanel incidentId={incident.id} /> : null}
 
           {canManage ? <MessageLogPanel incidentId={incident.id} canManage={canManage} /> : null}
 

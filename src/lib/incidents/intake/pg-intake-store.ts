@@ -151,7 +151,7 @@ export class PgIntakeStore implements IntakeStore {
       .eq("account_id", accountId)
       .in("external_student_id", studentIds)
       .is("cleared_at", null)
-      .gte("not_before", today)
+      .gt("not_before", today)
       .order("not_before", { ascending: false });
     const rows = (data ?? []) as { external_student_id: string; type: string; not_before: string; incident_id: string | null }[];
     // One line per student: the latest date wins.

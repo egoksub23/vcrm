@@ -8,11 +8,12 @@ import { loadActiveTemplate, loadDirectory } from "@/lib/incidents/platform/setu
 export async function GET() {
   try {
     const ctx = await requireCapability("incidents.configure");
-    const [template, directory, rules, packs] = await Promise.all([
+    const [template, directory, rules, packs, keys] = await Promise.all([
       loadActiveTemplate(ctx.supabase, ctx.accountId),
       loadDirectory(ctx.supabase, ctx.accountId),
       ctx.supabase.from("incident_rules").select("enabled").eq("account_id", ctx.accountId),
       ctx.supabase.from("account_incident_standards").select("standard_id").eq("account_id", ctx.accountId).eq("is_active", true),
+      ctx.supabase.from("incident_intake_keys").select("id").eq("account_id", ctx.accountId).eq("mode", "live").is("revoked_at", null),
     ]);
     const activeIds = ((packs.data ?? []) as { standard_id: string }[]).map((p) => p.standard_id);
     const { data: frameworks } = activeIds.length
@@ -25,6 +26,7 @@ export async function GET() {
       contactCount: directory.contacts.length,
       rulesOn: ((rules.data ?? []) as { enabled: boolean }[]).filter((r) => r.enabled).length,
       packNames: ((frameworks ?? []) as { name: string }[]).map((f) => f.name),
+      liveKeys: (keys.data ?? []).length,
     });
     return NextResponse.json({ steps });
   } catch (err) {

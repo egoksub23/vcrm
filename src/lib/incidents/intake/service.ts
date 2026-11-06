@@ -338,3 +338,34 @@ export async function clearances(deps: ServiceDeps, args: { authorization: strin
     clearances: rows.map((r) => ({ student_id: r.external_student_id, type: r.type, not_before: r.not_before, incident: r.incident_reference })),
   });
 }
+
+// ---- test report (admin) ----------------------------------------------------------------------------------------
+
+/**
+ * "Send a test report": a link made by an admin, with made-up students and a test key, so the whole path (the phone page, the notices to admins, the
+ * message log) can be tried without the coach portal. The key must be a test key: a test link never files a real report.
+ */
+export async function createTestSession(deps: ServiceDeps, key: KeyRow, coach: { name: string; email: string | null }, roster: RosterEntry[]): Promise<{ url: string; expiresAt: string } | { error: string }> {
+  if (key.mode !== "test" || key.revoked_at) return { error: "Create a test key first. A test report must use a test key." };
+  const base = deps.appUrl();
+  if (!base) return { error: "Halo's public address is not configured on the server (NEXT_PUBLIC_SITE_URL)." };
+  const template = await deps.store.template(key.account_id);
+  const schema = formFor("cca");
+  if (!template || !schema || !supportsForm(schema, template)) return { error: "The school's incident template does not have the categories this report form files under. Switch to the School Incident Management template." };
+  const now = deps.store.now();
+  const session = await deps.store.createSession({
+    id: deps.store.newId(),
+    account_id: key.account_id,
+    key_id: key.id,
+    mode: "test",
+    form: "cca",
+    coach: { id: "TEST-COACH", name: coach.name, email: coach.email, phone: null },
+    activity: { id: "TEST-ACTIVITY", name: "Test activity", venue: "Test field", date: now.toISOString().slice(0, 10) },
+    roster,
+    return_url: null,
+    idempotency_key: null,
+    expires_at: new Date(now.getTime() + SESSION_HOURS * 3_600_000).toISOString(),
+  });
+  const token = signSessionToken({ sessionId: session.id, origins: key.allowed_origins }, deps.secret);
+  return { url: `${base.replace(/\/+$/, "")}/report/${token}`, expiresAt: session.expires_at };
+}
