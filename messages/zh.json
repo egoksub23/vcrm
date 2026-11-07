@@ -56,8 +56,6 @@
     "kyc": "KYC 审核",
     "compliance": "合规",
     "share": "Secure Share",
-    "incidentsOverview": "概览",
-    "incidentsAll": "所有事件",
     "incidentsTasks": "我的任务",
     "incidentsSetup": "设置",
     "incidentsSetupGuide": "设置向导",
@@ -65,12 +63,11 @@
     "incidentsRules": "规则",
     "incidentsPacks": "合规包",
     "incidentsPortal": "教练门户与 API",
-    "incidentsClearances": "恢复参赛",
-    "incidentsRegisters": "登记册",
     "incidentsReports": "报表",
     "incidentsForm": "报告表单",
     "incidentsSteps": "自定义步骤",
-    "incidentsTiming": "时限与截止期限"
+    "incidentsTiming": "时限与截止期限",
+    "incidentsDashboard": "仪表板"
   },
   "Header": {
     "dashboard": "仪表板",
@@ -12878,6 +12875,33 @@
         "toldNobody": "学校办公室已收到。目前还没有自动通知任何人。",
         "photoFailed": "未添加。请告知学校办公室。"
       }
+    },
+    "dashboard": {
+      "viewPlay": "恢复参赛",
+      "stats": {
+        "open": "未结事件",
+        "needs": "现在需要处理",
+        "overdue": "逾期的必办步骤",
+        "unacknowledged": "尚未确认"
+      },
+      "mine": "我的",
+      "status": "状态",
+      "category": "类别",
+      "severity": "严重程度",
+      "flag": "涉及",
+      "lead": "负责人",
+      "anyLead": "任何负责人",
+      "student": "学生姓名",
+      "from": "从",
+      "to": "至",
+      "clear": "清除筛选",
+      "count": "显示 {total} 件中的 {shown} 件",
+      "newest": "已载入最新的 {count} 件事件；较早的请查看报告。"
+    },
+    "reportsHub": {
+      "title": "报告",
+      "trends": "趋势",
+      "registers": "登记册"
     }
   }
 }

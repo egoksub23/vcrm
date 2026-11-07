@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { ClearancesScreen } from "@/components/incidents/clearances-screen";
-
-export default function IncidentClearancesPage() {
-  return <ClearancesScreen />;
+// This page moved; the old address keeps working for links in emails and bookmarks.
+export default function IncidentsMovedPage() {
+  redirect("/incidents?view=play");
 }

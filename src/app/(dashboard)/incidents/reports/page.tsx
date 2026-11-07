@@ -1,7 +1,13 @@
 "use client";
 
-import { ReportsScreen } from "@/components/incidents/reports-screen";
+import { Suspense } from "react";
+
+import { ReportsHub } from "@/components/incidents/reports-hub";
 
 export default function IncidentReportsPage() {
-  return <ReportsScreen />;
+  return (
+    <Suspense fallback={null}>
+      <ReportsHub />
+    </Suspense>
+  );
 }

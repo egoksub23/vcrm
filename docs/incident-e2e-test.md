@@ -23,14 +23,14 @@ Tick each line. Anything that fails goes on the fix list (G.5).
 1. [ ] Run the simulated portal: `node scripts/incident-sim-portal.mjs --base https://<halo> --key ik_test_... --submit --origin https://<test page>`. Every line is PASS.
 2. [ ] Open the printed report link on a phone. Three short screens; the roster shows the two made-up students; a typed visitor can be added.
 3. [ ] Tick **Test Student A**, choose **Injury**, type a sentence, choose **Could not continue**, answer **Yes** to the head question, send. The confirmation shows a reference and who was told.
-4. [ ] The incident appears in All incidents, marked as a test, with the right category, severity (Serious or Critical) and flags (injury, child involved, concussion).
+4. [ ] The incident appears on the Dashboard, marked as a test, with the right category, severity (Serious or Critical) and flags (injury, child involved, concussion).
 5. [ ] The admins' inboxes (test report: admins only) have the notice: reference, category, severity, links. **No** child's name, no description.
 6. [ ] The incident's **Message log** lists each message with its status.
 7. [ ] Do **not** acknowledge for 31 minutes. Check: the Principal is told, the incident moves to **Level 2**, one new row in the message log.
 8. [ ] Click **I have seen this** in the email (no sign-in needed). The row turns **Acknowledged**. No further reminders arrive.
 9. [ ] As the nurse (a user linked to the School nurse contact with the medical permission), open the incident: **Return to play** panel. Set a date a week away.
 10. [ ] `GET /api/public/clearances?student_ids=SIM-1` (or the simulated portal): the date comes back. Student B has none.
-11. [ ] Overview shows the incident under **Needs action now** until it is dealt with; **My tasks** shows the nurse's steps; tick one off from My tasks.
+11. [ ] The Dashboard's **Need action now** tile counts the incident (click it to filter to those) until it is dealt with; **My tasks** shows the nurse's steps; tick one off from My tasks.
 12. [ ] Complete the required steps, move the incident to Closed. Export: Setup > Coach portal & API > Keeping records > Download export.
 
 ## G.2 Phones, iframe and web view

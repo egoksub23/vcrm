@@ -56,8 +56,6 @@
     "kyc": "KYC review",
     "compliance": "Compliance",
     "share": "Secure Share",
-    "incidentsOverview": "Overview",
-    "incidentsAll": "All incidents",
     "incidentsTasks": "My tasks",
     "incidentsSetup": "Setup",
     "incidentsSetupGuide": "Setup guide",
@@ -65,12 +63,11 @@
     "incidentsRules": "Rules",
     "incidentsPacks": "Compliance packs",
     "incidentsPortal": "Coach portal & API",
-    "incidentsClearances": "Return to play",
-    "incidentsRegisters": "Registers",
     "incidentsReports": "Reports",
     "incidentsForm": "Report form",
     "incidentsSteps": "Our own steps",
-    "incidentsTiming": "Timing & deadlines"
+    "incidentsTiming": "Timing & deadlines",
+    "incidentsDashboard": "Dashboard"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -14462,25 +14459,6 @@
       },
       "testSent": "Test notice sent to {to}"
     },
-    "overview": {
-      "title": "Incidents overview",
-      "loading": "Loading the overview",
-      "raise": "Raise incident",
-      "stats": {
-        "open": "Open incidents",
-        "overdue": "Required steps overdue",
-        "unacknowledged": "Not yet acknowledged",
-        "nearMisses": "Near misses this month"
-      },
-      "needsTitle": "Needs action now",
-      "nothing": "Nothing needs action right now.",
-      "needs": {
-        "unacknowledged": "not acknowledged for {time}",
-        "overdue": "overdue by {time}",
-        "serious": "{severity}, still open"
-      },
-      "byCategory": "By category, last 90 days"
-    },
     "tasks": {
       "title": "My tasks",
       "help": "Required steps that belong to the incident roles you hold, and steps on incidents you lead.",
@@ -14916,6 +14894,33 @@
         "saved": "Saved. New incidents will use this.",
         "off": "This step is off, so it is not added to new incidents."
       }
+    },
+    "dashboard": {
+      "viewPlay": "Return to play",
+      "stats": {
+        "open": "Open incidents",
+        "needs": "Need action now",
+        "overdue": "Required steps overdue",
+        "unacknowledged": "Not yet acknowledged"
+      },
+      "mine": "Mine",
+      "status": "Status",
+      "category": "Category",
+      "severity": "Severity",
+      "flag": "Involves",
+      "lead": "Lead",
+      "anyLead": "Any lead",
+      "student": "Student name",
+      "from": "From",
+      "to": "To",
+      "clear": "Clear filters",
+      "count": "Showing {shown} of {total}",
+      "newest": "The newest {count} incidents are loaded; use Reports for older ones."
+    },
+    "reportsHub": {
+      "title": "Reports",
+      "trends": "Trends",
+      "registers": "Registers"
     }
   }
 }

@@ -31,7 +31,6 @@ import { RuleEditor } from "./rule-editor";
 import { Canvas, FieldSettings, FormBuilder, Palette, Versions, type FormData } from "./form-builder";
 import { CCA_FORM } from "@/lib/incidents/intake/form-schema";
 import { ReportApp } from "@/components/incidents/report/report-app";
-import { OverviewScreen } from "../overview-screen";
 import { TasksScreen } from "../tasks-screen";
 import { AckButton } from "@/app/incident-ack/[token]/ack-button";
 import { RECIPES, type IncidentRule } from "@/lib/incidents/platform/rules";
@@ -183,7 +182,6 @@ describe("report form builder", () => {
 describe("other screens (loading state) and the acknowledge button", () => {
   it("render their first paint", () => {
     expect(render(<SetupGuide />)).toContain("Loading the setup guide");
-    expect(render(<OverviewScreen />)).toContain("Loading the overview");
     expect(render(<TasksScreen />)).toContain("Loading your tasks");
   });
   it("shows the acknowledge button, or the thank-you when it was already done", () => {

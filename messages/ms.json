@@ -56,8 +56,6 @@
     "kyc": "Semakan KYC",
     "compliance": "Pematuhan",
     "share": "Secure Share",
-    "incidentsOverview": "Gambaran keseluruhan",
-    "incidentsAll": "Semua insiden",
     "incidentsTasks": "Tugas saya",
     "incidentsSetup": "Tetapan",
     "incidentsSetupGuide": "Panduan persediaan",
@@ -65,12 +63,11 @@
     "incidentsRules": "Peraturan",
     "incidentsPacks": "Pek pematuhan",
     "incidentsPortal": "Portal jurulatih & API",
-    "incidentsClearances": "Kembali bermain",
-    "incidentsRegisters": "Daftar",
     "incidentsReports": "Laporan",
     "incidentsForm": "Borang laporan",
     "incidentsSteps": "Langkah sendiri",
-    "incidentsTiming": "Masa & tarikh akhir"
+    "incidentsTiming": "Masa & tarikh akhir",
+    "incidentsDashboard": "Papan pemuka"
   },
   "Header": {
     "dashboard": "Papan pemuka",
@@ -12878,6 +12875,33 @@
         "toldNobody": "Pejabat sekolah telah menerimanya. Belum ada sesiapa dimaklumkan secara automatik.",
         "photoFailed": "Tidak ditambah. Beritahu pejabat sekolah."
       }
+    },
+    "dashboard": {
+      "viewPlay": "Kembali bermain",
+      "stats": {
+        "open": "Insiden terbuka",
+        "needs": "Perlu tindakan sekarang",
+        "overdue": "Langkah wajib lewat tempoh",
+        "unacknowledged": "Belum diakui"
+      },
+      "mine": "Saya",
+      "status": "Status",
+      "category": "Kategori",
+      "severity": "Tahap keterukan",
+      "flag": "Melibatkan",
+      "lead": "Ketua",
+      "anyLead": "Mana-mana ketua",
+      "student": "Nama murid",
+      "from": "Dari",
+      "to": "Hingga",
+      "clear": "Kosongkan penapis",
+      "count": "Menunjukkan {shown} daripada {total}",
+      "newest": "{count} insiden terbaharu dimuatkan; gunakan Laporan untuk yang lebih lama."
+    },
+    "reportsHub": {
+      "title": "Laporan",
+      "trends": "Trend",
+      "registers": "Daftar"
     }
   }
 }

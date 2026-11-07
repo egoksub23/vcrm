@@ -5,7 +5,7 @@ import type { NavChild } from "./nav-items";
 
 /**
  * Is this child the page the person is on?
- *  - "All incidents" is /incidents itself: it is current on that path and on an incident's own page (/incidents/<id>), not on the other sections.
+ *  - The dashboard is /incidents itself: it is current on that path and on an incident's own page (/incidents/<id>), not on the other sections.
  *  - A deeper path belongs to the most specific sibling: /incidents/setup/roles is Roles, not Setup guide.
  *  - A link into Settings (it carries a query) is never "current" here: on the Settings page the Settings row is the active one.
  */
@@ -18,7 +18,7 @@ export function isChildActive(child: Pick<NavChild, "href">, pathname: string, s
     (s) => s.href !== child.href && !s.href.includes("?") && s.href.length > path.length && (pathname === s.href || pathname.startsWith(`${s.href}/`)),
   );
   if (moreSpecific) return false;
-  if (path === "/incidents") return !/^\/incidents\/(overview|tasks|clearances|registers|reports|setup)(\/|$)/.test(pathname);
+  if (path === "/incidents") return !/^\/incidents\/(tasks|reports|setup)(\/|$)/.test(pathname);
   return true;
 }
 

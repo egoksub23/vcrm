@@ -23,7 +23,7 @@ interface Row {
 }
 
 /** Return to play: the dates the nurse has set. The coach portal shows each as a warning; nothing here stops a student from doing anything. */
-export function ClearancesScreen() {
+export function ClearancesScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations("IncidentPlatform.clearances");
   const { capabilitiesLoading } = useAuth();
   const allowed = useCapability("incidents.medical");
@@ -53,11 +53,15 @@ export function ClearancesScreen() {
   };
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-4">
-      <header>
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
-      </header>
+    <div className={embedded ? "flex flex-col gap-4" : "mx-auto flex max-w-[1100px] flex-col gap-4"}>
+      {embedded ? (
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
+      ) : (
+        <header>
+          <h1 className="text-xl font-semibold">{t("title")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
+        </header>
+      )}
       {error ? <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
       {!rows && !error ? <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label={t("loading")} /> : null}
       {rows && rows.length === 0 ? <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">{t("empty")}</p> : null}

@@ -9,11 +9,10 @@ const kids = group.children!;
 const activeOn = (pathname: string) => kids.filter((c) => isChildActive(c, pathname, kids)).map((c) => c.href);
 
 describe("the Incidents group", () => {
-  it("opens Overview, All incidents and My tasks to anyone with the Incidents menu, and Setup only to people who can configure", () => {
+  it("opens the Dashboard and My tasks to anyone with the Incidents menu, and Setup only to people who can configure", () => {
     const names = (caps: string[]) => filterByCapability(kids, (c) => caps.includes(c)).map((c) => c.href);
-    expect(names(["menu.incidents"])).toEqual(["/incidents/overview", "/incidents", "/incidents/tasks"]);
+    expect(names(["menu.incidents"])).toEqual(["/incidents", "/incidents/tasks"]);
     expect(names(["menu.incidents", "incidents.configure"])).toEqual([
-      "/incidents/overview",
       "/incidents",
       "/incidents/tasks",
       "/incidents/setup",
@@ -25,17 +24,16 @@ describe("the Incidents group", () => {
       "/incidents/setup/timing",
       "/settings?tab=incidents",
     ]);
-    // managers see the registers and reports; the setup pages need incidents.configure
-    expect(names(["menu.incidents", "incidents.manage"])).toEqual(["/incidents/overview", "/incidents", "/incidents/tasks", "/incidents/registers", "/incidents/reports"]);
-    // the nurse sees Return to play without being able to configure anything
-    expect(names(["menu.incidents", "incidents.medical"])).toEqual(["/incidents/overview", "/incidents", "/incidents/tasks", "/incidents/clearances"]);
+    // managers also see Reports (trends and registers); the setup pages need incidents.configure
+    expect(names(["menu.incidents", "incidents.manage"])).toEqual(["/incidents", "/incidents/tasks", "/incidents/reports"]);
+    // the nurse's return-to-play roster is a view on the dashboard, so she gets no extra menu row
+    expect(names(["menu.incidents", "incidents.medical"])).toEqual(["/incidents", "/incidents/tasks"]);
     expect(names([])).toEqual([]);
   });
 
   it("marks exactly one child current on each page", () => {
     expect(activeOn("/incidents")).toEqual(["/incidents"]);
     expect(activeOn("/incidents/0b9c1f00-0000-4000-8000-000000000001")).toEqual(["/incidents"]);
-    expect(activeOn("/incidents/overview")).toEqual(["/incidents/overview"]);
     expect(activeOn("/incidents/tasks")).toEqual(["/incidents/tasks"]);
     expect(activeOn("/incidents/setup")).toEqual(["/incidents/setup"]);
     expect(activeOn("/incidents/setup/roles")).toEqual(["/incidents/setup/roles"]);
@@ -43,8 +41,6 @@ describe("the Incidents group", () => {
     expect(activeOn("/incidents/setup/portal")).toEqual(["/incidents/setup/portal"]);
     expect(activeOn("/incidents/setup/form")).toEqual(["/incidents/setup/form"]);
     expect(activeOn("/incidents/setup/steps")).toEqual(["/incidents/setup/steps"]);
-    expect(activeOn("/incidents/clearances")).toEqual(["/incidents/clearances"]);
-    expect(activeOn("/incidents/registers")).toEqual(["/incidents/registers"]);
     expect(activeOn("/incidents/reports")).toEqual(["/incidents/reports"]);
     expect(activeOn("/settings")).toEqual([]);
   });

@@ -28,6 +28,7 @@ vi.mock("@/hooks/use-auth", () => ({
     capabilities: new Set(["incidents.manage", "incidents.raise"]),
     capabilitiesLoading: false,
   }),
+  useCapability: (cap: string) => cap === "incidents.manage" || cap === "incidents.raise",
 }));
 
 vi.mock("@/hooks/use-can", () => ({
@@ -239,5 +240,26 @@ describe.each(["en", "ko"])("incident surfaces render (%s)", (locale) => {
     expect(html).not.toContain("Hidden");
     expect(() => render(locale, <ObligationsPanel rows={[]} canManage onChanged={() => {}} />)).not.toThrow();
     expect(render(locale, <ObligationsPanel rows={[]} canManage onChanged={() => {}} />)).toBe("");
+  });
+});
+
+// The dashboard and the reports hub use the incident platform's strings, which the English file holds.
+describe("the incident dashboard and the reports hub (en)", () => {
+  it("shows the dashboard's filters and the views the person may use", async () => {
+    const { IncidentDashboard } = await import("./incident-dashboard");
+    const html = render("en", <IncidentDashboard />);
+    for (const label of ["Status", "Category", "Severity", "Involves", "Mine", "Clear filters"]) {
+      if (label === "Clear filters") expect(html).not.toContain(label); // nothing is filtered yet
+      else expect(html).toContain(label);
+    }
+    expect(html).toContain("Board");
+    expect(html).toContain("List");
+    expect(html).not.toContain("Return to play"); // the nurse's view needs incidents.medical
+  });
+  it("shows the reports hub with its two tabs", async () => {
+    const { ReportsHub } = await import("./reports-hub");
+    const html = render("en", <ReportsHub />);
+    expect(html).toContain("Trends");
+    expect(html).toContain("Registers");
   });
 });

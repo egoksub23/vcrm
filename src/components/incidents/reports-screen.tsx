@@ -33,7 +33,7 @@ function Bars({ rows, label }: { rows: { key: string; label: string; count: numb
 }
 
 /** Reports: how many incidents, where, how serious, and which places keep seeing the same thing. The last 12 months; test reports are left out. */
-export function ReportsScreen() {
+export function ReportsScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations("IncidentPlatform.reports");
   const { capabilitiesLoading } = useAuth();
   const allowed = useCapability("incidents.manage");
@@ -58,11 +58,15 @@ export function ReportsScreen() {
   const tr = data?.trends;
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6">
-      <header>
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
-      </header>
+    <div className={embedded ? "flex flex-col gap-6" : "mx-auto flex max-w-[1100px] flex-col gap-6"}>
+      {embedded ? (
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
+      ) : (
+        <header>
+          <h1 className="text-xl font-semibold">{t("title")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
+        </header>
+      )}
       {error ? <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
       {!data && !error ? <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label={t("loading")} /> : null}
       {data && tr ? (

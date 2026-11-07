@@ -67,6 +67,8 @@ describe("buildOverview", () => {
     expect(out.needsAction.map((n) => n.kind)).toEqual(["unacknowledged", "overdue_step", "serious_open"]);
     expect(out.needsAction[0]).toMatchObject({ incidentId: "a1", waitingMinutes: 60 });
     expect(out.needsAction[1]).toMatchObject({ overdueMinutes: 240 });
+    // the dashboard's "needs action" filter keeps every incident, once each, even past the short list
+    expect([...out.needsActionIds].sort()).toEqual(["a1", "a2", "a3"]);
   });
 
   it("limits the list and counts categories over the last 90 days", () => {

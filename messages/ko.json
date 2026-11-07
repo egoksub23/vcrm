@@ -56,8 +56,6 @@
     "kyc": "KYC 검토",
     "compliance": "컴플라이언스",
     "share": "Secure Share",
-    "incidentsOverview": "개요",
-    "incidentsAll": "모든 사고",
     "incidentsTasks": "내 작업",
     "incidentsSetup": "설정",
     "incidentsSetupGuide": "설정 가이드",
@@ -65,12 +63,11 @@
     "incidentsRules": "규칙",
     "incidentsPacks": "컴플라이언스 팩",
     "incidentsPortal": "코치 포털 및 API",
-    "incidentsClearances": "복귀 가능 여부",
-    "incidentsRegisters": "대장",
     "incidentsReports": "보고서",
     "incidentsForm": "보고 양식",
     "incidentsSteps": "자체 필수 단계",
-    "incidentsTiming": "시간 및 기한"
+    "incidentsTiming": "시간 및 기한",
+    "incidentsDashboard": "대시보드"
   },
   "Header": {
     "dashboard": "대시보드",

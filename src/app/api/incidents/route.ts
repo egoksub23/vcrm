@@ -9,9 +9,8 @@
 // incident lead / Admin-Owner fallback); this route just reads back who
 // it notified (the notifications rows it inserted) and emails them.
 //
-// GET is not needed here — the list/board/detail views read `incidents`
-// directly via the browser Supabase client, same as Tickets; RLS alone
-// decides what each caller can see.
+// GET lists the incidents the caller may see (RLS decides), with the students named on each so the dashboard can filter by person. The names are read as the
+// caller too, so a student on an incident the caller cannot open never shows up.
 // ============================================================
 
 import { NextResponse } from "next/server";
@@ -43,7 +42,18 @@ export async function GET() {
       console.error("[GET /api/incidents] fetch error:", error);
       return NextResponse.json({ error: "Failed to load incidents" }, { status: 500 });
     }
-    return NextResponse.json({ incidents: data ?? [] });
+    const incidents = (data ?? []) as { id: string }[];
+    const involved: Record<string, { name: string; class_name: string | null }[]> = {};
+    if (incidents.length > 0) {
+      const people = await ctx.supabase
+        .from("incident_involved")
+        .select("incident_id, name, class_name")
+        .in("incident_id", incidents.map((i) => i.id));
+      for (const p of (people.data ?? []) as { incident_id: string; name: string; class_name: string | null }[]) {
+        (involved[p.incident_id] ??= []).push({ name: p.name, class_name: p.class_name });
+      }
+    }
+    return NextResponse.json({ incidents: data ?? [], involved });
   } catch (err) {
     return toErrorResponse(err);
   }

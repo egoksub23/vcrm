@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { OverviewScreen } from "@/components/incidents/overview-screen";
-
-export default function IncidentsOverviewPage() {
-  return <OverviewScreen />;
+// This page moved; the old address keeps working for links in emails and bookmarks.
+export default function IncidentsMovedPage() {
+  redirect("/incidents");
 }

@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { RegistersScreen } from "@/components/incidents/registers-screen";
-
-export default function IncidentRegistersPage() {
-  return <RegistersScreen />;
+// This page moved; the old address keeps working for links in emails and bookmarks.
+export default function IncidentsMovedPage() {
+  redirect("/incidents/reports?tab=registers");
 }

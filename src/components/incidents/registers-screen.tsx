@@ -23,7 +23,7 @@ interface Data {
 const selectClass = "h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /** Registers: the injury, data-breach, near-miss, property and safeguarding views of the school's incidents, with a date range and a CSV download. */
-export function RegistersScreen() {
+export function RegistersScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations("IncidentPlatform.registers");
   const { capabilitiesLoading } = useAuth();
   const allowed = useCapability("incidents.manage");
@@ -59,11 +59,15 @@ export function RegistersScreen() {
   if (!allowed) return <NoAccess />;
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-4">
-      <header>
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
-      </header>
+    <div className={embedded ? "flex flex-col gap-4" : "mx-auto flex max-w-[1100px] flex-col gap-4"}>
+      {embedded ? (
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
+      ) : (
+        <header>
+          <h1 className="text-xl font-semibold">{t("title")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("help")}</p>
+        </header>
+      )}
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs">
