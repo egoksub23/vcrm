@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
 
   const pg = createAdminPgDb();
-  const rows = await pg.sql`SELECT account_id FROM public.profiles WHERE id = ${session.user.id} LIMIT 1`;
+  const rows = await pg.sql`SELECT account_id FROM public.profiles WHERE user_id = ${session.user.id} LIMIT 1`;
   if (!rows.length) return new Response("Not found", { status: 404 });
   const accountId = rows[0].account_id as string;
   const userId = session.user.id;
