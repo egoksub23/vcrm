@@ -39,13 +39,15 @@ export async function POST(request: Request) {
     if (!body) return NextResponse.json({ error: "Send the rule." }, { status: 400 });
 
     await ensureStarterRoles(ctx.accountId);
-    const [template, directory, existing] = await Promise.all([
+    const [template, directory, existing, settings] = await Promise.all([
       loadActiveTemplate(ctx.supabase, ctx.accountId),
       loadDirectory(ctx.supabase, ctx.accountId),
       ctx.supabase.from("incident_rules").select("recipe_key, position").eq("account_id", ctx.accountId),
+      ctx.supabase.from("incident_settings").select("ack_wait_minutes").eq("account_id", ctx.accountId).maybeSingle(),
     ]);
     const roleKeys = directory.roles.map((r) => r.key);
-    const scale = { serious: seriousLevel(template?.severities ?? []) };
+    // The acknowledgement wait is the school's setting (Timing & deadlines); the starter recipe starts from it.
+    const scale = { serious: seriousLevel(template?.severities ?? []), ackWait: (settings.data as { ack_wait_minutes: number } | null)?.ack_wait_minutes };
     const have = new Set(((existing.data ?? []) as { recipe_key: string | null }[]).map((r) => r.recipe_key).filter(Boolean));
     let position = Math.max(0, ...((existing.data ?? []) as { position: number }[]).map((r) => r.position)) + 1;
 

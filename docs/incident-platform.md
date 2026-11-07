@@ -6,7 +6,7 @@ Nothing is pushed and nothing has been run against the production database. **Re
 ## Run order on the Halo PostgreSQL (187.127.105.156)
 
 Migration 206 is already applied. Run these, in order, once, from `supabase/migrations/`. Each is idempotent (safe to run twice). Take a database backup first.
-None of 208 to 217 has been applied anywhere; the SQL was written against the schema as read from the earlier migrations and checked by text tests only.
+208 to 217 were applied to the Halo production database on 2026-11-07 (209 failed once on `incidents.is_test` and was fixed by adding the column there). 218 is new and not yet applied. The SQL was written against the schema as read from the earlier migrations and checked by text tests only.
 
 | # | File | Adds |
 | --- | --- | --- |
@@ -20,6 +20,7 @@ None of 208 to 217 has been applied anywhere; the SQL was written against the sc
 | 215 | `215_incident_form_versions.sql` | The coach report form, versioned (draft, published, archived); `publish_incident_form` |
 | 216 | `216_incident_school_pack.sql` | A school's own compliance pack (built-in packs stay shared; this one is visible only to its school) |
 | 217 | `217_incident_webhooks.sql` | Events pushed to the coach portal, with retries |
+| 218 | `218_incident_timing_defaults.sql` | The acknowledgement wait as a school setting (default 30 minutes); a school's own deadline (or none) and on/off switch for each built-in required step; the checklist builder reads them |
 
 ## Server settings
 
@@ -35,11 +36,12 @@ The school also needs: Incidents switched on (platform flag), the School Inciden
 
 ## What exists
 
-* **Sidebar:** Incidents is a group: Overview, All incidents, My tasks, Return to play (nurse), Registers, Reports (managers), and a Setup area (Setup guide, Roles & contacts, Rules, Report form, Coach portal & API, Our own steps, Compliance packs).
+* **Sidebar:** Incidents is a group: Overview, All incidents, My tasks, Return to play (nurse), Registers, Reports (managers), and a Setup area (Setup guide, Roles & contacts, Rules, Report form, Coach portal & API, Our own steps, Timing & deadlines, Compliance packs).
 * **Roles & contacts:** a role is a job; it has people in order, with backups and away dates; "tell everyone" or "the first available". Per-incident roles (reporter, incident lead, parent or guardian) are worked out from the incident. Old level-2/3 recipients can be brought across with one click.
 * **Rules:** one sentence each (When, Only if, Then); a starter set and recipes; write or edit a rule from lists with a live sentence; **Try it** shows who would be told and when and warns about a role with nobody in it. Triggers: raised, nobody acknowledged, a step overdue, still open after N, closed.
 * **Notification engine:** a raised or closed incident, the timers and the outbox. Email today; an adapter interface for other channels. One message per address per event, retries with backoff, a message log on every incident with a retry button, minimal content, a one-tap acknowledge link, a "request approval" notice.
 * **Workflow:** per status, require a root cause, every required step done, a lead, and/or a role's approval; optionally forbid moving back. Checked on the server for every status change (board, list and page). Approvals: the role holder answers on the incident.
+* **Timing & deadlines** (Setup): the acknowledgement wait (starts at 30 minutes; saving it also updates the school's rule that came from the starter recipe), and for every step of the switched-on built-in packs (PDPA, ISO, school policy) the shipped deadline, the school's own hours, no deadline, or the step left off, each with a way back to the shipped value. The PDPA pack carries a note to agree changes with the data protection officer. A change applies to incidents raised from now on. Migration 218.
 * **Required steps** carry a role; **My tasks** shows each person the steps for the roles they hold (they can tick them off without managing incidents). A school can add **its own steps** (migration 216).
 * **Coach reporting:** keys, one-time links, the hosted phone page (three screens, drafts, offline resend, photos after sending, English/Malay/Chinese), frame rules for an iframe or web view, Return to Play warnings, the hand-off guide, a test report, the call log, optional signed events to the portal.
 * **Report form builder:** drag-and-drop fields, steps and options; conditions; category, severity and flag effects per option; wording per language; autosaved draft; strict publish check; versions with compare and restore; live phone preview. A report keeps the version it was filed under, and the incident shows the coach's answers under that version.
@@ -64,7 +66,7 @@ The school also needs: Incidents switched on (platform flag), the School Inciden
 ## Decisions made without asking (change any of them)
 
 1. **Evaluation happens in server code, not database triggers.** The raise and close routes and the cron call the engine. Simpler to test and read, equivalent for the school. A change made by SQL directly would not fire rules.
-2. **Acknowledgement is per incident.** One acknowledgement from anyone stops the "nobody acknowledged" chain. Triage (moving out of "reported") also counts. The starter rule waits 30 minutes.
+2. **Acknowledgement is per incident.** One acknowledgement from anyone stops the "nobody acknowledged" chain. Triage (moving out of "reported") also counts. The starter rule waits 30 minutes unless the school sets another under Timing & deadlines.
 3. **Schools with a "nobody acknowledged" rule skip the old fixed-level sweep** (migration 211) so nobody is told twice. Other schools are unchanged.
 4. **The old "email every manager" message stops** once a school has a rule for newly raised incidents. The in-app notification (database trigger) is unchanged.
 5. **Roles are told by address, once per event.** If two rules tell the same person, one message goes out; it asks for acknowledgement if either rule does. A person who is also the coach who reported gets one message too.
@@ -89,7 +91,7 @@ Things I could not verify or had to guess, in rough order of risk.
 4. **The existing raise triggers.** The coach report inserts an incident with no `reporter_id` and several new columns. The migration-116 triggers (`notify_incident_raised`, auto-watchers, activity log) were read and use `COALESCE`, but a null reporter is a new case. Check the first test report creates its in-app notifications.
 5. **Row-level security for role holders.** A School nurse who is not a manager sees an incident only because the engine adds them as a watcher when told. Check on UAT that a role holder can open the link, and that My tasks lists their steps.
 6. **Migration 216 changes the policies on shared catalogue tables** (`incident_standards`, `incident_obligation_rules`, `incident_type_catalogue`, `incident_severity_levels`) from "everyone" to "built-in, or your own school's". It should not change what any school sees, but it touches reads the incident form and settings depend on: test the Settings > Incidents tab and raising an incident right after applying it.
-7. **The default acknowledgement wait (30 minutes)** and every starter value (PDPA 24/72/240 hours, the school-policy rules in 206) are unconfirmed. The DPO or school leadership should confirm them.
+7. **The default acknowledgement wait (30 minutes)** and every starter value (PDPA 24/72/240 hours, the school-policy rules in 206) are unconfirmed, but each school can now change them under Timing & deadlines (migration 218), so nothing needs confirming before a school starts. The shipped values stay the defaults. Migration 218 replaces `incident_sync_obligations` from 206 (`CREATE OR REPLACE`); if the database user does not own that function, the run stops with "must be owner" and needs the owner's account.
 8. **Guardian contacts** from the booking list are unknown. Until the portal sends them, "Tell parents about injuries" stays off and staff tell parents (Phase 2B).
 9. **Hostname:** none assumed. `NEXT_PUBLIC_SITE_URL` must be set per deployment; the portal never builds links itself.
 10. **Security headers.** `/report/*` is excluded from the baseline header rule (which forbids framing) and gets frame-ancestors from the proxy. The rule pattern `/:path((?!report/).*)` follows the existing pattern in `next.config.ts` but was only tested by reading the config object, not by a running server. Verify with a real iframe (see the security review).

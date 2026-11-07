@@ -3,6 +3,7 @@
 
 import { severityRank } from "@/lib/incidents/constants";
 import type { ResolveResult, ResolveWarning } from "./roles";
+import { DEFAULT_ACK_WAIT_MINUTES } from "./timing";
 
 export const RULE_TRIGGERS = ["raised", "unacknowledged", "step_overdue", "unresolved", "closed"] as const;
 
@@ -163,7 +164,7 @@ export interface Recipe {
   inStarterSet: boolean;
   /** Plain note shown on the recipe when it needs something the school may not have yet. */
   needs?: string;
-  build: (scale: { serious: string }) => RuleDraft;
+  build: (scale: { serious: string; ackWait?: number }) => RuleDraft;
 }
 
 export const RECIPES: readonly Recipe[] = [
@@ -202,12 +203,12 @@ export const RECIPES: readonly Recipe[] = [
   {
     key: "remind_unacknowledged",
     name: "Remind me if nobody acknowledges",
-    description: "If a notice is not acknowledged in 30 minutes, tell the Principal and raise the incident to Level 2.",
+    description: "If a notice is not acknowledged in time, tell the Principal and raise the incident to Level 2. The wait is 30 minutes unless the school sets another under Timing & deadlines.",
     inStarterSet: true,
-    build: () => ({
+    build: ({ ackWait }) => ({
       name: "Nobody acknowledged: tell the Principal",
       trigger: "unacknowledged",
-      wait_minutes: 30,
+      wait_minutes: ackWait ?? DEFAULT_ACK_WAIT_MINUTES,
       conditions: {},
       actions: [
         { type: "notify", role_key: "principal", ask_ack: true },

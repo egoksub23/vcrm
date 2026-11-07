@@ -22,6 +22,7 @@ describe("the Incidents group", () => {
       "/incidents/setup/form",
       "/incidents/setup/portal",
       "/incidents/setup/steps",
+      "/incidents/setup/timing",
       "/settings?tab=incidents",
     ]);
     // managers see the registers and reports; the setup pages need incidents.configure

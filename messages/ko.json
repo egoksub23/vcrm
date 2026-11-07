@@ -69,7 +69,8 @@
     "incidentsRegisters": "대장",
     "incidentsReports": "보고서",
     "incidentsForm": "보고 양식",
-    "incidentsSteps": "자체 필수 단계"
+    "incidentsSteps": "자체 필수 단계",
+    "incidentsTiming": "시간 및 기한"
   },
   "Header": {
     "dashboard": "대시보드",

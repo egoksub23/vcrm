@@ -26,6 +26,7 @@ vi.mock("next/navigation", () => ({
 import { RolesView, type DirectoryResponse } from "./roles-screen";
 import { RulesView, RulesScreen, makeNamer, type RulesResponse } from "./rules-screen";
 import { SetupGuide } from "./setup-guide";
+import { TimingView, type TimingData, type TimingStep } from "./timing-screen";
 import { RuleEditor } from "./rule-editor";
 import { Canvas, FieldSettings, FormBuilder, Palette, Versions, type FormData } from "./form-builder";
 import { CCA_FORM } from "@/lib/incidents/intake/form-schema";
@@ -188,5 +189,44 @@ describe("other screens (loading state) and the acknowledge button", () => {
   it("shows the acknowledge button, or the thank-you when it was already done", () => {
     expect(render(<AckButton token="t" initiallyDone={false} />)).toContain("I have seen this");
     expect(render(<AckButton token="t" initiallyDone />)).toContain("Your acknowledgement is recorded");
+  });
+});
+
+describe("timing and deadlines", () => {
+  const step = (over: Partial<TimingStep>): TimingStep => ({ id: "s1", title: "Assess the breach", trigger_flag: "personal_data", role_key: "dpo", shipped_hours: 72, mode: "default", hours: null, enabled: true, ...over });
+  const data = (over: Partial<TimingData> = {}): TimingData => ({
+    ack_wait_minutes: 30,
+    default_ack_wait_minutes: 30,
+    roles: [{ key: "dpo", name: "Data protection officer" }],
+    packs: [
+      { id: "p1", slug: "pdpa_my", name: "PDPA (Malaysia)", legal: true, steps: [step({}), step({ id: "s2", title: "Tell the Commissioner", mode: "hours", hours: 48 }), step({ id: "s3", title: "Tell the people affected", enabled: false })] },
+      { id: "p2", slug: "school_policy", name: "School policy", legal: false, steps: [step({ id: "s4", title: "Phone the parents", trigger_flag: "injury", role_key: null, shipped_hours: 4 })] },
+    ],
+    ...over,
+  });
+  const noop = async () => {};
+
+  it("shows the shipped wait, every step with its shipped deadline, and flags the legal pack", () => {
+    const html = render(<TimingView data={data()} onSaveAck={noop} onSaveStep={noop} />);
+    expect(html).toContain("How long to wait for an acknowledgement");
+    expect(html).toContain("It starts at 30 minutes");
+    expect(html).toContain("As shipped (within 3 days)");
+    expect(html).toContain("As shipped (within 4 hours)");
+    expect(html).toContain("These deadlines come from the PDPA");
+    expect(html).toContain("Phone the parents");
+    expect(html).toContain("The incident lead");
+  });
+  it("marks a changed step and a step that is off, and offers a way back to the shipped value only for the changed ones", () => {
+    const html = render(<TimingView data={data()} onSaveAck={noop} onSaveStep={noop} />);
+    expect(html).toContain("Changed");
+    expect(html).toContain("This step is off, so it is not added to new incidents.");
+    expect((html.match(/Back to as shipped/g) ?? []).length).toBe(2);
+  });
+  it("offers a way back to 30 minutes only when the school has changed the wait", () => {
+    expect(render(<TimingView data={data()} onSaveAck={noop} onSaveStep={noop} />)).not.toContain("Back to 30 minutes");
+    expect(render(<TimingView data={data({ ack_wait_minutes: 60 })} onSaveAck={noop} onSaveStep={noop} />)).toContain("Back to 30 minutes");
+  });
+  it("says so when no built-in pack is switched on", () => {
+    expect(render(<TimingView data={data({ packs: [] })} onSaveAck={noop} onSaveStep={noop} />)).toContain("No built-in compliance packs are switched on");
   });
 });

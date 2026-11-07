@@ -181,6 +181,28 @@ describe("migration 216 (a school's own pack)", () => {
   });
 });
 
+describe("migration 218 (timing defaults)", () => {
+  const m218 = readMigration("218_incident_timing_defaults.sql").replace(/\r\n/g, "\n");
+  it("keeps the shipped 30 minutes as the default wait, within sensible bounds", () => {
+    expect(m218).toContain("ADD COLUMN IF NOT EXISTS ack_wait_minutes INTEGER NOT NULL DEFAULT 30 CHECK (ack_wait_minutes BETWEEN 1 AND 43200)");
+  });
+  it("lets only a configurer read or change a school's step overrides, one row per school and step", () => {
+    expect(m218).toContain("PRIMARY KEY (account_id, rule_id)");
+    expect(m218).toMatch(/incident_step_overrides_select ON public\.incident_step_overrides FOR SELECT USING \(has_capability\(account_id, 'incidents\.configure'\)\)/);
+    expect(m218).toMatch(/incident_step_overrides_write\s+ON public\.incident_step_overrides FOR ALL\s+USING \(has_capability\(account_id, 'incidents\.configure'\)\)/);
+    expect(m218).toContain("CHECK (NOT (no_deadline AND due_hours IS NOT NULL))");
+  });
+  it("applies the override when a checklist is built: skips an off step, uses the school's hours or none, else the shipped hours", () => {
+    expect(m218).toContain("LEFT JOIN incident_step_overrides ov ON ov.account_id = v.account_id AND ov.rule_id = r.id");
+    expect(m218).toContain("AND COALESCE(ov.enabled, TRUE)");
+    expect(m218).toMatch(/WHEN ov\.no_deadline THEN NULL\s+WHEN ov\.due_hours IS NOT NULL THEN v\.detected_at \+ make_interval\(hours => ov\.due_hours\)\s+WHEN r\.due_hours IS NULL THEN NULL/);
+  });
+  it("keeps the rest of the 206 function: never reopens a done step, marks open steps not applicable when the flag goes", () => {
+    expect(m218).toContain("WHERE incident_obligations.status = 'not_applicable'");
+    expect(m218).toContain("SET status = 'not_applicable'");
+  });
+});
+
 describe("migration 217 (events to the portal)", () => {
   const m217 = readMigration("217_incident_webhooks.sql").replace(/\r\n/g, "\n");
   it("only stores an https address, and keeps the events where clients can read but not write", () => {

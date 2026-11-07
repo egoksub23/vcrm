@@ -69,7 +69,8 @@
     "incidentsRegisters": "Registers",
     "incidentsReports": "Reports",
     "incidentsForm": "Report form",
-    "incidentsSteps": "Our own steps"
+    "incidentsSteps": "Our own steps",
+    "incidentsTiming": "Timing & deadlines"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -14880,6 +14881,40 @@
         "injured": "injured",
         "involved": "involved",
         "witness": "witness"
+      }
+    },
+    "timing": {
+      "title": "Timing & deadlines",
+      "pageHelp": "How long a notice may go unanswered, and how soon each built-in required step is due. Everything starts at the value that ships with Halo; change only what your school needs.",
+      "loading": "Loading",
+      "ack": {
+        "title": "How long to wait for an acknowledgement",
+        "help": "If nobody acknowledges a notice within this time, the \"Nobody acknowledged\" rule tells the Principal and raises the incident to Level 2. It starts at {default} minutes.",
+        "label": "Minutes to wait",
+        "save": "Save",
+        "saved": "Saved. The Nobody acknowledged rule now waits this long.",
+        "reset": "Back to {default} minutes"
+      },
+      "steps": {
+        "title": "Deadlines of the built-in required steps",
+        "help": "Each step is added to a new incident that involves what it names, and is due this long after the incident was detected. You can set your own hours, remove the deadline, or leave a step off. A change applies to incidents raised from now on; incidents already raised keep the dates they have.",
+        "none": "No built-in compliance packs are switched on. Switch them on under Compliance packs.",
+        "legal": "These deadlines come from the PDPA. Change one only after your data protection officer or legal adviser has agreed it.",
+        "lead": "The incident lead",
+        "rowSentence": "When it involves {involves}: {role}, {due}",
+        "changed": "Changed",
+        "enabled": "On",
+        "deadline": "Deadline",
+        "mode": {
+          "default": "As shipped ({due})",
+          "hours": "My own hours",
+          "none": "No deadline"
+        },
+        "hours": "Hours",
+        "save": "Save",
+        "reset": "Back to as shipped",
+        "saved": "Saved. New incidents will use this.",
+        "off": "This step is off, so it is not added to new incidents."
       }
     }
   }

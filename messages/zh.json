@@ -69,7 +69,8 @@
     "incidentsRegisters": "登记册",
     "incidentsReports": "报表",
     "incidentsForm": "报告表单",
-    "incidentsSteps": "自定义步骤"
+    "incidentsSteps": "自定义步骤",
+    "incidentsTiming": "时限与截止期限"
   },
   "Header": {
     "dashboard": "仪表板",
