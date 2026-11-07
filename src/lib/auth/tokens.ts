@@ -9,7 +9,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { getPool } from "@/lib/postgres/client";
 
 const RECOVERY_JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_JWT_SECRET!,
+  process.env.JWT_SECRET!,
 );
 
 /** Generate a 256-bit random token and its SHA-256 hash. The raw form goes

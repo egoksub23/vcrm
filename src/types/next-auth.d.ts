@@ -14,7 +14,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    /** Cached Supabase-compatible JWT payload signed with SUPABASE_JWT_SECRET. */
+    /** Cached JWT payload signed with JWT_SECRET. */
     supabaseJwt?: string;
   }
 }

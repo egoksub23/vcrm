@@ -55,7 +55,7 @@ export function bearerToken(request: Request): string {
 export async function verifyVisitorJwt(token: string): Promise<string | null> {
   if (!token) return null
   try {
-    const secret = new TextEncoder().encode(process.env.SUPABASE_JWT_SECRET!)
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET!)
     const { payload } = await jwtVerify(token, secret, { audience: 'authenticated' })
     return typeof payload.sub === 'string' ? payload.sub : null
   } catch {

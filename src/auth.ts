@@ -22,13 +22,12 @@ import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { SignJWT } from "jose";
 
-// ── Supabase-compatible JWT ──────────────────────────────────
-// PostgREST validates JWTs with SUPABASE_JWT_SECRET and reads auth.uid()
-// from the `sub` claim and the `role` claim for row-level decisions.
-// Producing it here keeps the token format exactly what PostgREST expects.
+// ── Session JWT signing key ──────────────────────────────────
+// JWT_SECRET is the symmetric key used to sign all app JWTs (session tokens,
+// visitor anon tokens, password-reset cookies). Set it in .env.local.
 
-const SUPABASE_JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_JWT_SECRET!,
+const JWT_SIGNING_KEY = new TextEncoder().encode(
+  process.env.JWT_SECRET!,
 );
 
 async function makeSupabaseJwt(userId: string, email: string): Promise<string> {
@@ -41,7 +40,7 @@ async function makeSupabaseJwt(userId: string, email: string): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("60m")
-    .sign(SUPABASE_JWT_SECRET);
+    .sign(JWT_SIGNING_KEY);
 }
 
 // ── Credentials: bcrypt against auth.users.encrypted_password ───────────────

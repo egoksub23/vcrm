@@ -1,7 +1,7 @@
 // ============================================================
 // POST /api/widget/anon-auth
 //
-// Issues a fresh anonymous-visitor JWT, signed with SUPABASE_JWT_SECRET
+// Issues a fresh anonymous-visitor JWT, signed with JWT_SECRET
 // so that verifyVisitorJwt() (jose jwtVerify, same key) accepts it on
 // every subsequent widget API call. The widget stores the token in
 // localStorage and reuses it across page loads — the UUID in the `sub`
@@ -23,7 +23,7 @@ export async function OPTIONS(request: Request) {
 export async function POST(request: Request) {
   const origin = request.headers.get('origin')
 
-  const rawSecret = process.env.SUPABASE_JWT_SECRET
+  const rawSecret = process.env.JWT_SECRET
   if (!rawSecret) {
     return NextResponse.json({ error: 'Auth not configured' }, { status: 500 })
   }
