@@ -615,7 +615,7 @@ function InboxPageInner() {
         });
       }
     },
-    [activeConversation?.id, router, user, canClaimConversations]
+    [activeConversation?.id, user, canClaimConversations]
   );
 
   // Mobile "back" — deselect the conversation so the list pane comes
