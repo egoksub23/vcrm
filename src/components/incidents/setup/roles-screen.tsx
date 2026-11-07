@@ -207,11 +207,8 @@ function RoleDetail({ role, contacts, onChanged }: { role: RoleView; contacts: I
     <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4" aria-label={labelOf(role.name)}>
       <header className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
-          {role.is_system ? (
-            <h2 className="text-base font-semibold">{labelOf(role.name)}</h2>
-          ) : (
-            <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && name !== labelOf(role.name) && void patchRole({ name })} aria-label={t("roleName")} className="max-w-xs font-semibold" />
-          )}
+          {/* Any role can be renamed, the built-in ones too: rules point at the role's key, not its name, so a new name carries through to every rule and notice. */}
+          <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && name !== labelOf(role.name) && void patchRole({ name })} aria-label={t("roleName")} className="max-w-xs font-semibold" />
           {role.description ? <p className="mt-0.5 text-xs text-muted-foreground">{role.description}</p> : null}
           <p className="mt-1 text-xs text-muted-foreground">{t("usedBy", { count: role.used_by })}</p>
         </div>

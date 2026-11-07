@@ -2,6 +2,7 @@
 
 import type { PgDb } from "@/lib/postgres/db";
 import type { RegisterIncident } from "./registers";
+import { textDates } from "./dates";
 import { loadActiveTemplate } from "./setup-data";
 
 export const REGISTER_LIMIT = 5000;
@@ -11,7 +12,7 @@ export async function loadRegisterRows(db: PgDb, accountId: string, since: strin
   let q = db.from("incidents").select(SELECT).eq("account_id", accountId).order("created_at", { ascending: false }).limit(REGISTER_LIMIT + 1);
   if (since) q = q.gte("created_at", since);
   const { data } = await q;
-  const all = (data ?? []) as RegisterIncident[];
+  const all = ((data ?? []) as RegisterIncident[]).map((r) => textDates(r, ["created_at", "closed_at"]));
   const rows = all.slice(0, REGISTER_LIMIT);
 
   // How many people were named on each (a count, never the names).

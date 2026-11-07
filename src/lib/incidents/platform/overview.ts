@@ -37,6 +37,9 @@ export interface Overview {
   needsAction: NeedsAction[];
   /** Every incident that needs action, not just the few shown (the dashboard's "needs action" filter). */
   needsActionIds: string[];
+  /** Incidents with a required step past its deadline, and incidents nobody has acknowledged yet (the dashboard's tiles filter to these). */
+  overdueIds: string[];
+  unacknowledgedIds: string[];
   byCategory: { code: string; count: number }[];
 }
 
@@ -99,6 +102,8 @@ export function buildOverview(args: {
     nearMissesThisMonth: nearMisses,
     needsAction: needs.slice(0, args.limit ?? 8).map((n) => n.item),
     needsActionIds: [...new Set(needs.map((n) => n.item.incidentId))],
+    overdueIds: [...new Set(overdue.map((o) => o.s.incident_id))],
+    unacknowledgedIds: [...new Set(waiting.map((w) => w.inc.id))],
     byCategory: [...counts.entries()].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count),
   };
 }

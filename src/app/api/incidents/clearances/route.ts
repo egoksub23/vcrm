@@ -5,9 +5,12 @@ import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { isActive, parseClearance } from "@/lib/incidents/platform/clearance";
+import { textDates } from "@/lib/incidents/platform/dates";
 import { incidentKey } from "@/lib/incidents/types";
 import { enqueueClearanceUpdated } from "@/lib/incidents/webhooks/pg-webhook-store";
 import { createAdminPgDb } from "@/lib/postgres/db";
+
+const normal = (c: Clearance): Clearance => textDates(c, ["cleared_at", "created_at"], ["not_before"]);
 
 type Clearance = { id: string; external_student_id: string; student_name: string; type: string; not_before: string; note: string | null; incident_id: string | null; cleared_at: string | null; created_at: string };
 
@@ -25,11 +28,11 @@ export async function GET(request: Request) {
         admin.from("incident_involved").select("external_student_id, name, class_name").eq("incident_id", incidentId).not("external_student_id", "is", null),
         admin.from("person_clearances").select("*").eq("account_id", ctx.accountId).eq("incident_id", incidentId).order("created_at", { ascending: false }),
       ]);
-      return NextResponse.json({ students: people.data ?? [], clearances: (existing.data ?? []) as Clearance[], today });
+      return NextResponse.json({ students: people.data ?? [], clearances: ((existing.data ?? []) as Clearance[]).map(normal), today });
     }
 
     const { data } = await admin.from("person_clearances").select("*").eq("account_id", ctx.accountId).is("cleared_at", null).order("not_before", { ascending: true }).limit(300);
-    const rows = ((data ?? []) as Clearance[]).filter((c) => isActive(c, today));
+    const rows = ((data ?? []) as Clearance[]).map(normal).filter((c) => isActive(c, today));
     const ids = [...new Set(rows.map((r) => r.incident_id).filter((v): v is string => Boolean(v)))];
     const { data: incs } = ids.length ? await admin.from("incidents").select("id, created_at, incident_number").in("id", ids) : { data: [] };
     const ref = new Map(((incs ?? []) as { id: string; created_at: string; incident_number: number }[]).map((i) => [i.id, incidentKey(i)]));

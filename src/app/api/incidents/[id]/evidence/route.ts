@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
+import { textDates } from "@/lib/incidents/platform/dates";
 import { referenceOf } from "@/lib/incidents/platform/registers";
 import { loadApprovals } from "@/lib/incidents/platform/workflow-data";
 import { loadNames } from "@/lib/incidents/platform/records-data";
@@ -34,7 +35,7 @@ export async function GET(request: Request, { params }: Params) {
     ]);
 
     const clearances = ctx.capabilities.has("incidents.medical")
-      ? (await admin.from("person_clearances").select("student_name, type, not_before, note, cleared_at").eq("account_id", ctx.accountId).eq("incident_id", id)).data ?? []
+      ? ((await admin.from("person_clearances").select("student_name, type, not_before, note, cleared_at").eq("account_id", ctx.accountId).eq("incident_id", id)).data ?? []).map((c: Record<string, unknown>) => textDates(c, ["cleared_at"], ["not_before"]))
       : null;
 
     const reference = referenceOf(inc);

@@ -11,7 +11,7 @@ const rows = [
   inc("b2", { title: "Phishing email", incident_type: "DBR", severity: "critical", status: "investigating", reporter_id: "u-me", incident_flags: ["personal_data"], created_at: "2026-09-01T08:00:00Z" }),
   inc("c3", { title: "Broken window", incident_type: "PRP", severity: "low", status: "closed", incident_lead_id: "u-me", created_at: "2026-10-30T08:00:00Z" }),
 ];
-const ctx: FilterContext = { me: "u-me", involved: { a1: [{ name: "Aisha Rahman", class_name: "5 Amanah" }], b2: [] }, needsIds: new Set(["b2"]) };
+const ctx: FilterContext = { me: "u-me", involved: { a1: [{ name: "Aisha Rahman", class_name: "5 Amanah" }], b2: [] }, needsIds: new Set(["b2"]), overdueIds: new Set(["a1"]), unackIds: new Set(["a1", "b2"]) };
 const run = (f: Partial<DashboardFilters>) => applyFilters(rows, { ...EMPTY_FILTERS, ...f }, ctx).map((r) => r.id);
 
 describe("the dashboard filters", () => {
@@ -44,6 +44,12 @@ describe("the dashboard filters", () => {
     expect(run({ q: "window" })).toEqual(["c3"]);
     expect(run({ q: "inc-2026-1" })).toEqual(["a1"]);
   });
+  it("narrow by the tiles: not closed, a step overdue, not yet acknowledged, each on its own or together", () => {
+    expect(run({ open: true })).toEqual(["a1", "b2"]);
+    expect(run({ overdue: true })).toEqual(["a1"]);
+    expect(run({ unack: true })).toEqual(["a1", "b2"]);
+    expect(run({ open: true, overdue: true, unack: true })).toEqual(["a1"]);
+  });
   it("combine: every filter has to agree", () => {
     expect(run({ mine: true, status: ["closed"] })).toEqual(["c3"]);
     expect(run({ mine: true, status: ["reported"] })).toEqual([]);
@@ -52,7 +58,7 @@ describe("the dashboard filters", () => {
 
 describe("the dashboard address", () => {
   it("round-trips the filters and the view", () => {
-    const f: DashboardFilters = { q: "fall", status: ["reported", "triaged"], category: ["CCA"], severity: ["high"], flag: ["injury"], lead: "u-1", mine: true, student: "Aisha", from: "2026-10-01", to: "2026-10-31", needs: true };
+    const f: DashboardFilters = { q: "fall", status: ["reported", "triaged"], category: ["CCA"], severity: ["high"], flag: ["injury"], lead: "u-1", mine: true, student: "Aisha", from: "2026-10-01", to: "2026-10-31", needs: true, open: true, overdue: true, unack: true };
     const p = toParams(f, "list");
     expect(parseFilters(p)).toEqual(f);
     expect(parseView(p, false)).toBe("list");

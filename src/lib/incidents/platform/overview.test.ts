@@ -69,6 +69,8 @@ describe("buildOverview", () => {
     expect(out.needsAction[1]).toMatchObject({ overdueMinutes: 240 });
     // the dashboard's "needs action" filter keeps every incident, once each, even past the short list
     expect([...out.needsActionIds].sort()).toEqual(["a1", "a2", "a3"]);
+    expect(out.overdueIds).toEqual(["a3"]);
+    expect(out.unacknowledgedIds).toEqual(["a1"]);
   });
 
   it("limits the list and counts categories over the last 90 days", () => {

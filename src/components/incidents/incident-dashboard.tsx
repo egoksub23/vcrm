@@ -158,7 +158,12 @@ export function IncidentDashboard() {
   const flagOptions = INCIDENT_FLAGS.map((f) => ({ value: f, label: tFlag(f) }));
 
   const needsIds = useMemo(() => new Set(overview?.needsActionIds ?? []), [overview]);
-  const filtered = useMemo(() => applyFilters(rows, filters, { me: user?.id ?? null, involved, needsIds }), [rows, filters, user?.id, involved, needsIds]);
+  const overdueIds = useMemo(() => new Set(overview?.overdueIds ?? []), [overview]);
+  const unackIds = useMemo(() => new Set(overview?.unacknowledgedIds ?? []), [overview]);
+  const filtered = useMemo(
+    () => applyFilters(rows, filters, { me: user?.id ?? null, involved, needsIds, overdueIds, unackIds }),
+    [rows, filters, user?.id, involved, needsIds, overdueIds, unackIds],
+  );
   const filtering = activeCount(filters) > 0;
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -230,10 +235,10 @@ export function IncidentDashboard() {
         <>
           {overview ? (
             <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Stat value={overview.open} label={td("stats.open")} />
+              <Stat value={overview.open} label={td("stats.open")} active={filters.open} onClick={() => set({ open: !filters.open })} />
               <Stat value={overview.needsActionIds.length} label={td("stats.needs")} tone="warn" active={filters.needs} onClick={() => set({ needs: !filters.needs })} />
-              <Stat value={overview.overdueSteps} label={td("stats.overdue")} tone="warn" />
-              <Stat value={overview.unacknowledged} label={td("stats.unacknowledged")} tone="warn" />
+              <Stat value={overview.overdueSteps} label={td("stats.overdue")} tone="warn" active={filters.overdue} onClick={() => set({ overdue: !filters.overdue })} />
+              <Stat value={overview.unacknowledged} label={td("stats.unacknowledged")} tone="warn" active={filters.unack} onClick={() => set({ unack: !filters.unack })} />
             </div>
           ) : null}
 
@@ -267,7 +272,7 @@ export function IncidentDashboard() {
               <input type="date" value={filters.to} onChange={(e) => set({ to: e.target.value })} className={fieldClass} />
             </label>
             {filtering ? (
-              <Button variant="ghost" size="sm" className="h-8" onClick={() => go({ ...filters, q: "", status: [], category: [], severity: [], flag: [], lead: "", mine: false, student: "", from: "", to: "", needs: false })}>
+              <Button variant="ghost" size="sm" className="h-8" onClick={() => go({ ...filters, q: "", status: [], category: [], severity: [], flag: [], lead: "", mine: false, student: "", from: "", to: "", needs: false, open: false, overdue: false, unack: false })}>
                 <X className="size-3.5" />
                 {td("clear")}
               </Button>

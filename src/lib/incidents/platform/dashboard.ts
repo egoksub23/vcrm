@@ -21,10 +21,14 @@ export interface DashboardFilters {
   from: string;
   to: string;
   needs: boolean;
+  /** The tiles: not closed, a required step overdue, nobody has acknowledged it yet. */
+  open: boolean;
+  overdue: boolean;
+  unack: boolean;
 }
 
 export const NO_LEAD = "none";
-export const EMPTY_FILTERS: DashboardFilters = { q: "", status: [], category: [], severity: [], flag: [], lead: "", mine: false, student: "", from: "", to: "", needs: false };
+export const EMPTY_FILTERS: DashboardFilters = { q: "", status: [], category: [], severity: [], flag: [], lead: "", mine: false, student: "", from: "", to: "", needs: false, open: false, overdue: false, unack: false };
 
 export interface NamedStudent {
   name: string;
@@ -36,6 +40,8 @@ export interface FilterContext {
   /** Students named on each incident, keyed by incident id. */
   involved: Readonly<Record<string, readonly NamedStudent[]>>;
   needsIds: ReadonlySet<string>;
+  overdueIds: ReadonlySet<string>;
+  unackIds: ReadonlySet<string>;
 }
 
 type Params = { get(name: string): string | null };
@@ -63,6 +69,9 @@ export function parseFilters(params: Params): DashboardFilters {
     from: date(params.get("from")),
     to: date(params.get("to")),
     needs: params.get("needs") === "1",
+    open: params.get("open") === "1",
+    overdue: params.get("overdue") === "1",
+    unack: params.get("unack") === "1",
   };
 }
 
@@ -81,6 +90,9 @@ export function toParams(f: DashboardFilters, view: DashboardView): URLSearchPar
   if (f.from) p.set("from", f.from);
   if (f.to) p.set("to", f.to);
   if (f.needs) p.set("needs", "1");
+  if (f.open) p.set("open", "1");
+  if (f.overdue) p.set("overdue", "1");
+  if (f.unack) p.set("unack", "1");
   return p;
 }
 
@@ -88,7 +100,7 @@ export function toParams(f: DashboardFilters, view: DashboardView): URLSearchPar
 export function activeCount(f: DashboardFilters): number {
   return (
     (f.q.trim() ? 1 : 0) + (f.status.length ? 1 : 0) + (f.category.length ? 1 : 0) + (f.severity.length ? 1 : 0) + (f.flag.length ? 1 : 0) + (f.lead ? 1 : 0) +
-    (f.mine ? 1 : 0) + (f.student.trim() ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0) + (f.needs ? 1 : 0)
+    (f.mine ? 1 : 0) + (f.student.trim() ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0) + (f.needs ? 1 : 0) + (f.open ? 1 : 0) + (f.overdue ? 1 : 0) + (f.unack ? 1 : 0)
   );
 }
 
@@ -108,6 +120,9 @@ export function applyFilters(rows: readonly Incident[], f: DashboardFilters, ctx
     if (f.lead && f.lead !== NO_LEAD && r.incident_lead_id !== f.lead) return false;
     if (f.mine && !(ctx.me && (r.incident_lead_id === ctx.me || r.reporter_id === ctx.me))) return false;
     if (f.needs && !ctx.needsIds.has(r.id)) return false;
+    if (f.open && r.status === "closed") return false;
+    if (f.overdue && !ctx.overdueIds.has(r.id)) return false;
+    if (f.unack && !ctx.unackIds.has(r.id)) return false;
     const day = r.created_at.slice(0, 10);
     if (f.from && day < f.from) return false;
     if (f.to && day > f.to) return false;

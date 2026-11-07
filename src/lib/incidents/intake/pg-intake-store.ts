@@ -9,6 +9,7 @@ import { appStorage } from "@/lib/storage/provider";
 import { buildMediaPath } from "@/lib/storage/upload-media";
 import { incidentKey } from "@/lib/incidents/types";
 import { loadActiveTemplate } from "@/lib/incidents/platform/setup-data";
+import { dayOf } from "@/lib/incidents/platform/dates";
 import { labelOf } from "@/lib/incidents/platform/roles";
 import type { FormSchema } from "./form-schema";
 import { builtInForm, type ClearanceRow, type IntakeStore, type KeyRow, type NewIncident, type ResolvedForm, type SessionRow } from "./service";
@@ -172,7 +173,7 @@ export class PgIntakeStore implements IntakeStore {
     for (const r of rows) if (!latest.has(r.external_student_id)) latest.set(r.external_student_id, r);
     const out: ClearanceRow[] = [];
     for (const r of latest.values()) {
-      out.push({ external_student_id: r.external_student_id, type: r.type, not_before: r.not_before, incident_reference: r.incident_id ? await this.incidentReference(r.incident_id) : null });
+      out.push({ external_student_id: r.external_student_id, type: r.type, not_before: dayOf(r.not_before) ?? "", incident_reference: r.incident_id ? await this.incidentReference(r.incident_id) : null });
     }
     return out;
   }
