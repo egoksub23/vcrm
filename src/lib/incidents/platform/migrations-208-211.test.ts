@@ -216,3 +216,28 @@ describe("migration 217 (events to the portal)", () => {
     expect(m217).toContain("GRANT EXECUTE ON FUNCTION public.purge_incident_webhook_events() TO service_role;");
   });
 });
+
+describe("migration 219 (the coach portal as one platform integration)", () => {
+  const m219 = readMigration("219_incident_portal_platform.sql").replace(/\r\n/g, "\n");
+  it("lets a key belong to the platform, and retires the keys schools made under the old design", () => {
+    expect(m219).toContain("ALTER TABLE public.incident_intake_keys ALTER COLUMN account_id DROP NOT NULL;");
+    expect(m219).toMatch(/UPDATE public\.incident_intake_keys SET revoked_at = now\(\) WHERE account_id IS NOT NULL AND revoked_at IS NULL;/);
+  });
+  it("maps a Vircle Group ID to one school, with that school's own frame origins", () => {
+    expect(m219).toMatch(/group_id\s+TEXT\s+NOT NULL UNIQUE/);
+    expect(m219).toContain("account_id      UUID        NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE");
+    expect(m219).toContain("allowed_origins TEXT[]");
+    expect(m219).toContain("CHECK (cardinality(allowed_origins) <= 10)");
+  });
+  it("lets a school's admins read their own link and lets no school write it", () => {
+    expect(m219).toMatch(/incident_portal_schools_select ON public\.incident_portal_schools FOR SELECT USING \(has_capability\(account_id, 'incidents\.configure'\)\)/);
+    expect(m219).not.toMatch(/CREATE POLICY \w+ ON public\.incident_portal_schools FOR (INSERT|UPDATE|DELETE|ALL)/);
+  });
+  it("remembers the Group ID on each report link, and uses the repo's updated-at trigger", () => {
+    expect(m219).toContain("ALTER TABLE public.incident_intake_sessions ADD COLUMN IF NOT EXISTS group_id TEXT;");
+    // the same tap sent again is matched within a school, so two schools may use the same idempotency string
+    expect(m219).toContain("DROP INDEX IF EXISTS public.uq_incident_intake_sessions_idem;");
+    expect(m219).toContain("ON public.incident_intake_sessions (key_id, group_id, idempotency_key)");
+    expect(m219).toContain("EXECUTE FUNCTION public.update_updated_at_column();");
+  });
+});

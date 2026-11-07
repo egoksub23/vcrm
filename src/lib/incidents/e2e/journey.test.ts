@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { clearances, launch, loadReport, submit, type NewIncident } from "@/lib/incidents/intake/service";
-import { MemoryStore as IntakeStore, answers, payload, setup as setupIntake, tokenOf } from "@/lib/incidents/intake/testing";
+import { MemoryStore as IntakeStore, answers, groupOf, payload, setup as setupIntake, tokenOf } from "@/lib/incidents/intake/testing";
 import { dispatchDue, runTrigger, sweepTimers, verifyAckToken, type DeliveryRow } from "@/lib/incidents/platform/engine";
 import { parseClearance } from "@/lib/incidents/platform/clearance";
 import { RECIPES, type IncidentRule } from "@/lib/incidents/platform/rules";
@@ -72,7 +72,7 @@ function world() {
 
 async function sendReport(w: ReturnType<typeof world>, over: Record<string, unknown> = {}) {
   const { key } = w.intake.store.addKey("school-a");
-  const out = await launch(w.intake.deps, { authorization: key, idempotencyKey: "tap-1", body: payload });
+  const out = await launch(w.intake.deps, { group: groupOf("school-a"), authorization: key, idempotencyKey: "tap-1", body: payload });
   const token = tokenOf(out.body.url as string);
   const sent = await submit(w.intake.deps, { token, answers: { ...answers, ...over } });
   return { key, token, sent };
@@ -126,7 +126,7 @@ describe("G.1 the whole journey", () => {
     w.intake.store.clearanceRows.push({ account_id: "school-a", external_student_id: "S-1", type: "concussion", not_before: "2026-11-20", incident_reference: "INC-2026-1" });
     w.intake.store.clearanceRows.push({ account_id: "school-b", external_student_id: "S-1", type: "injury", not_before: "2026-12-01", incident_reference: "INC-2026-9" });
 
-    const mine = await clearances(w.intake.deps, { authorization: key, studentIds: ["S-1", "S-2"] });
+    const mine = await clearances(w.intake.deps, { group: groupOf("school-a"), authorization: key, studentIds: ["S-1", "S-2"] });
     expect(mine.body).toEqual({ clearances: [{ student_id: "S-1", type: "concussion", not_before: "2026-11-20", incident: "INC-2026-1" }] });
   });
 });
@@ -135,7 +135,7 @@ describe("G.3 failure cases", () => {
   it("an expired link cannot be used and says what to do", async () => {
     const w = world();
     const { key } = w.intake.store.addKey("school-a");
-    const out = await launch(w.intake.deps, { authorization: key, idempotencyKey: null, body: payload });
+    const out = await launch(w.intake.deps, { group: groupOf("school-a"), authorization: key, idempotencyKey: null, body: payload });
     const token = tokenOf(out.body.url as string);
     w.intake.store.clock = new Date(w.intake.store.clock.getTime() + 3 * 3_600_000);
     expect(await loadReport(w.intake.deps, token)).toEqual({ state: "expired" });
@@ -158,7 +158,7 @@ describe("G.3 failure cases", () => {
     const { key, token } = await sendReport(w);
     w.intake.store.keys[0].revoked_at = w.intake.store.clock.toISOString();
     expect(await loadReport(w.intake.deps, token)).toMatchObject({ state: "invalid" });
-    expect((await launch(w.intake.deps, { authorization: key, idempotencyKey: null, body: payload })).status).toBe(401);
+    expect((await launch(w.intake.deps, { group: groupOf("school-a"), authorization: key, idempotencyKey: null, body: payload })).status).toBe(401);
   });
 
   it("a role with nobody in it is reported, not silent, and the others are still told", async () => {
@@ -203,14 +203,14 @@ describe("G.4 school data isolation", () => {
 
     // school B's key cannot use school A's link, and A's report is filed under A.
     expect(w.intake.store.incidents.every((i) => i.accountId === "school-a")).toBe(true);
-    const launchedB = await launch(w.intake.deps, { authorization: b.key, idempotencyKey: null, body: payload });
+    const launchedB = await launch(w.intake.deps, { group: groupOf("school-b"), authorization: b.key, idempotencyKey: null, body: payload });
     const sessionB = w.intake.store.sessions.find((s) => s.account_id === "school-b")!;
     expect(sessionB.key_id).not.toBe(w.intake.store.sessions[0].key_id);
     expect(launchedB.status).toBe(201);
 
     // school B reads no clearance of school A's, even for the same student id.
     w.intake.store.clearanceRows.push({ account_id: "school-a", external_student_id: "S-1", type: "concussion", not_before: "2026-11-20", incident_reference: "INC-2026-1" });
-    expect((await clearances(w.intake.deps, { authorization: b.key, studentIds: ["S-1"] })).body).toEqual({ clearances: [] });
+    expect((await clearances(w.intake.deps, { group: groupOf("school-b"), authorization: b.key, studentIds: ["S-1"] })).body).toEqual({ clearances: [] });
     expect(a.sent.status).toBe(201);
   });
 });

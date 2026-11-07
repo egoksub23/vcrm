@@ -12,21 +12,26 @@ import { loadActiveTemplate } from "@/lib/incidents/platform/setup-data";
 import { dayOf } from "@/lib/incidents/platform/dates";
 import { labelOf } from "@/lib/incidents/platform/roles";
 import type { FormSchema } from "./form-schema";
-import { builtInForm, type ClearanceRow, type IntakeStore, type KeyRow, type NewIncident, type ResolvedForm, type SessionRow } from "./service";
+import { builtInForm, type ClearanceRow, type IntakeStore, type NewIncident, type PlatformKeyRow, type ResolvedForm, type SchoolRow, type SessionRow } from "./service";
 
 const BUCKET = "chat-media";
 
 export class PgIntakeStore implements IntakeStore {
   constructor(private readonly db: PgDb = createAdminPgDb()) {}
 
-  async findKeyByHash(hash: string): Promise<KeyRow | null> {
-    const { data } = await this.db.from("incident_intake_keys").select("id, account_id, mode, scopes, allowed_origins, revoked_at").eq("key_hash", hash).maybeSingle();
-    return (data as KeyRow | null) ?? null;
+  async findKeyByHash(hash: string): Promise<PlatformKeyRow | null> {
+    const { data } = await this.db.from("incident_intake_keys").select("id, account_id, mode, scopes, revoked_at").eq("key_hash", hash).maybeSingle();
+    return (data as PlatformKeyRow | null) ?? null;
   }
 
-  async getKey(id: string): Promise<KeyRow | null> {
-    const { data } = await this.db.from("incident_intake_keys").select("id, account_id, mode, scopes, allowed_origins, revoked_at").eq("id", id).maybeSingle();
-    return (data as KeyRow | null) ?? null;
+  async getKey(id: string): Promise<PlatformKeyRow | null> {
+    const { data } = await this.db.from("incident_intake_keys").select("id, account_id, mode, scopes, revoked_at").eq("id", id).maybeSingle();
+    return (data as PlatformKeyRow | null) ?? null;
+  }
+
+  async findSchool(groupId: string): Promise<SchoolRow | null> {
+    const { data } = await this.db.from("incident_portal_schools").select("group_id, group_name, account_id, allowed_origins, enabled").eq("group_id", groupId).maybeSingle();
+    return (data as SchoolRow | null) ?? null;
   }
 
   async touchKey(keyId: string, now: Date): Promise<void> {
@@ -65,8 +70,9 @@ export class PgIntakeStore implements IntakeStore {
     return version != null ? null : builtInForm(formKey);
   }
 
-  async sessionByIdempotency(keyId: string, idem: string): Promise<SessionRow | null> {
-    const { data } = await this.db.from("incident_intake_sessions").select("*").eq("key_id", keyId).eq("idempotency_key", idem).maybeSingle();
+  async sessionByIdempotency(keyId: string, groupId: string, idem: string): Promise<SessionRow | null> {
+    // Two schools may use the same idempotency string, so the school is part of the lookup.
+    const { data } = await this.db.from("incident_intake_sessions").select("*").eq("key_id", keyId).eq("group_id", groupId).eq("idempotency_key", idem).maybeSingle();
     return (data as SessionRow | null) ?? null;
   }
 
@@ -75,7 +81,7 @@ export class PgIntakeStore implements IntakeStore {
     if (error || !data) {
       // Two identical launches raced (same idempotency key): the second one reads the first one's row.
       if (row.idempotency_key) {
-        const existing = await this.sessionByIdempotency(row.key_id, row.idempotency_key);
+        const existing = row.group_id ? await this.sessionByIdempotency(row.key_id, row.group_id, row.idempotency_key) : null;
         if (existing) return existing;
       }
       throw new Error(`could not create the report link: ${error?.message ?? "unknown"}`);

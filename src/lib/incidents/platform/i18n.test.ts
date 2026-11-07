@@ -23,6 +23,7 @@ const FILES = [
   "src/components/incidents/message-log-panel.tsx",
   "src/components/incidents/report/report-app.tsx",
   "src/components/incidents/setup/portal-screen.tsx",
+  "src/components/platform/coach-portal-card.tsx",
   "src/components/incidents/setup/rule-editor.tsx",
   "src/components/incidents/setup/workflow-panel.tsx",
   "src/components/incidents/approvals-panel.tsx",

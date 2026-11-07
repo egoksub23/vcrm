@@ -37,10 +37,10 @@ describe("addresses", () => {
 });
 
 describe("events and retries", () => {
-  it("carry a reference and codes, never names", () => {
-    const created = incidentCreatedEvent({ id: "e1", now: NOW, reference: "INC-2026-31", category: "CCA", severity: "high", flags: ["injury"], activityId: "A-1", mode: "live" });
-    expect(created).toEqual({ id: "e1", event: "incident.created", created_at: NOW.toISOString(), data: { reference: "INC-2026-31", category: "CCA", severity: "high", flags: ["injury"], activity_id: "A-1", mode: "live" } });
-    const cl = clearanceUpdatedEvent({ id: "e2", now: NOW, studentId: "S-1", type: "concussion", notBefore: "2026-11-20", reference: "INC-2026-31", cleared: false });
+  it("carry the Vircle Group ID, a reference and codes, never names", () => {
+    const created = incidentCreatedEvent({ id: "e1", now: NOW, groupId: "G-1", reference: "INC-2026-31", category: "CCA", severity: "high", flags: ["injury"], activityId: "A-1", mode: "live" });
+    expect(created).toEqual({ id: "e1", event: "incident.created", created_at: NOW.toISOString(), data: { group_id: "G-1", reference: "INC-2026-31", category: "CCA", severity: "high", flags: ["injury"], activity_id: "A-1", mode: "live" } });
+    const cl = clearanceUpdatedEvent({ id: "e2", now: NOW, groupId: "G-1", studentId: "S-1", type: "concussion", notBefore: "2026-11-20", reference: "INC-2026-31", cleared: false });
     expect(JSON.stringify(cl)).not.toMatch(/name/i);
   });
   it("waits 1, 5, 15, 60, 240 minutes, then stops after six attempts", () => {
@@ -71,7 +71,7 @@ class MemoryWebhookStore implements WebhookStore {
   }
 }
 
-const event = (id = "d1"): QueuedEvent => ({ id, account_id: "a1", key_id: "k1", event: "incident.created", attempts: 0, payload: incidentCreatedEvent({ id, now: NOW, reference: "INC-2026-1", category: "CCA", severity: "low", flags: [], activityId: null, mode: "test" }) });
+const event = (id = "d1"): QueuedEvent => ({ id, account_id: "a1", key_id: "k1", event: "incident.created", attempts: 0, payload: incidentCreatedEvent({ id, now: NOW, groupId: "G-1", reference: "INC-2026-1", category: "CCA", severity: "low", flags: [], activityId: null, mode: "test" }) });
 
 describe("dispatchWebhooks", () => {
   const setup = () => {

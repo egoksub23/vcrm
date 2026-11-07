@@ -56,30 +56,34 @@ export async function enqueueIncidentCreated(incidentId: string, db: PgDb = crea
     const { data } = await db.from("incidents").select("account_id, created_at, incident_number, incident_type, severity, incident_flags, external_ref, activity, is_test, source").eq("id", incidentId).maybeSingle();
     const inc = data as { account_id: string; created_at: string; incident_number: number; incident_type: string; severity: string; incident_flags: string[] | null; external_ref: string | null; activity: { id?: string } | null; is_test: boolean; source: string } | null;
     if (!inc || inc.source !== "coach_portal" || !inc.external_ref) return;
-    const { data: session } = await db.from("incident_intake_sessions").select("key_id").eq("id", inc.external_ref).maybeSingle();
-    const keyId = (session as { key_id: string } | null)?.key_id;
-    if (!keyId) return;
+    const { data: session } = await db.from("incident_intake_sessions").select("key_id, group_id").eq("id", inc.external_ref).maybeSingle();
+    const s = session as { key_id: string; group_id: string | null } | null;
+    const keyId = s?.key_id;
+    if (!keyId || !s?.group_id) return;
     const target = await new PgWebhookStore(db).target(keyId);
     if (!target?.url || target.revoked) return;
-    await queue(db, inc.account_id, keyId, incidentCreatedEvent({ id: randomUUID(), now: new Date(), reference: incidentKey(inc), category: inc.incident_type, severity: inc.severity, flags: inc.incident_flags ?? [], activityId: inc.activity?.id ?? null, mode: inc.is_test ? "test" : "live" }));
+    await queue(db, inc.account_id, keyId, incidentCreatedEvent({ id: randomUUID(), now: new Date(), groupId: s.group_id, reference: incidentKey(inc), category: inc.incident_type, severity: inc.severity, flags: inc.incident_flags ?? [], activityId: inc.activity?.id ?? null, mode: inc.is_test ? "test" : "live" }));
   } catch (err) {
     console.error("[incident-webhooks] could not queue incident.created:", err);
   }
 }
 
-/** After a Return to Play date is set or cleared: tell every portal key of the school that may read clearances and has an address. Best effort. */
+/** After a Return to Play date is set or cleared: tell the portal (every platform key that may read clearances and has an address) about each Vircle Group the school is mapped to. Best effort. */
 export async function enqueueClearanceUpdated(args: { accountId: string; studentId: string; type: string; notBefore: string; incidentId: string | null; cleared: boolean }, db: PgDb = createAdminPgDb()): Promise<void> {
   try {
-    const { data: keys } = await db.from("incident_intake_keys").select("id, scopes").eq("account_id", args.accountId).is("revoked_at", null).not("webhook_url", "is", null);
+    const { data: keys } = await db.from("incident_intake_keys").select("id, scopes").is("account_id", null).is("revoked_at", null).not("webhook_url", "is", null);
     const targets = ((keys ?? []) as { id: string; scopes: string[] }[]).filter((k) => k.scopes.includes("clearances.read"));
     if (targets.length === 0) return;
+    const { data: groups } = await db.from("incident_portal_schools").select("group_id").eq("account_id", args.accountId).eq("enabled", true);
+    const groupIds = ((groups ?? []) as { group_id: string }[]).map((g) => g.group_id);
+    if (groupIds.length === 0) return;
     let reference: string | null = null;
     if (args.incidentId) {
       const { data } = await db.from("incidents").select("created_at, incident_number").eq("id", args.incidentId).maybeSingle();
       reference = data ? incidentKey(data as { created_at: string; incident_number: number }) : null;
     }
-    for (const k of targets) {
-      await queue(db, args.accountId, k.id, clearanceUpdatedEvent({ id: randomUUID(), now: new Date(), studentId: args.studentId, type: args.type, notBefore: args.notBefore, reference, cleared: args.cleared }));
+    for (const k of targets) for (const groupId of groupIds) {
+      await queue(db, args.accountId, k.id, clearanceUpdatedEvent({ id: randomUUID(), now: new Date(), groupId, studentId: args.studentId, type: args.type, notBefore: args.notBefore, reference, cleared: args.cleared }));
     }
   } catch (err) {
     console.error("[incident-webhooks] could not queue clearance.updated:", err);

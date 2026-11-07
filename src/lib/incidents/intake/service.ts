@@ -2,7 +2,8 @@
 // All database access is behind `IntakeStore`, so the rules (isolation, expiry, one report per link, test mode, idempotency) are tested in memory.
 //
 // Rules that matter:
-//   * The school is found from the key, never from anything the caller sends.
+//   * One platform key (made by the Halo operator) serves every school. A call names the school by its Vircle Group ID (X-Vircle-Group-Id); the operator has
+//     mapped that ID to a Halo school and set the school's allowed frame origins. An unmapped, switched-off or unknown group is refused.
 //   * A link works for 2 hours, carries no cookie, and files at most one report; sending the same report again returns the same reference.
 //   * A test key files reports marked TEST that notify only the school's admins.
 //   * Nothing about a child ever goes into a URL or into an error message.
@@ -17,9 +18,29 @@ export const MAX_PHOTOS = 5;
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
 
+/** A key as stored: a platform key has no school (account_id is null). */
+export interface PlatformKeyRow {
+  id: string;
+  account_id: string | null;
+  mode: KeyMode;
+  scopes: string[];
+  revoked_at: string | null;
+}
+
+/** A Vircle Group the operator has mapped to a Halo school. */
+export interface SchoolRow {
+  group_id: string;
+  group_name: string;
+  account_id: string;
+  allowed_origins: string[];
+  enabled: boolean;
+}
+
+/** A key together with the school a call is for: what the rest of the service works with. */
 export interface KeyRow {
   id: string;
   account_id: string;
+  group_id: string;
   mode: KeyMode;
   scopes: string[];
   allowed_origins: string[];
@@ -30,6 +51,8 @@ export interface SessionRow {
   id: string;
   account_id: string;
   key_id: string;
+  /** The Vircle Group ID the link was issued for (null on a link from before migration 219). */
+  group_id: string | null;
   mode: KeyMode;
   form: string;
   /** The published version the link was issued with (null = the built-in form). A link keeps its version even if a newer one is published. */
@@ -69,15 +92,16 @@ export interface ClearanceRow {
 }
 
 export interface IntakeStore {
-  findKeyByHash(hash: string): Promise<KeyRow | null>;
+  findKeyByHash(hash: string): Promise<PlatformKeyRow | null>;
+  findSchool(groupId: string): Promise<SchoolRow | null>;
   touchKey(keyId: string, now: Date): Promise<void>;
   logCall(accountId: string, keyId: string | null, route: string, status: number, summary: string): Promise<void>;
   accountEnabled(accountId: string): Promise<boolean>;
   template(accountId: string): Promise<(TemplateScale & { standardId: string }) | null>;
-  sessionByIdempotency(keyId: string, idem: string): Promise<SessionRow | null>;
+  sessionByIdempotency(keyId: string, groupId: string, idem: string): Promise<SessionRow | null>;
   createSession(row: Omit<SessionRow, "submitted_at" | "incident_id">): Promise<SessionRow>;
   getSession(id: string): Promise<SessionRow | null>;
-  getKey(id: string): Promise<KeyRow | null>;
+  getKey(id: string): Promise<PlatformKeyRow | null>;
   createIncident(input: NewIncident): Promise<{ id: string; reference: string }>;
   markSubmitted(sessionId: string, incidentId: string, now: Date): Promise<void>;
   incidentReference(incidentId: string): Promise<string | null>;
@@ -117,15 +141,32 @@ const err = (status: number, code: string, message: string, extra: Record<string
 
 type Auth = { ok: true; key: KeyRow } | { ok: false; reply: Reply };
 
-/** Find the key a request carries, and refuse unknown, revoked or wrongly-scoped keys, a school that is switched off, and callers that are too fast. */
-export async function authenticate(deps: ServiceDeps, header: string | null, scope: KeyScope, route: string): Promise<Auth> {
+/** The Vircle Group ID as sent (the X-Vircle-Group-Id header): trimmed, at most 100 characters, or null. */
+export function groupIdFromHeader(value: string | null | undefined): string | null {
+  const v = value?.trim();
+  return v && v.length <= 100 ? v : null;
+}
+
+/**
+ * Find the platform key a request carries and the school it is for (from the Vircle Group ID), and refuse: an unknown, revoked, school-bound or wrongly-scoped
+ * key; a missing, unknown or switched-off group; a school that has incidents switched off; and callers that are too fast.
+ */
+export async function authenticate(deps: ServiceDeps, header: string | null, groupHeader: string | null, scope: KeyScope, route: string): Promise<Auth> {
   const raw = keyFromHeader(header);
   if (!raw) return { ok: false, reply: err(401, "invalid_key", "Send the key as \"Authorization: Bearer ik_...\".") };
-  const key = await deps.store.findKeyByHash(hashKey(raw));
-  // The same answer for an unknown and a revoked key: nothing to learn by guessing.
-  if (!key || key.revoked_at || key.mode !== modeOfKey(raw)) {
+  const found = await deps.store.findKeyByHash(hashKey(raw));
+  // The same answer for an unknown and a revoked key: nothing to learn by guessing. A key tied to one school is from the old design and is not accepted.
+  if (!found || found.revoked_at || found.account_id !== null || found.mode !== modeOfKey(raw)) {
     return { ok: false, reply: err(401, "invalid_key", "This key is not valid.") };
   }
+  const groupId = groupIdFromHeader(groupHeader);
+  if (!groupId) return { ok: false, reply: err(400, "group_required", "Send the school's Vircle Group ID in the X-Vircle-Group-Id header.") };
+  const school = await deps.store.findSchool(groupId);
+  if (!school || !school.enabled) {
+    if (school) await deps.store.logCall(school.account_id, found.id, route, 404, `group ${groupId} switched off`);
+    return { ok: false, reply: err(404, "unknown_group", "This Vircle Group is not set up for incident reporting in Halo. Ask your Halo administrator to add it.") };
+  }
+  const key: KeyRow = { id: found.id, account_id: school.account_id, group_id: school.group_id, mode: found.mode, scopes: found.scopes, allowed_origins: school.allowed_origins, revoked_at: null };
   if (!(await deps.store.accountEnabled(key.account_id))) {
     await deps.store.logCall(key.account_id, key.id, route, 403, "incidents switched off");
     return { ok: false, reply: err(403, "not_enabled", "Incident reporting is not switched on for this school.") };
@@ -134,7 +175,8 @@ export async function authenticate(deps: ServiceDeps, header: string | null, sco
     await deps.store.logCall(key.account_id, key.id, route, 403, `missing scope ${scope}`);
     return { ok: false, reply: err(403, "missing_scope", `This key cannot do that (it needs the "${scope}" scope).`) };
   }
-  if (!deps.store.rateLimit(key.id)) {
+  // The limit is per school, so one busy school cannot use up the platform key's allowance for the rest.
+  if (!deps.store.rateLimit(`${key.id}:${key.group_id}`)) {
     await deps.store.logCall(key.account_id, key.id, route, 429, "rate limited");
     return { ok: false, reply: err(429, "rate_limited", "Too many requests. Wait a moment and try again.") };
   }
@@ -145,8 +187,8 @@ export async function authenticate(deps: ServiceDeps, header: string | null, sco
 // ---- launch -----------------------------------------------------------------------------------------------------
 
 /** POST /api/public/incident-intake/launch */
-export async function launch(deps: ServiceDeps, args: { authorization: string | null; idempotencyKey: string | null; body: unknown }): Promise<Reply> {
-  const auth = await authenticate(deps, args.authorization, "launch", "POST launch");
+export async function launch(deps: ServiceDeps, args: { authorization: string | null; group: string | null; idempotencyKey: string | null; body: unknown }): Promise<Reply> {
+  const auth = await authenticate(deps, args.authorization, args.group, "launch", "POST launch");
   if (!auth.ok) return auth.reply;
   const { key } = auth;
   const { store } = deps;
@@ -168,13 +210,14 @@ export async function launch(deps: ServiceDeps, args: { authorization: string | 
   const base = deps.appUrl();
   if (!base) return err(503, "not_configured", "Halo's public address is not configured on the server.");
 
-  let session: SessionRow | null = idem ? await store.sessionByIdempotency(key.id, idem) : null;
+  let session: SessionRow | null = idem ? await store.sessionByIdempotency(key.id, key.group_id, idem) : null;
   if (!session) {
     const now = store.now();
     session = await store.createSession({
       id: store.newId(),
       account_id: key.account_id,
       key_id: key.id,
+      group_id: key.group_id,
       mode: key.mode,
       form: parsed.value.form,
       form_version: form.version,
@@ -220,14 +263,16 @@ export type ReportView =
       expiresAt: string;
     };
 
-async function sessionFromToken(deps: ServiceDeps, token: string): Promise<{ session: SessionRow; key: KeyRow } | null> {
+async function sessionFromToken(deps: ServiceDeps, token: string): Promise<{ session: SessionRow; key: PlatformKeyRow } | null> {
   const claims = readSessionToken(token, deps.secret);
   if (!claims) return null;
   const session = await deps.store.getSession(claims.sessionId);
-  if (!session) return null;
+  if (!session || !session.group_id) return null;
   const key = await deps.store.getKey(session.key_id);
-  // A key revoked after the link was issued ends the link too.
-  if (!key || key.revoked_at || key.account_id !== session.account_id) return null;
+  // A key revoked after the link was issued ends the link too, and so does the school being switched off or re-mapped to another school.
+  if (!key || key.revoked_at || key.account_id !== null) return null;
+  const school = await deps.store.findSchool(session.group_id);
+  if (!school || !school.enabled || school.account_id !== session.account_id) return null;
   return { session, key };
 }
 
@@ -343,8 +388,8 @@ export async function addPhoto(deps: ServiceDeps, args: { token: string; filenam
 // ---- Return to Play ---------------------------------------------------------------------------------------------
 
 /** GET /api/public/clearances?student_ids=S-1,S-2 : who should not play yet. Warn only: nothing here blocks anything. */
-export async function clearances(deps: ServiceDeps, args: { authorization: string | null; studentIds: string[] }): Promise<Reply> {
-  const auth = await authenticate(deps, args.authorization, "clearances.read", "GET clearances");
+export async function clearances(deps: ServiceDeps, args: { authorization: string | null; group: string | null; studentIds: string[] }): Promise<Reply> {
+  const auth = await authenticate(deps, args.authorization, args.group, "clearances.read", "GET clearances");
   if (!auth.ok) return auth.reply;
   const ids = [...new Set(args.studentIds.map((s) => s.trim()).filter(Boolean))].slice(0, 200);
   const rows = ids.length ? await deps.store.clearances(auth.key.account_id, ids, deps.store.now().toISOString().slice(0, 10)) : [];
@@ -358,10 +403,10 @@ export async function clearances(deps: ServiceDeps, args: { authorization: strin
 
 /**
  * "Send a test report": a link made by an admin, with made-up students and a test key, so the whole path (the phone page, the notices to admins, the
- * message log) can be tried without the coach portal. The key must be a test key: a test link never files a real report.
+ * message log) can be tried without the coach portal. It uses the platform's test key and the school's own Group ID: a test link never files a real report.
  */
 export async function createTestSession(deps: ServiceDeps, key: KeyRow, coach: { name: string; email: string | null }, roster: RosterEntry[]): Promise<{ url: string; expiresAt: string } | { error: string }> {
-  if (key.mode !== "test" || key.revoked_at) return { error: "Create a test key first. A test report must use a test key." };
+  if (key.mode !== "test" || key.revoked_at) return { error: "The Halo administrator has not created a test key yet. A test report must use the test key." };
   const base = deps.appUrl();
   if (!base) return { error: "Halo's public address is not configured on the server (NEXT_PUBLIC_SITE_URL)." };
   const template = await deps.store.template(key.account_id);
@@ -372,6 +417,7 @@ export async function createTestSession(deps: ServiceDeps, key: KeyRow, coach: {
     id: deps.store.newId(),
     account_id: key.account_id,
     key_id: key.id,
+    group_id: key.group_id,
     mode: "test",
     form: "cca",
     form_version: form.version,

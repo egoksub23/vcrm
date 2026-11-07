@@ -15,12 +15,12 @@ Tick each line. Anything that fails goes on the fix list (G.5).
 - [ ] The cron calls `/api/incidents/escalation-cron` every minute.
 - [ ] **Setup guide** shows steps 1 to 4 done. Roles & contacts: put a real test inbox in **Head of Sport**, **School nurse**, **Principal** and **Data protection officer**. Add yourself as **Safeguarding lead** backup.
 - [ ] **Rules**: switch on the starter set. Use **Try it** with a serious injury: it lists the Head of Sport and the nurse straight away and the Principal after 30 minutes.
-- [ ] **Coach portal & API**: create a **test key**; add the test page's address as an allowed address.
+- [ ] **Operator console > Coach portal** (the Halo administrator): create a **test key**; map the test school's Vircle Group (ID, name, school) with the test page's address as an allowed address. Setup > Coach portal & API shows the school its link.
 - [ ] **Send yourself a test notice** (Setup guide): the email arrives, is marked TEST, shows no names.
 
 ## G.1 The whole journey
 
-1. [ ] Run the simulated portal: `node scripts/incident-sim-portal.mjs --base https://<halo> --key ik_test_... --submit --origin https://<test page>`. Every line is PASS.
+1. [ ] Run the simulated portal: `node scripts/incident-sim-portal.mjs --base https://<halo> --key ik_test_... --group <Vircle Group ID> --submit --origin https://<test page>`. Every line is PASS.
 2. [ ] Open the printed report link on a phone. Three short screens; the roster shows the two made-up students; a typed visitor can be added.
 3. [ ] Tick **Test Student A**, choose **Injury**, type a sentence, choose **Could not continue**, answer **Yes** to the head question, send. The confirmation shows a reference and who was told.
 4. [ ] The incident appears on the Dashboard, marked as a test, with the right category, severity (Serious or Critical) and flags (injury, child involved, concussion).
@@ -56,11 +56,11 @@ For each of: Android Chrome, iPhone Safari, an iframe test page on the registere
 
 ## G.4 School isolation
 
-Needs a second test school with its own key.
+Needs a second test school, mapped to its own Vircle Group.
 
-- [ ] School B's key cannot open or file against school A's link.
+- [ ] A call naming school B's Vircle Group cannot open or file against school A's link, and an unmapped or switched-off Group answers 404 `unknown_group`.
 - [ ] School B's `GET clearances` for a student id that school A has a date for returns nothing.
-- [ ] School B's admins cannot see school A's incidents, roles, rules, message log or keys (try the URLs).
+- [ ] School B's admins cannot see school A's incidents, roles, rules, message log or Vircle Group link (try the URLs). No school sees the platform key.
 - [ ] Notices from a school A report reach only school A's people.
 
 ## G.5 Sign-off

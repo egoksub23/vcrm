@@ -2,15 +2,19 @@
 import { generateKey, type KeyMode } from "./keys";
 import { CCA_FORM } from "./form-schema";
 import type { FormSchema } from "./form-schema";
-import { builtInForm, type ClearanceRow, type IntakeStore, type KeyRow, type NewIncident, type ResolvedForm, type ServiceDeps, type SessionRow } from "./service";
+import { builtInForm, type ClearanceRow, type IntakeStore, type NewIncident, type PlatformKeyRow, type ResolvedForm, type SchoolRow, type ServiceDeps, type SessionRow } from "./service";
 
 export const SECRET = "test-secret";
+/** The Vircle Group ID the tests give a school. */
+export const groupOf = (accountId: string) => `G-${accountId}`;
 export const T0 = new Date("2026-11-11T10:00:00Z");
 export const ORIGIN = "https://coach.example.edu.my";
 
 export class MemoryStore implements IntakeStore {
   clock = new Date(T0);
-  keys: KeyRow[] = [];
+  keys: PlatformKeyRow[] = [];
+  /** The Vircle Groups the operator has mapped to schools. */
+  schools: SchoolRow[] = [];
   keyHashes = new Map<string, string>();
   sessions: SessionRow[] = [];
   incidents: (NewIncident & { id: string; reference: string })[] = [];
@@ -23,12 +27,24 @@ export class MemoryStore implements IntakeStore {
   told = ["head_of_sport", "school_nurse"];
   private n = 0;
 
-  addKey(accountId: string, mode: KeyMode = "live", over: Partial<KeyRow> = {}): { key: string; row: KeyRow } {
+  /** A platform key (it has no school). The school the call is for is the Vircle Group `groupOf(accountId)`, mapped here the first time it is needed. */
+  addKey(accountId: string, mode: KeyMode = "live", over: Partial<PlatformKeyRow> = {}): { key: string; row: PlatformKeyRow; group: string } {
     const { key, hash } = generateKey(mode);
-    const row: KeyRow = { id: `key-${++this.n}`, account_id: accountId, mode, scopes: ["launch", "clearances.read"], allowed_origins: [ORIGIN], revoked_at: null, ...over };
+    const row: PlatformKeyRow = { id: `key-${++this.n}`, account_id: null, mode, scopes: ["launch", "clearances.read"], revoked_at: null, ...over };
     this.keys.push(row);
     this.keyHashes.set(hash, row.id);
-    return { key, row };
+    return { key, row, group: this.addSchool(accountId).group_id };
+  }
+  /** Map a school to its Vircle Group (once). */
+  addSchool(accountId: string, over: Partial<SchoolRow> = {}): SchoolRow {
+    const existing = this.schools.find((s) => s.account_id === accountId && s.group_id === (over.group_id ?? groupOf(accountId)));
+    if (existing) return Object.assign(existing, over);
+    const school: SchoolRow = { group_id: groupOf(accountId), group_name: `Vircle ${accountId}`, account_id: accountId, allowed_origins: [ORIGIN], enabled: true, ...over };
+    this.schools.push(school);
+    return school;
+  }
+  async findSchool(groupId: string) {
+    return this.schools.find((s) => s.group_id === groupId) ?? null;
   }
   async findKeyByHash(hash: string) {
     const id = this.keyHashes.get(hash);
@@ -47,8 +63,8 @@ export class MemoryStore implements IntakeStore {
   async template(accountId: string) {
     return this.templates.get(accountId) ?? null;
   }
-  async sessionByIdempotency(keyId: string, idem: string) {
-    return this.sessions.find((s) => s.key_id === keyId && s.idempotency_key === idem) ?? null;
+  async sessionByIdempotency(keyId: string, groupId: string, idem: string) {
+    return this.sessions.find((s) => s.key_id === keyId && s.group_id === groupId && s.idempotency_key === idem) ?? null;
   }
   async createSession(row: Omit<SessionRow, "submitted_at" | "incident_id">) {
     const s: SessionRow = { ...row, submitted_at: null, incident_id: null };

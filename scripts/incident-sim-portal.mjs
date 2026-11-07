@@ -2,9 +2,9 @@
 // A simulated coach portal. It calls Halo exactly as the real portal will (docs/incident-coach-portal.md), so the whole path can be tried before the real
 // portal exists: ask for a report link, optionally file a sample report through the hosted page's own API, then read the Return to Play warnings.
 //
-//   node scripts/incident-sim-portal.mjs --base https://halo.example.edu.my --key ik_test_xxxxxxxx [--submit] [--origin https://coach.example.edu.my]
+//   node scripts/incident-sim-portal.mjs --base https://halo.example.edu.my --key ik_test_xxxxxxxx --group G-12 [--submit] [--origin https://coach.example.edu.my]
 //
-// Use a TEST key. A test report is marked TEST and tells only the school's admins. Nothing here prints the key, and the sample students are made up.
+// --group is the school's Vircle Group ID (the Halo administrator maps it to the school). Use a TEST key. A test report is marked TEST and tells only the school's admins. Nothing here prints the key, and the sample students are made up.
 
 const args = process.argv.slice(2);
 const opt = (name, fallback = null) => {
@@ -15,9 +15,10 @@ const flag = (name) => args.includes(`--${name}`);
 
 const base = String(opt("base", process.env.HALO_BASE ?? "")).replace(/\/+$/, "");
 const key = String(opt("key", process.env.HALO_INTAKE_KEY ?? ""));
+const group = String(opt("group", process.env.HALO_GROUP_ID ?? ""));
 const origin = opt("origin", null);
-if (!base || !key) {
-  console.error("Usage: node scripts/incident-sim-portal.mjs --base <halo address> --key <ik_test_...> [--submit] [--origin <portal address>]");
+if (!base || !key || !group) {
+  console.error("Usage: node scripts/incident-sim-portal.mjs --base <halo address> --key <ik_test_...> --group <Vircle Group ID> [--submit] [--origin <portal address>]");
   process.exit(2);
 }
 if (key.startsWith("ik_live_") && !flag("allow-live")) {
@@ -25,7 +26,7 @@ if (key.startsWith("ik_live_") && !flag("allow-live")) {
   process.exit(2);
 }
 
-const auth = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+const auth = { Authorization: `Bearer ${key}`, "X-Vircle-Group-Id": group, "Content-Type": "application/json" };
 let failed = 0;
 const check = (ok, label, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? `  (${detail})` : ""}`);
@@ -64,7 +65,7 @@ const again = await call("POST", "/api/public/incident-intake/launch", launchBod
 check(again.json.url === first.json.url, "the same Idempotency-Key returns the same link");
 
 // 3. A bad key is refused.
-const bad = await call("POST", "/api/public/incident-intake/launch", launchBody, { Authorization: "Bearer ik_test_invalidinvalidinvalidinvalidinvalidinvalid1", "Content-Type": "application/json" });
+const bad = await call("POST", "/api/public/incident-intake/launch", launchBody, { Authorization: "Bearer ik_test_invalidinvalidinvalidinvalidinvalidinvalid1", "X-Vircle-Group-Id": group, "Content-Type": "application/json" });
 check(bad.status === 401, "a wrong key is refused", `status ${bad.status}`);
 
 // 4. A broken payload is explained.
@@ -91,7 +92,7 @@ if (flag("submit")) {
 }
 
 // 7. Return to Play.
-const clr = await call("GET", "/api/public/clearances?student_ids=SIM-1,SIM-2", null, { Authorization: `Bearer ${key}` });
+const clr = await call("GET", "/api/public/clearances?student_ids=SIM-1,SIM-2", null, { Authorization: `Bearer ${key}`, "X-Vircle-Group-Id": group });
 check(clr.status === 200 && Array.isArray(clr.json.clearances), "clearances answers", `${clr.json.clearances?.length ?? 0} warning(s)`);
 
 console.log(failed === 0 ? "\nAll checks passed." : `\n${failed} check(s) failed.`);

@@ -1,5 +1,5 @@
-// POST /api/incidents/setup/portal/test-report — a link to the hosted report with made-up students, filed under a test key. A test report is marked TEST and
-// notifies only the school's admins. Requires incidents.configure.
+// POST /api/incidents/setup/portal/test-report — a link to the hosted report with made-up students, filed under the platform's test key and this school's Vircle Group.
+// A test report is marked TEST and notifies only the school's admins. Requires incidents.configure.
 import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
@@ -11,18 +11,25 @@ import { createAdminPgDb } from "@/lib/postgres/db";
 export async function POST() {
   try {
     const ctx = await requireCapability("incidents.configure");
-    const { data } = await ctx.supabase
-      .from("incident_intake_keys")
-      .select("id, account_id, mode, scopes, allowed_origins, revoked_at")
-      .eq("account_id", ctx.accountId)
-      .eq("mode", "test")
-      .is("revoked_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1);
-    const key = ((data ?? []) as KeyRow[])[0];
-    if (!key) return NextResponse.json({ error: "Create a test key first. A test report must use a test key." }, { status: 409 });
+    const admin = createAdminPgDb();
 
-    const { data: me } = await createAdminPgDb().from("profiles").select("full_name, email").eq("user_id", ctx.userId).maybeSingle();
+    const { data: school } = await admin
+      .from("incident_portal_schools")
+      .select("group_id, allowed_origins")
+      .eq("account_id", ctx.accountId)
+      .eq("enabled", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const link = school as { group_id: string; allowed_origins: string[] } | null;
+    if (!link) return NextResponse.json({ error: "This school is not linked to a Vircle Group yet. Ask the Halo administrator to link it." }, { status: 409 });
+
+    const { data: keys } = await admin.from("incident_intake_keys").select("id, mode, scopes").is("account_id", null).eq("mode", "test").is("revoked_at", null).order("created_at", { ascending: false }).limit(1);
+    const found = ((keys ?? []) as { id: string; mode: "test"; scopes: string[] }[])[0];
+    if (!found) return NextResponse.json({ error: "The Halo administrator has not created a test key yet. A test report must use the test key." }, { status: 409 });
+    const key: KeyRow = { id: found.id, account_id: ctx.accountId, group_id: link.group_id, mode: "test", scopes: found.scopes, allowed_origins: link.allowed_origins, revoked_at: null };
+
+    const { data: me } = await admin.from("profiles").select("full_name, email").eq("user_id", ctx.userId).maybeSingle();
     const profile = me as { full_name: string | null; email: string | null } | null;
     const out = await createTestSession(intakeDeps(), key, { name: profile?.full_name || "Test coach", email: profile?.email ?? null }, TEST_ROSTER);
     if ("error" in out) return NextResponse.json({ error: out.error }, { status: 422 });

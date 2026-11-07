@@ -1,7 +1,7 @@
 // Events Halo pushes to the coach portal (optional, never needed for go-live): "an incident was filed", "a Return to Play date changed". Signed so the
 // portal knows they came from Halo, retried with backoff, and carrying no names: a student id and a reference at most.
 //
-//   POST <the key's webhook address>
+//   POST <the platform key's events address>
 //   X-Halo-Event: incident.created | clearance.updated
 //   X-Halo-Delivery: <unique id, the same on every retry>
 //   X-Halo-Timestamp: <unix seconds>
@@ -67,21 +67,21 @@ export interface EventEnvelope {
   data: Record<string, unknown>;
 }
 
-export function incidentCreatedEvent(args: { id: string; now: Date; reference: string; category: string; severity: string; flags: string[]; activityId: string | null; mode: "live" | "test" }): EventEnvelope {
+export function incidentCreatedEvent(args: { id: string; now: Date; groupId: string; reference: string; category: string; severity: string; flags: string[]; activityId: string | null; mode: "live" | "test" }): EventEnvelope {
   return {
     id: args.id,
     event: "incident.created",
     created_at: args.now.toISOString(),
-    data: { reference: args.reference, category: args.category, severity: args.severity, flags: args.flags, activity_id: args.activityId, mode: args.mode },
+    data: { group_id: args.groupId, reference: args.reference, category: args.category, severity: args.severity, flags: args.flags, activity_id: args.activityId, mode: args.mode },
   };
 }
 
-export function clearanceUpdatedEvent(args: { id: string; now: Date; studentId: string; type: string; notBefore: string; reference: string | null; cleared: boolean }): EventEnvelope {
+export function clearanceUpdatedEvent(args: { id: string; now: Date; groupId: string; studentId: string; type: string; notBefore: string; reference: string | null; cleared: boolean }): EventEnvelope {
   return {
     id: args.id,
     event: "clearance.updated",
     created_at: args.now.toISOString(),
-    data: { student_id: args.studentId, type: args.type, not_before: args.notBefore, incident: args.reference, cleared: args.cleared },
+    data: { group_id: args.groupId, student_id: args.studentId, type: args.type, not_before: args.notBefore, incident: args.reference, cleared: args.cleared },
   };
 }
 
