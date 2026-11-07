@@ -638,7 +638,10 @@ function InboxPageInner() {
       // Real messages in `prev` that aren't in `loaded` are dropped — they
       // may have been deleted or belong to a conversation switch.
       const optimistic = prev.filter(
-        (m) => m.id.startsWith('temp-') && !loaded.some((l) => l.id === m.id),
+        (m) =>
+          m.id.startsWith('temp-') &&
+          m.status !== 'sent' &&
+          !loaded.some((l) => l.id === m.id),
       );
       if (optimistic.length === 0) return loaded;
       return [...loaded, ...optimistic].sort(
