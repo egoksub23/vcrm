@@ -53,7 +53,7 @@ Content-Type: application/json
 | Field | Rules |
 | --- | --- |
 | `form` | `"cca"` (the only form today). |
-| `coach` | `id` and `name` required. `email` and `phone` optional. The coach is recorded as given and is **not** logged in to Halo. |
+| `coach` | `id`, `name` and `email` are **required**: the coach's name and email are recorded on the incident as the person who reported it, and the "Reporter" role's notices and any reply go to that email. `phone` is optional. The coach is recorded as given and is **not** logged in to Halo. |
 | `activity` | `id` and `name` required. `venue` and `date` (`YYYY-MM-DD`) optional. |
 | `roster` | A list (it may be empty), at most 200 students. Each needs `student_id` and `name`; `class` and `guardians` (at most 4) are optional. |
 | `guardians` | Optional. If sent, Halo can tell the parent or guardian role by email. If not, "tell the parent" stays a step for staff. Contact details never go to the coach's browser. |

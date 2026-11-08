@@ -57,6 +57,7 @@ describe("the hand-off guide", () => {
     expect(guide).toContain("  https://coach.example.edu.my");
     // every call names the school by its Vircle Group ID, and the guide says who sets the school up
     expect(guide.match(/X-Vircle-Group-Id: <the school's Vircle Group ID>/g)).toHaveLength(2);
+    expect(guide).toContain("coach.id, coach.name and coach.email are required");
     expect(guide).toContain("group_required");
     expect(guide).toContain("unknown_group");
     expect(guide).toContain("data.group_id");

@@ -7,7 +7,8 @@ import type { RosterEntry } from "./form-schema";
 
 export interface LaunchInput {
   form: string;
-  coach: { id: string; name: string; email: string | null; phone: string | null };
+  /** The coach who is reporting. The name and the email are required: the report, and any reply, is addressed to this person. */
+  coach: { id: string; name: string; email: string; phone: string | null };
   activity: { id: string; name: string; venue: string | null; date: string | null };
   roster: RosterEntry[];
   returnUrl: string | null;
@@ -41,8 +42,9 @@ export function parseLaunch(body: unknown, allowedOrigins: readonly string[], kn
   const coachId = str(body.coach.id, 100);
   const coachName = str(body.coach.name, 120);
   if (!coachId || !coachName) return bad("\"coach.id\" and \"coach.name\" are required.", "coach");
-  const coachEmail = optStr(body.coach.email, 200);
-  if (coachEmail === undefined || (coachEmail && !isPlausibleEmail(coachEmail))) return bad("\"coach.email\" is not a valid email address.", "coach.email");
+  const coachEmail = str(body.coach.email, 200);
+  if (!coachEmail) return bad("\"coach.email\" is required.", "coach.email");
+  if (!isPlausibleEmail(coachEmail)) return bad("\"coach.email\" is not a valid email address.", "coach.email");
   const coachPhone = optStr(body.coach.phone, 30);
   if (coachPhone === undefined) return bad("\"coach.phone\" is not valid.", "coach.phone");
 
@@ -94,7 +96,7 @@ export function parseLaunch(body: unknown, allowedOrigins: readonly string[], kn
     ok: true,
     value: {
       form,
-      coach: { id: coachId, name: coachName, email: coachEmail ?? null, phone: coachPhone ?? null },
+      coach: { id: coachId, name: coachName, email: coachEmail, phone: coachPhone ?? null },
       activity: { id: actId, name: actName, venue: venue ?? null, date: date ?? null },
       roster,
       returnUrl,

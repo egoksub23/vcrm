@@ -121,7 +121,7 @@ export function buildHandoffGuide(args: { address: string | null; keyPrefix: str
     "Errors: { \"error\": { \"code\": \"...\", \"message\": \"...\", \"field\": \"...\" } }. 400 invalid_request (read the field) or group_required, 401 invalid_key, 404 unknown_group,",
     "403 missing_scope or not_enabled,",
     "422 template_not_supported, 429 rate_limited (wait and retry), 5xx try again.",
-    "Guardians are optional. coach.email, coach.phone, activity.venue and return_url are optional. return_url must be on an allowed address (below).",
+    "coach.id, coach.name and coach.email are required (the report is addressed to this coach). Guardians, coach.phone, activity.venue and return_url are optional. return_url must be on an allowed address (below).",
     "",
     "2. Open the link for the coach",
     "The link works for 2 hours, files one report, needs no cookies and no sign-in. Open it in a new tab, a web view, or an iframe:",

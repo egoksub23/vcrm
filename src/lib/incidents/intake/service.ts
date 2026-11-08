@@ -421,7 +421,7 @@ export async function createTestSession(deps: ServiceDeps, key: KeyRow, coach: {
     mode: "test",
     form: "cca",
     form_version: form.version,
-    coach: { id: "TEST-COACH", name: coach.name, email: coach.email, phone: null },
+    coach: { id: "TEST-COACH", name: coach.name, email: coach.email ?? "test-coach@example.test", phone: null },
     activity: { id: "TEST-ACTIVITY", name: "Test activity", venue: "Test field", date: now.toISOString().slice(0, 10) },
     roster,
     return_url: null,

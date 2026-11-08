@@ -176,9 +176,18 @@ describe("parseLaunch", () => {
     expect(out).toMatchObject({ ok: true, value: { form: "cca", coach: { id: "C-204" }, activity: { name: "Football U15", date: "2026-11-11" }, returnUrl: body.return_url } });
   });
 
-  it("accepts a minimal payload: no email, no guardians, an empty roster, no return address", () => {
-    const out = parseLaunch({ coach: { id: "c", name: "Coach" }, activity: { id: "a", name: "Chess" }, roster: [] }, origins);
-    expect(out).toMatchObject({ ok: true, value: { form: "cca", roster: [], returnUrl: null, coach: { email: null } } });
+  it("accepts a minimal payload: the coach's name and email, no guardians, an empty roster, no return address", () => {
+    const out = parseLaunch({ coach: { id: "c", name: "Coach", email: "coach@school.test" }, activity: { id: "a", name: "Chess" }, roster: [] }, origins);
+    expect(out).toMatchObject({ ok: true, value: { form: "cca", roster: [], returnUrl: null, coach: { name: "Coach", email: "coach@school.test", phone: null } } });
+  });
+
+  it("needs the coach's name and email, and says which one is missing", () => {
+    const base = { activity: { id: "a", name: "Chess" }, roster: [] };
+    expect(parseLaunch({ ...base, coach: { id: "c", email: "coach@school.test" } }, origins)).toMatchObject({ ok: false, field: "coach" });
+    for (const email of [undefined, null, "", "   "]) {
+      expect(parseLaunch({ ...base, coach: { id: "c", name: "Coach", email } }, origins), String(email)).toMatchObject({ ok: false, field: "coach.email", error: "\"coach.email\" is required." });
+    }
+    expect(parseLaunch({ ...base, coach: { id: "c", name: "Coach", email: "nope" } }, origins)).toMatchObject({ ok: false, field: "coach.email" });
   });
 
   it("explains what is wrong without echoing the roster", () => {
