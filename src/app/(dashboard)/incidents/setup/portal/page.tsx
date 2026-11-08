@@ -1,17 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useTranslations } from "next-intl";
-
-import { PortalScreen } from "@/components/incidents/setup/portal-screen";
-import { RetentionPanel } from "@/components/incidents/setup/retention-panel";
-import { SetupPage } from "@/components/incidents/setup/setup-page";
-
-export default function IncidentPortalPage() {
-  const t = useTranslations("IncidentPlatform.portal");
-  return (
-    <SetupPage title={t("title")} help={t("help")}>
-      <PortalScreen />
-      <RetentionPanel />
-    </SetupPage>
-  );
+// The coach portal is managed by the Halo administrator, not by a school. This address used to hold it, and "Keeping records"; that part moved.
+export default function IncidentPortalMovedPage() {
+  redirect("/incidents/setup/records");
 }

@@ -62,13 +62,13 @@
     "incidentsRoles": "역할 및 연락처",
     "incidentsRules": "규칙",
     "incidentsPacks": "컴플라이언스 팩",
-    "incidentsPortal": "코치 포털 및 API",
     "incidentsReports": "보고서",
     "incidentsForm": "보고 양식",
     "incidentsSteps": "자체 필수 단계",
     "incidentsTiming": "시간 및 기한",
     "incidentsDashboard": "대시보드",
-    "incidentsCategories": "분류"
+    "incidentsCategories": "분류",
+    "incidentsRecords": "기록 보관"
   },
   "Header": {
     "dashboard": "대시보드",

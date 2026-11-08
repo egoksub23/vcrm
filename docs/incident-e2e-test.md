@@ -15,7 +15,7 @@ Tick each line. Anything that fails goes on the fix list (G.5).
 - [ ] The cron calls `/api/incidents/escalation-cron` every minute.
 - [ ] **Setup guide** shows steps 1 to 4 done. Roles & contacts: put a real test inbox in **Head of Sport**, **School nurse**, **Principal** and **Data protection officer**. Add yourself as **Safeguarding lead** backup.
 - [ ] **Rules**: switch on the starter set. Use **Try it** with a serious injury: it lists the Head of Sport and the nurse straight away and the Principal after 30 minutes.
-- [ ] **Operator console > Coach portal** (the Halo administrator): create a **test key**; map the test school's Vircle Group (ID, name, school) with the test page's address as an allowed address. Setup > Coach portal & API shows the school its link.
+- [ ] **Operator console > Coach portal** (the Halo administrator): create a **test key**; map the test school's Vircle Group (ID, name, school) with the test page's address as an allowed address. The school sees nothing of it; the operator console can open a test report for the school.
 - [ ] **Send yourself a test notice** (Setup guide): the email arrives, is marked TEST, shows no names.
 
 ## G.1 The whole journey
@@ -31,7 +31,7 @@ Tick each line. Anything that fails goes on the fix list (G.5).
 9. [ ] As the nurse (a user linked to the School nurse contact with the medical permission), open the incident: **Return to play** panel. Set a date a week away.
 10. [ ] `GET /api/public/clearances?student_ids=SIM-1` (or the simulated portal): the date comes back. Student B has none.
 11. [ ] The Dashboard's **Need action now** tile counts the incident (click it to filter to those) until it is dealt with; **My tasks** shows the nurse's steps; tick one off from My tasks.
-12. [ ] Complete the required steps, move the incident to Closed. Export: Setup > Coach portal & API > Keeping records > Download export.
+12. [ ] Complete the required steps, move the incident to Closed. Export: Setup > Keeping records > Download export.
 
 ## G.2 Phones, iframe and web view
 

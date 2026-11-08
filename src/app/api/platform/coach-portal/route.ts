@@ -27,10 +27,11 @@ export async function GET() {
   try {
     await requirePlatformAdmin();
     const db = createAdminPgDb();
-    const [keys, schools, accounts] = await Promise.all([
+    const [keys, schools, accounts, calls] = await Promise.all([
       db.from("incident_intake_keys").select(KEY_COLUMNS).is("account_id", null).order("created_at", { ascending: false }),
       db.from("incident_portal_schools").select("id, group_id, group_name, account_id, allowed_origins, enabled, created_at, updated_at").order("group_name", { ascending: true }),
       db.from("accounts").select("id, name").order("name", { ascending: true }),
+      db.from("incident_intake_calls").select("id, account_id, route, status, summary, created_at").order("created_at", { ascending: false }).limit(20),
     ]);
     const keyRows = (keys.data ?? []) as { prefix: string; mode: string; revoked_at: string | null }[];
     const names = new Map(((accounts.data ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]));
@@ -42,6 +43,7 @@ export async function GET() {
         keys: keyRows,
         schools: schoolRows,
         accounts: accounts.data ?? [],
+        calls: ((calls.data ?? []) as { account_id: string }[]).map((c) => ({ ...c, account_name: names.get(c.account_id) ?? null })),
         address,
         guide: buildHandoffGuide({ address, keyPrefix: live?.prefix ?? null, origins: schoolRows[0]?.allowed_origins ?? [] }),
       },

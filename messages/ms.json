@@ -62,13 +62,13 @@
     "incidentsRoles": "Peranan & kenalan",
     "incidentsRules": "Peraturan",
     "incidentsPacks": "Pek pematuhan",
-    "incidentsPortal": "Portal jurulatih & API",
     "incidentsReports": "Laporan",
     "incidentsForm": "Borang laporan",
     "incidentsSteps": "Langkah sendiri",
     "incidentsTiming": "Masa & tarikh akhir",
     "incidentsDashboard": "Papan pemuka",
-    "incidentsCategories": "Kategori"
+    "incidentsCategories": "Kategori",
+    "incidentsRecords": "Simpanan rekod"
   },
   "Header": {
     "dashboard": "Papan pemuka",

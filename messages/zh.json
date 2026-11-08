@@ -62,13 +62,13 @@
     "incidentsRoles": "角色与联系人",
     "incidentsRules": "规则",
     "incidentsPacks": "合规包",
-    "incidentsPortal": "教练门户与 API",
     "incidentsReports": "报表",
     "incidentsForm": "报告表单",
     "incidentsSteps": "自定义步骤",
     "incidentsTiming": "时限与截止期限",
     "incidentsDashboard": "仪表板",
-    "incidentsCategories": "类别"
+    "incidentsCategories": "类别",
+    "incidentsRecords": "记录保存"
   },
   "Header": {
     "dashboard": "仪表板",

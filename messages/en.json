@@ -62,13 +62,13 @@
     "incidentsRoles": "Roles & contacts",
     "incidentsRules": "Rules",
     "incidentsPacks": "Compliance packs",
-    "incidentsPortal": "Coach portal & API",
     "incidentsReports": "Reports",
     "incidentsForm": "Report form",
     "incidentsSteps": "Our own steps",
     "incidentsTiming": "Timing & deadlines",
     "incidentsDashboard": "Dashboard",
-    "incidentsCategories": "Categories"
+    "incidentsCategories": "Categories",
+    "incidentsRecords": "Keeping records"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -14440,12 +14440,6 @@
           "doneFact": "On: {names}",
           "todoFact": "None switched on. Optional, but recommended for personal-data incidents."
         },
-        "portal": {
-          "title": "Connect the coach portal",
-          "help": "Create a key, add the portal's address, and send the hand-off guide to whoever builds the portal. Try it with a test key first.",
-          "doneFact": "{count, plural, one {1 live key is active} other {# live keys are active}}",
-          "todoFact": "No live key yet. Coaches can still report from inside Halo."
-        },
         "form": {
           "title": "Check the report form",
           "help": "The three short screens a coach fills in. The built-in form works as it is; change it only if the school needs different questions.",
@@ -14534,27 +14528,6 @@
         "toldNobody": "The school office has it. Nobody has been told automatically yet.",
         "photoFailed": "Not added. Tell the school office."
       }
-    },
-    "portal": {
-      "title": "Coach portal & API",
-      "help": "Coaches report from the Vircle coach portal. The portal asks Halo for a one-time link, naming your school by its Vircle Group ID, and opens it for the coach. The connection is set up and kept by the Halo administrator; here you can see it, try a test report, and check what the portal has asked for.",
-      "loading": "Loading",
-      "linkTitle": "Your school's link to the coach portal",
-      "notLinked": "This school is not linked to a Vircle Group yet, so the coach portal cannot send reports here. Ask the Halo administrator to link it.",
-      "managedBy": "The Halo administrator manages the link, the key and the web addresses. To change them, ask the administrator.",
-      "groupId": "Vircle Group ID",
-      "on": "On",
-      "off": "Off",
-      "allowed": "Addresses allowed to show the report",
-      "noOrigins": "No address has been added yet, so the report page cannot be shown inside the coach portal. Ask the Halo administrator to add it.",
-      "addressNotSet": "The Halo address is not set on the server (NEXT_PUBLIC_SITE_URL), so report links cannot be built. Ask whoever runs the server to set it.",
-      "noTestKey": "The Halo administrator has not made a test key yet, so a test report cannot be opened.",
-      "testTitle": "Send a test report",
-      "testHelp": "Opens the report with made-up students under the platform's test key. A test report is marked TEST and tells only your admins.",
-      "testButton": "Open a test report",
-      "testOpen": "Open it in a new tab",
-      "callsTitle": "Recent calls from the portal",
-      "noCalls": "Nothing yet."
     },
     "retention": {
       "title": "Keeping records",
@@ -14944,7 +14917,13 @@
       "saved": "Saved",
       "guideTitle": "Hand-off guide",
       "guideHelp": "Copy this and send it to whoever builds the coach portal. It never contains a key.",
-      "copyGuide": "Copy the guide"
+      "copyGuide": "Copy the guide",
+      "testReport": "Open a test report",
+      "testReportHelp": "Opens the report page for this school with made-up students, under the test key. It is marked TEST and tells only that school's admins.",
+      "testOpen": "Open it in a new tab",
+      "callsTitle": "Recent calls from the portal",
+      "noCalls": "Nothing yet.",
+      "callSchool": "School"
     },
     "categories": {
       "title": "Categories",
@@ -14974,6 +14953,10 @@
       "usedByForm": "The coach report form files under it.",
       "delete": "Delete",
       "hideInstead": "It is in use, so it can only be hidden."
+    },
+    "records": {
+      "title": "Keeping records",
+      "help": "How long incidents are kept, and the tools to export and delete old ones. Export first: a deleted incident cannot be brought back."
     }
   }
 }

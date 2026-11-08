@@ -20,7 +20,7 @@ describe("the Incidents group", () => {
       "/incidents/setup/rules",
       "/incidents/setup/form",
       "/incidents/setup/categories",
-      "/incidents/setup/portal",
+      "/incidents/setup/records",
       "/incidents/setup/steps",
       "/incidents/setup/timing",
       "/settings?tab=incidents",
@@ -39,7 +39,7 @@ describe("the Incidents group", () => {
     expect(activeOn("/incidents/setup")).toEqual(["/incidents/setup"]);
     expect(activeOn("/incidents/setup/roles")).toEqual(["/incidents/setup/roles"]);
     expect(activeOn("/incidents/setup/rules")).toEqual(["/incidents/setup/rules"]);
-    expect(activeOn("/incidents/setup/portal")).toEqual(["/incidents/setup/portal"]);
+    expect(activeOn("/incidents/setup/records")).toEqual(["/incidents/setup/records"]);
     expect(activeOn("/incidents/setup/form")).toEqual(["/incidents/setup/form"]);
     expect(activeOn("/incidents/setup/categories")).toEqual(["/incidents/setup/categories"]);
     expect(activeOn("/incidents/setup/steps")).toEqual(["/incidents/setup/steps"]);

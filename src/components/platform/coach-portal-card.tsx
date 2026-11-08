@@ -34,11 +34,15 @@ interface PortalData {
   keys: PlatformKey[];
   schools: SchoolLink[];
   accounts: { id: string; name: string }[];
+  calls: { id: string; account_name: string | null; route: string; status: number; summary: string | null; created_at: string }[];
   address: string | null;
   guide: string;
 }
 
 const fieldClass = "h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+/** A school that is switched off cannot be tested. */
+const isOff = (s: SchoolLink) => !s.enabled;
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const t = useTranslations("IncidentPlatform.platformPortal");
@@ -159,6 +163,22 @@ export function CoachPortalCard() {
         </section>
 
         <section className="flex flex-col gap-2">
+          <h3 className="text-sm font-semibold">{t("callsTitle")}</h3>
+          {data.calls.length === 0 ? <p className="text-sm text-muted-foreground">{t("noCalls")}</p> : null}
+          <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
+            {data.calls.map((c) => (
+              <li key={c.id} className="flex items-center gap-3 px-4 py-2 text-xs">
+                <span className={cn("w-9 shrink-0 font-mono font-semibold", c.status >= 400 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>{c.status}</span>
+                <span className="w-28 shrink-0 truncate font-mono">{c.route}</span>
+                <span className="w-40 shrink-0 truncate" title={t("callSchool")}>{c.account_name ?? "-"}</span>
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">{c.summary}</span>
+                <span className="shrink-0 text-muted-foreground">{formatDistanceToNowStrict(new Date(c.created_at))}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <h3 className="mr-auto text-sm font-semibold">{t("guideTitle")}</h3>
             <CopyButton text={data.guide} label={t("copyGuide")} />
@@ -236,6 +256,7 @@ function SchoolRow({ school, accounts, onSaved }: { school: SchoolLink | null; a
   const [origins, setOrigins] = useState((school?.allowed_origins ?? []).join(", "));
   const [enabled, setEnabled] = useState(school?.enabled ?? true);
   const [saving, setSaving] = useState(false);
+  const [testUrl, setTestUrl] = useState<string | null>(null);
 
   const save = async () => {
     setSaving(true);
@@ -251,6 +272,12 @@ function SchoolRow({ school, accounts, onSaved }: { school: SchoolLink | null; a
       setEnabled(true);
     }
     await onSaved();
+  };
+  const openTest = async () => {
+    if (!school) return;
+    const res = await api<{ url: string }>("/api/platform/coach-portal/test-report", "POST", { group_id: school.group_id });
+    if (!res.ok) return void toast.error(res.error);
+    setTestUrl(res.data.url);
   };
   const remove = async () => {
     if (!school || !window.confirm(t("removeConfirm"))) return;
@@ -292,8 +319,11 @@ function SchoolRow({ school, accounts, onSaved }: { school: SchoolLink | null; a
           {saving ? <Loader2 className="animate-spin" /> : school ? null : <Plus />}
           {school ? t("saveSchool") : t("addSchool")}
         </Button>
+        {school ? <Button variant="outline" size="sm" onClick={() => void openTest()} disabled={isOff(school)}>{t("testReport")}</Button> : null}
+        {testUrl ? <a href={testUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary underline">{t("testOpen")}</a> : null}
         {school ? <Button variant="ghost" size="sm" className="ml-auto text-destructive" onClick={() => void remove()}><Trash2 />{t("removeSchool")}</Button> : null}
       </div>
+      {school ? <p className="mt-1 text-xs text-muted-foreground">{t("testReportHelp")}</p> : null}
     </div>
   );
 }
