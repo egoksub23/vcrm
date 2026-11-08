@@ -1,12 +1,18 @@
 # Incident platform: what was built, how to run it, what is uncertain
 
-Built overnight on the branch `incident-platform` (a git worktree at `C:\ClaudeWork\VircleCrm-incident`), from the spec "Incident Platform Spec v2.2".
-Nothing is pushed and nothing has been run against the production database. **Read the uncertainty log first.**
+Built on the branch `incident-platform` (a git worktree at `C:\ClaudeWork\VircleCrm-incident`), from the spec "Incident Platform Spec v2.2".
+
+**Status on 2026-11-08.** The branch is pushed to `origin/incident-platform` and deployed to the Halo VPS (`/opt/wacrm`, commit `dd4fba74` at the time of writing). Migrations 208 to 220 are applied on the Halo production database. It has not been merged to `main`: until it is, deploy with `git pull origin incident-platform`, not `main`. Unit and render tests pass; the screens were checked by the owner only in part (the Dashboard, Reports and the raise form). Not yet tried in a browser: Setup > Categories, and the Coach portal card in the operator console. The real coach-portal call test is parked. **Read the uncertainty log first.**
+
+**Where the documentation is**
+* In the app: the User Guide section **Incidents** (`content/help/incidents/`): overview, raise, manage, return to play, reports and registers, set up, coach reports. The screenshots for those pages are still to be captured (`content/help/_shotlist-4.json`).
+* For staff and administrators, in Word: `docs/Halo-Incident-Management-Usage-Manual.docx`.
+* For the coach portal's developer: `docs/incident-coach-portal.md`. For testing: `docs/incident-e2e-test.md`. For the security review: `docs/incident-security-review.md`.
 
 ## Run order on the Halo PostgreSQL (187.127.105.156)
 
 Migration 206 is already applied. Run these, in order, once, from `supabase/migrations/`. Each is idempotent (safe to run twice). Take a database backup first.
-208 to 217 were applied to the Halo production database on 2026-11-07 (209 failed once on `incidents.is_test` and was fixed by adding the column there). 218 is new and not yet applied. The SQL was written against the schema as read from the earlier migrations and checked by text tests only.
+208 to 217 were applied to the Halo production database on 2026-11-07 (209 failed once on `incidents.is_test` and was fixed by adding the column there). 218 to 220 were applied on 2026-11-08 (218 timing defaults, 219 the coach portal as a platform setting, 220 school-owned categories). The SQL was written against the schema as read from the earlier migrations and checked by text tests only.
 
 | # | File | Adds |
 | --- | --- | --- |

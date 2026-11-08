@@ -1,71 +1,85 @@
 ---
 title: Manage, escalate and close an incident
-description: Triage, classify and escalate an incident, track corrective actions, log external notifications, and close it out.
+description: Set the lead and status, work through the required steps, add notes and evidence, escalate, and close an incident.
 order: 3
-updated: 2026-09-28
+updated: 2026-11-08
 ---
 
-This page is for whoever triages incidents in your workspace — usually a **Compliance Officer**, an Admin or the Owner. If you only raise incidents, see [Raise an incident](/help/incidents/raise-an-incident) instead.
+This page is for whoever manages incidents at your school: Administrators, Owners, and anyone your school has given the permission. If you only raise incidents, see [Raise an incident](/help/incidents/raise-an-incident).
 
-## Classify and assign
+Open an incident from the Dashboard to see its full page.
 
-Open an incident to see its full record. You can set:
+![An open incident with its fields, required steps, timeline and evidence](/help/img/manage-escalate-and-close-01-detail.png)
 
-- **Type**, **Severity** and **Status** — change any of these from the fields at the top of the incident.
-- **Incident lead** — who is running the response. Unassigned by default.
+## The top of the page
 
-Every change is recorded in the incident's **Timeline**, with who made it and when.
+- The **reference**, the **status** and the **escalation level**.
+- Four fields you can change: **Severity**, **Status**, **Type** (category) and **Incident lead**. The lead is who is running the response.
+- **Involves**: click to see and change what the incident involves. Changing it adds or removes required steps.
+- **Escalate now**: raises the escalation level at once.
 
-![An open incident with its classification fields, escalation level and Actions panel](/help/img/manage-escalate-and-close-01-detail.png)
+Every change is recorded in the **Timeline** with who made it and when.
+
+## Required steps
+
+On the right, **Required steps** lists everything that must be done, each with a due time such as "due in 3 h" or "overdue by 1 d". Click **Mark done** when a step is complete, or **Mark open** to undo it. "2 of 5 open" shows how many are left.
+
+Steps are added when the incident is raised, and again if what it involves changes. They come from your school's compliance packs and its own steps. See [Set up Incidents](/help/incidents/set-up-incidents).
+
+> [!NOTE]
+> Your school may require certain things before an incident can move to a status, for example every required step done, a root cause written, a lead assigned, or someone's approval. If a move is refused, Halo says what is missing.
+
+## Notes, evidence and the timeline
+
+- Type in the box and click **Post** to add a note. Use **@name** to mention a colleague.
+- Click **Attach files** or **Upload evidence** to add photos, documents and screenshots.
+- The Timeline shows notes alongside everything that happened to the incident.
 
 ## Escalation
 
-Every incident has an **escalation level**, shown at the top of the record. If an incident is left unacknowledged (still **Reported**) past your workspace's timer for its severity, Vircle Halo escalates it automatically — bumping the level and notifying the next tier: the incident's watchers and lead first, then Admins, then the Owner. Escalation stops as soon as the incident moves out of **Reported**.
+Every incident has an escalation level from 1 to 3. If an incident stays at **Reported** too long, Halo raises the level on its own and tells more senior people. Your administrator sets how long. Click **Escalate now** to do it at once, for example when you want a second pair of eyes.
 
-Click **Escalate now** at any time to escalate immediately, for example when you want a second pair of eyes without waiting for the clock. A manual escalation is recorded in the Timeline the same as an automatic one.
+## Other panels
 
-## Corrective actions
+These appear only when they apply:
 
-The **Actions** panel tracks the corrective and preventive actions that come out of a post-incident review (PIR):
-
-1. Click **Add action**.
-2. Describe **what needs to be done**, and optionally set an **owner** and a **due date**.
-3. Click **Save**.
-4. Click **Mark done** once it is finished — the button becomes **Mark open** if you need to reopen it.
+| Panel | What it is |
+|---|---|
+| **Report answers** | For a coach portal report: who reported it, the activity, the students named and the answers. |
+| **Approvals** | Appears when your school requires approval. The named person clicks **Approve** or **Do not approve** (a reason is needed if not approved). |
+| **Return to play** | For the school nurse. See [Return to play](/help/incidents/return-to-play). |
+| **Message log** | Who was told, by what route, and whether it was delivered or failed. |
+| **Actions and Notifications sent** | Folded until needed. **Actions** are corrective actions with an owner and due date. **Log a notification** records an outside notification someone has already sent. |
 
 ## Log external notifications
 
-If your Compliance Officer or CEO notifies Bank Negara Malaysia, your sponsor e-money issuer, a partner, the PDP Commissioner, affected data subjects, the police, or anyone else outside the company, click **Log a notification** on the incident to record it — who was notified, when, how, and a reference if there is one.
+If someone tells the police, the education office, the ministry, the PDP Commissioner, parents or anyone else outside the school, open **Actions and Notifications sent** and click **Log a notification**. Record who was told, when, how, and a reference if there is one.
 
 > [!IMPORTANT]
-> Vircle Halo never sends this notification for you. Logging one only records that a person already sent it through the proper channel — it is your audit trail, not a delivery mechanism.
-
-## Timeline
-
-The **Timeline** is a running log of everything that happened to the incident: created, status/severity/type changes, the incident lead being set, escalations and closure — each with who did it and when.
+> Halo never sends these notifications. Logging one only records that a person already sent it. It is your audit trail, not a way to send.
 
 ## Close an incident
 
-Once the response is finished, move the incident's status to **Closed** and record a **root cause**. Closing an incident does not delete anything from its Timeline, Actions or Notifications sent — the full record stays for audit.
+1. Check the required steps are done.
+2. Write the root cause if your school asks for one.
+3. Set the status to **Closed**.
 
-## The Compliance Officer role
-
-**Compliance Officer** is not a built-in role — it is a role your Owner or Admin sets up once for your workspace, using the custom roles feature under **Settings**, **Roles & permissions**. It is typically based on the Agent role with the ability to manage incidents added on top, so someone can triage, escalate and close incidents without being made a full CRM Admin. If you think you should be able to manage incidents but cannot, ask your Owner or Admin to check whether you have been added to this role.
+Closing deletes nothing: the timeline, steps, notes, evidence and message log stay for audit. A closed incident cannot be deleted from its page; your administrator can remove old closed incidents in bulk, after exporting them, under Keeping records.
 
 ## Tips
 
-- Triage quickly, even if classification is incomplete — a status of Triaged with "impact figures pending" is more useful than leaving something sitting at Reported.
-- Use Escalate now sparingly for genuine urgency; let the automatic timers do the routine work.
-- Write the root cause for the reader six months from now, not just for yourself today.
+- Set a lead early, even before everything is classified.
+- Use Escalate now sparingly and let the timers do routine work.
+- Write the root cause for the reader six months from now.
 
 ## Common mistakes
 
-- **Downgrading a severity without a reason.** Always leave a note — the record should explain itself later.
-- **Assuming "Log a notification" sends the notification.** It only records one that a person already sent.
-- **Closing an incident before its corrective actions are done.** Actions can stay open after closure if needed, but check the list first.
+- **Assuming Log a notification sends the notice.** It only records one.
+- **Closing before the steps are done.** Check the list first.
+- **Raising a new incident for an update.** Add a note instead.
 
 ## Related pages
 
 - [Incidents overview](/help/incidents/incidents-overview)
-- [Raise an incident](/help/incidents/raise-an-incident)
-- [Roles and permissions](/help/getting-started/roles-and-permissions)
+- [Return to play](/help/incidents/return-to-play)
+- [Set up Incidents](/help/incidents/set-up-incidents)

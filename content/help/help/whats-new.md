@@ -2,10 +2,21 @@
 title: What's new
 description: The changes in each release that you will notice when you work, newest first.
 order: 2
-updated: 2026-09-28
+updated: 2026-11-08
 ---
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
+
+## 8 November 2026 — Incidents: one Dashboard, simpler forms, your own categories
+
+- **One Dashboard.** Overview, All incidents and Return to play are now a single page. Four number tiles (open, need action now, required steps overdue, not yet acknowledged) each filter the list when you click them. Filter by status, category, severity, what the incident involves, lead, **Mine**, student name and dates, and switch between **Board** and **List**. The filters stay in the web address so you can send a view to a colleague. See [Incidents overview](/help/incidents/incidents-overview).
+- **A shorter Raise Incident form.** Title, what happened, category and severity. What the incident involves is one line until you open it, and the school template no longer asks how it was detected. See [Raise an incident](/help/incidents/raise-an-incident).
+- **A calmer incident page.** Status reads in words, the category shows its name, and the corrective actions and notices sent are folded until needed. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).
+- **Your own categories.** Make your school's own copy of the template, then add, rename or hide categories. See [Set up Incidents](/help/incidents/set-up-incidents).
+- **Roles can be renamed**, including the built-in ones, and the acknowledgement wait and the built-in step deadlines can be changed under **Timing & deadlines**.
+- **Reports** now has two tabs, **Trends** and **Registers**. See [Reports and registers](/help/incidents/reports-and-registers).
+- **Return to play** for the school nurse, and **Reports from the coach portal**, have their own pages. See [Return to play](/help/incidents/return-to-play) and [Reports from the coach portal](/help/incidents/coach-reports).
+- **Fixes.** Reports no longer shows "Internal server error", and the Return to play list now shows students correctly.
 
 ## 28 September 2026 — Sembang: richer tasks, unfurled files and links
 
