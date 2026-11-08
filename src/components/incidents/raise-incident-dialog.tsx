@@ -165,7 +165,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
           description: description.trim() || undefined,
           incidentType,
           severity: effectiveSeverity,
-          detectionSource,
+          detectionSource: isBnm ? detectionSource : "staff",
           flags,
         }),
       });
@@ -271,7 +271,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t("whatHappenedPlaceholder")}
-                rows={8}
+                rows={4}
                 disabled={busy}
                 className="resize-y bg-muted text-[13.5px] leading-relaxed"
               />
@@ -331,7 +331,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
             ) : null}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={cn("grid gap-4", isBnm && "sm:grid-cols-2")}>
             <div className="space-y-2">
               <Label className="text-foreground">{t("typeLabel")}</Label>
               <Select value={incidentType} onValueChange={(v) => chooseType(v ?? "")}>
@@ -341,12 +341,13 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                 <SelectContent>
                   {types.map((ty) => (
                     <SelectItem key={ty.code} value={ty.code}>
-                      {ty.code} — {ty.name}
+                      {isBnm ? `${ty.code} — ${ty.name}` : ty.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            {isBnm ? (
             <div className="space-y-2">
               <Label className="text-foreground">{t("detectedLabel")}</Label>
               <Select value={detectionSource} onValueChange={(v) => setDetectionSource(v as IncidentDetectionSource)}>
@@ -362,6 +363,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                 </SelectContent>
               </Select>
             </div>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -406,10 +408,12 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
           </div>
 
           {showFlags ? (
-            <div className="space-y-2">
-              <Label className="text-foreground">
-                {t("flagsLabel")} <span className="font-normal text-muted-foreground">{t("flagsHint")}</span>
-              </Label>
+            <details className="group space-y-2">
+              <summary className="cursor-pointer list-none text-sm font-medium text-foreground marker:hidden">
+                {t("flagsLabel")} <span className="font-normal text-muted-foreground">({flags.length})</span>
+                <span className="ml-1 text-xs font-normal text-primary group-open:hidden">▸</span>
+              </summary>
+              <p className="text-xs text-muted-foreground">{t("flagsHint")}</p>
               <div className="flex flex-wrap gap-2">
                 {INCIDENT_FLAGS.map((flag) => (
                   <button
@@ -444,7 +448,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                   </ul>
                 </div>
               ) : null}
-            </div>
+            </details>
           ) : null}
         </div>
 

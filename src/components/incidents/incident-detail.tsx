@@ -133,6 +133,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const tRecord = useTranslations("IncidentPlatform.record");
   const tActivity = useTranslations("Incidents.detail.activity");
   const tFlags = useTranslations("Incidents.flags");
+  const tStatus = useTranslations("Incidents.common.status");
   const { user } = useAuth();
   const { members, nameOf, profileOf } = useAccountMembers();
   const canManage = useCapability("incidents.manage");
@@ -440,12 +441,12 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             {canManage ? (
               <Select value={incident.status} onValueChange={(v) => void patch({ status: v as IncidentStatus })}>
                 <SelectTrigger className="h-8 w-full bg-muted text-xs">
-                  <SelectValue />
+                  <SelectValue>{tStatus(incident.status)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {INCIDENT_STATUSES.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s}
+                      {tStatus(s)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -458,18 +459,18 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             {canManage ? (
               <Select value={incident.incident_type} onValueChange={(v) => void patch({ incident_type: v ?? incident.incident_type })}>
                 <SelectTrigger className="h-8 w-full bg-muted text-xs">
-                  <SelectValue />
+                  <SelectValue>{typeOptions.find((ty) => ty.code === incident.incident_type)?.label ?? incident.incident_type}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {typeOptions.map((ty) => (
                     <SelectItem key={ty.code} value={ty.code}>
-                      {ty.code} — {ty.label}
+                      {hasBnmForms ? `${ty.code} — ${ty.label}` : ty.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
-              <span className="text-xs text-muted-foreground">{incident.incident_type}</span>
+              <span className="text-xs text-muted-foreground">{typeOptions.find((ty) => ty.code === incident.incident_type)?.label ?? incident.incident_type}</span>
             )}
           </Field>
           <Field label={t("fieldLead")}>
@@ -499,8 +500,11 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         </div>
 
         {canManage || incident.incident_flags.length > 0 ? (
-          <div className="mt-4">
-            <p className="mb-1.5 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">{t("involves")}</p>
+          <details className="group mt-4" open={!canManage}>
+            <summary className="mb-1.5 cursor-pointer list-none text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase marker:hidden">
+              {t("involves")} ({incident.incident_flags.length})
+              <span className="ml-1 text-primary group-open:hidden">▸</span>
+            </summary>
             <div className="flex flex-wrap gap-1.5">
               {(canManage ? INCIDENT_FLAGS : INCIDENT_FLAGS.filter((f) => incident.incident_flags.includes(f))).map((flag) => {
                 const on = incident.incident_flags.includes(flag);
@@ -522,7 +526,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                 );
               })}
             </div>
-          </div>
+          </details>
         ) : null}
       </div>
 
@@ -661,21 +665,29 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
 
           {canManage ? <MessageLogPanel incidentId={incident.id} canManage={canManage} /> : null}
 
-          <ActionsPanel
-            incidentId={incident.id}
-            rows={actions}
-            canManage={canManage}
-            onAdded={(row) => setActions((prev) => [...prev, row])}
-            onChanged={(row) => setActions((prev) => prev.map((a) => (a.id === row.id ? row : a)))}
-          />
+          <details className="group rounded-xl border border-border bg-card" open={actions.length + notificationsSent.length > 0}>
+            <summary className="cursor-pointer list-none px-4 py-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase marker:hidden">
+              {t("actions.title")}{canManage ? ` · ${t("notificationsSent.title")}` : ""} ({actions.length + (canManage ? notificationsSent.length : 0)})
+              <span className="ml-1 text-primary group-open:hidden">▸</span>
+            </summary>
+            <div className="flex flex-col gap-4 p-2 pt-0">
+              <ActionsPanel
+                incidentId={incident.id}
+                rows={actions}
+                canManage={canManage}
+                onAdded={(row) => setActions((prev) => [...prev, row])}
+                onChanged={(row) => setActions((prev) => prev.map((a) => (a.id === row.id ? row : a)))}
+              />
 
-          {canManage ? (
-            <NotificationsSentPanel
-              incidentId={incident.id}
-              rows={notificationsSent}
-              onAdded={(row) => setNotificationsSent((prev) => [row, ...prev])}
-            />
-          ) : null}
+              {canManage ? (
+                <NotificationsSentPanel
+                  incidentId={incident.id}
+                  rows={notificationsSent}
+                  onAdded={(row) => setNotificationsSent((prev) => [row, ...prev])}
+                />
+              ) : null}
+            </div>
+          </details>
         </div>
       </div>
 

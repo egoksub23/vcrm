@@ -7957,7 +7957,7 @@
   "Incidents": {
     "list": {
       "pageTitle": "Incident Reporting",
-      "pageDesc": "The Security Incident Register — report, triage and track incidents through to closure.",
+      "pageDesc": "Report, track and close incidents, from the first report to the final review.",
       "raiseIncident": "Raise Incident",
       "searchPlaceholder": "Search incidents…",
       "colKey": "Key",

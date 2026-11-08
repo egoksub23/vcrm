@@ -7957,7 +7957,7 @@
   "Incidents": {
     "list": {
       "pageTitle": "인시던트 리포팅",
-      "pageDesc": "보안 인시던트 등록부 — 인시던트를 신고, 분류하고 종료까지 추적합니다.",
+      "pageDesc": "사고를 보고하고 추적하고 종결합니다. 첫 보고부터 최종 검토까지.",
       "raiseIncident": "인시던트 등록",
       "searchPlaceholder": "인시던트 검색…",
       "colKey": "번호",
