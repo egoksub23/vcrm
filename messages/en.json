@@ -67,7 +67,8 @@
     "incidentsForm": "Report form",
     "incidentsSteps": "Our own steps",
     "incidentsTiming": "Timing & deadlines",
-    "incidentsDashboard": "Dashboard"
+    "incidentsDashboard": "Dashboard",
+    "incidentsCategories": "Categories"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -14944,6 +14945,35 @@
       "guideTitle": "Hand-off guide",
       "guideHelp": "Copy this and send it to whoever builds the coach portal. It never contains a key.",
       "copyGuide": "Copy the guide"
+    },
+    "categories": {
+      "title": "Categories",
+      "pageHelp": "The kinds of incident your school raises, such as a sports injury or a data breach. Add your own, rename them, or hide the ones you do not use.",
+      "loading": "Loading",
+      "sharedTitle": "Your school uses the shared template: {name}",
+      "sharedHelp": "The built-in template is shared by every school, so it cannot be changed. Make your school's own copy to add, rename or hide categories. It starts as an exact copy, and incidents already raised keep the categories they have.",
+      "makeCopy": "Make our own copy",
+      "copied": "Your school's own copy is ready.",
+      "deleted": "Category deleted.",
+      "listLabel": "Categories",
+      "ownHelp": "This is your school's own copy of {name}. Changes here affect new incidents; incidents already raised keep their category.",
+      "newName": "Add a category",
+      "newPlaceholder": "For example: Lab safety",
+      "add": "Add",
+      "name": "Category name",
+      "startsAt": "Starts at",
+      "noDefault": "No default",
+      "hiddenBadge": "Hidden",
+      "hide": "Hide",
+      "show": "Show",
+      "more": "More",
+      "description": "Description (shown to the person raising the incident)",
+      "involves": "What it usually involves",
+      "involvesHelp": "Ticked items are pre-selected when someone raises this kind of incident, and decide which required steps apply.",
+      "usedBy": "Used by {incidents, plural, one {# incident} other {# incidents}} and {rules, plural, one {# notification rule} other {# notification rules}}.",
+      "usedByForm": "The coach report form files under it.",
+      "delete": "Delete",
+      "hideInstead": "It is in use, so it can only be hidden."
     }
   }
 }

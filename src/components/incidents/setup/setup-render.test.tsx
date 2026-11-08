@@ -27,6 +27,7 @@ import { RolesView, type DirectoryResponse } from "./roles-screen";
 import { RulesView, RulesScreen, makeNamer, type RulesResponse } from "./rules-screen";
 import { SetupGuide } from "./setup-guide";
 import { TimingView, type TimingData, type TimingStep } from "./timing-screen";
+import { CategoriesView, type CategoriesData } from "./categories-screen";
 import { RuleEditor } from "./rule-editor";
 import { Canvas, FieldSettings, FormBuilder, Palette, Versions, type FormData } from "./form-builder";
 import { CCA_FORM } from "@/lib/incidents/intake/form-schema";
@@ -226,5 +227,40 @@ describe("timing and deadlines", () => {
   });
   it("says so when no built-in pack is switched on", () => {
     expect(render(<TimingView data={data({ packs: [] })} onSaveAck={noop} onSaveStep={noop} />)).toContain("No built-in compliance packs are switched on");
+  });
+});
+
+describe("the Categories screen", () => {
+  const usage = { incidents: 0, rules: 0, forms: 0 };
+  const row = (id: string, name: string, over: Partial<CategoriesData["categories"][number]> = {}) => ({ id, code: id.toUpperCase(), name, description: null, default_severity: "high", default_flags: ["injury"], is_hidden: false, position: 1, usage, ...over });
+  const data = (ownCopy: boolean): CategoriesData => ({
+    template: { id: "t1", name: "School Incident Management", ownCopy },
+    severities: [{ slug: "critical", label: "Critical" }, { slug: "high", label: "High" }],
+    categories: [row("cca", "CCA / sports injury", { usage: { incidents: 3, rules: 1, forms: 1 } }), row("lab", "Lab safety"), row("old", "Old category", { is_hidden: true })],
+  });
+  const view = (d: CategoriesData) => render(<CategoriesView data={d} busy={false} onCopy={() => {}} onAdd={async () => {}} onPatch={async () => {}} onDelete={async () => {}} />);
+
+  it("offers a copy of the shared template and cannot edit it", () => {
+    const html = view(data(false));
+    expect(html).toContain("Your school uses the shared template: School Incident Management");
+    expect(html).toContain("Make our own copy");
+    expect(html).toContain("CCA / sports injury");
+    expect(html).not.toContain("Add a category");
+  });
+  it("lets a school's own copy be edited: names, a starting severity, hide or show, an add box", () => {
+    const html = view(data(true));
+    expect(html).toContain("Add a category");
+    expect(html).toContain("Starts at");
+    expect(html).toContain(">Hide<");
+    expect(html).toContain(">Show<"); // the hidden one
+    expect(html).toContain("Hidden");
+    expect(html).not.toContain("Make our own copy");
+  });
+  it("deletes only a category nothing uses, and says what uses the others", () => {
+    const html = view(data(true));
+    expect(html).toContain("Used by 3 incidents and 1 notification rule.");
+    expect(html).toContain("The coach report form files under it.");
+    expect(html).toContain("It is in use, so it can only be hidden.");
+    expect((html.match(/>Delete</g) ?? []).length).toBe(2); // Lab safety and the hidden Old category are unused
   });
 });

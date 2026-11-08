@@ -339,7 +339,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                   <SelectValue placeholder={t("typePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {types.map((ty) => (
+                  {types.filter((ty) => !ty.is_hidden).map((ty) => (
                     <SelectItem key={ty.code} value={ty.code}>
                       {isBnm ? `${ty.code} — ${ty.name}` : ty.name}
                     </SelectItem>

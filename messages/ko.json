@@ -67,7 +67,8 @@
     "incidentsForm": "보고 양식",
     "incidentsSteps": "자체 필수 단계",
     "incidentsTiming": "시간 및 기한",
-    "incidentsDashboard": "대시보드"
+    "incidentsDashboard": "대시보드",
+    "incidentsCategories": "분류"
   },
   "Header": {
     "dashboard": "대시보드",

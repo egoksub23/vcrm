@@ -120,13 +120,17 @@ export async function POST(request: Request) {
 
     const { data: typeRow } = await ctx.supabase
       .from("incident_type_catalogue")
-      .select("id, default_flags")
+      .select("id, default_flags, is_hidden")
       .eq("standard_id", standardId)
       .eq("code", incidentType)
       .maybeSingle();
 
     if (!typeRow) {
       return NextResponse.json({ error: "'incidentType' is not a recognized incident type" }, { status: 400 });
+    }
+    // A category the school has hidden is not offered any more (the coach portal's report form still files under it).
+    if ((typeRow as { is_hidden?: boolean }).is_hidden === true) {
+      return NextResponse.json({ error: "That category is not available any more. Pick another." }, { status: 400 });
     }
 
     const { data: levels } = await ctx.supabase

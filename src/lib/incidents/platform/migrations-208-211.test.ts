@@ -217,6 +217,19 @@ describe("migration 217 (events to the portal)", () => {
   });
 });
 
+describe("migration 220 (a school's own categories)", () => {
+  const m220 = readMigration("220_incident_school_categories.sql").replace(/\r\n/g, "\n");
+  it("lets a category be hidden without deleting it, and remembers what a copy was made from", () => {
+    expect(m220).toContain("ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT FALSE;");
+    expect(m220).toContain("ADD COLUMN IF NOT EXISTS copied_from UUID REFERENCES public.incident_standards(id) ON DELETE SET NULL;");
+  });
+  it("allows one school-owned template per school, and still refuses a school-owned built-in", () => {
+    expect(m220).toContain("uq_incident_standards_account_template ON public.incident_standards (account_id) WHERE account_id IS NOT NULL AND kind = 'template'");
+    expect(m220).toContain("IF NEW.account_id IS NOT NULL AND NEW.is_system THEN");
+    expect(m220).not.toContain("NEW.kind <> 'framework'");
+  });
+});
+
 describe("migration 219 (the coach portal as one platform integration)", () => {
   const m219 = readMigration("219_incident_portal_platform.sql").replace(/\r\n/g, "\n");
   it("lets a key belong to the platform, and retires the keys schools made under the old design", () => {

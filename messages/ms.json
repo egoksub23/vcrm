@@ -67,7 +67,8 @@
     "incidentsForm": "Borang laporan",
     "incidentsSteps": "Langkah sendiri",
     "incidentsTiming": "Masa & tarikh akhir",
-    "incidentsDashboard": "Papan pemuka"
+    "incidentsDashboard": "Papan pemuka",
+    "incidentsCategories": "Kategori"
   },
   "Header": {
     "dashboard": "Papan pemuka",

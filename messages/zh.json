@@ -67,7 +67,8 @@
     "incidentsForm": "报告表单",
     "incidentsSteps": "自定义步骤",
     "incidentsTiming": "时限与截止期限",
-    "incidentsDashboard": "仪表板"
+    "incidentsDashboard": "仪表板",
+    "incidentsCategories": "类别"
   },
   "Header": {
     "dashboard": "仪表板",

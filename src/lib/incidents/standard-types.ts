@@ -31,6 +31,8 @@ export interface IncidentTypeCatalogueEntry {
   notifiable: boolean;
   /** Flags a new incident of this type starts with (see INCIDENT_FLAGS). */
   default_flags: string[];
+  /** A category the school has hidden (migration 220): not offered when raising an incident, still known everywhere else. */
+  is_hidden?: boolean;
   position: number;
 }
 
