@@ -2,10 +2,17 @@
 title: What's new
 description: The changes in each release that you will notice when you work, newest first.
 order: 2
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
+
+## 9 November 2026 — Incidents: report for filing, injury details, a Reports page that says what to do
+
+- **Report for filing.** When an incident is closed, **Generate report** makes a PDF of the whole incident: who reported it, the details, the people named, the pictures, every action and notice until it was closed, and a sign-off block. It is kept with the incident and can be downloaded again. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).
+- **Injury details on Raise Incident.** The **Incident type** now comes first. For an injury type the form also asks who was hurt, the activity and where, the date and time, where on the body, and whether the head was hit. See [Raise an incident](/help/incidents/raise-an-incident).
+- **A Reports page that says what to do.** Reports now opens with what needs attention (overdue steps, nobody acknowledged, a student or place that keeps coming up), each with a link to the incidents behind it, then the numbers. Categories show their names. See [Reports and registers](/help/incidents/reports-and-registers).
+- **Plainer wording.** The school starter steps no longer say they follow a ministry policy. They are Halo's own suggestions; replace them with your school's procedures.
 
 ## 8 November 2026 — Incidents: one Dashboard, simpler forms, your own categories
 

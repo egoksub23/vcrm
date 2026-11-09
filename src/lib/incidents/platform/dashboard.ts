@@ -127,7 +127,9 @@ export function applyFilters(rows: readonly Incident[], f: DashboardFilters, ctx
     if (f.from && day < f.from) return false;
     if (f.to && day > f.to) return false;
     if (student && !(ctx.involved[r.id] ?? []).some((s) => s.name.toLowerCase().includes(student))) return false;
-    if (q && !r.title.toLowerCase().includes(q) && !incidentKey(r).toLowerCase().includes(q)) return false;
+    // Search matches the title, the reference, and the activity or place it happened at.
+    const where = (r as { activity?: { name?: string; venue?: string } | null }).activity;
+    if (q && !r.title.toLowerCase().includes(q) && !incidentKey(r).toLowerCase().includes(q) && !`${where?.name ?? ""} ${where?.venue ?? ""}`.toLowerCase().includes(q)) return false;
     return true;
   });
 }

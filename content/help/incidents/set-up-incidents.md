@@ -88,10 +88,10 @@ Under **Settings, Incidents, Standards** you choose the template and switch pack
 | **PDPA Malaysia** | Assess whether a personal data breach is notifiable (24 hours); notify the PDP Commissioner if it is (72 hours); inform the people affected. |
 | **ISO/IEC 27035** | Steps for information security incidents. |
 | **ISO 45001** | Injury handling: first aid, next of kin, root cause, corrective actions. |
-| **School policy (starter)** | Inform the principal (2 hours); report to the education office or ministry if required (24 hours); follow the child-protection procedure (24 hours). |
+| **School steps (starter)** | Inform the principal (2 hours); report to the education authority if your school's policy requires it (24 hours); follow your child-protection procedure (24 hours). |
 
 > [!IMPORTANT]
-> The school-policy pack is a starter. Its wording and hours are placeholders. Have school leadership confirm which incidents you must report to the ministry or education office, and by when, then adjust the hours under Timing & deadlines. Confirm the PDPA wording with your data protection officer too.
+> The school steps pack is Halo's own starting checklist. It is not based on a ministry or education-office policy, and the hours are suggestions. Replace the wording and hours with your school's own procedures under Timing & deadlines, and ask school leadership which incidents your school must report outside, and by when. Confirm the PDPA wording with your data protection officer too.
 
 ## Keeping records
 

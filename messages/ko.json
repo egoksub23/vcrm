@@ -8039,7 +8039,30 @@
       "typeRequired": "인시던트 유형을 선택해 주세요.",
       "createFailed": "인시던트를 등록하지 못했습니다.",
       "created": "{key} 신고됨",
-      "open": "열기"
+      "open": "열기",
+      "injury": {
+        "title": "부상 세부 정보",
+        "who": "누가 다쳤나요?",
+        "whoName": "이름",
+        "whoClass": "반",
+        "addPerson": "다른 사람 추가",
+        "removePerson": "이 사람 삭제",
+        "activity": "활동",
+        "activityPlaceholder": "축구, 넷볼, 수영…",
+        "where": "장소",
+        "wherePlaceholder": "운동장 1, 강당, 수영장…",
+        "date": "날짜",
+        "time": "시간",
+        "body": "어디를 다쳤나요?",
+        "body_head": "머리 또는 얼굴",
+        "body_arm": "팔 또는 손",
+        "body_leg": "다리 또는 발",
+        "body_back": "등 또는 목",
+        "body_other": "다른 부위",
+        "head": "학생이 머리를 부딪혔거나 어지러워하거나 혼란스러워 보였나요?",
+        "yes": "예",
+        "no": "아니요"
+      }
     },
     "detail": {
       "back": "인시던트 목록으로",

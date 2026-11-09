@@ -126,6 +126,8 @@ const nextConfig: NextConfig = {
     // Doc Sign's PDF engine reads its fonts from disk (src/lib/sign/pdf/assets) when it stamps and seals.
     "/api/sign/**/*": ["./src/lib/sign/pdf/assets/**/*", "./src/lib/sign/addons/**/*"],
     "/api/v1/sign/**/*": ["./src/lib/sign/pdf/assets/**/*"],
+    // The filed incident report (PDF) reuses the same fonts.
+    "/api/incidents/**/*": ["./src/lib/sign/pdf/assets/**/*"],
   },
 
   /**

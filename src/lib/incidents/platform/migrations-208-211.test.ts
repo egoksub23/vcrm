@@ -254,3 +254,27 @@ describe("migration 219 (the coach portal as one platform integration)", () => {
     expect(m219).toContain("EXECUTE FUNCTION public.update_updated_at_column();");
   });
 });
+
+describe("migration 221 (filed incident reports, and honest wording for the school starter steps)", () => {
+  const m221 = readMigration("221_incident_filed_reports.sql").replace(/\r\n/g, "\n");
+  it("links each filed report to its incident, one version after another", () => {
+    expect(m221).toContain("incident_id        UUID        NOT NULL REFERENCES public.incidents(id) ON DELETE CASCADE");
+    expect(m221).toContain("UNIQUE (incident_id, version)");
+    expect(m221).toContain("storage_path       TEXT        NOT NULL");
+  });
+  it("lets people who may export read and add reports, and lets nobody edit or delete one", () => {
+    expect(m221).toContain("FOR SELECT USING (has_capability(account_id, 'incidents.export'))");
+    expect(m221).toContain("FOR INSERT WITH CHECK (has_capability(account_id, 'incidents.export') AND generated_by = auth.uid())");
+    expect(m221).not.toMatch(/CREATE POLICY \w+ ON public\.incident_filed_reports FOR (UPDATE|DELETE|ALL)/);
+  });
+  it("refuses a report for an incident that is not closed, or that belongs to another school", () => {
+    expect(m221).toContain("IF v_status IS DISTINCT FROM 'closed' THEN");
+    expect(m221).toContain("IF v_account IS DISTINCT FROM NEW.account_id THEN");
+  });
+  it("no longer says a ministry stands behind the school starter steps", () => {
+    const updates = m221.slice(m221.indexOf("-- Wording:"));
+    expect(updates).toContain("name = 'School steps (starter)'");
+    expect(updates).not.toMatch(/Ministry of Education'\s*,/);
+    expect(updates).toContain("not an official requirement");
+  });
+});

@@ -10,7 +10,7 @@ Incidents is where your school records anything that goes wrong, or nearly does:
 It is separate from Tickets (customer follow-ups) and from Sembang (your team's chat). Use Incidents when something needs a formal record.
 
 > [!NOTE]
-> Incidents records and tracks, and tells the right people. It does not notify the police, the education office, the ministry, the PDP Commissioner or parents on its own. A person still sends those, and you can [log that it was done](/help/incidents/manage-escalate-and-close).
+> Incidents records and tracks, and tells the right people. It does not notify the police, the education authority, the PDP Commissioner or parents on its own. A person still sends those, and you can [log that it was done](/help/incidents/manage-escalate-and-close).
 
 ## Who can see and do what
 

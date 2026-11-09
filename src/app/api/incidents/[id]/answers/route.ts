@@ -3,8 +3,7 @@
 import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
-import { answerLines } from "@/lib/incidents/intake/answers-view";
-import { CCA_FORM, type FormSchema } from "@/lib/incidents/intake/form-schema";
+import { loadAnswerLines } from "@/lib/incidents/platform/evidence-doc";
 import { createAdminPgDb } from "@/lib/postgres/db";
 
 type Params = { params: Promise<{ id: string }> };
@@ -16,13 +15,9 @@ export async function GET(_request: Request, { params }: Params) {
     const { data } = await ctx.supabase.from("incidents").select("id, source, form_version, custom_fields, reporter_name, reporter_email, reporter_phone, activity").eq("id", id).eq("account_id", ctx.accountId).maybeSingle();
     const inc = data as { id: string; source: string; form_version: number | null; custom_fields: Record<string, unknown> | null; reporter_name: string | null; reporter_email: string | null; reporter_phone: string | null; activity: { name?: string; venue?: string; date?: string } | null } | null;
     if (!inc) return NextResponse.json({ error: "Incident not found." }, { status: 404 });
-    if (inc.source === "halo") return NextResponse.json({ available: false });
+    if (inc.source === "halo" && Object.keys(inc.custom_fields ?? {}).length === 0) return NextResponse.json({ available: false });
 
-    let schema: FormSchema = CCA_FORM;
-    if (inc.form_version != null) {
-      const { data: v } = await createAdminPgDb().from("incident_form_versions").select("schema").eq("account_id", ctx.accountId).eq("form_key", "cca").eq("version", inc.form_version).maybeSingle();
-      if (v) schema = (v as { schema: FormSchema }).schema;
-    }
+    const lines = await loadAnswerLines(createAdminPgDb(), ctx.accountId, inc);
     const people = await ctx.supabase.from("incident_involved").select("name, class_name, involvement, guardians").eq("incident_id", id);
     return NextResponse.json({
       available: true,
@@ -30,7 +25,7 @@ export async function GET(_request: Request, { params }: Params) {
       formVersion: inc.form_version,
       reporter: { name: inc.reporter_name, email: inc.reporter_email, phone: inc.reporter_phone },
       activity: inc.activity,
-      lines: answerLines(schema, inc.custom_fields ?? {}),
+      lines: lines ?? [],
       people: ((people.data ?? []) as { name: string; class_name: string | null; involvement: string; guardians: { email?: string; phone?: string }[] | null }[]).map((p) => ({
         name: p.name,
         class_name: p.class_name,

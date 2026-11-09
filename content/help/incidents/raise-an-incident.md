@@ -2,7 +2,7 @@
 title: Raise an incident
 description: Report an incident in about a minute. What to fill in now and what can wait.
 order: 2
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 
 Anyone can raise an incident. Add what you know now. Anything unclear can be added later as a note.
@@ -10,13 +10,26 @@ Anyone can raise an incident. Add what you know now. Anything unclear can be add
 ## Report what you know
 
 1. Click **Raise Incident** (the red button, top right of the Dashboard).
-2. Type a short **Title**, a one-line summary. For example "Student fell during football practice".
-3. Under **What happened?**, write what you saw, when and where, and who was involved. Write facts, not theories.
-4. Choose the **Incident type** (the category). If nothing fits, choose **Other**.
-5. Check the **Severity**. It is your best guess; the incident team confirms it.
-6. Click **Submit report**.
+2. Choose the **Incident type** (the category) first. If nothing fits, choose **Other**. The type decides what else the form asks.
+3. Type a short **Title**, a one-line summary. For example "Student fell during football practice".
+4. Under **What happened?**, write what you saw, when and where, and who was involved. Write facts, not theories.
+5. For an injury type, fill in the **Injury details** box (below).
+6. Check the **Severity**. It is your best guess; the incident team confirms it.
+7. Click **Submit report**.
 
-![The Raise Incident form with title, what happened, incident type and severity](/help/img/raise-an-incident-01-dialog.png)
+![The Raise Incident form with incident type first, then title, what happened and severity](/help/img/raise-an-incident-01-dialog.png)
+
+## Injury details
+
+When the type is an injury, such as a CCA or sports injury, the form adds an **Injury details** box. It asks the same questions as the coach report form, so an injury reads the same whoever raised it.
+
+- **Who was hurt?** Type the name and class. Click **Add another person** if more than one student was hurt.
+- **Activity** and **Where?** For example "Football" and "Field 1".
+- **Date** and **Time**. They start as today and now. Change them if the injury happened earlier.
+- **Where was the injury?** Head or face, arm or hand, leg or foot, back or neck, or somewhere else.
+- **Did the student hit their head, or seem dazed or confused?** Choose **Yes** if there is any doubt. Halo then marks a possible concussion and tells the school nurse.
+
+Everything in the box is optional. Add what you know now; you can add a note later for the rest.
 
 You will see a confirmation with the incident reference, for example "Reported INC-2026-014", and an **Open** link.
 

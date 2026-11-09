@@ -24,6 +24,8 @@ import {
   RATE_LIMITS,
 } from "@/lib/rate-limit";
 import { INCIDENT_DETECTION_SOURCES, isIncidentFlag } from "@/lib/incidents/constants";
+import { parseInjuryDetails } from "@/lib/incidents/platform/injury-details";
+import { createAdminPgDb } from "@/lib/postgres/db";
 import { LIST_PAGE_SIZE } from "@/lib/incidents/constants";
 
 const MAX_TITLE_LEN = 200;
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
           severity?: unknown;
           detectionSource?: unknown;
           flags?: unknown;
+          details?: unknown;
         }
       | null;
 
@@ -161,6 +164,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "'flags' contains an unrecognized flag" }, { status: 400 });
     }
 
+    // Injury details (who was hurt, the activity, where on the body ...) are optional and only make sense for an injury; they are stored where the coach
+    // form's answers are, so both entrances read the same.
+    const parsedDetails = parseInjuryDetails(body?.details);
+    if (!parsedDetails.ok) return NextResponse.json({ error: parsedDetails.error }, { status: 400 });
+    const details = parsedDetails.value;
+    if (details?.concussion && !flags.includes("concussion") && isIncidentFlag("concussion")) flags = [...flags, "concussion"];
+
     const detectionSource = typeof body?.detectionSource === "string" ? body.detectionSource : "other";
     if (!INCIDENT_DETECTION_SOURCES.some((d) => d.value === detectionSource)) {
       return NextResponse.json({ error: "'detectionSource' is not recognized" }, { status: 400 });
@@ -187,6 +197,8 @@ export async function POST(request: Request) {
         reporter_id: ctx.userId,
         standard_id: standardId,
         incident_flags: flags,
+        ...(details?.activity ? { activity: details.activity } : {}),
+        ...(details && Object.keys(details.customFields).length > 0 ? { custom_fields: details.customFields } : {}),
       })
       .select("*")
       .single();
@@ -194,6 +206,14 @@ export async function POST(request: Request) {
     if (insertError || !inserted) {
       console.error("[POST /api/incidents] insert error:", insertError);
       return NextResponse.json({ error: "Failed to raise incident" }, { status: 500 });
+    }
+
+    // The people named. A person raising an incident cannot write this table themselves (it holds children's details), so the server does, after the checks above.
+    if (details && details.people.length > 0) {
+      const { error: peopleError } = await createAdminPgDb()
+        .from("incident_involved")
+        .insert(details.people.map((p) => ({ incident_id: inserted.id, account_id: ctx.accountId, name: p.name, class_name: p.class_name, involvement: "injured" })));
+      if (peopleError) console.error("[POST /api/incidents] people insert error:", peopleError);
     }
 
     // Best-effort email on top of the in-app notification the raise

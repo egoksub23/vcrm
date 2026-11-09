@@ -64,6 +64,7 @@ import { MessageLogPanel } from "./message-log-panel";
 import { ClearancePanel } from "./clearance-panel";
 import { ApprovalsPanel } from "./approvals-panel";
 import { ReportAnswersPanel } from "./report-answers-panel";
+import { FilingPanel } from "./filing-panel";
 
 /** Plain text with any URL turned into a clickable link — same link
  *  definition Sembang uses (findLinkTokens), so a link pasted into an
@@ -656,6 +657,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               {tRecord("open")}
             </Link>
           ) : null}
+
+          {canExport && incident.status === "closed" ? <FilingPanel incidentId={incident.id} /> : null}
 
           {canManage ? <ReportAnswersPanel incidentId={incident.id} /> : null}
 

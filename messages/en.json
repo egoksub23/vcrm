@@ -8039,7 +8039,30 @@
       "typeRequired": "Pick an incident type.",
       "createFailed": "Couldn't raise the incident.",
       "created": "Reported {key}",
-      "open": "Open"
+      "open": "Open",
+      "injury": {
+        "title": "Injury details",
+        "who": "Who was hurt?",
+        "whoName": "Name",
+        "whoClass": "Class",
+        "addPerson": "Add another person",
+        "removePerson": "Remove this person",
+        "activity": "Activity",
+        "activityPlaceholder": "Football, netball, swimming…",
+        "where": "Where?",
+        "wherePlaceholder": "Field 1, hall, pool…",
+        "date": "Date",
+        "time": "Time",
+        "body": "Where was the injury?",
+        "body_head": "Head or face",
+        "body_arm": "Arm or hand",
+        "body_leg": "Leg or foot",
+        "body_back": "Back or neck",
+        "body_other": "Somewhere else",
+        "head": "Did the student hit their head, or seem dazed or confused?",
+        "yes": "Yes",
+        "no": "No"
+      }
     },
     "detail": {
       "back": "Back to Incidents",
@@ -8121,7 +8144,7 @@
           "mycert": "MyCERT",
           "parent_guardian": "Parent / guardian",
           "school_leadership": "School leadership",
-          "ministry_education": "Education office / ministry",
+          "ministry_education": "Education authority",
           "insurer": "Insurer"
         }
       },
@@ -14639,16 +14662,37 @@
     },
     "reports": {
       "title": "Reports",
-      "help": "Where and when incidents happen, and which places keep seeing the same thing. The last 12 months; test reports are left out.",
+      "help": "What needs attention, and where and when incidents happen. The last 12 months; test reports are left out.",
       "loading": "Loading",
-      "total": "{count, plural, =0 {No incidents in the last 12 months} one {1 incident in the last 12 months} other {# incidents in the last 12 months}}",
-      "repeat": "Places where it keeps happening",
-      "repeatHelp": "Three or more incidents at the same place in 90 days. Worth a look before the next one.",
-      "repeatRow": "{place}: {count} incidents, the latest on {latest}",
-      "byMonth": "By month",
-      "byCategory": "By category",
-      "bySeverity": "By severity",
-      "byActivity": "By activity (top 10)"
+      "empty": "No incidents in the last 12 months yet. Once some are raised, this page shows what needs attention and where they happen.",
+      "attentionTitle": "Needs your attention",
+      "attentionNone": "Nothing needs attention right now: no overdue steps, nobody waiting to acknowledge, and no student or place coming up again and again.",
+      "numbers": "The numbers",
+      "item": {
+        "overdue": "{count, plural, one {# incident has a required step past its deadline} other {# incidents have a required step past their deadline}}",
+        "unacknowledged": "{count, plural, one {# incident has not been acknowledged by anyone} other {# incidents have not been acknowledged by anyone}}",
+        "seriousOpen": "{count, plural, one {# serious incident is still open} other {# serious incidents are still open}}",
+        "stale": "{count, plural, one {# incident has been open for {days} days or more} other {# incidents have been open for {days} days or more}}",
+        "repeatStudent": "{name} has been named on {count} incidents in the last 90 days",
+        "repeatPlace": "{place}: {count} incidents in the last 90 days, the latest on {latest}",
+        "rising": "{recent} incidents in the last 30 days, up from {previous} in the 30 days before",
+        "look": "See them"
+      },
+      "stat": {
+        "raised": "Raised, last 30 days",
+        "raisedSub": "{count} in the 30 days before",
+        "open": "Still open",
+        "closed": "Closed",
+        "median": "Typical time to close",
+        "medianValue": "{days, plural, one {# day} other {# days}}",
+        "medianSub": "Half were closed faster than this",
+        "medianNone": "No incident has been closed yet"
+      },
+      "countShare": "{count} · {percent}%",
+      "byCategory": "What kind",
+      "bySeverity": "How serious",
+      "byPlace": "Where (top places)",
+      "byMonth": "When (per month)"
     },
     "record": {
       "title": "Incident record",
@@ -14957,6 +15001,21 @@
     "records": {
       "title": "Keeping records",
       "help": "How long incidents are kept, and the tools to export and delete old ones. Export first: a deleted incident cannot be brought back."
+    },
+    "filing": {
+      "title": "Report for filing",
+      "help": "Makes a PDF of the whole incident: who reported it, what happened, the people named, the pictures, and every action and notice until it was closed. It is kept with this incident, so you can download it again later.",
+      "loading": "Loading",
+      "none": "No report has been made yet.",
+      "version": "Version {version}",
+      "download": "Download PDF",
+      "generate": "Generate report",
+      "generateAgain": "Generate a new version",
+      "generating": "Making the report…",
+      "made": "Report ready: version {version}.",
+      "keepNote": "Each time you generate, a new version is kept. Earlier versions stay.",
+      "charsWarn": "{count, plural, one {# character} other {# characters}} (for example Chinese or Korean names) could not be shown in the PDF and appear as ?. Ask your administrator to set up the extra font, or check those details on screen.",
+      "picturesWarn": "{count, plural, one {# picture} other {# pictures}} could not be shown in the PDF (the format cannot be used, or the file is large) and are listed by name instead."
     }
   }
 }

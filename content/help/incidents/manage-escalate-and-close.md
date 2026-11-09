@@ -2,7 +2,7 @@
 title: Manage, escalate and close an incident
 description: Set the lead and status, work through the required steps, add notes and evidence, escalate, and close an incident.
 order: 3
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 
 This page is for whoever manages incidents at your school: Administrators, Owners, and anyone your school has given the permission. If you only raise incidents, see [Raise an incident](/help/incidents/raise-an-incident).
@@ -53,7 +53,7 @@ These appear only when they apply:
 
 ## Log external notifications
 
-If someone tells the police, the education office, the ministry, the PDP Commissioner, parents or anyone else outside the school, open **Actions and Notifications sent** and click **Log a notification**. Record who was told, when, how, and a reference if there is one.
+If someone tells the police, the education authority, the PDP Commissioner, parents or anyone else outside the school, open **Actions and Notifications sent** and click **Log a notification**. Record who was told, when, how, and a reference if there is one.
 
 > [!IMPORTANT]
 > Halo never sends these notifications. Logging one only records that a person already sent it. It is your audit trail, not a way to send.
@@ -65,6 +65,22 @@ If someone tells the police, the education office, the ministry, the PDP Commiss
 3. Set the status to **Closed**.
 
 Closing deletes nothing: the timeline, steps, notes, evidence and message log stay for audit. A closed incident cannot be deleted from its page; your administrator can remove old closed incidents in bulk, after exporting them, under Keeping records.
+
+## Make a report for filing
+
+Once an incident is **Closed**, a **Report for filing** box appears on its page (for people who hold the export permission). Click **Generate report** to make a PDF of the whole incident:
+
+- who reported it, when, and the details they gave
+- the people named, the activity and where it happened
+- every action in order, with who did it and when: status changes, notes, required steps, approvals
+- the notices that were sent, and whether they were acknowledged
+- the pictures that were attached, and a list of every file with its checksum
+- a sign-off block for the person who prepared and reviewed it
+
+The PDF is kept with the incident, so you can download it again at any time. If the incident is reopened and closed again, generate a new version. Earlier versions stay.
+
+> [!NOTE]
+> The report holds children's details. Keep the downloaded file as carefully as you keep the incident. Names in Chinese or Korean need an extra font on the server; if some cannot be shown, Halo tells you how many characters appear as a question mark.
 
 ## Tips
 

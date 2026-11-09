@@ -34,6 +34,7 @@ const FILES = [
   "src/components/incidents/setup/timing-screen.tsx",
   "src/components/incidents/setup/categories-screen.tsx",
   "src/components/incidents/reports-screen.tsx",
+  "src/components/incidents/filing-panel.tsx",
   "src/components/incidents/record-view.tsx",
   "src/components/incidents/setup/retention-panel.tsx",
   "src/components/incidents/clearances-screen.tsx",
