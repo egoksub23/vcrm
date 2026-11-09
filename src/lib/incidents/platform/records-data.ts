@@ -9,7 +9,8 @@ export const REGISTER_LIMIT = 5000;
 const SELECT = "id, incident_number, created_at, closed_at, title, incident_type, severity, status, incident_flags, source, is_test, activity, standard_id";
 
 export async function loadRegisterRows(db: PgDb, accountId: string, since: string | null = null): Promise<{ rows: RegisterIncident[]; truncated: boolean }> {
-  let q = db.from("incidents").select(SELECT).eq("account_id", accountId).order("created_at", { ascending: false }).limit(REGISTER_LIMIT + 1);
+  // A voided incident (raised by mistake) is not part of any report or register.
+  let q = db.from("incidents").select(SELECT).eq("account_id", accountId).is("voided_at", null).order("created_at", { ascending: false }).limit(REGISTER_LIMIT + 1);
   if (since) q = q.gte("created_at", since);
   const { data } = await q;
   const all = ((data ?? []) as RegisterIncident[]).map((r) => textDates(r, ["created_at", "closed_at"]));

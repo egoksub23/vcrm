@@ -31,13 +31,13 @@ import { LIST_PAGE_SIZE } from "@/lib/incidents/constants";
 const MAX_TITLE_LEN = 200;
 const MAX_DESCRIPTION_LEN = 10000;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const ctx = await getCurrentAccount();
-    const { data, error } = await ctx.supabase
-      .from("incidents")
-      .select("*")
-      .eq("account_id", ctx.accountId)
+    // Voided incidents (raised by mistake) stay out of the lists; ?voided=1 lists only them (for people who manage incidents, in Keeping records).
+    const onlyVoided = new URL(request.url).searchParams.get("voided") === "1";
+    const base = ctx.supabase.from("incidents").select("*").eq("account_id", ctx.accountId);
+    const { data, error } = await (onlyVoided ? base.not("voided_at", "is", null) : base.is("voided_at", null))
       .order("created_at", { ascending: false })
       .limit(LIST_PAGE_SIZE);
     if (error) {

@@ -8128,7 +8128,9 @@
         "escalateHowManual": "직접",
         "escalateHowTimer": "제때 확인되지 않아 자동으로",
         "escalateHowRule": "규칙에 따라",
-        "custody": "파일 기록: {description}"
+        "custody": "파일 기록: {description}",
+        "voidedEvent": "사건 무효 처리: {reason}",
+        "restoredEvent": "사건 복원"
       },
       "actions": {
         "title": "조치 사항",
@@ -8252,7 +8254,8 @@
         "title": "근본 원인",
         "tip": "문제가 무엇이고 왜 생겼는지 파악되면 적습니다. 학교가 종료 전에 필수로 요구할 수 있으며 제출용 보고서에 인쇄됩니다.",
         "placeholder": "무엇이 잘못되었고 왜 그랬나요? 예: 운동장이 젖어 있었고 골대에 보호대가 없었음.",
-        "save": "저장"
+        "save": "저장",
+        "keyFindings": "주요 발견 사항"
       },
       "triage": {
         "title": "이 사건 분류",
@@ -8265,7 +8268,27 @@
         "notePrefix": "분류 메모: {text}",
         "cancel": "취소",
         "confirm": "분류 확정"
-      }
+      },
+      "void": "무효 처리",
+      "voided": "사건을 무효 처리했습니다.",
+      "restored": "사건을 복원했습니다.",
+      "voidTitle": "이 사건을 무효 처리할까요?",
+      "voidHelp": "실수로 접수된 사건에 사용하세요. 대시보드와 보고서에서 빠지고 타이머가 멈추지만, 누가 왜 무효 처리했는지와 함께 기록은 남습니다. 복원할 수 있습니다.",
+      "voidReasonPlaceholder": "사유: 예) 실수로 두 번 접수됨, INC-2026-8과 중복.",
+      "voidConfirm": "사건 무효 처리",
+      "voidedBanner": "이 사건은 무효 처리되었습니다.",
+      "voidedBecause": "사유:",
+      "restore": "복원",
+      "deleteForGood": "영구 삭제",
+      "deleteForGoodTitle": "이 사건을 영구 삭제할까요?",
+      "deleteForGoodHelp": "{key}와 그 아래의 모든 것(언급된 사람, 메모, 단계, 알림, 파일, 보고서)이 삭제되며 되돌릴 수 없습니다. 삭제되었다는 기록과 삭제한 사람만 남습니다.",
+      "deleteTypeRef": "확인하려면 참조 번호를 입력하세요",
+      "deletedForGood": "사건을 삭제했습니다.",
+      "findingBadge": "발견 사항",
+      "markFinding": "발견 사항으로 표시",
+      "unmarkFinding": "표시 해제",
+      "findingFailed": "변경 내용을 저장할 수 없습니다.",
+      "cancel": "취소"
     }
   },
   "Sembang": {

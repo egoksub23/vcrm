@@ -15,6 +15,7 @@ export async function GET() {
         .from("incidents")
         .select("id, incident_number, created_at, title, incident_type, severity, status")
         .eq("account_id", ctx.accountId)
+        .is("voided_at", null)
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(1000),

@@ -31,7 +31,7 @@ export interface EvidenceDoc {
   };
   people_named: { name: string; class_name: string | null; external_student_id: string | null; involvement: string; guardians: unknown[] | null }[];
   timeline: { event_type: string; from_value: string | null; to_value: string | null; created_at: string; actor: string | null }[];
-  comments: { body: string; created_at: string; author: string | null }[];
+  comments: { body: string; created_at: string; author: string | null; is_finding?: boolean }[];
   required_steps: { title: string; description: string | null; role_key: string | null; party: string | null; due_at: string | null; status: string; completed_at: string | null }[];
   approvals: { role_key: string; decision: string | null; requested_at: string; decided_at: string | null; note: string | null }[];
   message_log: { role_key: string; recipient_name: string; channel: string; address: string; reason: string; status: string; sent_at: string | null; acknowledged_at: string | null; is_test?: boolean | null }[];
@@ -66,7 +66,7 @@ export async function loadEvidenceDoc(args: { db: PgDb; accountId: string; incid
   const [names, involved, comments, activity, steps, deliveries, files, approvals] = await Promise.all([
     loadNamesForStandards(db, accountId, [inc.standard_id as string | null]),
     db.from("incident_involved").select("name, class_name, external_student_id, involvement, guardians").eq("incident_id", incidentId),
-    db.from("incident_comments").select("author_id, body, created_at").eq("incident_id", incidentId).order("created_at"),
+    db.from("incident_comments").select("author_id, body, created_at, is_finding").eq("incident_id", incidentId).order("created_at"),
     db.from("incident_activity").select("actor_id, event_type, from_value, to_value, created_at").eq("incident_id", incidentId).order("created_at"),
     db.from("incident_obligations").select("title, description, party, role_key, due_at, status, completed_at").eq("incident_id", incidentId).order("due_at"),
     db.from("incident_deliveries").select("role_key, recipient_name, channel, address, reason, status, sent_at, acknowledged_at, is_test").eq("incident_id", incidentId).order("created_at"),
@@ -75,7 +75,7 @@ export async function loadEvidenceDoc(args: { db: PgDb; accountId: string; incid
   ]);
 
   // Staff names: who reported it, who wrote each note, who made each move.
-  const commentRows = (comments.data ?? []) as { author_id: string | null; body: string; created_at: string }[];
+  const commentRows = (comments.data ?? []) as { author_id: string | null; body: string; created_at: string; is_finding?: boolean }[];
   const activityRows = (activity.data ?? []) as { actor_id: string | null; event_type: string; from_value: string | null; to_value: string | null; created_at: string }[];
   const ids = [...new Set([inc.reporter_id as string | null, ...commentRows.map((c) => c.author_id), ...activityRows.map((a) => a.actor_id)].filter((x): x is string => !!x))];
   const nameOf = new Map<string, string>();

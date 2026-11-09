@@ -8128,7 +8128,9 @@
         "escalateHowManual": "by hand",
         "escalateHowTimer": "automatically, because nobody acknowledged it in time",
         "escalateHowRule": "by a rule",
-        "custody": "File record: {description}"
+        "custody": "File record: {description}",
+        "voidedEvent": "Voided the incident: {reason}",
+        "restoredEvent": "Restored the incident"
       },
       "actions": {
         "title": "Actions",
@@ -8252,7 +8254,8 @@
         "title": "Root cause",
         "tip": "What went wrong and why, once it is known. Your school can require it before an incident is closed, and it prints in the report for filing.",
         "placeholder": "What went wrong, and why? For example: the field was wet and the goalposts were not padded.",
-        "save": "Save"
+        "save": "Save",
+        "keyFindings": "Key findings"
       },
       "triage": {
         "title": "Triage this incident",
@@ -8265,7 +8268,27 @@
         "notePrefix": "Triage note: {text}",
         "cancel": "Cancel",
         "confirm": "Confirm triage"
-      }
+      },
+      "void": "Void",
+      "voided": "Incident voided.",
+      "restored": "Incident restored.",
+      "voidTitle": "Void this incident?",
+      "voidHelp": "Use this when an incident was raised by mistake. It leaves the Dashboard and Reports and its timers stop, but it stays on record with who voided it and why. You can restore it.",
+      "voidReasonPlaceholder": "Why? For example: raised twice by mistake, duplicate of INC-2026-8.",
+      "voidConfirm": "Void incident",
+      "voidedBanner": "This incident was voided.",
+      "voidedBecause": "Reason:",
+      "restore": "Restore",
+      "deleteForGood": "Delete for good",
+      "deleteForGoodTitle": "Delete this incident for good?",
+      "deleteForGoodHelp": "{key} and everything under it (people named, notes, steps, notices, files and reports) will be removed and cannot be brought back. Only a line saying it was deleted, and by whom, is kept.",
+      "deleteTypeRef": "Type the reference to confirm",
+      "deletedForGood": "Incident deleted.",
+      "findingBadge": "Finding",
+      "markFinding": "Mark as finding",
+      "unmarkFinding": "Unmark",
+      "findingFailed": "Couldn't save that change.",
+      "cancel": "Cancel"
     }
   },
   "Sembang": {
@@ -15093,6 +15116,20 @@
       "keepNote": "Each time you generate, a new version is kept. Earlier versions stay.",
       "charsWarn": "{count, plural, one {# character} other {# characters}} (for example Chinese or Korean names) could not be shown in the PDF and appear as ?. Ask your administrator to set up the extra font, or check those details on screen.",
       "picturesWarn": "{count, plural, one {# picture} other {# pictures}} could not be shown in the PDF (the format cannot be used, or the file is large) and are listed by name instead."
+    },
+    "voided": {
+      "title": "Voided incidents",
+      "help": "Incidents raised by mistake. They are out of the Dashboard and Reports but stay on record. Anyone who manages incidents can restore one; only the school's Owner can delete one for good.",
+      "loading": "Loading",
+      "none": "No voided incidents.",
+      "restore": "Restore",
+      "delete": "Delete for good",
+      "reason": "Reason:",
+      "typeRef": "Type the reference to confirm",
+      "deleteConfirm": "Delete for good",
+      "deleteNote": "This cannot be undone. Only a line saying it was deleted, and by whom, is kept.",
+      "restored": "Incident restored.",
+      "deleted": "Incident deleted."
     }
   }
 }

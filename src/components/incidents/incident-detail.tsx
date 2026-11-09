@@ -63,6 +63,7 @@ import { ObligationsPanel } from "./obligations-panel";
 import { MessageLogPanel, roleLabel, type DeliveryRow } from "./message-log-panel";
 import { DeleteButton, EvidenceGallery, isPicture } from "./evidence-gallery";
 import { InfoTip } from "./info-tip";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TriageDialog, type TriageResult } from "./triage-dialog";
 import { FindingsPanel } from "./findings-panel";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -193,7 +194,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const tTriage = useTranslations("Incidents.detail.triage");
   const tFlags = useTranslations("Incidents.flags");
   const tStatus = useTranslations("Incidents.common.status");
-  const { user } = useAuth();
+  const { user, accountRole } = useAuth();
   const { members, nameOf, profileOf } = useAccountMembers();
   const canManage = useCapability("incidents.manage");
   const canMedical = useCapability("incidents.medical");
@@ -245,15 +246,14 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   }, [load]);
 
   // The approvals asked for and answered, and the reports made for filing: they belong in the timeline too.
-  useEffect(() => {
-    let live = true;
-    void api<{ approvals: ApprovalEntry[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/approvals`).then((res) => {
-      if (live && res.ok) setApprovalList(res.data.approvals ?? []);
-    });
-    return () => {
-      live = false;
-    };
+  const loadApprovals = useCallback(async () => {
+    const res = await api<{ approvals: ApprovalEntry[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/approvals`);
+    if (res.ok) setApprovalList(res.data.approvals ?? []);
   }, [incidentId]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first load of server data
+    void loadApprovals();
+  }, [loadApprovals]);
 
   const loadFiledReports = useCallback(async () => {
     const res = await api<{ reports: FiledReportEntry[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/filed-reports`);
@@ -278,16 +278,30 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   }, [canManage, loadAudit]);
 
   // The notices the rules sent (managers only): they belong in the timeline too.
+  const loadDeliveries = useCallback(async () => {
+    const res = await api<{ deliveries: DeliveryRow[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/deliveries`);
+    if (res.ok) setDeliveries(res.data.deliveries);
+  }, [incidentId]);
   useEffect(() => {
-    if (!canManage) return;
-    let live = true;
-    void api<{ deliveries: DeliveryRow[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/deliveries`).then((res) => {
-      if (live && res.ok) setDeliveries(res.data.deliveries);
-    });
-    return () => {
-      live = false;
-    };
-  }, [canManage, incidentId]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first load of server data
+    if (canManage) void loadDeliveries();
+  }, [canManage, loadDeliveries]);
+
+  // Keep the page current without a reload: every 20 seconds, while the page is in view, re-read what other people (or the system) may have changed:
+  // approvals, notices, escalations, files, filed reports, notes and the incident itself.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void load();
+      void loadApprovals();
+      if (canManage) {
+        void loadDeliveries();
+        void loadAudit();
+      }
+      if (canExport) void loadFiledReports();
+    }, 20_000);
+    return () => clearInterval(timer);
+  }, [load, loadApprovals, loadDeliveries, loadAudit, loadFiledReports, canManage, canExport]);
 
   useAccountSse("incidents", (payload) => {
     if (payload.eventType !== "UPDATE") return;
@@ -367,6 +381,67 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       return false;
     }
     return true;
+  };
+
+  /** A note can be marked as a finding, so it stands out (and prints as one in the report for filing). */
+  const toggleFinding = async (c: IncidentComment) => {
+    if (!incident) return;
+    const next = !c.is_finding;
+    setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, is_finding: next } : x)));
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/comments/${encodeURIComponent(c.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_finding: next }),
+    });
+    if (!res.ok) {
+      setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, is_finding: !next } : x)));
+      toast.error(t("findingFailed"));
+    }
+  };
+
+  // Voiding (raised by mistake) and deleting for good (Owner only, a voided incident, typing the reference).
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [voidBusy, setVoidBusy] = useState(false);
+  const isOwner = accountRole === "owner";
+  const voidIncident = async () => {
+    if (!incident) return;
+    setVoidBusy(true);
+    const res = await api(`/api/incidents/${encodeURIComponent(incident.id)}/void`, "POST", { reason: voidReason });
+    setVoidBusy(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    setVoidOpen(false);
+    setVoidReason("");
+    toast.success(t("voided"));
+    await Promise.all([load(), loadAudit()]);
+  };
+  const restoreIncident = async () => {
+    if (!incident) return;
+    const res = await api(`/api/incidents/${encodeURIComponent(incident.id)}/void`, "DELETE");
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(t("restored"));
+    await Promise.all([load(), loadAudit()]);
+  };
+  const deleteIncident = async () => {
+    if (!incident) return;
+    setVoidBusy(true);
+    const res = await api(`/api/incidents/${encodeURIComponent(incident.id)}`, "DELETE", { confirm: deleteConfirm });
+    setVoidBusy(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(t("deletedForGood"));
+    setDeleteOpen(false);
+    onBack();
   };
 
   /** Moving a reported incident to Triaged asks for the three things triage is for. */
@@ -561,6 +636,10 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         return tActivity("rootCauseChanged", { text: event.to_value ? event.to_value : "–" });
       case "file_deleted":
         return tActivity("fileDeleted", { name: event.from_value ?? "" });
+      case "voided":
+        return tActivity("voidedEvent", { reason: event.to_value ?? "" });
+      case "restored":
+        return tActivity("restoredEvent");
       default:
         return event.event_type;
     }
@@ -624,6 +703,11 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                   <InfoTip text={tTips("escalate")} />
                 </>
               ) : null}
+              {!incident.voided_at ? (
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setVoidOpen(true)}>
+                  {t("void")}
+                </Button>
+              ) : null}
               {hasBnmForms ? (
                 <Button variant="outline" size="sm" onClick={() => setDocumentDialogOpen(true)}>
                   <FileOutput className="size-3.5" />
@@ -633,6 +717,16 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             </div>
           ) : null}
         </div>
+
+        {incident.voided_at ? (
+          <div role="status" className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+            <div className="min-w-0 flex-1">
+              <b>{t("voidedBanner")}</b> {incident.void_reason ? `${t("voidedBecause")} ${incident.void_reason}` : ""}
+            </div>
+            {canManage ? <Button variant="outline" size="sm" onClick={() => void restoreIncident()}>{t("restore")}</Button> : null}
+            {isOwner ? <Button size="sm" className="bg-destructive text-white hover:bg-destructive/90" onClick={() => setDeleteOpen(true)}>{t("deleteForGood")}</Button> : null}
+          </div>
+        ) : null}
 
         {incident.description ? (
           <LinkifiedText text={incident.description} className="mt-3 text-sm whitespace-pre-wrap text-foreground" />
@@ -783,10 +877,16 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                 item.kind === "comment" ? (
                   <div key={item.id} className="flex items-start gap-2.5">
                     <PersonAvatar name={item.comment.author_id ? nameOf(item.comment.author_id) : null} avatarUrl={profileOf(item.comment.author_id ?? undefined)?.avatar_url} />
-                    <div className="min-w-0 flex-1 rounded-lg bg-muted/50 px-3 py-2">
+                    <div className={cn("min-w-0 flex-1 rounded-lg px-3 py-2", item.comment.is_finding ? "bg-amber-500/10 ring-1 ring-amber-500/40" : "bg-muted/50")}>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <span className="font-medium text-foreground">{item.comment.author_id ? nameOf(item.comment.author_id) : t("unknown")}</span>
+                        {item.comment.is_finding ? <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-700 uppercase dark:text-amber-300">{t("findingBadge")}</span> : null}
                         <span title={format(new Date(item.at), "PPpp")}>{view === "audit" ? format(new Date(item.at), "d MMM yyyy, HH:mm:ss") : formatDistanceToNow(new Date(item.at), { addSuffix: true })}</span>
+                        {canManage && view === "timeline" ? (
+                          <button type="button" onClick={() => void toggleFinding(item.comment)} className="ml-auto text-[11px] font-medium text-primary hover:underline">
+                            {item.comment.is_finding ? t("unmarkFinding") : t("markFinding")}
+                          </button>
+                        ) : null}
                       </div>
                       <LinkifiedText text={item.comment.body} className="mt-0.5 text-[13px] whitespace-pre-wrap text-foreground" />
                     </div>
@@ -911,7 +1011,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             </Link>
           ) : null}
 
-          <FindingsPanel value={incident.root_cause ?? null} canEdit={canManage} onSave={(text) => patch({ root_cause: text || null })} />
+          <FindingsPanel value={incident.root_cause ?? null} canEdit={canManage} onSave={(text) => patch({ root_cause: text || null })} findings={comments.filter((c) => c.is_finding).map((c) => c.body)} />
 
           {canExport && incident.status === "closed" ? <FilingPanel incidentId={incident.id} onChanged={() => void loadFiledReports()} /> : null}
 
@@ -948,6 +1048,37 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           </details>
         </div>
       </div>
+
+      <Dialog open={voidOpen} onOpenChange={(o) => !voidBusy && setVoidOpen(o)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("voidTitle")}</DialogTitle>
+            <DialogDescription>{t("voidHelp")}</DialogDescription>
+          </DialogHeader>
+          <Textarea value={voidReason} onChange={(e) => setVoidReason(e.target.value)} rows={3} maxLength={500} placeholder={t("voidReasonPlaceholder")} className="bg-muted" />
+          <DialogFooter>
+            <Button variant="outline" disabled={voidBusy} onClick={() => setVoidOpen(false)}>{t("cancel")}</Button>
+            <Button disabled={voidBusy || voidReason.trim().length < 3} onClick={() => void voidIncident()}>{voidBusy ? <Loader2 className="size-4 animate-spin" /> : null}{t("voidConfirm")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={(o) => !voidBusy && setDeleteOpen(o)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("deleteForGoodTitle")}</DialogTitle>
+            <DialogDescription>{t("deleteForGoodHelp", { key: incidentKey(incident) })}</DialogDescription>
+          </DialogHeader>
+          <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder={incidentKey(incident)} aria-label={t("deleteTypeRef")} />
+          <DialogFooter>
+            <Button variant="outline" disabled={voidBusy} onClick={() => setDeleteOpen(false)}>{t("cancel")}</Button>
+            <Button disabled={voidBusy || deleteConfirm.trim() !== incidentKey(incident)} className="bg-destructive text-white hover:bg-destructive/90" onClick={() => void deleteIncident()}>
+              {voidBusy ? <Loader2 className="size-4 animate-spin" /> : null}
+              {t("deleteForGood")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {canManage ? (
         <TriageDialog

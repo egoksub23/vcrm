@@ -13,7 +13,7 @@ import { InfoTip } from "./info-tip";
  * on"), and it prints in the report for filing. Anyone who manages incidents can write it; everyone who can see the incident can read it. Saving is recorded
  * in the Timeline.
  */
-export function FindingsPanel({ value, canEdit, onSave }: { value: string | null; canEdit: boolean; onSave: (text: string) => Promise<boolean> }) {
+export function FindingsPanel({ value, canEdit, onSave, findings = [] }: { value: string | null; canEdit: boolean; onSave: (text: string) => Promise<boolean>; findings?: string[] }) {
   const t = useTranslations("Incidents.detail.findings");
   const [draft, setDraft] = useState(value ?? "");
   const [busy, setBusy] = useState(false);
@@ -23,7 +23,7 @@ export function FindingsPanel({ value, canEdit, onSave }: { value: string | null
     setDraft(value ?? "");
   }, [value]);
 
-  if (!canEdit && !value) return null;
+  if (!canEdit && !value && findings.length === 0) return null;
   const changed = draft.trim() !== (value ?? "").trim();
 
   return (
@@ -51,9 +51,19 @@ export function FindingsPanel({ value, canEdit, onSave }: { value: string | null
             </Button>
           </div>
         </>
-      ) : (
+      ) : value ? (
         <p className="text-[13px] whitespace-pre-wrap text-foreground">{value}</p>
-      )}
+      ) : null}
+      {findings.length > 0 ? (
+        <div className="mt-3 border-t border-border pt-3">
+          <p className="mb-1.5 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">{t("keyFindings")}</p>
+          <ul className="flex flex-col gap-1.5">
+            {findings.map((f, n) => (
+              <li key={n} className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-[12.5px] whitespace-pre-wrap text-foreground">{f}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

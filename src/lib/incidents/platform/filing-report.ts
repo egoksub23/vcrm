@@ -50,6 +50,9 @@ const EVENT_WORDS: Record<string, string> = {
   lead_changed: "Incident lead changed",
   escalated: "Escalated",
   closed: "Incident closed",
+  root_cause_changed: "Root cause recorded",
+  voided: "Incident voided",
+  restored: "Incident restored",
 };
 const STATUS_WORDS: Record<string, string> = { reported: "Reported", triaged: "Triaged", contained: "Contained", investigating: "Investigating", recovered: "Recovered", closed: "Closed" };
 const STEP_WORDS: Record<string, string> = { open: "Open", done: "Done", skipped: "Skipped", not_applicable: "Not applicable" };
@@ -283,14 +286,14 @@ export async function buildFilingPdf(input: FilingInput): Promise<FilingResult> 
       let text = EVENT_WORDS[e.event_type] ?? words(e.event_type);
       if (e.event_type === "status_changed" && e.to_value) text = `Status changed${e.from_value ? ` from ${STATUS_WORDS[e.from_value] ?? words(e.from_value)}` : ""} to ${STATUS_WORDS[e.to_value] ?? words(e.to_value)}`;
       else if (e.event_type === "severity_changed" && e.to_value) text = `Severity changed${e.from_value ? ` from ${labelOfSeverity(doc, e.from_value)}` : ""} to ${labelOfSeverity(doc, e.to_value)}`;
-      return { at: e.created_at, who: e.actor, text, note: false };
+      return { at: e.created_at, who: e.actor, text, note: false, finding: false };
     }),
-    ...doc.comments.map((c) => ({ at: c.created_at, who: c.author, text: c.body, note: true })),
+    ...doc.comments.map((c) => ({ at: c.created_at, who: c.author, text: c.body, note: true, finding: Boolean(c.is_finding) })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   w.heading("What was done, in order");
   if (story.length === 0) w.text("Nothing else was recorded.");
   for (const e of story) {
-    w.bullet(`${when(e.at)}${e.who ? `, ${e.who}` : ""}: ${e.note ? `Note: ${e.text}` : e.text}`);
+    w.bullet(`${when(e.at)}${e.who ? `, ${e.who}` : ""}: ${e.note ? `${e.finding ? "Finding" : "Note"}: ${e.text}` : e.text}`);
   }
 
   if (doc.required_steps.length > 0) {

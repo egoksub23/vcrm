@@ -1,6 +1,9 @@
 import type { IncidentDetectionSource, IncidentStatus } from "./constants";
 
 export interface Incident {
+  /** Voided: raised by mistake. It stays on record but is out of the lists and reports. */
+  voided_at?: string | null;
+  void_reason?: string | null;
   id: string;
   account_id: string;
   incident_number: number;
@@ -75,7 +78,7 @@ export interface IncidentActivity {
   id: string;
   incident_id: string;
   actor_id: string | null;
-  event_type: "created" | "status_changed" | "severity_changed" | "type_changed" | "lead_changed" | "escalated" | "closed" | "root_cause_changed" | "file_deleted";
+  event_type: "created" | "status_changed" | "severity_changed" | "type_changed" | "lead_changed" | "escalated" | "closed" | "root_cause_changed" | "file_deleted" | "voided" | "restored";
   from_value: string | null;
   to_value: string | null;
   created_at: string;
@@ -89,6 +92,8 @@ export interface IncidentComment {
   mentions: string[];
   created_at: string;
   edited_at: string | null;
+  /** Marked as a finding: it stands out in the Timeline and in the report for filing. */
+  is_finding?: boolean;
 }
 
 export interface IncidentAttachment {

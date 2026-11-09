@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAccount, toErrorResponse } from "@/lib/auth/account";
+import { deleteIncidentForGood } from "@/lib/incidents/platform/delete-data";
 import { processIncidentEvent } from "@/lib/incidents/platform/run";
 import { checkMove } from "@/lib/incidents/platform/workflow-data";
 
@@ -37,6 +38,21 @@ export async function PATCH(request: Request, { params }: Params) {
     // matches is told. A notice already sent is never sent twice (the outbox remembers it), so this only adds what is new.
     if (body.severity !== undefined || body.incident_type !== undefined || body.incident_flags !== undefined) await processIncidentEvent(id, "raised");
     return NextResponse.json({ ok: true });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
+
+// DELETE /api/incidents/[id] — delete a voided incident for good. The school's Owner only. Body: { confirm: "INC-2026-9" } (the reference, typed).
+export async function DELETE(request: Request, { params }: Params) {
+  try {
+    const ctx = await getCurrentAccount();
+    if (ctx.role !== "owner") return NextResponse.json({ error: "Only the school's Owner can delete an incident for good." }, { status: 403 });
+    const { id } = await params;
+    const body = (await request.json().catch(() => null)) as { confirm?: unknown } | null;
+    const result = await deleteIncidentForGood({ accountId: ctx.accountId, incidentId: id, userId: ctx.userId, confirm: typeof body?.confirm === "string" ? body.confirm : "" });
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json({ ok: true, reference: result.reference, filesRemoved: result.filesRemoved });
   } catch (err) {
     return toErrorResponse(err);
   }
