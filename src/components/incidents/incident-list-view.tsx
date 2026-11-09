@@ -49,7 +49,7 @@ export function IncidentListView({ rows, onOpen }: IncidentListViewProps) {
               </td>
               <td className="px-3 py-2.5">
                 <div className="flex items-center gap-1.5">
-                  <StatusLozenge status={row.status} />
+                  <StatusLozenge status={row.status} statusKey={row.status_key} />
                   <EscalationChip level={row.escalation_level} />
                 </div>
               </td>

@@ -3,6 +3,8 @@ import type { IncidentDetectionSource, IncidentStatus } from "./constants";
 export interface Incident {
   /** Voided: raised by mistake. It stays on record but is out of the lists and reports. */
   voided_at?: string | null;
+  /** The school's own status the incident is in (migration 226); null means the base status itself. */
+  status_key?: string | null;
   void_reason?: string | null;
   id: string;
   account_id: string;

@@ -72,3 +72,18 @@ describe("migration 225 (escalation through roles and rules only)", () => {
     expect(m).not.toMatch(/DROP TABLE/);
   });
 });
+
+describe("migration 226 (a school's own statuses)", () => {
+  const m = read("226_incident_custom_statuses.sql");
+  it("maps every extra status to one of the six base statuses, and lets a built-in row only rename its own", () => {
+    expect(m).toContain("base_status IN ('reported', 'triaged', 'contained', 'investigating', 'recovered', 'closed')");
+    expect(m).toContain("CHECK (NOT is_builtin OR key = base_status)");
+  });
+  it("keeps the base status on the incident and the school's choice beside it", () => {
+    expect(m).toContain("ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS status_key TEXT;");
+  });
+  it("is readable by everyone in the school and written only by the server", () => {
+    expect(m).toContain("FOR SELECT USING (is_account_member(account_id))");
+    expect(m).not.toMatch(/CREATE POLICY \w+ ON public\.incident_status_options FOR (INSERT|UPDATE|DELETE|ALL)/);
+  });
+});

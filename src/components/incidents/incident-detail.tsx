@@ -63,6 +63,7 @@ import { ObligationsPanel } from "./obligations-panel";
 import { MessageLogPanel, roleLabel, type DeliveryRow } from "./message-log-panel";
 import { DeleteButton, EvidenceGallery, isPicture } from "./evidence-gallery";
 import { InfoTip } from "./info-tip";
+import { useStatusOptions } from "@/hooks/use-status-options";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TriageDialog, type TriageResult } from "./triage-dialog";
 import { FindingsPanel } from "./findings-panel";
@@ -191,6 +192,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const tActivity = useTranslations("Incidents.detail.activity");
   const tNotif = useTranslations("Incidents.detail.notificationsSent");
   const tTips = useTranslations("Incidents.detail.tips");
+  const { options: statusOptions, label: statusLabel } = useStatusOptions();
+  const [pendingStatusKey, setPendingStatusKey] = useState<string | null>(null);
   const tTriage = useTranslations("Incidents.detail.triage");
   const tFlags = useTranslations("Incidents.flags");
   const tStatus = useTranslations("Incidents.common.status");
@@ -445,14 +448,19 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   };
 
   /** Moving a reported incident to Triaged asks for the three things triage is for. */
-  const changeStatus = (next: IncidentStatus) => {
+  const changeStatus = (key: string) => {
     if (!incident) return;
-    if (next === "triaged" && incident.status === "reported") setTriageOpen(true);
-    else void patch({ status: next });
+    const chosen = statusOptions.find((o) => o.key === key);
+    const base = (chosen?.base ?? key) as IncidentStatus;
+    const statusKey = chosen && !chosen.builtin ? chosen.key : null;
+    if (base === "triaged" && incident.status === "reported") {
+      setPendingStatusKey(statusKey);
+      setTriageOpen(true);
+    } else void patch({ status: base, status_key: statusKey });
   };
   const confirmTriage = async (r: TriageResult) => {
     if (!incident) return;
-    const ok = await patch({ status: "triaged", severity: r.severity, incident_lead_id: r.leadId });
+    const ok = await patch({ status: "triaged", status_key: pendingStatusKey, severity: r.severity, incident_lead_id: r.leadId });
     if (!ok) return;
     if (r.note) {
       const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/comments`, {
@@ -679,7 +687,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="font-mono">{incidentKey(incident)}</span>
-              <StatusLozenge status={incident.status} />
+              <StatusLozenge status={incident.status} statusKey={incident.status_key} />
               <EscalationChip level={incident.escalation_level} />
               {incident.escalation_level > 1 ? <InfoTip text={tTips("level")} /> : null}
             </div>
@@ -753,20 +761,20 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           </Field>
           <Field label={t("fieldStatus")} tip={tTips("status")}>
             {canManage ? (
-              <Select value={incident.status} onValueChange={(v) => changeStatus(v as IncidentStatus)}>
+              <Select value={incident.status_key && statusOptions.some((o) => o.key === incident.status_key) ? incident.status_key : incident.status} onValueChange={(v) => changeStatus(v ?? incident.status)}>
                 <SelectTrigger className="h-8 w-full bg-muted text-xs">
-                  <SelectValue>{tStatus(incident.status)}</SelectValue>
+                  <SelectValue>{statusLabel(incident.status, incident.status_key)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {INCIDENT_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {tStatus(s)}
+                  {(statusOptions.length > 0 ? statusOptions.filter((o) => o.active || o.key === incident.status_key) : INCIDENT_STATUSES.map((s) => ({ key: s as string, label: null as string | null, base: s as string, builtin: true, active: true }))).map((o) => (
+                    <SelectItem key={o.key} value={o.key}>
+                      {o.builtin ? (o.label ?? tStatus(o.base as IncidentStatus)) : `· ${o.label}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
-              <StatusLozenge status={incident.status} />
+              <StatusLozenge status={incident.status} statusKey={incident.status_key} />
             )}
           </Field>
           <Field label={t("fieldType")} tip={tTips("type")}>

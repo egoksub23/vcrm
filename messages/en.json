@@ -15112,6 +15112,25 @@
       "deleteNote": "This cannot be undone. Only a line saying it was deleted, and by whom, is kept.",
       "restored": "Incident restored.",
       "deleted": "Incident deleted."
+    },
+    "statuses": {
+      "title": "Statuses",
+      "help": "The six built-in statuses stay: timers, rules, requirements and reports work on them. You can rename them to your school's wording, and add your own, each counting as one of the six (for example Waiting for parents counts as Investigating).",
+      "loading": "Loading",
+      "builtin": "Built in",
+      "counts": "Counts as {base}",
+      "inUse": "{count, plural, one {1 incident is in it} other {# incidents are in it}}",
+      "hide": "Hide",
+      "show": "Show",
+      "delete": "Delete",
+      "newPlaceholder": "A new status, for example Waiting for parents",
+      "newLabel": "New status name",
+      "countsAs": "Counts as",
+      "add": "Add status",
+      "added": "Status added.",
+      "renamed": "Status renamed.",
+      "deleted": "Status deleted.",
+      "limit": "A school can add at most {max} statuses."
     }
   }
 }

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { RulesScreen } from "@/components/incidents/setup/rules-screen";
 import { SetupPage } from "@/components/incidents/setup/setup-page";
+import { StatusesPanel } from "@/components/incidents/setup/statuses-panel";
 import { WorkflowPanel } from "@/components/incidents/setup/workflow-panel";
 
 export default function IncidentRulesPage() {
@@ -12,6 +13,7 @@ export default function IncidentRulesPage() {
     <SetupPage title={t("title")} help={t("help")}>
       <RulesScreen />
       <WorkflowPanel />
+      <StatusesPanel />
     </SetupPage>
   );
 }

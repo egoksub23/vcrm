@@ -1,6 +1,7 @@
 "use client";
 
 import { severityText } from "@/lib/incidents/severity-display";
+import { useStatusOptions } from "@/hooks/use-status-options";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
 
@@ -96,8 +97,8 @@ export function SeverityBadge({
   );
 }
 
-export function StatusLozenge({ status, className }: { status: IncidentStatus; className?: string }) {
-  const t = useTranslations("Incidents.common.status");
+export function StatusLozenge({ status, statusKey, className }: { status: IncidentStatus; /** The school's own status, when the incident is in one (migration 226). */ statusKey?: string | null; className?: string }) {
+  const { label } = useStatusOptions();
   return (
     <span
       className={cn(
@@ -106,7 +107,7 @@ export function StatusLozenge({ status, className }: { status: IncidentStatus; c
         className,
       )}
     >
-      {t(status)}
+      {label(status, statusKey)}
     </span>
   );
 }

@@ -3,6 +3,7 @@ import { getCurrentAccount, toErrorResponse } from "@/lib/auth/account";
 import { deleteIncidentForGood } from "@/lib/incidents/platform/delete-data";
 import { processIncidentEvent } from "@/lib/incidents/platform/run";
 import { checkMove } from "@/lib/incidents/platform/workflow-data";
+import { loadStatusOptions } from "@/lib/incidents/platform/statuses-data";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -12,6 +13,18 @@ export async function PATCH(request: Request, { params }: Params) {
     const { id } = await params;
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
     if (!body) return NextResponse.json({ error: "invalid body" }, { status: 400 });
+
+    // A school's own status (migration 226) counts as one of the six base statuses: that base is what is stored in `status`, and the choice in `status_key`.
+    // Moving to a status without naming one of the school's own (a board drag, an older client) means the base status itself.
+    if (typeof body.status_key === "string") {
+      const options = await loadStatusOptions(ctx.supabase, ctx.accountId);
+      const chosen = options.find((o) => o.key === body.status_key && o.active);
+      if (!chosen) return NextResponse.json({ error: "That status is not available." }, { status: 400 });
+      body.status = chosen.base;
+      body.status_key = chosen.builtin ? null : chosen.key;
+    } else if (typeof body.status === "string" && body.status_key === undefined) {
+      body.status_key = null;
+    }
 
     // A status change may be held back by the school's requirements (a root cause written, every required step done, a role's approval ...).
     if (typeof body.status === "string") {
