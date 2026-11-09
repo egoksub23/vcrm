@@ -8203,7 +8203,13 @@
       "pictureOf": "사진 {n} / {total}",
       "picturePrev": "이전 사진",
       "pictureNext": "다음 사진",
-      "pictureOpen": "원본 열기"
+      "pictureOpen": "원본 열기",
+      "deleteFile": "이 파일 삭제",
+      "deleteConfirm": "완전히 삭제할까요?",
+      "deleteYes": "예, 삭제",
+      "deleteNo": "유지",
+      "deleted": "파일을 삭제했습니다.",
+      "deleteFailed": "파일을 삭제할 수 없습니다."
     }
   },
   "Sembang": {

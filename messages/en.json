@@ -8203,7 +8203,13 @@
       "pictureOf": "Picture {n} of {total}",
       "picturePrev": "Previous picture",
       "pictureNext": "Next picture",
-      "pictureOpen": "Open the original"
+      "pictureOpen": "Open the original",
+      "deleteFile": "Delete this file",
+      "deleteConfirm": "Delete it for good?",
+      "deleteYes": "Yes, delete",
+      "deleteNo": "Keep",
+      "deleted": "File deleted.",
+      "deleteFailed": "Couldn't delete the file."
     }
   },
   "Sembang": {

@@ -35,7 +35,7 @@ import { useAccountSse } from "@/hooks/use-account-sse";
 import { useAccountMembers } from "@/hooks/use-account-members";
 import { useCapability } from "@/hooks/use-can";
 import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
-import { attachFileToIncident } from "@/lib/incidents/attachment-actions";
+import { attachFileToIncident, removeIncidentAttachment } from "@/lib/incidents/attachment-actions";
 import {
   INCIDENT_FLAGS,
   INCIDENT_SEVERITIES,
@@ -61,7 +61,7 @@ import { EscalationChip, SeverityBadge, StatusLozenge } from "./incident-visuals
 import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { ObligationsPanel } from "./obligations-panel";
 import { MessageLogPanel, roleLabel, type DeliveryRow } from "./message-log-panel";
-import { EvidenceGallery, isPicture } from "./evidence-gallery";
+import { DeleteButton, EvidenceGallery, isPicture } from "./evidence-gallery";
 import { api } from "@/components/incidents/setup/api";
 import { ClearancePanel } from "./clearance-panel";
 import { ApprovalsPanel } from "./approvals-panel";
@@ -308,6 +308,9 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       toast.error(t("commentFailed"));
       return;
     }
+    // Show it straight away; the live channel may or may not deliver it as well (the same note is never added twice).
+    const saved = (await res.json().catch(() => null)) as { comment?: IncidentComment } | null;
+    if (saved?.comment) setComments((prev) => (prev.some((c) => c.id === saved.comment!.id) ? prev : [...prev, saved.comment!]));
     setDraft("");
     setMentions([]);
   };
@@ -316,15 +319,30 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     if (!incident || !user) return;
     setUploading(true);
     let failed = 0;
+    let reason = "";
     for (const file of files) {
       try {
-        await attachFileToIncident(incident, file, user.id);
-      } catch {
+        const saved = await attachFileToIncident(incident, file, user.id);
+        setAttachments((prev) => (prev.some((a) => a.id === saved.id) ? prev : [...prev, saved]));
+      } catch (err) {
         failed += 1;
+        reason = reason || (err instanceof Error ? err.message : "");
       }
     }
     setUploading(false);
-    if (failed > 0) toast.error(t("attachmentsFailed", { count: failed }));
+    if (failed > 0) toast.error(t("attachmentsFailed", { count: failed }), { description: reason || undefined, duration: 15000 });
+  };
+
+  /** Whoever added a file may delete it, and so may anyone who manages incidents. */
+  const canDeleteFile = (a: IncidentAttachment) => canManage || (!!user && a.uploaded_by === user.id);
+  const deleteFile = async (a: IncidentAttachment) => {
+    const ok = await removeIncidentAttachment(a);
+    if (!ok) {
+      toast.error(t("deleteFailed"));
+      return;
+    }
+    setAttachments((prev) => prev.filter((x) => x.id !== a.id));
+    toast.success(t("deleted"));
   };
 
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
@@ -669,11 +687,14 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               <p className="text-xs text-muted-foreground">{t("evidenceEmpty")}</p>
             ) : (
               <div className="flex flex-col gap-2">
-                <EvidenceGallery pictures={attachments.filter(isPicture)} />
+                <EvidenceGallery pictures={attachments.filter(isPicture)} canDelete={canDeleteFile} onDelete={deleteFile} />
                 <ul className="flex flex-col gap-1.5">
                   {attachments.filter((a) => !isPicture(a)).map((a) => (
-                    <li key={a.id}>
-                      <EvidenceLink attachment={a} />
+                    <li key={a.id} className="flex items-center gap-1">
+                      <div className="min-w-0 flex-1">
+                        <EvidenceLink attachment={a} />
+                      </div>
+                      {canDeleteFile(a) ? <DeleteButton label={t("deleteFile")} onDelete={() => deleteFile(a)} /> : null}
                     </li>
                   ))}
                 </ul>
