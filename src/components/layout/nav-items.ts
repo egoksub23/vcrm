@@ -77,6 +77,7 @@ export const bottomNavItems: NavItem[] = [
       { href: "/incidents/setup/records", labelKey: "incidentsRecords", icon: Archive, capability: "incidents.configure", setup: true },
       { href: "/incidents/setup/steps", labelKey: "incidentsSteps", icon: ListPlus, capability: "incidents.configure", setup: true },
       { href: "/incidents/setup/timing", labelKey: "incidentsTiming", icon: Timer, capability: "incidents.configure", setup: true },
+      { href: "/incidents/setup/channels", labelKey: "incidentsChannels", icon: Radio, capability: "incidents.configure", setup: true },
       { href: "/settings?tab=incidents", labelKey: "incidentsPacks", icon: ClipboardCheck, capability: "incidents.configure", setup: true },
     ],
   },

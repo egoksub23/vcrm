@@ -23,6 +23,7 @@ describe("the Incidents group", () => {
       "/incidents/setup/records",
       "/incidents/setup/steps",
       "/incidents/setup/timing",
+      "/incidents/setup/channels",
       "/settings?tab=incidents",
     ]);
     // managers also see Reports (trends and registers); the setup pages need incidents.configure

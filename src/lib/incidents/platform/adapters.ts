@@ -2,6 +2,7 @@
 // another adapter and listing it in `defaultAdapters`, with no change to rules, roles or the message log.
 
 import { realWorkspaceMailDeps, sendWorkspaceEmail, type WorkspaceMailDeps } from "@/lib/email/workspace-mail";
+import { realChannelAdapters } from "./channels-data";
 import type { Notice } from "./messages";
 import type { ChannelKind } from "./roles";
 
@@ -31,5 +32,8 @@ export function createEmailAdapter(deps: WorkspaceMailDeps = realWorkspaceMailDe
 export type AdapterMap = Partial<Record<ChannelKind, ChannelAdapter>>;
 
 export function defaultAdapters(): AdapterMap {
-  return { email: createEmailAdapter() };
+  const map: AdapterMap = { email: createEmailAdapter() };
+  // WhatsApp, SMS and push read the school's settings when a notice is sent; a school that has not switched them on is never given them to use.
+  for (const adapter of realChannelAdapters()) map[adapter.channel] = adapter;
+  return map;
 }

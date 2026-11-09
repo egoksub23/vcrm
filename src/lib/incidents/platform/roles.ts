@@ -12,7 +12,7 @@ export function labelOf(map: LangMap | null | undefined, lang = "en"): string {
 export type RoleKind = "fixed" | "per_incident";
 export type DynamicSource = "reporter" | "incident_lead" | "guardian";
 export type NotifyMode = "all" | "first_available";
-/** Channels that exist as a concept. Only the ones in IMPLEMENTED_CHANNELS can be sent today. */
+/** Channels that exist as a concept. IMPLEMENTED_CHANNELS is what always works (email); a school's others come from its settings (channel-adapters.ts). */
 export type ChannelKind = "email" | "whatsapp" | "sms" | "push";
 export const IMPLEMENTED_CHANNELS: readonly ChannelKind[] = ["email"];
 
@@ -179,6 +179,12 @@ export function resolveRole(args: {
     }
     for (const address of reach.addresses) {
       recipients.push({ contactId: contact.id, userId: contact.user_id, name: contact.name, channel: reach.channel, address, roleKey: role.key });
+    }
+    // Told on their own channel AND by email: an app that is not installed, or a template Meta has not approved, must never mean "never told".
+    if (reach.channel !== "email" && available.includes("email")) {
+      for (const address of cleanList(contact.emails, true)) {
+        recipients.push({ contactId: contact.id, userId: contact.user_id, name: contact.name, channel: "email", address, roleKey: role.key });
+      }
     }
   }
   return { recipients, warnings };

@@ -2,7 +2,7 @@
 title: Set up Incidents
 description: For administrators: roles, rules, timing, categories, steps, compliance packs and keeping records.
 order: 6
-updated: 2026-11-08
+updated: 2026-11-09
 ---
 
 The **Setup** section of the Incidents sidebar is for administrators. Work through it in this order. The **Setup guide** ticks each step off as you go.
@@ -12,7 +12,8 @@ The **Setup** section of the Incidents sidebar is for administrators. Work throu
 | **Setup guide** | Shows what is done, and sends yourself a test notice. |
 | **Roles & contacts** | Who is in each role. |
 | **Rules** | Who is told about what. |
-| **Timing & deadlines** | How long to wait, and when steps are due. |
+| **Timing & deadlines** | How long to wait, when steps are due, and whether waits count only in business hours. |
+| **Channels & email-in** | Telling people on WhatsApp, SMS or push, and turning emails into incidents. |
 | **Categories** | The kinds of incident people can report. |
 | **Report form** | The questions a coach sees. |
 | **Our own steps** | Extra required steps your school adds. |
@@ -58,6 +59,28 @@ The same page has **Before an incident moves on**: what must be true before an i
 > The PDPA deadlines come from the law. Change them only after your data protection officer or legal adviser agrees.
 
 How long an incident can sit at a level before it escalates is under **Settings, Incidents**, **Escalation timers**. Who is told when it escalates is set under **Rules**: there is no separate list of names any more. The first time this was updated, anyone on the old list was brought across as a role (Escalation level 2, Escalation level 3) with a rule telling it; a school with no old list got two rules telling the Principal (and, at the top, the incident lead). Check them under Setup, Rules.
+
+### Business hours
+
+By default a wait counts in elapsed time: "nobody acknowledged within 30 minutes" means 30 minutes on the clock, night and weekend included. Under **Timing & deadlines**, **Business hours**, choose one of your business-hours schedules (the same ones used for ticket targets, under Settings, Business hours) and the three timed rules (nobody acknowledged, a required step overdue, still open) count only inside those hours. A notice raised at 16:50 on a Friday is then not chased until Monday morning.
+
+The deadline of each required step (for example the PDPA hours) is still counted in elapsed hours.
+
+## Statuses
+
+Under **Rules**, **Statuses**, you can rename the six built-in statuses (for example Triaged becomes Assessed) and add your own, such as **Waiting for parents**. Each extra status counts as one of the six, which is what the timers, rules, requirements and reports work on. You can hide an extra status, and delete one that no incident uses.
+
+## Channels and email-in
+
+Open **Channels & email-in**.
+
+- **WhatsApp.** Switch it on and give the name of a message template that Meta has approved, and its language. WhatsApp only lets a business start a chat with an approved template. The template needs two variables in its body, the headline and the links; for example: *Halo incident notice: {{1}}. Links: {{2}}*. Your WhatsApp number must already be connected under Settings, Channels.
+- **SMS.** Halo has no SMS provider of its own. The server sends each text to an SMS bridge that points at the provider your school uses. Your administrator who runs Halo sets this up once; the screen shows whether the server is ready.
+- **Push alert.** Sent to the person's phone through the Vircle app, found by their phone number. Also set up once on the server.
+
+Add each person's phone number, with the country code (for example +60 12 345 6789), under **Roles & contacts**, and choose their preferred channel there. A person whose preferred channel is ready is told there **and** by email, so a notice is never lost because an app is not installed or a message was not delivered. If the channel is not ready, they are told by email, as before.
+
+**Email to incident.** Switch **Turn emails into incidents** on and Halo shows a long secret address. Give it to your mail system (a forwarding rule, an automation or an inbound-email service) and it posts each email there. Only senders you list (a full address, or a whole domain written @school.edu) are accepted; anyone else is turned away. The sender becomes the reporter, the subject the title and the words the description, filed under the category you choose. Your Reported rules then tell the right people. Photos are not taken from an email: add them on the incident. Anyone who has the address can file from an allowed sender, so keep it private; if it leaks, click **New address** and the old one stops working at once.
 
 ## Categories
 

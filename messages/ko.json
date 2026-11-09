@@ -66,6 +66,7 @@
     "incidentsForm": "보고 양식",
     "incidentsSteps": "자체 필수 단계",
     "incidentsTiming": "시간 및 기한",
+    "incidentsChannels": "알림 채널과 이메일 접수",
     "incidentsDashboard": "대시보드",
     "incidentsCategories": "분류",
     "incidentsRecords": "기록 보관"

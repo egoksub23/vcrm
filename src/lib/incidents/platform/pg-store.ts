@@ -13,7 +13,8 @@ import type {
   OverdueStep,
 } from "./engine";
 import type { IncidentRule, RuleTrigger } from "./rules";
-import type { DynamicPeople, DynamicPerson, Recipient } from "./roles";
+import type { ChannelKind, DynamicPeople, DynamicPerson, Recipient } from "./roles";
+import { availableChannelsFor } from "./channels-data";
 
 /** `PgDb.rpc` returns null for no rows, a bare value for one single-column row, an object for one row, an array for several. Make it a list. */
 export function rpcRows<T>(data: unknown): T[] {
@@ -278,6 +279,14 @@ export class PgEngineStore implements EngineStore {
       incidentId: r.incident_id,
       party: r.party,
     }));
+  }
+
+  async availableChannels(accountId: string): Promise<ChannelKind[]> {
+    try {
+      return await availableChannelsFor(this.db, accountId);
+    } catch {
+      return ["email"]; // before migration 228 is applied, or on any trouble reading settings: email still works
+    }
   }
 
   appUrl(): string | null {

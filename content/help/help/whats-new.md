@@ -7,6 +7,16 @@ updated: 2026-11-09
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
 
+## 9 November 2026 (evening) — Incidents: findings, void, your own statuses, business hours, more channels, email in
+
+- **Mark a note as a finding.** Notes that state what the investigation established show under **Key findings** and print first in the report for filing. Approvals now update on the page by themselves.
+- **Void or delete one incident.** Void an incident raised by mistake (it leaves the Dashboard and Reports, stays on record, and can be restored). The workspace owner can delete one for good. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).
+- **The old list of escalation names is gone.** Who is told on escalation is set only under Rules, by role. Names from the old list were brought across as roles and rules.
+- **Your own statuses.** Rename the six built-in statuses and add your own, such as "Waiting for parents"; each counts as one of the six. See [Set up Incidents](/help/incidents/set-up-incidents).
+- **Business hours.** Waits on timed rules (nobody acknowledged, a step overdue, still open) can count only inside your business hours.
+- **WhatsApp, SMS and push.** Tell people on the channel they prefer, and by email as well, so a notice is never lost. Each is switched on under Setup, **Channels & email-in**, and needs a one-time server setup.
+- **Email to incident.** An email from an allowed sender becomes an incident, with the subject as the title, filed under a category you choose.
+
 ## 9 November 2026 (later) — Incidents: triage, root cause, audit log, levels by role, hints
 
 - **Triage.** Moving an incident to Triaged asks you to confirm the severity, choose a lead and leave a note, all recorded together. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).

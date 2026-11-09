@@ -43,7 +43,8 @@ Steps are added when the incident is raised, and again if what it involves chang
 - Click **Attach files** or **Upload evidence** to add photos, documents and screenshots.
 - **Photos show as small pictures** under Evidence files. Click one to see it large, then use the arrow keys or the arrows on the picture to move to the next. Other files stay in a list.
 - The card has two tabs. **Timeline** is the story: notes, triage, status, severity and lead changes, escalations, corrective actions added and done, root cause, files added, required steps done, approvals, notices you logged by hand, notices that could not be sent, and the report for filing. **Audit log** is everything, with exact times: every email sent and acknowledged, each file's custody record and checksum, and files that were deleted. It is read-only.
-- The **Timeline** is one list, in order: the notes people wrote, and everything Halo recorded, with who did it and when. That includes status and severity changes, escalations, files added, required steps done, notices sent and acknowledged, notifications you logged by hand, approvals asked and answered, and the report for filing being generated. It is the audit trail, so there is no separate audit to look at. The [report for filing](#make-a-report-for-filing) prints the same record.
+- **Mark a note as a finding.** On any note, click **Mark as finding** when it states something the investigation established, for example "the goalposts were not padded". Findings are shown under **Key findings** at the top of the incident and are printed first in the [report for filing](#make-a-report-for-filing). Click **Unmark** to take one back.
+- **Approvals update by themselves.** When someone answers an approval, or one is asked, the incident page refreshes within a few seconds; you do not need to reload it.
 
 ## Escalation
 
@@ -78,7 +79,12 @@ If someone tells the police, the education authority, the PDP Commissioner, pare
 2. Write the root cause if your school asks for one.
 3. Set the status to **Closed**.
 
-Closing deletes nothing: the timeline, steps, notes, evidence and message log stay for audit. A closed incident cannot be deleted from its page; your administrator can remove old closed incidents in bulk, after exporting them, under Keeping records.
+Closing deletes nothing: the timeline, steps, notes, evidence and message log stay for audit. Your administrator can remove old closed incidents in bulk, after exporting them, under Keeping records.
+
+## Void or delete one incident
+
+- **Void.** Use **Void** when an incident was raised by mistake or twice. It leaves the Dashboard and Reports and its timers stop, but it stays on record with who voided it and why, and you can **Restore** it. Voided incidents are listed under Setup, Keeping records.
+- **Delete for good.** Only the workspace owner sees this. It removes the incident and everything under it (people named, notes, steps, notices, files and reports), asks you to type the reference to confirm, and cannot be undone. Only a line saying it was deleted, and by whom, is kept. Export first if you may need the record.
 
 ## Make a report for filing
 

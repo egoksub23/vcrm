@@ -103,3 +103,18 @@ describe("migration 227 (business hours for timed rules)", () => {
     expect(m.match(/TO service_role;/g)?.length).toBe(3);
   });
 });
+
+describe("migration 228 (channels and email-in)", () => {
+  const m = read("228_incident_channels_email_in.sql");
+  it("keeps one settings row per school, with a unique secret address", () => {
+    expect(m).toContain("account_id                UUID        PRIMARY KEY REFERENCES public.accounts(id) ON DELETE CASCADE");
+    expect(m).toContain("CREATE UNIQUE INDEX IF NOT EXISTS idx_incident_channel_settings_token");
+  });
+  it("is closed to everyone but people who configure incidents, because it holds the secret address", () => {
+    expect(m).toContain("FOR SELECT USING (has_capability(account_id, 'incidents.configure'))");
+    expect(m).not.toContain("is_account_member");
+  });
+  it("lets an incident come from an email", () => {
+    expect(m).toContain("CHECK (source IN ('halo', 'coach_portal', 'api', 'email'))");
+  });
+});

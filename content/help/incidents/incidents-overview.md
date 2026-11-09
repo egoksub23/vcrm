@@ -92,6 +92,8 @@ The timers (nobody acknowledged, automatic escalation) only run while the status
 | **Recovered** | Things are back to normal. |
 | **Closed** | Finished. Everything stays on the record. |
 
+Your school may have renamed these or added its own statuses, such as "Waiting for parents". Each extra status counts as one of these six, and the page shows the school's wording.
+
 ## Tips
 
 - Report early. A minor report costs a minute; an unreported incident can cost much more.

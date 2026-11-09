@@ -111,6 +111,11 @@ export class MemoryStore implements EngineStore {
     i.escalation_level = level;
     return true;
   }
+  /** The channels this school can send on (undefined = the store does not say, so email only). */
+  channels: ("email" | "whatsapp" | "sms" | "push")[] | undefined = undefined;
+  async availableChannels() {
+    return this.channels ?? ["email" as const];
+  }
   /** The schedule a school counts timed waits in, and the hours each sweep was asked with (so a test can see them). */
   schedule: string | null = null;
   hoursAsked: { kind: string; hours: { scheduleId: string; waitMinutes: number } | undefined }[] = [];

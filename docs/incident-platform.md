@@ -29,6 +29,9 @@ Migration 206 is already applied. Run these, in order, once, from `supabase/migr
 | 216 | `216_incident_school_pack.sql` | A school's own compliance pack (built-in packs stay shared; this one is visible only to its school) |
 | 217 | `217_incident_webhooks.sql` | Events pushed to the coach portal, with retries |
 | 220 | `220_incident_school_categories.sql` | A school's own copy of the incident template, and categories it can hide |
+| 228 | `228_incident_channels_email_in.sql` | `incident_channel_settings` (one row per school): WhatsApp/SMS/push switches and the WhatsApp template; the email-in secret address, allowed senders and category; `incidents.source` also allows `'email'`. Closed to all but `incidents.configure` (it holds the secret) |
+| 227 | `227_incident_business_hours.sql` | `incident_settings.business_hours_schedule_id`; the three sweep functions take `p_schedule` and `p_wait_seconds` and count the wait inside the schedule's hours (`sla_add_business_seconds`) |
+| 226 | `226_incident_custom_statuses.sql` | `incident_status_options` (a school's renamed base statuses and its own extra ones, each mapped to one of the six base statuses); `incidents.status_key` |
 | 225 | `225_incident_escalation_rules_only.sql` | Retires the separate escalation name list: brings it across as roles and escalation rules (or Principal rules for a school with no list); Escalate now and the sweep only raise and record the level; the old helper functions are dropped (the table is kept, unused) |
 | 224 | `224_incident_findings_void.sql` | `incident_comments.is_finding`; `voided_at/voided_by/void_reason` on incidents; `incident_deletions` log; voided/restored activity |
 | 223 | `223_incident_triage_audit.sql` | Activity trail also records root cause changes and file deletions; `incident_unacknowledged` also counts an incident nobody was ever asked to acknowledge (from when it was raised) |

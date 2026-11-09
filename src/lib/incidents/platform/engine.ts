@@ -102,6 +102,8 @@ export interface EngineStore {
   listOverdueSteps(accountId: string, dueBefore: Date, limit: number, hours?: BusinessHours): Promise<OverdueStep[]>;
   /** The school's business-hours schedule for timed rules (migration 227), or null when waits count in elapsed time. */
   businessHoursSchedule?(accountId: string): Promise<string | null>;
+  /** The channels the school can send on right now (migration 228): email always, WhatsApp, SMS and push when switched on and set up. Absent means email only. */
+  availableChannels?(accountId: string): Promise<ChannelKind[]>;
   appUrl(): string | null;
   senderName(accountId: string): Promise<string | null>;
   now(): Date;
@@ -179,6 +181,7 @@ export async function runTrigger(
     store.existingKeys(incident.id),
   ]);
   const testPeople = incident.is_test ? await store.loadTestRecipients(incident.account_id) : null;
+  const available = (await store.availableChannels?.(incident.account_id)) ?? undefined;
   const today = dayOf(store.now());
   const refKey = args.refKey ?? "";
   const rows: NewDelivery[] = [];
@@ -201,7 +204,7 @@ export async function runTrigger(
       }
       const resolved = testPeople
         ? { recipients: testPeople.map((p) => ({ ...p, roleKey })), warnings: [] }
-        : resolveRole({ role, members: directory.members.filter((m) => m.role_id === role.id), contacts: directory.contacts, dynamic, today });
+        : resolveRole({ role, members: directory.members.filter((m) => m.role_id === role.id), contacts: directory.contacts, dynamic, today, available });
       for (const w of resolved.warnings) result.warnings.push({ roleKey, warning: w });
       for (const rcpt of resolved.recipients) {
         const key = deliveryKey(rule.id, roleKey, rcpt.channel, rcpt.address, refKey);
@@ -381,9 +384,10 @@ export async function notifyRole(
   const role = directory.roles.find((r) => r.key === args.roleKey);
   if (!role) return { queued: 0, warnings: ["no_such_role"] };
 
+  const available = (await store.availableChannels?.(incident.account_id)) ?? undefined;
   const resolved = incident.is_test
     ? { recipients: (await store.loadTestRecipients(incident.account_id)).map((p) => ({ ...p, roleKey: args.roleKey })), warnings: [] as string[] }
-    : resolveRole({ role, members: directory.members.filter((m) => m.role_id === role.id), contacts: directory.contacts, dynamic, today: dayOf(store.now()) });
+    : resolveRole({ role, members: directory.members.filter((m) => m.role_id === role.id), contacts: directory.contacts, dynamic, today: dayOf(store.now()), available });
 
   const rows: NewDelivery[] = [];
   for (const rcpt of resolved.recipients) {
