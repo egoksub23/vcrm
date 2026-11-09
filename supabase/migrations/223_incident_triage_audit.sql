@@ -66,7 +66,7 @@ EXCEPTION WHEN OTHERS THEN
   RETURN NEW;
 END;
 $$;
-ALTER FUNCTION public.log_incident_activity() OWNER TO postgres;
+-- (No OWNER change: this database has no "postgres" role, and the function keeps the owner it is created with.)
 
 -- 2. Incidents nobody has acknowledged: the first notice that asked for acknowledgement went out at or before p_before, or none ever did and the
 -- incident itself is that old.
