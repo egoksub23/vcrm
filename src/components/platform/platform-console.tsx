@@ -627,7 +627,7 @@ export function PlatformConsole() {
 
       {/* Edit */}
       <Dialog open={edit !== null} onOpenChange={(o) => !o && !busy && setEdit(null)}>
-        <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-md">
+        <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("editTitle", { name: edit?.row.name ?? "" })}</DialogTitle>
             <DialogDescription className="text-muted-foreground">{t("editDesc")}</DialogDescription>
@@ -665,6 +665,7 @@ export function PlatformConsole() {
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">{t("featuresTitle")}</p>
+                <div className="grid grid-cols-2 gap-2">
                 {PLATFORM_FEATURES.map((f) => (
                   <div key={f} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
                     <div>
@@ -677,6 +678,7 @@ export function PlatformConsole() {
                     />
                   </div>
                 ))}
+                </div>
               </div>
             </div>
           )}
