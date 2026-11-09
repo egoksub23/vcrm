@@ -8211,11 +8211,12 @@
       "pictureNext": "Next picture",
       "pictureOpen": "Open the original",
       "deleteFile": "Delete this file",
-      "deleteConfirm": "Delete it for good?",
-      "deleteYes": "Yes, delete",
-      "deleteNo": "Keep",
+      "deleteYes": "Delete",
+      "deleteNo": "Cancel",
       "deleted": "File deleted.",
-      "deleteFailed": "Couldn't delete the file."
+      "deleteFailed": "Couldn't delete the file.",
+      "deleteTitle": "Delete this file?",
+      "deleteBody": "“{name}” will be removed from this incident for good. The incident's log will still show that it was added."
     }
   },
   "Sembang": {

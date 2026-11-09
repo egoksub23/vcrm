@@ -8211,11 +8211,12 @@
       "pictureNext": "다음 사진",
       "pictureOpen": "원본 열기",
       "deleteFile": "이 파일 삭제",
-      "deleteConfirm": "완전히 삭제할까요?",
-      "deleteYes": "예, 삭제",
-      "deleteNo": "유지",
+      "deleteYes": "삭제",
+      "deleteNo": "취소",
       "deleted": "파일을 삭제했습니다.",
-      "deleteFailed": "파일을 삭제할 수 없습니다."
+      "deleteFailed": "파일을 삭제할 수 없습니다.",
+      "deleteTitle": "이 파일을 삭제할까요?",
+      "deleteBody": "“{name}”이(가) 이 사건에서 영구적으로 삭제됩니다. 추가되었다는 기록은 사건 로그에 남습니다."
     }
   },
   "Sembang": {

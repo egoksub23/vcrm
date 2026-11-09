@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { ChevronLeft, ChevronRight, ExternalLink, Loader2, Trash2 } from "lucide-react";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSignedMediaUrl } from "@/hooks/use-signed-media-url";
 import type { IncidentAttachment } from "@/lib/incidents/types";
 
@@ -15,41 +16,46 @@ export function isPicture(a: Pick<IncidentAttachment, "mime_type" | "filename">)
 }
 
 /**
- * A delete button that asks once before it deletes: click the bin, then "Yes, delete" or "Keep". Deleting a file cannot be undone.
+ * A delete button that asks first, in a small window of its own (so it never has to squeeze into the row it sits in): the bin icon opens "Delete this
+ * file?" with Cancel and Delete. Deleting a file cannot be undone.
  */
-export function DeleteButton({ onDelete, label }: { onDelete: () => Promise<void>; label: string }) {
+export function DeleteButton({ onDelete, label, filename }: { onDelete: () => Promise<void>; label: string; filename: string }) {
   const t = useTranslations("Incidents.detail");
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  if (!asking) {
-    return (
+  return (
+    <>
       <button type="button" onClick={() => setAsking(true)} aria-label={label} title={label} className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive">
         <Trash2 className="size-3.5" />
       </button>
-    );
-  }
-  return (
-    <span className="flex shrink-0 items-center gap-1.5 text-[11.5px]">
-      <span className="text-muted-foreground">{t("deleteConfirm")}</span>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          await onDelete();
-          setBusy(false);
-          setAsking(false);
-        }}
-        className="inline-flex items-center gap-1 rounded bg-destructive px-1.5 py-0.5 font-medium text-white hover:opacity-90 disabled:opacity-60"
-      >
-        {busy ? <Loader2 className="size-3 animate-spin" /> : null}
-        {t("deleteYes")}
-      </button>
-      <button type="button" disabled={busy} onClick={() => setAsking(false)} className="rounded px-1.5 py-0.5 font-medium text-muted-foreground hover:bg-muted">
-        {t("deleteNo")}
-      </button>
-    </span>
+      <Dialog open={asking} onOpenChange={(o) => !busy && setAsking(o)}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{t("deleteTitle")}</DialogTitle>
+            <DialogDescription>{t("deleteBody", { name: filename })}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setAsking(false)}>
+              {t("deleteNo")}
+            </Button>
+            <Button
+              disabled={busy}
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={async () => {
+                setBusy(true);
+                await onDelete();
+                setBusy(false);
+                setAsking(false);
+              }}
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+              {t("deleteYes")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -144,6 +150,7 @@ export function EvidenceGallery({ pictures, canDelete, onDelete }: { pictures: I
                 {onDelete && canDelete?.(open) ? (
                   <DeleteButton
                     label={t("deleteFile")}
+                    filename={open.filename}
                     onDelete={async () => {
                       await onDelete(open);
                       // the picture is gone: show the next one, or close when it was the last

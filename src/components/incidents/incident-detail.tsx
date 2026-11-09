@@ -750,7 +750,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                       <div className="min-w-0 flex-1">
                         <EvidenceLink attachment={a} />
                       </div>
-                      {canDeleteFile(a) ? <DeleteButton label={t("deleteFile")} onDelete={() => deleteFile(a)} /> : null}
+                      {canDeleteFile(a) ? <DeleteButton label={t("deleteFile")} filename={a.filename} onDelete={() => deleteFile(a)} /> : null}
                     </li>
                   ))}
                 </ul>
