@@ -8105,7 +8105,12 @@
         "typeChanged": "유형이 {from}에서 {to}(으)로 변경됨",
         "leadChanged": "인시던트 담당자가 {name}(으)로 지정됨",
         "escalatedEvent": "인시던트가 에스컬레이션되었습니다",
-        "closedEvent": "인시던트가 종료되었습니다"
+        "closedEvent": "인시던트가 종료되었습니다",
+        "photoAdded": "사진 추가: {name}",
+        "fileAdded": "파일 추가: {name}",
+        "stepDone": "단계 완료: {title}",
+        "mailSent": "{name}님({role})에게 이메일 발송",
+        "mailAcknowledged": "{name}님이 알림을 확인했습니다"
       },
       "actions": {
         "title": "조치 사항",
@@ -8193,7 +8198,12 @@
         "generated": "문서가 생성되었습니다.",
         "generateFailed": "문서를 생성하지 못했습니다. 다시 시도하세요.",
         "attachFailed": "문서는 생성되었지만 증거로 저장하지 못했습니다."
-      }
+      },
+      "timelineHelp": "이 사건에 일어나는 모든 일이 순서대로 기록됩니다. 아래에 메모를 추가하고, @로 동료에게 알릴 수 있습니다.",
+      "pictureOf": "사진 {n} / {total}",
+      "picturePrev": "이전 사진",
+      "pictureNext": "다음 사진",
+      "pictureOpen": "원본 열기"
     }
   },
   "Sembang": {

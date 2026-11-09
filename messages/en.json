@@ -8105,7 +8105,12 @@
         "typeChanged": "Type changed from {from} to {to}",
         "leadChanged": "Incident lead set to {name}",
         "escalatedEvent": "Incident escalated",
-        "closedEvent": "Incident closed"
+        "closedEvent": "Incident closed",
+        "photoAdded": "Added a photo: {name}",
+        "fileAdded": "Added a file: {name}",
+        "stepDone": "Step done: {title}",
+        "mailSent": "Email sent to {name} ({role})",
+        "mailAcknowledged": "{name} acknowledged the notice"
       },
       "actions": {
         "title": "Actions",
@@ -8193,7 +8198,12 @@
         "generated": "Document generated.",
         "generateFailed": "Couldn't generate the document. Try again.",
         "attachFailed": "The document was generated, but couldn't be saved as evidence."
-      }
+      },
+      "timelineHelp": "Everything that happens to this incident is recorded here, in order. Add a note below; use @ to notify a colleague.",
+      "pictureOf": "Picture {n} of {total}",
+      "picturePrev": "Previous picture",
+      "pictureNext": "Next picture",
+      "pictureOpen": "Open the original"
     }
   },
   "Sembang": {

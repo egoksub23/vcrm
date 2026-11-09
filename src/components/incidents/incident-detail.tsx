@@ -60,7 +60,9 @@ import { linkifySegments } from "@/lib/sembang/linkify";
 import { EscalationChip, SeverityBadge, StatusLozenge } from "./incident-visuals";
 import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { ObligationsPanel } from "./obligations-panel";
-import { MessageLogPanel } from "./message-log-panel";
+import { MessageLogPanel, roleLabel, type DeliveryRow } from "./message-log-panel";
+import { EvidenceGallery, isPicture } from "./evidence-gallery";
+import { api } from "@/components/incidents/setup/api";
 import { ClearancePanel } from "./clearance-panel";
 import { ApprovalsPanel } from "./approvals-panel";
 import { ReportAnswersPanel } from "./report-answers-panel";
@@ -91,9 +93,13 @@ function LinkifiedText({ text, className }: { text: string; className?: string }
   );
 }
 
+/** One feed: what people wrote, and everything the system recorded (moves, files, steps done, notices sent). */
 type TimelineItem =
   | { kind: "comment"; id: string; at: string; comment: IncidentComment }
-  | { kind: "activity"; id: string; at: string; event: IncidentActivity };
+  | { kind: "activity"; id: string; at: string; event: IncidentActivity }
+  | { kind: "file"; id: string; at: string; file: IncidentAttachment }
+  | { kind: "step"; id: string; at: string; step: IncidentObligation }
+  | { kind: "mail"; id: string; at: string; mail: DeliveryRow; what: "sent" | "acknowledged" };
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -148,6 +154,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const [notificationsSent, setNotificationsSent] = useState<IncidentNotificationSent[]>([]);
   const [actions, setActions] = useState<IncidentAction[]>([]);
   const [obligations, setObligations] = useState<IncidentObligation[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -178,6 +185,18 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     setLoading(true);
     void load();
   }, [load]);
+
+  // The notices the rules sent (managers only): they belong in the timeline too.
+  useEffect(() => {
+    if (!canManage) return;
+    let live = true;
+    void api<{ deliveries: DeliveryRow[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/deliveries`).then((res) => {
+      if (live && res.ok) setDeliveries(res.data.deliveries);
+    });
+    return () => {
+      live = false;
+    };
+  }, [canManage, incidentId]);
 
   useAccountSse("incidents", (payload) => {
     if (payload.eventType !== "UPDATE") return;
@@ -222,9 +241,13 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     const items: TimelineItem[] = [
       ...comments.map((c) => ({ kind: "comment" as const, id: c.id, at: c.created_at, comment: c })),
       ...activity.map((a) => ({ kind: "activity" as const, id: a.id, at: a.created_at, event: a })),
+      ...attachments.map((f) => ({ kind: "file" as const, id: `f:${f.id}`, at: f.created_at, file: f })),
+      ...obligations.filter((o) => o.status === "done" && o.completed_at).map((o) => ({ kind: "step" as const, id: `s:${o.id}`, at: o.completed_at as string, step: o })),
+      ...deliveries.filter((d) => !d.is_test && d.sent_at).map((d) => ({ kind: "mail" as const, id: `m:${d.id}`, at: d.sent_at as string, mail: d, what: "sent" as const })),
+      ...deliveries.filter((d) => !d.is_test && d.acknowledged_at).map((d) => ({ kind: "mail" as const, id: `a:${d.id}`, at: d.acknowledged_at as string, mail: d, what: "acknowledged" as const })),
     ];
     return items.sort((a, b) => a.at.localeCompare(b.at));
-  }, [comments, activity]);
+  }, [comments, activity, attachments, obligations, deliveries]);
 
   const patch = async (fields: Partial<Incident>) => {
     if (!incident) return;
@@ -334,6 +357,20 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       toast.success(t("escalated"));
     } finally {
       setEscalating(false);
+    }
+  };
+
+  /** Who did it (when known) and what happened, for any item in the feed that is not a note. */
+  const eventOf = (item: Exclude<TimelineItem, { kind: "comment" }>): { who: string | null; text: string } => {
+    switch (item.kind) {
+      case "activity":
+        return { who: item.event.actor_id ? nameOf(item.event.actor_id) : null, text: activityText(item.event) };
+      case "file":
+        return { who: item.file.uploaded_by ? nameOf(item.file.uploaded_by) : null, text: tActivity(isPicture(item.file) ? "photoAdded" : "fileAdded", { name: item.file.filename }) };
+      case "step":
+        return { who: item.step.completed_by ? nameOf(item.step.completed_by) : null, text: tActivity("stepDone", { title: item.step.title }) };
+      case "mail":
+        return { who: null, text: item.what === "sent" ? tActivity("mailSent", { name: item.mail.recipient_name, role: roleLabel(item.mail.role_key) }) : tActivity("mailAcknowledged", { name: item.mail.recipient_name }) };
     }
   };
 
@@ -533,7 +570,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t("timelineTitle")}</h2>
+          <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t("timelineTitle")}</h2>
+          <p className="mt-1 mb-3 text-xs text-muted-foreground">{t("timelineHelp")}</p>
           <div className="flex flex-col gap-3">
             {timeline.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("timelineEmpty")}</p>
@@ -553,8 +591,11 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                 ) : (
                   <div key={item.id} className="flex items-center gap-2.5 pl-1 text-[12.5px] text-muted-foreground">
                     <span className="size-1.5 shrink-0 rounded-full bg-border" />
-                    <span>{activityText(item.event)}</span>
-                    <span className="text-muted-foreground/70" title={format(new Date(item.at), "PPpp")}>
+                    <span className="min-w-0">
+                      {eventOf(item).who ? <span className="font-medium text-foreground">{eventOf(item).who} · </span> : null}
+                      {eventOf(item).text}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground/70" title={format(new Date(item.at), "PPpp")}>
                       · {formatDistanceToNow(new Date(item.at), { addSuffix: true })}
                     </span>
                   </div>
@@ -627,13 +668,16 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             {attachments.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t("evidenceEmpty")}</p>
             ) : (
-              <ul className="flex flex-col gap-1.5">
-                {attachments.map((a) => (
-                  <li key={a.id}>
-                    <EvidenceLink attachment={a} />
-                  </li>
-                ))}
-              </ul>
+              <div className="flex flex-col gap-2">
+                <EvidenceGallery pictures={attachments.filter(isPicture)} />
+                <ul className="flex flex-col gap-1.5">
+                  {attachments.filter((a) => !isPicture(a)).map((a) => (
+                    <li key={a.id}>
+                      <EvidenceLink attachment={a} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             <button
               type="button"

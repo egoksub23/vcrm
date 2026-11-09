@@ -31,9 +31,10 @@ Steps are added when the incident is raised, and again if what it involves chang
 
 ## Notes, evidence and the timeline
 
-- Type in the box and click **Post** to add a note. Use **@name** to mention a colleague.
+- Type in the box and click **Post** to add a note. Use **@name** to mention a colleague; they are notified.
 - Click **Attach files** or **Upload evidence** to add photos, documents and screenshots.
-- The Timeline shows notes alongside everything that happened to the incident.
+- **Photos show as small pictures** under Evidence files. Click one to see it large, then use the arrow keys or the arrows on the picture to move to the next. Other files stay in a list.
+- The **Timeline** is one list, in order: the notes people wrote, and everything Halo recorded, with who did it and when. That includes status and severity changes, escalations, files added, required steps done, and notices sent and acknowledged. It is the audit trail, so there is no separate audit to look at. The [report for filing](#make-a-report-for-filing) prints the same record.
 
 ## Escalation
 
