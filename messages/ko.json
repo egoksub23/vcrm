@@ -8116,7 +8116,8 @@
         "approvalAsked": "{role}에 승인 요청",
         "approvalApproved": "{role} 승인",
         "approvalRejected": "{role} 미승인",
-        "reportFiled": "제출용 보고서 생성 (버전 {version})"
+        "reportFiled": "제출용 보고서 생성 (버전 {version})",
+        "mailFailed": "{name}님({role})에게 이메일을 보내지 못했습니다: {why}"
       },
       "actions": {
         "title": "조치 사항",

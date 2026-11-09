@@ -99,7 +99,7 @@ type TimelineItem =
   | { kind: "activity"; id: string; at: string; event: IncidentActivity }
   | { kind: "file"; id: string; at: string; file: IncidentAttachment }
   | { kind: "step"; id: string; at: string; step: IncidentObligation }
-  | { kind: "mail"; id: string; at: string; mail: DeliveryRow; what: "sent" | "acknowledged" }
+  | { kind: "mail"; id: string; at: string; mail: DeliveryRow; what: "sent" | "acknowledged" | "failed" }
   | { kind: "notice"; id: string; at: string; notice: IncidentNotificationSent }
   | { kind: "approval"; id: string; at: string; approval: ApprovalEntry; what: "asked" | "decided" }
   | { kind: "report"; id: string; at: string; report: FiledReportEntry };
@@ -286,6 +286,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       ...attachments.map((f) => ({ kind: "file" as const, id: `f:${f.id}`, at: f.created_at, file: f })),
       ...obligations.filter((o) => o.status === "done" && o.completed_at).map((o) => ({ kind: "step" as const, id: `s:${o.id}`, at: o.completed_at as string, step: o })),
       ...deliveries.filter((d) => !d.is_test && d.sent_at).map((d) => ({ kind: "mail" as const, id: `m:${d.id}`, at: d.sent_at as string, mail: d, what: "sent" as const })),
+      ...deliveries.filter((d) => !d.is_test && (d.status === "failed" || d.status === "skipped")).map((d) => ({ kind: "mail" as const, id: `x:${d.id}`, at: d.created_at, mail: d, what: "failed" as const })),
       ...deliveries.filter((d) => !d.is_test && d.acknowledged_at).map((d) => ({ kind: "mail" as const, id: `a:${d.id}`, at: d.acknowledged_at as string, mail: d, what: "acknowledged" as const })),
       ...notificationsSent.map((n) => ({ kind: "notice" as const, id: `n:${n.id}`, at: n.sent_at, notice: n })),
       ...approvalList.map((a) => ({ kind: "approval" as const, id: `p:${a.id}`, at: a.requested_at, approval: a, what: "asked" as const })),
@@ -444,6 +445,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       case "report":
         return { who: item.report.generated_by ? nameOf(item.report.generated_by) : null, text: tActivity("reportFiled", { version: item.report.version }) };
       case "mail":
+        if (item.what === "failed") return { who: null, text: tActivity("mailFailed", { name: item.mail.recipient_name, role: roleLabel(item.mail.role_key), why: item.mail.last_error || item.mail.status }) };
         return { who: null, text: item.what === "sent" ? tActivity("mailSent", { name: item.mail.recipient_name, role: roleLabel(item.mail.role_key) }) : tActivity("mailAcknowledged", { name: item.mail.recipient_name }) };
     }
   };

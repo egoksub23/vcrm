@@ -8116,7 +8116,8 @@
         "approvalAsked": "Approval asked of {role}",
         "approvalApproved": "{role} approved",
         "approvalRejected": "{role} did not approve",
-        "reportFiled": "Generated the report for filing (version {version})"
+        "reportFiled": "Generated the report for filing (version {version})",
+        "mailFailed": "Could not email {name} ({role}): {why}"
       },
       "actions": {
         "title": "Actions",
