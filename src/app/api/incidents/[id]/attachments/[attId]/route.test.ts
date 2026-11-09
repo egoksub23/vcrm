@@ -5,6 +5,7 @@ let found = true;
 let selects = 0;
 let stillThere = false;
 const removed: string[][] = [];
+const logged: Record<string, unknown>[] = [];
 
 vi.mock("@/lib/auth/account", () => ({
   getCurrentAccount: async () => ({
@@ -18,7 +19,7 @@ vi.mock("@/lib/auth/account", () => ({
             const first = selects === 1;
             const chain: Record<string, unknown> = {};
             chain.eq = () => chain;
-            chain.maybeSingle = async () => ({ data: first ? (found ? { id: "att-1", storage_path: "account-acc-1/incidents/a.jpg" } : null) : stillThere ? { id: "att-1" } : null });
+            chain.maybeSingle = async () => ({ data: first ? (found ? { id: "att-1", filename: "a.jpg", storage_path: "account-acc-1/incidents/a.jpg" } : null) : stillThere ? { id: "att-1" } : null });
             return chain;
           },
           delete: () => {
@@ -35,6 +36,8 @@ vi.mock("@/lib/auth/account", () => ({
 }));
 vi.mock("@/lib/storage/provider", () => ({ appStorage: () => ({ from: () => ({ remove: async (p: string[]) => { removed.push(p); return { data: null, error: null }; } }) }) }));
 
+vi.mock("@/lib/postgres/db", () => ({ createAdminPgDb: () => ({ from: () => ({ insert: async (row: Record<string, unknown>) => { logged.push(row); return { error: null }; } }) }) }));
+
 import { DELETE } from "./route";
 
 const call = () => DELETE(new Request("http://x", { method: "DELETE" }), { params: Promise.resolve({ id: "inc-1", attId: "att-1" }) });
@@ -43,6 +46,7 @@ beforeEach(() => {
   found = true;
   stillThere = false;
   removed.length = 0;
+  logged.length = 0;
   selects = 0;
 });
 
@@ -51,6 +55,8 @@ describe("DELETE /api/incidents/[id]/attachments/[attId]", () => {
     const res = await call();
     expect(res.status).toBe(200);
     expect(removed).toEqual([["account-acc-1/incidents/a.jpg"]]);
+    // the removal is recorded in the incident's activity, with who did it
+    expect(logged).toEqual([expect.objectContaining({ incident_id: "inc-1", account_id: "acc-1", actor_id: "u1", event_type: "file_deleted", from_value: "a.jpg" })]);
   });
   it("is a 404 for a file that is not this school's", async () => {
     found = false;

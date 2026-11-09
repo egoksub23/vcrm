@@ -7980,7 +7980,7 @@
       "list": "List"
     },
     "common": {
-      "escalationLevel": "Level {level}",
+      "escalationLevel": "{level, select, 2 {Level 2 · Escalated} 3 {Level 3 · Top level} other {Level {level}}}",
       "severity": {
         "P1": "Critical",
         "P2": "High",
@@ -8117,7 +8117,18 @@
         "approvalApproved": "{role} approved",
         "approvalRejected": "{role} did not approve",
         "reportFiled": "Generated the report for filing (version {version})",
-        "mailFailed": "Could not email {name} ({role}): {why}"
+        "mailFailed": "Could not email {name} ({role}): {why}",
+        "rootCauseChanged": "Root cause recorded: {text}",
+        "fileDeleted": "Deleted a file: {name}",
+        "actionAdded": "Action added: {description}{detail}",
+        "actionDone": "Action done: {description}",
+        "owner": "owner",
+        "due": "due",
+        "escalatedTo": "Escalated to {level, select, 2 {Level 2 · Escalated} 3 {Level 3 · Top level} other {Level {level}}} ({how})",
+        "escalateHowManual": "by hand",
+        "escalateHowTimer": "automatically, because nobody acknowledged it in time",
+        "escalateHowRule": "by a rule",
+        "custody": "File record: {description}"
       },
       "actions": {
         "title": "Actions",
@@ -8217,7 +8228,44 @@
       "deleted": "File deleted.",
       "deleteFailed": "Couldn't delete the file.",
       "deleteTitle": "Delete this file?",
-      "deleteBody": "“{name}” will be removed from this incident for good. The incident's log will still show that it was added."
+      "deleteBody": "“{name}” will be removed from this incident for good. The incident's log will still show that it was added.",
+      "escalateTo": "Escalate to {level, select, 2 {Level 2 · Escalated} 3 {Level 3 · Top level} other {Level {level}}}",
+      "auditTitle": "Audit log",
+      "auditHelp": "Every recorded event with the exact time, including each email sent and each file's checksum. It is read-only and cannot be edited.",
+      "tips": {
+        "severity": "How serious the incident is, P1 being the most serious. The reporter gives a first guess; whoever triages it confirms or corrects it.",
+        "status": "Where the incident is in handling: Reported, Triaged, Contained, Investigating, Recovered, then Closed. Moving it on from Reported tells Halo someone has taken it on.",
+        "type": "The kind of incident. It decides which required steps and rules apply.",
+        "lead": "The person in charge of handling this incident. They are told about overdue steps.",
+        "level": "How far up the chain of people the incident has been pushed. Level 1 is where every incident starts, Level 2 is Escalated, Level 3 is the Top level.",
+        "escalate": "Pushes the incident up now and tells the people your rules name for that level. Use it when you need someone more senior without waiting.",
+        "involves": "What the incident involves. It decides which required steps and notices apply, so tick everything that fits.",
+        "evidence": "Photos and files kept with the incident. Click a picture to see it large.",
+        "timeline": "The story of the incident: notes, changes, files, steps done, approvals and escalations. Add a note at the bottom; use @ to notify a colleague.",
+        "audit": "Everything recorded about the incident, with exact times, including every email sent and each file's checksum. It cannot be edited.",
+        "steps": "Tasks, not messages. Each belongs to a role, has a deadline, and someone ticks it done once it is done.",
+        "messageLog": "Who Halo emailed about this incident, when, and whether they acknowledged it.",
+        "filing": "Once the incident is closed, makes a PDF of everything recorded, ready for filing.",
+        "approvals": "A role's yes or no that your school requires before the incident can move on."
+      },
+      "findings": {
+        "title": "Root cause",
+        "tip": "What went wrong and why, once it is known. Your school can require it before an incident is closed, and it prints in the report for filing.",
+        "placeholder": "What went wrong, and why? For example: the field was wet and the goalposts were not padded.",
+        "save": "Save"
+      },
+      "triage": {
+        "title": "Triage this incident",
+        "help": "Moving an incident to Triaged means someone has taken it on. Confirm how serious it is, say who leads it, and leave a short note.",
+        "severity": "Severity",
+        "lead": "Incident lead",
+        "noLead": "No lead yet",
+        "note": "Triage note",
+        "notePlaceholder": "What you found and what happens next. For example: nurse has seen him, suspected sprain, parents called.",
+        "notePrefix": "Triage note: {text}",
+        "cancel": "Cancel",
+        "confirm": "Confirm triage"
+      }
     }
   },
   "Sembang": {
@@ -14451,7 +14499,11 @@
         "onlyIfWord": "Only if",
         "thenWord": "Then",
         "save": "Save rule",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "atLevel": "Only if the incident reaches",
+        "anyLevel": "Any level",
+        "level2": "Level 2 · Escalated",
+        "level3": "Level 3 · Top level"
       }
     },
     "guide": {

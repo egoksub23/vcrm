@@ -143,6 +143,17 @@ describe("the escalated trigger", () => {
   it("cannot escalate again", () => {
     expect(validateRule({ ...draft, actions: [{ type: "escalate" as const, level: 3 }] }, ["principal"])).toContain("A rule that runs when an incident is escalated cannot escalate it again.");
   });
+  it("may depend on level 2 or 3, and only an escalation rule may", () => {
+    expect(validateRule({ ...draft, conditions: { level: 3 } }, ["principal"])).toEqual([]);
+    expect(validateRule({ ...draft, conditions: { level: 1 as unknown as 2 } }, ["principal"])).toContain("Pick level 2 or level 3.");
+    expect(validateRule({ ...draft, trigger: "raised" as const, conditions: { level: 2 } }, ["principal"])).toContain("Only a rule that runs when an incident is escalated can depend on the level.");
+  });
+  it("matches only the level it names", () => {
+    const facts = { category: "CCA", severity: "high", flags: [], level: 2 };
+    expect(ruleMatches({ level: 2 }, facts)).toBe(true);
+    expect(ruleMatches({ level: 3 }, facts)).toBe(false);
+    expect(ruleMatches({}, facts)).toBe(true);
+  });
   it("reads in plain words", () => {
     const names = { role: (k: string) => k, category: (c: string) => c, severity: (s: string) => s, flag: (f: string) => f };
     expect(describeRule(draft, names).when).toBe("An incident is escalated (Escalate now, or a rule)");

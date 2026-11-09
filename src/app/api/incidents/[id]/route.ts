@@ -33,6 +33,9 @@ export async function PATCH(request: Request, { params }: Params) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     // Closing an incident can trigger "tell the Principal" style rules.
     if (body.status === "closed") await processIncidentEvent(id, "closed");
+    // Triage can raise the severity, change the category or add what the incident involves after it was raised. Run the "raised" rules again so a role that now
+    // matches is told. A notice already sent is never sent twice (the outbox remembers it), so this only adds what is new.
+    if (body.severity !== undefined || body.incident_type !== undefined || body.incident_flags !== undefined) await processIncidentEvent(id, "raised");
     return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);

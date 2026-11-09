@@ -14,6 +14,10 @@ export type RuleTrigger = (typeof RULE_TRIGGERS)[number];
 /** The role a step's `party` points at: used by the rule "tell the step's role". */
 export const STEP_ROLE = "$step_role";
 
+/** The escalation levels by name: 1 is where every incident starts, 3 is the top. */
+export const LEVEL_NAMES: Record<number, string> = { 1: "Reported", 2: "Escalated", 3: "Top level" };
+export const levelName = (level: number): string => `Level ${level} · ${LEVEL_NAMES[level] ?? level}`;
+
 export interface RuleConditions {
   /** Any of these category codes. Empty or missing = any category. */
   categories?: string[];
@@ -21,6 +25,8 @@ export interface RuleConditions {
   min_severity?: string | null;
   /** Any of these flags (injury, personal_data ...). Empty or missing = no flag needed. */
   flags?: string[];
+  /** Only when the incident has reached exactly this escalation level (2 or 3). Used by the rules that run when an incident is escalated. */
+  level?: 2 | 3 | null;
 }
 
 export type RuleAction =
@@ -46,6 +52,8 @@ export interface IncidentFacts {
   category: string;
   severity: string;
   flags: readonly string[];
+  /** The escalation level now (1 to 3). */
+  level?: number;
 }
 
 export function ruleMatches(conditions: RuleConditions, facts: IncidentFacts): boolean {
@@ -56,6 +64,7 @@ export function ruleMatches(conditions: RuleConditions, facts: IncidentFacts): b
   if (conditions.min_severity) {
     if (severityRank(facts.severity) > severityRank(conditions.min_severity)) return false;
   }
+  if (conditions.level != null && facts.level !== conditions.level) return false;
   return true;
 }
 
@@ -81,6 +90,9 @@ export function validateRule(draft: RuleDraft, knownRoles: readonly string[]): s
   } else if (draft.wait_minutes != null) {
     problems.push("Only rules that wait for something have a wait time.");
   }
+  const lvl = draft.conditions.level;
+  if (lvl != null && lvl !== 2 && lvl !== 3) problems.push("Pick level 2 or level 3.");
+  if (lvl != null && draft.trigger !== "escalated") problems.push("Only a rule that runs when an incident is escalated can depend on the level.");
   if (draft.actions.length === 0) problems.push("Say what should happen.");
   for (const a of draft.actions) {
     if (a.type === "notify") {
@@ -145,6 +157,7 @@ export function describeRule(rule: Pick<IncidentRule, "trigger" | "wait_minutes"
   if (c.categories?.length) parts.push(`the category is ${list(c.categories.map(names.category))}`);
   if (c.flags?.length) parts.push(`it involves ${list(c.flags.map(names.flag))}`);
   if (c.min_severity) parts.push(`the severity is ${names.severity(c.min_severity)} or worse`);
+  if (c.level) parts.push(`it reaches ${levelName(c.level)}`);
   const onlyIf = parts.length ? `Only if ${parts.join(" and ")}` : null;
 
   const then = rule.actions.map((a) => {
@@ -291,16 +304,32 @@ export const RECIPES: readonly Recipe[] = [
     }),
   },
   {
-    key: "escalated",
-    name: "Tell the Principal when an incident is escalated",
-    description: "Whenever an incident is escalated, by the Escalate now button or by a rule, the people in this role are told. This replaces the separate list of names that used to be told, so you manage escalation here, with your Roles. Leave it off to keep the old behaviour.",
+    key: "escalated_2",
+    name: "Tell the Principal when an incident is escalated to Level 2",
+    description: "When an incident reaches Level 2 (Escalated), by the Escalate now button or by a rule, the people in this role are told and asked to acknowledge. This replaces the separate list of names that used to be told, so you manage escalation here, with your Roles.",
     inStarterSet: false,
     build: () => ({
-      name: "Escalated: tell the Principal",
+      name: "Level 2: tell the Principal",
       trigger: "escalated",
       wait_minutes: null,
-      conditions: {},
+      conditions: { level: 2 },
       actions: [{ type: "notify", role_key: "principal", ask_ack: true }],
+    }),
+  },
+  {
+    key: "escalated_3",
+    name: "Tell the Principal and the incident lead when an incident reaches Top level",
+    description: "When an incident reaches Level 3 (Top level), the people in these roles are told. Change the roles to whoever should be told at the top, for example your Owner or the board's contact.",
+    inStarterSet: false,
+    build: () => ({
+      name: "Top level: tell the Principal and the lead",
+      trigger: "escalated",
+      wait_minutes: null,
+      conditions: { level: 3 },
+      actions: [
+        { type: "notify", role_key: "principal", ask_ack: true },
+        { type: "notify", role_key: "incident_lead" },
+      ],
     }),
   },
   {

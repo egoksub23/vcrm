@@ -1,5 +1,6 @@
 "use client";
 
+import { severityText } from "@/lib/incidents/severity-display";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
 
@@ -79,6 +80,8 @@ export function SeverityBadge({
   const catalogueLabel = catalogue?.severities.find((s) => s.slug === severity)?.label;
   const displayLabel =
     label ?? (_BNM_SEVERITY_SLUGS.has(severity) ? t(severity as IncidentSeverity) : (catalogueLabel ?? severity));
+  // A school's named levels are numbered as well (P1 · Critical), most serious first.
+  const numbered = !label && !_BNM_SEVERITY_SLUGS.has(severity) && catalogue ? severityText(severity, catalogue.severities) : null;
   return (
     <span
       className={cn(
@@ -88,7 +91,7 @@ export function SeverityBadge({
       )}
     >
       {severityRank(severity) === 0 ? <AlertTriangle className="size-3" /> : null}
-      {displayLabel.toLowerCase() === severity.toLowerCase() ? displayLabel : `${severity} · ${displayLabel}`}
+      {numbered ?? (displayLabel.toLowerCase() === severity.toLowerCase() ? displayLabel : `${severity} · ${displayLabel}`)}
     </span>
   );
 }

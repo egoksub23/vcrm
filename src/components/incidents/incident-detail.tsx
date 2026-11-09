@@ -62,6 +62,12 @@ import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { ObligationsPanel } from "./obligations-panel";
 import { MessageLogPanel, roleLabel, type DeliveryRow } from "./message-log-panel";
 import { DeleteButton, EvidenceGallery, isPicture } from "./evidence-gallery";
+import { InfoTip } from "./info-tip";
+import { TriageDialog, type TriageResult } from "./triage-dialog";
+import { FindingsPanel } from "./findings-panel";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
+import { severityText } from "@/lib/incidents/severity-display";
 import { api } from "@/components/incidents/setup/api";
 import { ClearancePanel } from "./clearance-panel";
 import { ApprovalsPanel } from "./approvals-panel";
@@ -102,7 +108,31 @@ type TimelineItem =
   | { kind: "mail"; id: string; at: string; mail: DeliveryRow; what: "sent" | "acknowledged" | "failed" }
   | { kind: "notice"; id: string; at: string; notice: IncidentNotificationSent }
   | { kind: "approval"; id: string; at: string; approval: ApprovalEntry; what: "asked" | "decided" }
-  | { kind: "report"; id: string; at: string; report: FiledReportEntry };
+  | { kind: "report"; id: string; at: string; report: FiledReportEntry }
+  | { kind: "action"; id: string; at: string; action: IncidentAction; what: "added" | "done" }
+  | { kind: "escalation"; id: string; at: string; event: EscalationEntry }
+  | { kind: "evidence"; id: string; at: string; entry: EvidenceEntry };
+
+/** From the audit endpoint: every escalation with its reason, and the chain-of-custody lines for files. */
+interface EscalationEntry {
+  id: string;
+  from_level: number;
+  to_level: number;
+  reason: "manual" | "auto_timeout" | "rule";
+  triggered_by: string | null;
+  created_at: string;
+}
+interface EvidenceEntry {
+  id: string;
+  description: string;
+  collected_by: string | null;
+  collected_at: string;
+  file_hash: string | null;
+}
+
+/** What only the Audit log shows: the mechanical record (emails going out, file custody, removals). The Timeline keeps the story. */
+const isAuditOnly = (item: TimelineItem): boolean =>
+  item.kind === "evidence" || (item.kind === "mail" && item.what !== "failed") || (item.kind === "activity" && item.event.event_type === "file_deleted");
 
 /** The bits of an approval and of a filed report the timeline needs. */
 interface ApprovalEntry {
@@ -159,6 +189,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const tRecord = useTranslations("IncidentPlatform.record");
   const tActivity = useTranslations("Incidents.detail.activity");
   const tNotif = useTranslations("Incidents.detail.notificationsSent");
+  const tTips = useTranslations("Incidents.detail.tips");
+  const tTriage = useTranslations("Incidents.detail.triage");
   const tFlags = useTranslations("Incidents.flags");
   const tStatus = useTranslations("Incidents.common.status");
   const { user } = useAuth();
@@ -176,6 +208,10 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const [obligations, setObligations] = useState<IncidentObligation[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryRow[]>([]);
   const [approvalList, setApprovalList] = useState<ApprovalEntry[]>([]);
+  const [escalations, setEscalations] = useState<EscalationEntry[]>([]);
+  const [custody, setCustody] = useState<EvidenceEntry[]>([]);
+  const [view, setView] = useState<"timeline" | "audit">("timeline");
+  const [triageOpen, setTriageOpen] = useState(false);
   const [filedReports, setFiledReports] = useState<FiledReportEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -227,6 +263,19 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the first load of server data
     if (canExport) void loadFiledReports();
   }, [canExport, loadFiledReports]);
+
+  // Escalations (with their reason) and the file custody lines (managers only).
+  const loadAudit = useCallback(async () => {
+    const res = await api<{ evidence: EvidenceEntry[]; escalations: EscalationEntry[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/audit`);
+    if (res.ok) {
+      setEscalations(res.data.escalations ?? []);
+      setCustody(res.data.evidence ?? []);
+    }
+  }, [incidentId]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first load of server data
+    if (canManage) void loadAudit();
+  }, [canManage, loadAudit]);
 
   // The notices the rules sent (managers only): they belong in the timeline too.
   useEffect(() => {
@@ -292,12 +341,17 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       ...approvalList.map((a) => ({ kind: "approval" as const, id: `p:${a.id}`, at: a.requested_at, approval: a, what: "asked" as const })),
       ...approvalList.filter((a) => a.decision && a.decided_at).map((a) => ({ kind: "approval" as const, id: `d:${a.id}`, at: a.decided_at as string, approval: a, what: "decided" as const })),
       ...filedReports.map((r) => ({ kind: "report" as const, id: `r:${r.id}`, at: r.generated_at, report: r })),
+      ...actions.map((a) => ({ kind: "action" as const, id: `x:${a.id}`, at: a.created_at, action: a, what: "added" as const })),
+      ...actions.filter((a) => a.status === "done" && a.closed_at).map((a) => ({ kind: "action" as const, id: `y:${a.id}`, at: a.closed_at as string, action: a, what: "done" as const })),
+      ...escalations.map((e) => ({ kind: "escalation" as const, id: `e:${e.id}`, at: e.created_at, event: e })),
+      ...custody.map((c) => ({ kind: "evidence" as const, id: `c:${c.id}`, at: c.collected_at, entry: c })),
     ];
     return items.sort((a, b) => a.at.localeCompare(b.at));
-  }, [comments, activity, attachments, obligations, deliveries, notificationsSent, approvalList, filedReports]);
+  }, [comments, activity, attachments, obligations, deliveries, notificationsSent, approvalList, filedReports, actions, escalations, custody]);
+  const shown = view === "timeline" ? timeline.filter((i) => !isAuditOnly(i)) : timeline;
 
-  const patch = async (fields: Partial<Incident>) => {
-    if (!incident) return;
+  const patch = async (fields: Partial<Incident>): Promise<boolean> => {
+    if (!incident) return false;
     const prev = incident;
     setIncident({ ...incident, ...fields });
     const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}`, {
@@ -310,7 +364,31 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       // A move the school's requirements hold back comes with the reasons in plain words.
       const reason = res.status === 409 ? ((await res.json().catch(() => ({}))) as { error?: string }).error : null;
       toast.error(reason || t("updateFailed"));
+      return false;
     }
+    return true;
+  };
+
+  /** Moving a reported incident to Triaged asks for the three things triage is for. */
+  const changeStatus = (next: IncidentStatus) => {
+    if (!incident) return;
+    if (next === "triaged" && incident.status === "reported") setTriageOpen(true);
+    else void patch({ status: next });
+  };
+  const confirmTriage = async (r: TriageResult) => {
+    if (!incident) return;
+    const ok = await patch({ status: "triaged", severity: r.severity, incident_lead_id: r.leadId });
+    if (!ok) return;
+    if (r.note) {
+      const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: tTriage("notePrefix", { text: r.note }), mentions: [] }),
+      });
+      const saved = (await res.json().catch(() => null)) as { comment?: IncidentComment } | null;
+      if (saved?.comment) setComments((prev) => (prev.some((c) => c.id === saved.comment!.id) ? prev : [...prev, saved.comment!]));
+    }
+    setTriageOpen(false);
   };
 
   const [draft, setDraft] = useState("");
@@ -409,17 +487,18 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   };
 
   const [escalating, setEscalating] = useState(false);
-  const escalate = async () => {
+  const escalate = async (level?: 2 | 3) => {
     if (!incident) return;
     setEscalating(true);
     try {
-      const res = await fetch(`/api/incidents/${incident.id}/escalate`, { method: "POST" });
+      const res = await fetch(`/api/incidents/${incident.id}/escalate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(level ? { level } : {}) });
       const body = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
         toast.error(body?.error || t("escalateFailed"));
         return;
       }
       toast.success(t("escalated"));
+      await Promise.all([load(), loadAudit()]);
     } finally {
       setEscalating(false);
     }
@@ -444,6 +523,18 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           : { who: item.approval.decided_by ? nameOf(item.approval.decided_by) : null, text: tActivity(item.approval.decision === "approved" ? "approvalApproved" : "approvalRejected", { role: item.approval.role_name }) };
       case "report":
         return { who: item.report.generated_by ? nameOf(item.report.generated_by) : null, text: tActivity("reportFiled", { version: item.report.version }) };
+      case "action": {
+        const a = item.action;
+        if (item.what === "done") return { who: null, text: tActivity("actionDone", { description: a.description }) };
+        const bits = [a.owner_id ? `${tActivity("owner")} ${nameOf(a.owner_id)}` : null, a.due_date ? `${tActivity("due")} ${a.due_date}` : null].filter(Boolean);
+        return { who: a.created_by ? nameOf(a.created_by) : null, text: tActivity("actionAdded", { description: a.description, detail: bits.length ? ` (${bits.join(", ")})` : "" }) };
+      }
+      case "escalation": {
+        const how = item.event.reason === "manual" ? "escalateHowManual" : item.event.reason === "rule" ? "escalateHowRule" : "escalateHowTimer";
+        return { who: item.event.triggered_by ? nameOf(item.event.triggered_by) : null, text: tActivity("escalatedTo", { level: item.event.to_level, how: tActivity(how) }) };
+      }
+      case "evidence":
+        return { who: item.entry.collected_by ? nameOf(item.entry.collected_by) : null, text: `${tActivity("custody", { description: item.entry.description })}${item.entry.file_hash ? ` · SHA-256 ${item.entry.file_hash.slice(0, 12)}…` : ""}` };
       case "mail":
         if (item.what === "failed") return { who: null, text: tActivity("mailFailed", { name: item.mail.recipient_name, role: roleLabel(item.mail.role_key), why: item.mail.last_error || item.mail.status }) };
         return { who: null, text: item.what === "sent" ? tActivity("mailSent", { name: item.mail.recipient_name, role: roleLabel(item.mail.role_key) }) : tActivity("mailAcknowledged", { name: item.mail.recipient_name }) };
@@ -466,6 +557,10 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         return tActivity("escalatedEvent");
       case "closed":
         return tActivity("closedEvent");
+      case "root_cause_changed":
+        return tActivity("rootCauseChanged", { text: event.to_value ? event.to_value : "–" });
+      case "file_deleted":
+        return tActivity("fileDeleted", { name: event.from_value ?? "" });
       default:
         return event.event_type;
     }
@@ -507,16 +602,27 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               <span className="font-mono">{incidentKey(incident)}</span>
               <StatusLozenge status={incident.status} />
               <EscalationChip level={incident.escalation_level} />
+              {incident.escalation_level > 1 ? <InfoTip text={tTips("level")} /> : null}
             </div>
             <h1 className="mt-1 text-xl font-bold text-foreground">{incident.title}</h1>
           </div>
           {canManage ? (
             <div className="flex shrink-0 items-center gap-1.5">
               {incident.escalation_level < 3 && incident.status !== "closed" ? (
-                <Button variant="outline" size="sm" onClick={() => void escalate()} disabled={escalating}>
-                  {escalating ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUpCircle className="size-3.5" />}
-                  {t("escalateNow")}
-                </Button>
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger render={<Button variant="outline" size="sm" disabled={escalating} />}>
+                      {escalating ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUpCircle className="size-3.5" />}
+                      {t("escalateNow")}
+                      <ChevronDown className="size-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {incident.escalation_level < 2 ? <DropdownMenuItem onClick={() => void escalate(2)}>{t("escalateTo", { level: 2 })}</DropdownMenuItem> : null}
+                      <DropdownMenuItem onClick={() => void escalate(3)}>{t("escalateTo", { level: 3 })}</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <InfoTip text={tTips("escalate")} />
+                </>
               ) : null}
               {hasBnmForms ? (
                 <Button variant="outline" size="sm" onClick={() => setDocumentDialogOpen(true)}>
@@ -533,16 +639,16 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         ) : null}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <Field label={t("fieldSeverity")}>
+          <Field label={t("fieldSeverity")} tip={tTips("severity")}>
             {canManage ? (
               <Select value={incident.severity} onValueChange={(v) => void patch({ severity: v ?? incident.severity })}>
                 <SelectTrigger className="h-8 w-full bg-muted text-xs">
-                  <SelectValue />
+                  <SelectValue>{severityText(incident.severity, severityOptions)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {severityOptions.map((s) => (
                     <SelectItem key={s.slug} value={s.slug}>
-                      {s.slug === s.label ? s.slug : `${s.slug} · ${s.label}`}
+                      {severityText(s.slug, severityOptions)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -551,9 +657,9 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               <SeverityBadge severity={incident.severity} standardId={incident.standard_id} />
             )}
           </Field>
-          <Field label={t("fieldStatus")}>
+          <Field label={t("fieldStatus")} tip={tTips("status")}>
             {canManage ? (
-              <Select value={incident.status} onValueChange={(v) => void patch({ status: v as IncidentStatus })}>
+              <Select value={incident.status} onValueChange={(v) => changeStatus(v as IncidentStatus)}>
                 <SelectTrigger className="h-8 w-full bg-muted text-xs">
                   <SelectValue>{tStatus(incident.status)}</SelectValue>
                 </SelectTrigger>
@@ -569,7 +675,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               <StatusLozenge status={incident.status} />
             )}
           </Field>
-          <Field label={t("fieldType")}>
+          <Field label={t("fieldType")} tip={tTips("type")}>
             {canManage ? (
               <Select value={incident.incident_type} onValueChange={(v) => void patch({ incident_type: v ?? incident.incident_type })}>
                 <SelectTrigger className="h-8 w-full bg-muted text-xs">
@@ -587,7 +693,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               <span className="text-xs text-muted-foreground">{typeOptions.find((ty) => ty.code === incident.incident_type)?.label ?? incident.incident_type}</span>
             )}
           </Field>
-          <Field label={t("fieldLead")}>
+          <Field label={t("fieldLead")} tip={tTips("lead")}>
             {canManage ? (
               <Select
                 value={incident.incident_lead_id ?? "__none__"}
@@ -618,6 +724,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             <summary className="mb-1.5 cursor-pointer list-none text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase marker:hidden">
               {t("involves")} ({incident.incident_flags.length})
               <span className="ml-1 text-primary group-open:hidden">▸</span>
+              <InfoTip text={tTips("involves")} className="ml-1" />
             </summary>
             <div className="flex flex-wrap gap-1.5">
               {(canManage ? INCIDENT_FLAGS : INCIDENT_FLAGS.filter((f) => incident.incident_flags.includes(f))).map((flag) => {
@@ -646,20 +753,40 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t("timelineTitle")}</h2>
-          <p className="mt-1 mb-3 text-xs text-muted-foreground">{t("timelineHelp")}</p>
+          <div className="flex items-center gap-2">
+            {canManage ? (
+              <div className="flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist" aria-label={t("timelineTitle")}>
+                {(["timeline", "audit"] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === k}
+                    onClick={() => setView(k)}
+                    className={cn("rounded-md px-3 py-1 text-xs font-medium transition-colors", view === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                  >
+                    {k === "timeline" ? t("timelineTitle") : t("auditTitle")}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t("timelineTitle")}</h2>
+            )}
+            <InfoTip text={view === "timeline" ? tTips("timeline") : tTips("audit")} />
+          </div>
+          <p className="mt-2 mb-3 text-xs text-muted-foreground">{view === "timeline" ? t("timelineHelp") : t("auditHelp")}</p>
           <div className="flex flex-col gap-3">
-            {timeline.length === 0 ? (
+            {shown.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("timelineEmpty")}</p>
             ) : (
-              timeline.map((item) =>
+              shown.map((item) =>
                 item.kind === "comment" ? (
                   <div key={item.id} className="flex items-start gap-2.5">
                     <PersonAvatar name={item.comment.author_id ? nameOf(item.comment.author_id) : null} avatarUrl={profileOf(item.comment.author_id ?? undefined)?.avatar_url} />
                     <div className="min-w-0 flex-1 rounded-lg bg-muted/50 px-3 py-2">
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <span className="font-medium text-foreground">{item.comment.author_id ? nameOf(item.comment.author_id) : t("unknown")}</span>
-                        <span title={format(new Date(item.at), "PPpp")}>{formatDistanceToNow(new Date(item.at), { addSuffix: true })}</span>
+                        <span title={format(new Date(item.at), "PPpp")}>{view === "audit" ? format(new Date(item.at), "d MMM yyyy, HH:mm:ss") : formatDistanceToNow(new Date(item.at), { addSuffix: true })}</span>
                       </div>
                       <LinkifiedText text={item.comment.body} className="mt-0.5 text-[13px] whitespace-pre-wrap text-foreground" />
                     </div>
@@ -672,7 +799,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                       {eventOf(item).text}
                     </span>
                     <span className="shrink-0 text-muted-foreground/70" title={format(new Date(item.at), "PPpp")}>
-                      · {formatDistanceToNow(new Date(item.at), { addSuffix: true })}
+                      · {view === "audit" ? format(new Date(item.at), "d MMM yyyy, HH:mm:ss") : formatDistanceToNow(new Date(item.at), { addSuffix: true })}
                     </span>
                   </div>
                 ),
@@ -680,6 +807,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             )}
           </div>
 
+          {view === "timeline" ? (
           <div className="relative mt-4">
             {mentionQuery !== null && mentionMatches.length > 0 ? (
               <div className="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-lg border border-border bg-popover shadow-md">
@@ -733,6 +861,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               </Button>
             </div>
           </div>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-4">
@@ -740,6 +869,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <Paperclip className="size-3.5" />
               {t("evidenceTitle")}
+              <InfoTip text={tTips("evidence")} />
             </h3>
             {attachments.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t("evidenceEmpty")}</p>
@@ -781,6 +911,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             </Link>
           ) : null}
 
+          <FindingsPanel value={incident.root_cause ?? null} canEdit={canManage} onSave={(text) => patch({ root_cause: text || null })} />
+
           {canExport && incident.status === "closed" ? <FilingPanel incidentId={incident.id} onChanged={() => void loadFiledReports()} /> : null}
 
           {canManage ? <ReportAnswersPanel incidentId={incident.id} /> : null}
@@ -817,6 +949,18 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         </div>
       </div>
 
+      {canManage ? (
+        <TriageDialog
+          open={triageOpen}
+          onOpenChange={setTriageOpen}
+          severity={incident.severity}
+          severities={severityOptions}
+          leadId={incident.incident_lead_id}
+          members={members}
+          onConfirm={confirmTriage}
+        />
+      ) : null}
+
       {canManage && hasBnmForms ? (
         <GenerateDocumentDialog
           open={documentDialogOpen}
@@ -830,10 +974,13 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, tip, children }: { label: string; tip?: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</p>
+      <p className="mb-1 flex items-center gap-1 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {label}
+        {tip ? <InfoTip text={tip} /> : null}
+      </p>
       {children}
     </div>
   );

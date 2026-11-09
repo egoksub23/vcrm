@@ -8,6 +8,7 @@ import { Download, FileText, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/components/incidents/setup/api";
+import { InfoTip } from "./info-tip";
 
 interface Report {
   id: string;
@@ -24,6 +25,7 @@ interface Report {
  */
 export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onChanged?: () => void }) {
   const t = useTranslations("IncidentPlatform.filing");
+  const tTips = useTranslations("Incidents.detail.tips");
   const [reports, setReports] = useState<Report[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -68,6 +70,7 @@ export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onC
       <h3 className="mb-1 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         <FileText className="size-3.5" />
         {t("title")}
+        <InfoTip text={tTips("filing")} />
       </h3>
       <p className="text-xs text-muted-foreground">{t("help")}</p>
 

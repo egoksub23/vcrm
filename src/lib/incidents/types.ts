@@ -75,7 +75,7 @@ export interface IncidentActivity {
   id: string;
   incident_id: string;
   actor_id: string | null;
-  event_type: "created" | "status_changed" | "severity_changed" | "type_changed" | "lead_changed" | "escalated" | "closed";
+  event_type: "created" | "status_changed" | "severity_changed" | "type_changed" | "lead_changed" | "escalated" | "closed" | "root_cause_changed" | "file_deleted";
   from_value: string | null;
   to_value: string | null;
   created_at: string;
@@ -159,7 +159,7 @@ export interface IncidentEscalationEvent {
   incident_id: string;
   from_level: number;
   to_level: number;
-  reason: "manual" | "auto_timeout";
+  reason: "manual" | "auto_timeout" | "rule";
   triggered_by: string | null;
   created_at: string;
 }

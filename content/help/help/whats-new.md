@@ -7,6 +7,16 @@ updated: 2026-11-09
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
 
+## 9 November 2026 (later) — Incidents: triage, root cause, audit log, levels by role, hints
+
+- **Triage.** Moving an incident to Triaged asks you to confirm the severity, choose a lead and leave a note, all recorded together. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).
+- **Root cause.** A box on the incident to write what went wrong and why. It can be required before closing and prints in the report for filing.
+- **Timeline and Audit log.** The Timeline now keeps to the story (including corrective actions, root cause and escalations). A separate **Audit log** tab shows everything with exact times, including every email and each file's checksum.
+- **Severity as P1 to P4**, and **levels by name**: Reported, Escalated, Top level. **Escalate now** can jump straight to a level, and escalation rules can be set per level, so each level tells a role. See [Set up Incidents](/help/incidents/set-up-incidents).
+- **Severity changes are re-checked.** If triage raises the severity, the roles that now match are told.
+- **No more silent non-escalation.** If nobody could be told at submission, the "nobody acknowledged" timer still starts.
+- **Small "?" hints** beside headings and fields explain what each is for.
+
 ## 9 November 2026 — Incidents: report for filing, injury details, a Reports page that says what to do
 
 - **Report for filing.** When an incident is closed, **Generate report** makes a PDF of the whole incident: who reported it, the details, the people named, the pictures, every action and notice until it was closed, and a sign-off block. It is kept with the incident and can be downloaded again. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).

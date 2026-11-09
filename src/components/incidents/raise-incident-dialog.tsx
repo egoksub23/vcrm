@@ -34,6 +34,7 @@ import {
   type IncidentDetectionSource,
 } from "@/lib/incidents/constants";
 import { useIncidentStandard } from "@/hooks/use-incident-standard";
+import { severityText } from "@/lib/incidents/severity-display";
 import { BODY_PARTS, MAX_PEOPLE } from "@/lib/incidents/platform/injury-details";
 import type { Incident } from "@/lib/incidents/types";
 import { severityStyle } from "./incident-visuals";
@@ -544,7 +545,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                       <div className="mt-0.5 text-[10.5px] font-normal">{sev.label}</div>
                     </>
                   ) : (
-                    sev.label
+                    severityText(sev.slug, severities)
                   )}
                 </button>
               ))}

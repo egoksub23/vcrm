@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "./info-tip";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ export function ObligationsPanel({
 }) {
   const t = useTranslations("Incidents.detail.obligations");
   const tParty = useTranslations("Incidents.detail.notificationsSent.party");
+  const tTips = useTranslations("Incidents.detail.tips");
 
   // "Overdue" moves with the clock, not only with edits to the incident.
   const [now, setNow] = useState(() => Date.now());
@@ -60,6 +62,7 @@ export function ObligationsPanel({
       <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         <ClipboardCheck className="size-3.5" />
         {t("title")}
+        <InfoTip text={tTips("steps")} />
         <span className="ml-auto font-medium normal-case">{t("openCount", { open, total: items.length })}</span>
       </h3>
       <ul className="flex flex-col gap-2.5">

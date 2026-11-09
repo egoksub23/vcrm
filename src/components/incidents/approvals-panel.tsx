@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "./info-tip";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ interface ApprovalRow {
 /** Approvals on an incident: who was asked, and (for the person who holds the role) the buttons to answer. Shown only when someone was asked. */
 export function ApprovalsPanel({ incidentId, onAnswered }: { incidentId: string; onAnswered?: () => void }) {
   const t = useTranslations("IncidentPlatform.approvals");
+  const tTips = useTranslations("Incidents.detail.tips");
   const [rows, setRows] = useState<ApprovalRow[] | null>(null);
   const [canDecide, setCanDecide] = useState<string[]>([]);
   const [note, setNote] = useState("");
@@ -59,6 +61,7 @@ export function ApprovalsPanel({ incidentId, onAnswered }: { incidentId: string;
       <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         <Stamp className="size-3.5" />
         {t("title")}
+        <InfoTip text={tTips("approvals")} />
       </h3>
       <ul className="flex flex-col gap-2 text-xs">
         {rows.map((a) => (

@@ -58,14 +58,28 @@ A line under the filters says how many you are looking at, for example "Showing 
 
 ## Severities
 
-The school template uses four levels.
+Severity is how serious the incident is. The school template uses four levels, numbered with P1 the most serious.
 
 | Severity | Meaning |
 |---|---|
-| **Critical** | Needs attention right now. |
-| **High** | Urgent, same-day attention. |
-| **Medium** | Attend to it in the normal course of work. |
-| **Low** | Minor, low impact. |
+| **P1 · Critical** | Needs attention right now. |
+| **P2 · High** | Urgent, same-day attention. |
+| **P3 · Medium** | Attend to it in the normal course of work. |
+| **P4 · Low** | Minor, low impact. |
+
+The reporter gives a first guess when raising the incident, and whoever triages it confirms or corrects it. If triage changes the severity, the rules that apply at submission are checked again, and any role that now matches is told (nobody is told twice).
+
+## Severity, status and level
+
+Three separate things describe an incident:
+
+| | Answers | Values |
+|---|---|---|
+| **Severity** | How serious is it? | P1 Critical to P4 Low |
+| **Status** | What stage of handling is it at? | Reported, Triaged, Contained, Investigating, Recovered, Closed |
+| **Level** | How far up the chain of people has it been pushed? | Level 1 (Reported, where every incident starts), Level 2 (Escalated), Level 3 (Top level) |
+
+The timers (nobody acknowledged, automatic escalation) only run while the status is **Reported**. Moving an incident to **Triaged** means someone has taken it on, so they stop.
 
 ## Statuses
 

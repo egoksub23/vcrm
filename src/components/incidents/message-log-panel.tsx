@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "./info-tip";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ const TONE: Record<DeliveryRow["status"], string> = {
 /** The message log for one incident: who was told, how, and whether it arrived or was acknowledged. A failed message can be retried. */
 export function MessageLogPanel({ incidentId, canManage }: { incidentId: string; canManage: boolean }) {
   const t = useTranslations("IncidentPlatform.log");
+  const tTips = useTranslations("Incidents.detail.tips");
   const [rows, setRows] = useState<DeliveryRow[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -85,6 +87,7 @@ export function MessageLogPanel({ incidentId, canManage }: { incidentId: string;
       <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         <Mail className="size-3.5" />
         {t("title")}
+        <InfoTip text={tTips("messageLog")} />
         <span className="ml-auto font-medium normal-case">{rows.length}</span>
       </h3>
       {waiting && canManage ? (

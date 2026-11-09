@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentAccount, toErrorResponse } from "@/lib/auth/account";
+import { createAdminPgDb } from "@/lib/postgres/db";
 import { appStorage } from "@/lib/storage/provider";
 
 type Params = { params: Promise<{ id: string; attId: string }> };
@@ -14,7 +15,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     const ctx = await getCurrentAccount();
     const { id, attId } = await params;
 
-    const { data: row } = await ctx.supabase.from("incident_attachments").select("id, storage_path").eq("id", attId).eq("incident_id", id).eq("account_id", ctx.accountId).maybeSingle();
+    const { data: row } = await ctx.supabase.from("incident_attachments").select("id, filename, storage_path").eq("id", attId).eq("incident_id", id).eq("account_id", ctx.accountId).maybeSingle();
     if (!row) return NextResponse.json({ error: "File not found." }, { status: 404 });
 
     const { error } = await ctx.supabase.from("incident_attachments").delete().eq("id", attId).eq("incident_id", id).eq("account_id", ctx.accountId);
@@ -24,7 +25,10 @@ export async function DELETE(_req: Request, { params }: Params) {
     const { data: still } = await ctx.supabase.from("incident_attachments").select("id").eq("id", attId).maybeSingle();
     if (still) return NextResponse.json({ error: "You can only delete files you added, unless you manage incidents." }, { status: 403 });
 
-    void appStorage().from(BUCKET).remove([(row as { storage_path: string }).storage_path]).catch(() => {});
+    const gone = row as { filename: string; storage_path: string };
+    // Removing evidence is itself recorded (the custody log keeps the file's own line; this says who removed it and when).
+    await createAdminPgDb().from("incident_activity").insert({ incident_id: id, account_id: ctx.accountId, actor_id: ctx.userId, event_type: "file_deleted", from_value: gone.filename.slice(0, 200) });
+    void appStorage().from(BUCKET).remove([gone.storage_path]).catch(() => {});
     return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);

@@ -41,6 +41,7 @@ export function RuleEditor({ data, rule, namer, onSaved, onCancel }: { data: Rul
   const [categories, setCategories] = useState<string[]>(rule?.conditions.categories ?? []);
   const [flags, setFlags] = useState<string[]>(rule?.conditions.flags ?? []);
   const [minSeverity, setMinSeverity] = useState<string>(rule?.conditions.min_severity ?? "");
+  const [level, setLevel] = useState<string>(rule?.conditions.level ? String(rule.conditions.level) : "");
   const [actions, setActions] = useState<RuleAction[]>(rule?.actions ?? [{ type: "notify", role_key: data.roles[0]?.key ?? "principal", ask_ack: false }]);
   const [busy, setBusy] = useState(false);
 
@@ -51,10 +52,10 @@ export function RuleEditor({ data, rule, namer, onSaved, onCancel }: { data: Rul
       name,
       trigger,
       wait_minutes: waitMinutes,
-      conditions: { categories, flags, min_severity: minSeverity || null },
+      conditions: { categories, flags, min_severity: minSeverity || null, level: trigger === "escalated" && level ? (Number(level) as 2 | 3) : null },
       actions,
     }),
-    [name, trigger, waitMinutes, categories, flags, minSeverity, actions],
+    [name, trigger, waitMinutes, categories, flags, minSeverity, level, actions],
   );
   const problems = validateRule(draft, data.roles.map((r) => r.key));
   const sentence = describeRule(draft, namer);
@@ -130,6 +131,16 @@ export function RuleEditor({ data, rule, namer, onSaved, onCancel }: { data: Rul
             <select className={selectClass} value={minSeverity} onChange={(e) => setMinSeverity(e.target.value)}>
               <option value="">{t("anySeverity")}</option>
               {data.template.severities.map((s) => <option key={s.slug} value={s.slug}>{s.label}</option>)}
+            </select>
+          </label>
+        ) : null}
+        {trigger === "escalated" ? (
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">{t("atLevel")}</span>
+            <select className={selectClass} value={level} onChange={(e) => setLevel(e.target.value)}>
+              <option value="">{t("anyLevel")}</option>
+              <option value="2">{t("level2")}</option>
+              <option value="3">{t("level3")}</option>
             </select>
           </label>
         ) : null}

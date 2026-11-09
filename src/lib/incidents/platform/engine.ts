@@ -161,7 +161,7 @@ export async function runTrigger(
   if (!incident) return result;
 
   const rules = (await store.loadRules(incident.account_id, args.trigger)).filter((r) => r.enabled && (!args.only || r.id === args.only));
-  const facts = { category: incident.category, severity: incident.severity, flags: incident.flags };
+  const facts = { category: incident.category, severity: incident.severity, flags: incident.flags, level: incident.escalation_level };
   const matching = rules.filter((r) => ruleMatches(r.conditions, facts));
   if (matching.length === 0) return result;
 

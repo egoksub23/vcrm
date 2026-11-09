@@ -235,7 +235,8 @@ describe("notifyRole (one-off notices such as an approval request)", () => {
 describe("runTrigger: escalated (escalation goes through the roles)", () => {
   it("tells the role a rule names when an incident is escalated, saying it is an escalation", async () => {
     const s = seeded();
-    s.rules = [ruleFromRecipe("escalated", "re1")];
+    s.rules = [ruleFromRecipe("escalated_2", "re1")];
+    s.incidents.get("i1")!.escalation_level = 2;
     const out = await runTrigger(s, { incidentId: "i1", trigger: "escalated" });
     expect(out.queued).toBe(1);
     expect(s.deliveries.map((d) => [d.role_key, d.ask_ack, d.reason])).toEqual([["principal", true, "escalated"]]);
@@ -249,7 +250,7 @@ describe("runTrigger: escalated (escalation goes through the roles)", () => {
 
   it("runs the escalation rules when another rule raises the level, once, and never loops", async () => {
     const s = seeded();
-    s.rules = [ruleFromRecipe("remind_unacknowledged", "r9"), ruleFromRecipe("escalated", "re1")];
+    s.rules = [ruleFromRecipe("remind_unacknowledged", "r9"), ruleFromRecipe("escalated_2", "re1")];
     s.unacknowledged = ["i1"];
     await sweepTimers(s, ["a1"]);
     expect(s.incidents.get("i1")!.escalation_level).toBe(2);
@@ -257,5 +258,18 @@ describe("runTrigger: escalated (escalation goes through the roles)", () => {
     expect(s.deliveries.map((d) => d.reason).sort()).toEqual(["escalated", "reminder"]);
     await sweepTimers(s, ["a1"]);
     expect(s.deliveries).toHaveLength(2);
+  });
+});
+
+describe("escalation rules by level", () => {
+  it("runs the rule for the level reached, and not the one for another level", async () => {
+    const s = seeded();
+    s.rules = [ruleFromRecipe("escalated_2", "l2"), ruleFromRecipe("escalated_3", "l3")];
+    s.incidents.get("i1")!.escalation_level = 2;
+    await runTrigger(s, { incidentId: "i1", trigger: "escalated" });
+    expect([...new Set(s.deliveries.map((d) => d.rule_id))]).toEqual(["l2"]);
+    s.incidents.get("i1")!.escalation_level = 3;
+    await runTrigger(s, { incidentId: "i1", trigger: "escalated" });
+    expect([...new Set(s.deliveries.map((d) => d.rule_id))].sort()).toEqual(["l2", "l3"]);
   });
 });

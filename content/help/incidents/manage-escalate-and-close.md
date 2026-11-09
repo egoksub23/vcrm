@@ -20,6 +20,14 @@ Open an incident from the Dashboard to see its full page.
 
 Every change is recorded in the **Timeline** with who made it and when.
 
+## Triage
+
+When you move an incident from **Reported** to **Triaged**, Halo asks for the three things triage is for: confirm the **severity**, choose the **incident lead**, and add a short **note**. They are saved together and appear in the Timeline, for example "Triage note: nurse has seen him, suspected sprain, parents called". Triaging also stops the "nobody acknowledged" timer, because someone has taken the incident on.
+
+## Root cause
+
+The **Root cause** box on the right is where you write what went wrong and why. Your school can require it before an incident can be closed. Saving it is recorded in the Timeline, and it prints in the report for filing.
+
 ## Required steps
 
 On the right, **Required steps** lists everything that must be done, each with a due time such as "due in 3 h" or "overdue by 1 d". Click **Mark done** when a step is complete, or **Mark open** to undo it. "2 of 5 open" shows how many are left.
@@ -34,11 +42,16 @@ Steps are added when the incident is raised, and again if what it involves chang
 - Type in the box and click **Post** to add a note. Use **@name** to mention a colleague; they are notified.
 - Click **Attach files** or **Upload evidence** to add photos, documents and screenshots.
 - **Photos show as small pictures** under Evidence files. Click one to see it large, then use the arrow keys or the arrows on the picture to move to the next. Other files stay in a list.
+- The card has two tabs. **Timeline** is the story: notes, triage, status, severity and lead changes, escalations, corrective actions added and done, root cause, files added, required steps done, approvals, notices you logged by hand, notices that could not be sent, and the report for filing. **Audit log** is everything, with exact times: every email sent and acknowledged, each file's custody record and checksum, and files that were deleted. It is read-only.
 - The **Timeline** is one list, in order: the notes people wrote, and everything Halo recorded, with who did it and when. That includes status and severity changes, escalations, files added, required steps done, notices sent and acknowledged, notifications you logged by hand, approvals asked and answered, and the report for filing being generated. It is the audit trail, so there is no separate audit to look at. The [report for filing](#make-a-report-for-filing) prints the same record.
 
 ## Escalation
 
-Every incident has an escalation level from 1 to 3. If an incident stays at **Reported** too long, Halo raises the level on its own and tells more senior people. Your administrator sets how long. Click **Escalate now** to do it at once, for example when you want a second pair of eyes. Who is told depends on your rules: if your school has a rule for **an incident is escalated**, the people in that role are told; see [Set up Incidents](/help/incidents/set-up-incidents).
+Every incident has an escalation level from 1 to 3. If an incident stays at **Reported** too long, Halo raises the level on its own and tells more senior people. Your administrator sets how long. The levels are named: Level 1 (Reported, where every incident starts), Level 2 (Escalated) and Level 3 (Top level). Click **Escalate now** and choose a level to do it at once, for example when you want a second pair of eyes; the incident can jump straight to the Top level. Who is told depends on your rules: if your school has a rule for **an incident is escalated**, the people in the role it names for that level are told; see [Set up Incidents](/help/incidents/set-up-incidents).
+
+## Hints on the page
+
+Next to most headings and fields there is a small **?**. Hover over it, or tab to it, for one sentence on what the thing is for.
 
 ## Other panels
 
