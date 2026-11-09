@@ -14387,7 +14387,7 @@
       "severityAtLeast": "Severity at least",
       "anySeverity": "Any",
       "roleEmpty": "{roles} has nobody to tell today, so this rule would reach no one for that part.",
-      "recipes": "Recipes you can add",
+      "recipes": "Workflow Rules you can add",
       "addRecipe": "Add",
       "noTemplate": "Choose an incident template first (Setup guide, step 1). Then you can try rules against its categories.",
       "tryTitle": "Try it",
