@@ -99,7 +99,26 @@ type TimelineItem =
   | { kind: "activity"; id: string; at: string; event: IncidentActivity }
   | { kind: "file"; id: string; at: string; file: IncidentAttachment }
   | { kind: "step"; id: string; at: string; step: IncidentObligation }
-  | { kind: "mail"; id: string; at: string; mail: DeliveryRow; what: "sent" | "acknowledged" };
+  | { kind: "mail"; id: string; at: string; mail: DeliveryRow; what: "sent" | "acknowledged" }
+  | { kind: "notice"; id: string; at: string; notice: IncidentNotificationSent }
+  | { kind: "approval"; id: string; at: string; approval: ApprovalEntry; what: "asked" | "decided" }
+  | { kind: "report"; id: string; at: string; report: FiledReportEntry };
+
+/** The bits of an approval and of a filed report the timeline needs. */
+interface ApprovalEntry {
+  id: string;
+  role_name: string;
+  requested_at: string;
+  decision: "approved" | "rejected" | null;
+  decided_by: string | null;
+  decided_at: string | null;
+}
+interface FiledReportEntry {
+  id: string;
+  version: number;
+  generated_at: string;
+  generated_by: string | null;
+}
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -139,6 +158,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const t = useTranslations("Incidents.detail");
   const tRecord = useTranslations("IncidentPlatform.record");
   const tActivity = useTranslations("Incidents.detail.activity");
+  const tNotif = useTranslations("Incidents.detail.notificationsSent");
   const tFlags = useTranslations("Incidents.flags");
   const tStatus = useTranslations("Incidents.common.status");
   const { user } = useAuth();
@@ -155,6 +175,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const [actions, setActions] = useState<IncidentAction[]>([]);
   const [obligations, setObligations] = useState<IncidentObligation[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryRow[]>([]);
+  const [approvalList, setApprovalList] = useState<ApprovalEntry[]>([]);
+  const [filedReports, setFiledReports] = useState<FiledReportEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -185,6 +207,26 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     setLoading(true);
     void load();
   }, [load]);
+
+  // The approvals asked for and answered, and the reports made for filing: they belong in the timeline too.
+  useEffect(() => {
+    let live = true;
+    void api<{ approvals: ApprovalEntry[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/approvals`).then((res) => {
+      if (live && res.ok) setApprovalList(res.data.approvals ?? []);
+    });
+    return () => {
+      live = false;
+    };
+  }, [incidentId]);
+
+  const loadFiledReports = useCallback(async () => {
+    const res = await api<{ reports: FiledReportEntry[] }>(`/api/incidents/${encodeURIComponent(incidentId)}/filed-reports`);
+    if (res.ok) setFiledReports(res.data.reports ?? []);
+  }, [incidentId]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first load of server data
+    if (canExport) void loadFiledReports();
+  }, [canExport, loadFiledReports]);
 
   // The notices the rules sent (managers only): they belong in the timeline too.
   useEffect(() => {
@@ -245,9 +287,13 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       ...obligations.filter((o) => o.status === "done" && o.completed_at).map((o) => ({ kind: "step" as const, id: `s:${o.id}`, at: o.completed_at as string, step: o })),
       ...deliveries.filter((d) => !d.is_test && d.sent_at).map((d) => ({ kind: "mail" as const, id: `m:${d.id}`, at: d.sent_at as string, mail: d, what: "sent" as const })),
       ...deliveries.filter((d) => !d.is_test && d.acknowledged_at).map((d) => ({ kind: "mail" as const, id: `a:${d.id}`, at: d.acknowledged_at as string, mail: d, what: "acknowledged" as const })),
+      ...notificationsSent.map((n) => ({ kind: "notice" as const, id: `n:${n.id}`, at: n.sent_at, notice: n })),
+      ...approvalList.map((a) => ({ kind: "approval" as const, id: `p:${a.id}`, at: a.requested_at, approval: a, what: "asked" as const })),
+      ...approvalList.filter((a) => a.decision && a.decided_at).map((a) => ({ kind: "approval" as const, id: `d:${a.id}`, at: a.decided_at as string, approval: a, what: "decided" as const })),
+      ...filedReports.map((r) => ({ kind: "report" as const, id: `r:${r.id}`, at: r.generated_at, report: r })),
     ];
     return items.sort((a, b) => a.at.localeCompare(b.at));
-  }, [comments, activity, attachments, obligations, deliveries]);
+  }, [comments, activity, attachments, obligations, deliveries, notificationsSent, approvalList, filedReports]);
 
   const patch = async (fields: Partial<Incident>) => {
     if (!incident) return;
@@ -387,6 +433,16 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         return { who: item.file.uploaded_by ? nameOf(item.file.uploaded_by) : null, text: tActivity(isPicture(item.file) ? "photoAdded" : "fileAdded", { name: item.file.filename }) };
       case "step":
         return { who: item.step.completed_by ? nameOf(item.step.completed_by) : null, text: tActivity("stepDone", { title: item.step.title }) };
+      case "notice": {
+        const party = tNotif(`party.${item.notice.recipient_party}`);
+        return { who: item.notice.recorded_by ? nameOf(item.notice.recorded_by) : null, text: item.notice.reference ? tActivity("noticeLoggedRef", { party, reference: item.notice.reference }) : tActivity("noticeLogged", { party }) };
+      }
+      case "approval":
+        return item.what === "asked"
+          ? { who: null, text: tActivity("approvalAsked", { role: item.approval.role_name }) }
+          : { who: item.approval.decided_by ? nameOf(item.approval.decided_by) : null, text: tActivity(item.approval.decision === "approved" ? "approvalApproved" : "approvalRejected", { role: item.approval.role_name }) };
+      case "report":
+        return { who: item.report.generated_by ? nameOf(item.report.generated_by) : null, text: tActivity("reportFiled", { version: item.report.version }) };
       case "mail":
         return { who: null, text: item.what === "sent" ? tActivity("mailSent", { name: item.mail.recipient_name, role: roleLabel(item.mail.role_key) }) : tActivity("mailAcknowledged", { name: item.mail.recipient_name }) };
     }
@@ -723,7 +779,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             </Link>
           ) : null}
 
-          {canExport && incident.status === "closed" ? <FilingPanel incidentId={incident.id} /> : null}
+          {canExport && incident.status === "closed" ? <FilingPanel incidentId={incident.id} onChanged={() => void loadFiledReports()} /> : null}
 
           {canManage ? <ReportAnswersPanel incidentId={incident.id} /> : null}
 

@@ -5,7 +5,7 @@ import { severityRank } from "@/lib/incidents/constants";
 import type { ResolveResult, ResolveWarning } from "./roles";
 import { DEFAULT_ACK_WAIT_MINUTES } from "./timing";
 
-export const RULE_TRIGGERS = ["raised", "unacknowledged", "step_overdue", "unresolved", "closed"] as const;
+export const RULE_TRIGGERS = ["raised", "unacknowledged", "step_overdue", "unresolved", "escalated", "closed"] as const;
 
 /** The triggers that wait for something, and so carry a wait time. */
 export const TIMED_TRIGGERS: readonly RuleTrigger[] = ["unacknowledged", "step_overdue", "unresolved"];
@@ -89,6 +89,7 @@ export function validateRule(draft: RuleDraft, knownRoles: readonly string[]): s
     } else if (a.type === "escalate") {
       if (a.level !== 2 && a.level !== 3) problems.push("Escalate to level 2 or 3.");
       if (draft.trigger === "step_overdue") problems.push("An overdue step cannot escalate the incident.");
+      if (draft.trigger === "escalated") problems.push("A rule that runs when an incident is escalated cannot escalate it again.");
     } else {
       problems.push("Unknown action.");
     }
@@ -131,6 +132,8 @@ export function describeRule(rule: Pick<IncidentRule, "trigger" | "wait_minutes"
       ? "An incident is raised"
       : rule.trigger === "closed"
         ? "An incident is closed"
+        : rule.trigger === "escalated"
+          ? "An incident is escalated (Escalate now, or a rule)"
         : rule.trigger === "unacknowledged"
           ? `Nobody has acknowledged it within ${minutesText(w)}`
           : rule.trigger === "unresolved"
@@ -288,6 +291,19 @@ export const RECIPES: readonly Recipe[] = [
     }),
   },
   {
+    key: "escalated",
+    name: "Tell the Principal when an incident is escalated",
+    description: "Whenever an incident is escalated, by the Escalate now button or by a rule, the people in this role are told. This replaces the separate list of names that used to be told, so you manage escalation here, with your Roles. Leave it off to keep the old behaviour.",
+    inStarterSet: false,
+    build: () => ({
+      name: "Escalated: tell the Principal",
+      trigger: "escalated",
+      wait_minutes: null,
+      conditions: {},
+      actions: [{ type: "notify", role_key: "principal", ask_ack: true }],
+    }),
+  },
+  {
     key: "resolve_by",
     name: "Chase incidents that stay open",
     description: "If an incident is still open two weeks after it was raised, tell the incident lead and the Principal.",
@@ -382,8 +398,8 @@ export function planRules(args: {
   const seen = new Set<string>();
   const ordered = [...args.rules].filter((r) => r.enabled).sort((a, b) => a.position - b.position);
   for (const rule of ordered) {
-    // Tried against a freshly raised incident: "raised" fires now, "unacknowledged" and "step_overdue" follow later. "closed" is a different moment.
-    if (rule.trigger === "closed") continue;
+    // Tried against a freshly raised incident: "raised" fires now, "unacknowledged" and "step_overdue" follow later. "closed" and "escalated" are different moments.
+    if (rule.trigger === "closed" || rule.trigger === "escalated") continue;
     if (!ruleMatches(rule.conditions, args.facts)) continue;
     const after = rule.trigger === "raised" ? 0 : (rule.wait_minutes ?? 0);
     for (const action of rule.actions) {

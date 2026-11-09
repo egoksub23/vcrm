@@ -107,6 +107,7 @@ const REASON: Record<RuleTrigger, NoticeReason> = {
   unacknowledged: "reminder",
   step_overdue: "step_overdue",
   unresolved: "reminder",
+  escalated: "escalated",
   closed: "closed",
 };
 
@@ -223,6 +224,12 @@ export async function runTrigger(
     }
   }
   if (rows.length > 0) result.queued = (await store.insertDeliveries(rows)).length;
+  // A rule that raised the level is an escalation like any other: the rules for that moment run too. They cannot escalate again, so this ends.
+  if (result.escalatedTo && args.trigger !== "escalated") {
+    const next = await runTrigger(store, { incidentId: incident.id, trigger: "escalated" });
+    result.queued += next.queued;
+    result.warnings.push(...next.warnings);
+  }
   return result;
 }
 

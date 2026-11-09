@@ -34,11 +34,11 @@ Steps are added when the incident is raised, and again if what it involves chang
 - Type in the box and click **Post** to add a note. Use **@name** to mention a colleague; they are notified.
 - Click **Attach files** or **Upload evidence** to add photos, documents and screenshots.
 - **Photos show as small pictures** under Evidence files. Click one to see it large, then use the arrow keys or the arrows on the picture to move to the next. Other files stay in a list.
-- The **Timeline** is one list, in order: the notes people wrote, and everything Halo recorded, with who did it and when. That includes status and severity changes, escalations, files added, required steps done, and notices sent and acknowledged. It is the audit trail, so there is no separate audit to look at. The [report for filing](#make-a-report-for-filing) prints the same record.
+- The **Timeline** is one list, in order: the notes people wrote, and everything Halo recorded, with who did it and when. That includes status and severity changes, escalations, files added, required steps done, notices sent and acknowledged, notifications you logged by hand, approvals asked and answered, and the report for filing being generated. It is the audit trail, so there is no separate audit to look at. The [report for filing](#make-a-report-for-filing) prints the same record.
 
 ## Escalation
 
-Every incident has an escalation level from 1 to 3. If an incident stays at **Reported** too long, Halo raises the level on its own and tells more senior people. Your administrator sets how long. Click **Escalate now** to do it at once, for example when you want a second pair of eyes.
+Every incident has an escalation level from 1 to 3. If an incident stays at **Reported** too long, Halo raises the level on its own and tells more senior people. Your administrator sets how long. Click **Escalate now** to do it at once, for example when you want a second pair of eyes. Who is told depends on your rules: if your school has a rule for **an incident is escalated**, the people in that role are told; see [Set up Incidents](/help/incidents/set-up-incidents).
 
 ## Other panels
 

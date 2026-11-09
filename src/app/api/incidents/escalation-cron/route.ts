@@ -1,7 +1,7 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
 import { createAdminPgDb } from '@/lib/postgres/db'
 import { notifyIncidentEmail } from '@/lib/email/incident-notification-email'
-import { runIncidentCron } from '@/lib/incidents/platform/run'
+import { processIncidentEvent, runIncidentCron } from '@/lib/incidents/platform/run'
 
 interface SweepNotified {
   user_id: string
@@ -35,7 +35,7 @@ export const GET = cronRoute('incident-escalation', CRON_INTERVALS['incident-esc
   }
 
   const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL
-  const rpcData = data as { notified?: SweepNotified[]; escalated?: number; notifications?: number } | null
+  const rpcData = data as { notified?: SweepNotified[]; escalated?: number; notifications?: number; escalated_incidents?: { incident_id: string }[] } | null
   const notified = (rpcData?.notified ?? []) as SweepNotified[]
   if (appBaseUrl && notified.length > 0) {
     await Promise.allSettled(
@@ -53,6 +53,9 @@ export const GET = cronRoute('incident-escalation', CRON_INTERVALS['incident-esc
       ),
     )
   }
+
+  // Schools that write a rule for the moment of escalation (migration 222) tell people through their roles.
+  for (const e of rpcData?.escalated_incidents ?? []) await processIncidentEvent(e.incident_id, 'escalated')
 
   // Role-based rules (migration 209): timed rules (nobody acknowledged, step overdue), then the outbox. Failures are logged and never fail the heartbeat.
   let rules: { unacknowledged: number; overdueSteps: number; sent: number; failed: number } | null = null

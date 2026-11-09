@@ -39,11 +39,13 @@ A role is a job. Rules tell roles, so when someone leaves you change the role's 
 
 A rule reads as a sentence: **when** something happens, **only if** it matches, **then** tell a role.
 
-- **When**: an incident is raised, nobody acknowledges it, a required step is overdue, an incident is still open, or an incident is closed.
+- **When**: an incident is raised, nobody acknowledges it, a required step is overdue, an incident is still open, an incident is escalated, or an incident is closed.
 - **Only if**: choose categories, what it involves and a minimum severity. Choose nothing to apply to every incident.
 - **Then**: tell one or more roles, optionally ask them to acknowledge, and optionally mark the incident a higher level.
 
 Click **Switch on the starter set** for ready-made rules: serious injuries, suspected concussion, nobody acknowledged, personal data, property damage, safeguarding, confirming to the reporter, and a required step being overdue. Use **Try it** to see who would be told for a pretend incident. It sends nothing.
+
+**Who is told when an incident is escalated.** Add the recipe **Tell the Principal when an incident is escalated** (or write your own rule with **When: an incident is escalated**) and choose the role. From then on, **Escalate now**, a timed escalation and a rule that raises the level all tell the people in that role, and the notice appears in the incident's message log. Once you have one switched-on escalation rule, the older separate list of names is no longer told, so you manage escalation in one place, with your Roles. Without such a rule, Halo keeps the older behaviour (every Admin and Owner, or the names set in the database).
 
 The same page has **Before an incident moves on**: what must be true before an incident can move to each status, such as a root cause written, every required step done, a lead assigned, or approval by a named person.
 

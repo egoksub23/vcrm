@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { notifyIncidentEmail } from "@/lib/email/incident-notification-email";
+import { processIncidentEvent } from "@/lib/incidents/platform/run";
 
 interface EscalateNotified {
   user_id: string;
@@ -52,6 +53,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         ),
       );
     }
+
+    // A school that writes a rule for the moment of escalation tells people through its roles (the SQL above then leaves the old name list out).
+    await processIncidentEvent(id, "escalated");
 
     return NextResponse.json(data ?? {});
   } catch (err) {

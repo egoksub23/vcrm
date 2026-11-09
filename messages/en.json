@@ -8110,7 +8110,13 @@
         "fileAdded": "Added a file: {name}",
         "stepDone": "Step done: {title}",
         "mailSent": "Email sent to {name} ({role})",
-        "mailAcknowledged": "{name} acknowledged the notice"
+        "mailAcknowledged": "{name} acknowledged the notice",
+        "noticeLogged": "Logged a notification to {party}",
+        "noticeLoggedRef": "Logged a notification to {party} (ref. {reference})",
+        "approvalAsked": "Approval asked of {role}",
+        "approvalApproved": "{role} approved",
+        "approvalRejected": "{role} did not approve",
+        "reportFiled": "Generated the report for filing (version {version})"
       },
       "actions": {
         "title": "Actions",
@@ -14414,6 +14420,7 @@
           "unacknowledged": "Nobody acknowledges it",
           "step_overdue": "A required step is overdue",
           "unresolved": "An incident is still open",
+          "escalated": "An incident is escalated",
           "closed": "An incident is closed"
         },
         "unit": {

@@ -278,3 +278,18 @@ describe("migration 221 (filed incident reports, and honest wording for the scho
     expect(updates).toContain("not an official requirement");
   });
 });
+
+describe("migration 222 (escalation notices go through Roles and Rules)", () => {
+  const m222 = readMigration("222_incident_escalation_by_roles.sql").replace(/\r\n/g, "\n");
+  it("adds the escalated trigger", () => {
+    expect(m222).toContain("CHECK (trigger IN ('raised', 'unacknowledged', 'step_overdue', 'unresolved', 'escalated', 'closed'))");
+  });
+  it("leaves the old name list out for a school with an escalated rule, in both the button and the sweep", () => {
+    expect(m222.match(/IF NOT public\.incident_escalation_by_rules\(v_row\.account_id\) THEN/g)?.length).toBe(2);
+    expect(m222).toContain("r.enabled AND r.trigger = 'escalated'");
+  });
+  it("still raises the level and records the event either way, and the sweep reports what it escalated", () => {
+    expect(m222.match(/INSERT INTO incident_escalation_events/g)?.length).toBe(2);
+    expect(m222).toContain("'escalated_incidents', v_escalated_detail");
+  });
+});

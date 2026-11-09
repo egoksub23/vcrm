@@ -29,6 +29,7 @@ Migration 206 is already applied. Run these, in order, once, from `supabase/migr
 | 216 | `216_incident_school_pack.sql` | A school's own compliance pack (built-in packs stay shared; this one is visible only to its school) |
 | 217 | `217_incident_webhooks.sql` | Events pushed to the coach portal, with retries |
 | 220 | `220_incident_school_categories.sql` | A school's own copy of the incident template, and categories it can hide |
+| 222 | `222_incident_escalation_by_roles.sql` | New rule trigger `escalated`; for a school with an enabled `escalated` rule, escalating (button or sweep) tells people through Roles and Rules and leaves the old `incident_escalation_recipients` list out; the sweep returns what it escalated |
 | 221 | `221_incident_filed_reports.sql` | `incident_filed_reports` (a PDF per closed incident, versioned, linked to the incident) and plain wording for the school starter steps |
 | 219 | `219_incident_portal_platform.sql` | The coach portal as one platform integration: platform keys (no school), the Vircle Group to school mapping with per-school frame origins, the Group ID on each report link. Revokes keys schools made under the old design. |
 | 218 | `218_incident_timing_defaults.sql` | The acknowledgement wait as a school setting (default 30 minutes); a school's own deadline (or none) and on/off switch for each built-in required step; the checklist builder reads them |

@@ -70,7 +70,7 @@ describe("incident platform strings", () => {
       ...["no_members", "everyone_away", "no_address", "no_people_on_incident"].map((k) => `IncidentPlatform.warnings.${k}`),
       ...INCIDENT_FLAGS.map((f) => `IncidentPlatform.flagNoun.${f}`),
       ...["template", "roles", "rules", "packs"].flatMap((s) => ["title", "help", "doneFact", "todoFact"].map((k) => `IncidentPlatform.guide.steps.${s}.${k}`)),
-      ...["raised", "unacknowledged", "step_overdue", "unresolved", "closed"].map((k) => `IncidentPlatform.rules.editor.trigger.${k}`),
+      ...["raised", "unacknowledged", "step_overdue", "unresolved", "escalated", "closed"].map((k) => `IncidentPlatform.rules.editor.trigger.${k}`),
       ...["minutes", "hours", "days"].map((k) => `IncidentPlatform.rules.editor.unit.${k}`),
       ...["injury", "concussion", "illness", "other"].map((k) => `IncidentPlatform.clearances.type_${k}`),
       ...["export", "purge", "auto_purge"].map((k) => `IncidentPlatform.retention.log.${k}`),

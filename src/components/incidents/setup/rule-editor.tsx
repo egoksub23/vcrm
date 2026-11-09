@@ -165,7 +165,7 @@ export function RuleEditor({ data, rule, namer, onSaved, onCancel }: { data: Rul
         ))}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => setActions((cur) => [...cur, { type: "notify", role_key: data.roles[0]?.key ?? "principal", ask_ack: false }])}><Plus />{t("addTell")}</Button>
-          {trigger !== "step_overdue" ? <Button type="button" variant="outline" size="sm" onClick={() => setActions((cur) => [...cur, { type: "escalate", level: 2 }])}><Plus />{t("addLevel")}</Button> : null}
+          {trigger !== "step_overdue" && trigger !== "escalated" ? <Button type="button" variant="outline" size="sm" onClick={() => setActions((cur) => [...cur, { type: "escalate", level: 2 }])}><Plus />{t("addLevel")}</Button> : null}
         </div>
       </fieldset>
 

@@ -231,3 +231,31 @@ describe("notifyRole (one-off notices such as an approval request)", () => {
     expect(await notifyRole(s, { incidentId: "i1", roleKey: "ghost", reason: "approval", refKey: "x" })).toEqual({ queued: 0, warnings: ["no_such_role"] });
   });
 });
+
+describe("runTrigger: escalated (escalation goes through the roles)", () => {
+  it("tells the role a rule names when an incident is escalated, saying it is an escalation", async () => {
+    const s = seeded();
+    s.rules = [ruleFromRecipe("escalated", "re1")];
+    const out = await runTrigger(s, { incidentId: "i1", trigger: "escalated" });
+    expect(out.queued).toBe(1);
+    expect(s.deliveries.map((d) => [d.role_key, d.ask_ack, d.reason])).toEqual([["principal", true, "escalated"]]);
+  });
+
+  it("does nothing for a school with no rule for escalation", async () => {
+    const s = seeded();
+    s.rules = [ruleFromRecipe("serious_injury", "r1")];
+    expect((await runTrigger(s, { incidentId: "i1", trigger: "escalated" })).queued).toBe(0);
+  });
+
+  it("runs the escalation rules when another rule raises the level, once, and never loops", async () => {
+    const s = seeded();
+    s.rules = [ruleFromRecipe("remind_unacknowledged", "r9"), ruleFromRecipe("escalated", "re1")];
+    s.unacknowledged = ["i1"];
+    await sweepTimers(s, ["a1"]);
+    expect(s.incidents.get("i1")!.escalation_level).toBe(2);
+    // the nobody-acknowledged rule tells the Principal (a reminder); the escalation rule tells the Principal too (an escalation), as a separate notice
+    expect(s.deliveries.map((d) => d.reason).sort()).toEqual(["escalated", "reminder"]);
+    await sweepTimers(s, ["a1"]);
+    expect(s.deliveries).toHaveLength(2);
+  });
+});

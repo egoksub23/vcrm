@@ -8110,7 +8110,13 @@
         "fileAdded": "파일 추가: {name}",
         "stepDone": "단계 완료: {title}",
         "mailSent": "{name}님({role})에게 이메일 발송",
-        "mailAcknowledged": "{name}님이 알림을 확인했습니다"
+        "mailAcknowledged": "{name}님이 알림을 확인했습니다",
+        "noticeLogged": "{party}에 알림 기록",
+        "noticeLoggedRef": "{party}에 알림 기록 (참조 {reference})",
+        "approvalAsked": "{role}에 승인 요청",
+        "approvalApproved": "{role} 승인",
+        "approvalRejected": "{role} 미승인",
+        "reportFiled": "제출용 보고서 생성 (버전 {version})"
       },
       "actions": {
         "title": "조치 사항",

@@ -22,7 +22,7 @@ interface Report {
  * On a closed incident: make the report for filing (a PDF of everything recorded from the report to the closure), and download the ones already made.
  * Each one is kept with the incident. Shown to people who hold incidents.export.
  */
-export function FilingPanel({ incidentId }: { incidentId: string }) {
+export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onChanged?: () => void }) {
   const t = useTranslations("IncidentPlatform.filing");
   const [reports, setReports] = useState<Report[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +59,7 @@ export function FilingPanel({ incidentId }: { incidentId: string }) {
     if (res.data.picturesNotShown > 0) w.push(t("picturesWarn", { count: res.data.picturesNotShown }));
     setWarnings(w);
     await load();
+    onChanged?.();
   }
 
   const has = (reports?.length ?? 0) > 0;

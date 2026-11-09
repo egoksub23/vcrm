@@ -133,3 +133,18 @@ describe("roleForParty", () => {
     expect(roleForParty(null)).toBeNull();
   });
 });
+
+describe("the escalated trigger", () => {
+  const draft = { name: "Escalated", trigger: "escalated" as const, wait_minutes: null, conditions: {}, actions: [{ type: "notify" as const, role_key: "principal" }] };
+  it("is a valid rule that tells a role, and has no wait time", () => {
+    expect(validateRule(draft, ["principal"])).toEqual([]);
+    expect(validateRule({ ...draft, wait_minutes: 5 }, ["principal"])).toContain("Only rules that wait for something have a wait time.");
+  });
+  it("cannot escalate again", () => {
+    expect(validateRule({ ...draft, actions: [{ type: "escalate" as const, level: 3 }] }, ["principal"])).toContain("A rule that runs when an incident is escalated cannot escalate it again.");
+  });
+  it("reads in plain words", () => {
+    const names = { role: (k: string) => k, category: (c: string) => c, severity: (s: string) => s, flag: (f: string) => f };
+    expect(describeRule(draft, names).when).toBe("An incident is escalated (Escalate now, or a rule)");
+  });
+});
