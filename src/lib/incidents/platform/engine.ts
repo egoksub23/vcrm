@@ -62,6 +62,12 @@ export interface DeliveryRow extends NewDelivery {
   status: "queued" | "sending" | "sent" | "failed" | "skipped" | "acknowledged";
 }
 
+/** When a school counts waits in business hours: the schedule, and the wait of the rule being swept (the database works out the due time inside the hours). */
+export interface BusinessHours {
+  scheduleId: string;
+  waitMinutes: number;
+}
+
 export interface IncidentLabels {
   categoryName: string;
   severityName: string;
@@ -89,11 +95,13 @@ export interface EngineStore {
   markFailed(id: string, error: string, nextAttemptAt: Date | null): Promise<void>;
   raiseEscalationLevel(incidentId: string, level: 2 | 3): Promise<boolean>;
   /** Incidents with an acknowledge-asking notice sent at or before `askedBefore`, still unacknowledged and not closed. */
-  listUnacknowledged(accountId: string, askedBefore: Date, limit: number): Promise<string[]>;
+  listUnacknowledged(accountId: string, askedBefore: Date, limit: number, hours?: BusinessHours): Promise<string[]>;
   /** Incidents not closed that were raised at or before `openedBefore` (the "resolve by" timer). */
-  listUnresolved(accountId: string, openedBefore: Date, limit: number): Promise<string[]>;
+  listUnresolved(accountId: string, openedBefore: Date, limit: number, hours?: BusinessHours): Promise<string[]>;
   /** Open required steps that became overdue at or before `dueBefore`, on incidents that are not closed. */
-  listOverdueSteps(accountId: string, dueBefore: Date, limit: number): Promise<OverdueStep[]>;
+  listOverdueSteps(accountId: string, dueBefore: Date, limit: number, hours?: BusinessHours): Promise<OverdueStep[]>;
+  /** The school's business-hours schedule for timed rules (migration 227), or null when waits count in elapsed time. */
+  businessHoursSchedule?(accountId: string): Promise<string | null>;
   appUrl(): string | null;
   senderName(accountId: string): Promise<string | null>;
   now(): Date;
@@ -319,10 +327,12 @@ export async function sweepTimers(store: EngineStore, accountIdsWithRules: reado
   const now = store.now();
 
   for (const accountId of accountIdsWithRules) {
+    const scheduleId = (await store.businessHoursSchedule?.(accountId)) ?? null;
+    const hoursFor = (rule: { wait_minutes: number | null }): BusinessHours | undefined => (scheduleId ? { scheduleId, waitMinutes: rule.wait_minutes ?? 0 } : undefined);
     const unack = (await store.loadRules(accountId, "unacknowledged")).filter((r) => r.enabled);
     for (const rule of unack) {
       const askedBefore = new Date(now.getTime() - (rule.wait_minutes ?? 0) * 60_000);
-      const ids = await store.listUnacknowledged(accountId, askedBefore, limit);
+      const ids = await store.listUnacknowledged(accountId, askedBefore, limit, hoursFor(rule));
       for (const incidentId of ids) {
         const out = await runTrigger(store, { incidentId, trigger: "unacknowledged", only: rule.id });
         if (out.queued > 0 || out.escalatedTo) summary.unacknowledged += 1;
@@ -331,7 +341,7 @@ export async function sweepTimers(store: EngineStore, accountIdsWithRules: reado
     const unresolved = (await store.loadRules(accountId, "unresolved")).filter((r) => r.enabled);
     for (const rule of unresolved) {
       const openedBefore = new Date(now.getTime() - (rule.wait_minutes ?? 0) * 60_000);
-      for (const incidentId of await store.listUnresolved(accountId, openedBefore, limit)) {
+      for (const incidentId of await store.listUnresolved(accountId, openedBefore, limit, hoursFor(rule))) {
         const out = await runTrigger(store, { incidentId, trigger: "unresolved", only: rule.id });
         if (out.queued > 0 || out.escalatedTo) summary.unresolved += 1;
       }
@@ -339,7 +349,7 @@ export async function sweepTimers(store: EngineStore, accountIdsWithRules: reado
     const overdue = (await store.loadRules(accountId, "step_overdue")).filter((r) => r.enabled);
     for (const rule of overdue) {
       const dueBefore = new Date(now.getTime() - (rule.wait_minutes ?? 0) * 60_000);
-      const steps = await store.listOverdueSteps(accountId, dueBefore, limit);
+      const steps = await store.listOverdueSteps(accountId, dueBefore, limit, hoursFor(rule));
       for (const step of steps) {
         const out = await runTrigger(store, {
           incidentId: step.incidentId,

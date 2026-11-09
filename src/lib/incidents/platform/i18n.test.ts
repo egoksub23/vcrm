@@ -37,6 +37,7 @@ const FILES = [
   "src/components/incidents/filing-panel.tsx",
   "src/components/incidents/setup/voided-panel.tsx",
   "src/components/incidents/setup/statuses-panel.tsx",
+  "src/components/incidents/setup/business-hours-panel.tsx",
   "src/components/incidents/record-view.tsx",
   "src/components/incidents/setup/retention-panel.tsx",
   "src/components/incidents/clearances-screen.tsx",

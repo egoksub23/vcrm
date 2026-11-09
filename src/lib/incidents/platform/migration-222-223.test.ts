@@ -87,3 +87,19 @@ describe("migration 226 (a school's own statuses)", () => {
     expect(m).not.toMatch(/CREATE POLICY \w+ ON public\.incident_status_options FOR (INSERT|UPDATE|DELETE|ALL)/);
   });
 });
+
+describe("migration 227 (business hours for timed rules)", () => {
+  const m = read("227_incident_business_hours.sql");
+  it("lets a school choose one of its business-hours schedules", () => {
+    expect(m).toContain("ADD COLUMN IF NOT EXISTS business_hours_schedule_id UUID REFERENCES public.business_hours_schedules(id) ON DELETE SET NULL");
+  });
+  it("replaces the three sweep functions (dropping the old signatures first) and counts the wait inside the hours only when a schedule is given", () => {
+    expect(m.match(/DROP FUNCTION IF EXISTS/g)?.length).toBe(3);
+    expect(m.match(/public\.sla_add_business_seconds\(p_schedule,/g)?.length).toBe(3);
+    expect(m.match(/WHEN p_schedule IS NULL THEN/g)?.length).toBe(3);
+  });
+  it("stays out of reach of ordinary users", () => {
+    expect(m.match(/REVOKE ALL ON FUNCTION/g)?.length).toBe(3);
+    expect(m.match(/TO service_role;/g)?.length).toBe(3);
+  });
+});

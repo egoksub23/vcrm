@@ -111,13 +111,22 @@ export class MemoryStore implements EngineStore {
     i.escalation_level = level;
     return true;
   }
-  async listUnacknowledged(_account?: string, _askedBefore?: Date) {
+  /** The schedule a school counts timed waits in, and the hours each sweep was asked with (so a test can see them). */
+  schedule: string | null = null;
+  hoursAsked: { kind: string; hours: { scheduleId: string; waitMinutes: number } | undefined }[] = [];
+  async businessHoursSchedule() {
+    return this.schedule;
+  }
+  async listUnacknowledged(_account?: string, _askedBefore?: Date, _limit?: number, hours?: { scheduleId: string; waitMinutes: number }) {
+    this.hoursAsked.push({ kind: "unacknowledged", hours });
     return this.unacknowledged;
   }
-  async listUnresolved() {
+  async listUnresolved(_account?: string, _openedBefore?: Date, _limit?: number, hours?: { scheduleId: string; waitMinutes: number }) {
+    this.hoursAsked.push({ kind: "unresolved", hours });
     return this.unresolved;
   }
-  async listOverdueSteps() {
+  async listOverdueSteps(_account?: string, _dueBefore?: Date, _limit?: number, hours?: { scheduleId: string; waitMinutes: number }) {
+    this.hoursAsked.push({ kind: "step_overdue", hours });
     return this.overdue;
   }
   appUrl() {

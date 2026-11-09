@@ -3,6 +3,7 @@
 import { createAdminPgDb, type PgDb } from "@/lib/postgres/db";
 import { incidentKey } from "@/lib/incidents/types";
 import type {
+  BusinessHours,
   DeliveryRow,
   Directory,
   EngineIncident,
@@ -28,6 +29,11 @@ export function rpcIds(data: unknown): string[] {
 }
 
 type Row = Record<string, unknown>;
+
+/** The extra arguments of the timer functions when a school counts waits in business hours (migration 227). */
+function hoursArgs(hours?: BusinessHours): Record<string, unknown> {
+  return hours ? { p_schedule: hours.scheduleId, p_wait_seconds: Math.round(hours.waitMinutes * 60) } : {};
+}
 
 export class PgEngineStore implements EngineStore {
   constructor(private readonly db: PgDb = createAdminPgDb()) {}
@@ -249,18 +255,24 @@ export class PgEngineStore implements EngineStore {
     return true;
   }
 
-  async listUnacknowledged(accountId: string, askedBefore: Date, limit: number): Promise<string[]> {
-    const { data } = await this.db.rpc("incident_unacknowledged", { p_account_id: accountId, p_before: askedBefore.toISOString(), p_limit: limit });
+  /** The schedule a school counts timed waits in (migration 227), or null for elapsed time. */
+  async businessHoursSchedule(accountId: string): Promise<string | null> {
+    const { data } = await this.db.from("incident_settings").select("business_hours_schedule_id").eq("account_id", accountId).maybeSingle();
+    return (data as { business_hours_schedule_id: string | null } | null)?.business_hours_schedule_id ?? null;
+  }
+
+  async listUnacknowledged(accountId: string, askedBefore: Date, limit: number, hours?: BusinessHours): Promise<string[]> {
+    const { data } = await this.db.rpc("incident_unacknowledged", { p_account_id: accountId, p_before: askedBefore.toISOString(), p_limit: limit, ...hoursArgs(hours) });
     return rpcIds(data);
   }
 
-  async listUnresolved(accountId: string, openedBefore: Date, limit: number): Promise<string[]> {
-    const { data } = await this.db.rpc("incident_unresolved", { p_account_id: accountId, p_before: openedBefore.toISOString(), p_limit: limit });
+  async listUnresolved(accountId: string, openedBefore: Date, limit: number, hours?: BusinessHours): Promise<string[]> {
+    const { data } = await this.db.rpc("incident_unresolved", { p_account_id: accountId, p_before: openedBefore.toISOString(), p_limit: limit, ...hoursArgs(hours) });
     return rpcIds(data);
   }
 
-  async listOverdueSteps(accountId: string, dueBefore: Date, limit: number): Promise<OverdueStep[]> {
-    const { data } = await this.db.rpc("incident_overdue_steps", { p_account_id: accountId, p_before: dueBefore.toISOString(), p_limit: limit });
+  async listOverdueSteps(accountId: string, dueBefore: Date, limit: number, hours?: BusinessHours): Promise<OverdueStep[]> {
+    const { data } = await this.db.rpc("incident_overdue_steps", { p_account_id: accountId, p_before: dueBefore.toISOString(), p_limit: limit, ...hoursArgs(hours) });
     return rpcRows<{ obligation_id: string; incident_id: string; party: string | null }>(data).map((r) => ({
       obligationId: r.obligation_id,
       incidentId: r.incident_id,

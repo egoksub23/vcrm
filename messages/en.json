@@ -15131,6 +15131,18 @@
       "renamed": "Status renamed.",
       "deleted": "Status deleted.",
       "limit": "A school can add at most {max} statuses."
+    },
+    "hours": {
+      "title": "Business hours",
+      "help": "By default a wait counts in elapsed time: nobody acknowledged within 30 minutes means 30 minutes on the clock, night or weekend included. Choose a business-hours schedule and the wait counts only inside those hours, so a notice raised at 16:50 on a Friday is not chased until Monday morning.",
+      "loading": "Loading",
+      "count": "Count waits in",
+      "always": "Elapsed time (24 hours a day)",
+      "on": "Waits now count in business hours.",
+      "off": "Waits now count in elapsed time.",
+      "none": "This school has no business-hours schedule yet.",
+      "create": "Create one in Settings.",
+      "scope": "This applies to the three timed rules: nobody acknowledged, a required step overdue, and still open. The deadlines of required steps themselves are still counted in elapsed hours."
     }
   }
 }
