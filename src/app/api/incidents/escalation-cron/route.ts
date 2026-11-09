@@ -1,16 +1,6 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
 import { createAdminPgDb } from '@/lib/postgres/db'
-import { notifyIncidentEmail } from '@/lib/email/incident-notification-email'
 import { processIncidentEvent, runIncidentCron } from '@/lib/incidents/platform/run'
-
-interface SweepNotified {
-  user_id: string
-  incident_id: string
-  key: string
-  severity: string
-  title: string
-  level: number
-}
 
 /**
  * Sweep incident escalation (migration 116).
@@ -34,25 +24,7 @@ export const GET = cronRoute('incident-escalation', CRON_INTERVALS['incident-esc
     return { status: 500, body: { error: error.message } }
   }
 
-  const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL
-  const rpcData = data as { notified?: SweepNotified[]; escalated?: number; notifications?: number; escalated_incidents?: { incident_id: string }[] } | null
-  const notified = (rpcData?.notified ?? []) as SweepNotified[]
-  if (appBaseUrl && notified.length > 0) {
-    await Promise.allSettled(
-      notified.map((n) =>
-        notifyIncidentEmail({
-          userIds: [n.user_id],
-          kind: 'escalated',
-          key: n.key,
-          title: n.title,
-          severity: n.severity,
-          detail: `Unacknowledged and escalated to level ${n.level}.`,
-          incidentId: n.incident_id,
-          appBaseUrl,
-        }),
-      ),
-    )
-  }
+  const rpcData = data as { escalated?: number; notifications?: number; escalated_incidents?: { incident_id: string }[] } | null
 
   // Schools that write a rule for the moment of escalation (migration 222) tell people through their roles.
   for (const e of rpcData?.escalated_incidents ?? []) await processIncidentEvent(e.incident_id, 'escalated')

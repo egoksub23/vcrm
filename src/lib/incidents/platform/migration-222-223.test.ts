@@ -47,3 +47,28 @@ describe("migration 224 (findings, void and delete)", () => {
     for (const k of ["created", "root_cause_changed", "file_deleted"]) expect(m).toContain(`'${k}'`);
   });
 });
+
+describe("migration 225 (escalation through roles and rules only)", () => {
+  const m = read("225_incident_escalation_rules_only.sql");
+  it("brings the old list across as contacts, roles, members and a rule for each level", () => {
+    expect(m).toContain("INSERT INTO public.incident_contacts");
+    expect(m).toContain("'escalation_level_' || r.level");
+    expect(m).toContain("INSERT INTO public.incident_role_members");
+    expect(m).toContain("'escalated_' || x.level");
+  });
+  it("leaves a school that wrote its own escalation rule exactly as it is", () => {
+    expect(m.match(/NOT EXISTS \(SELECT 1 FROM public\.incident_rules e WHERE e\.account_id = [xa]\.account_id AND e\.trigger = 'escalated'\)/g)?.length).toBe(2);
+  });
+  it("gives a school with no old list the Principal at level 2 and the Principal and the lead at the top", () => {
+    expect(m).toContain("'role_key', 'principal'");
+    expect(m).toContain("'role_key', 'incident_lead'");
+  });
+  it("no longer tells anybody from the database: the functions only raise and record the level", () => {
+    expect(m).not.toContain("INSERT INTO notifications");
+    expect(m.match(/INSERT INTO incident_escalation_events/g)?.length).toBe(2);
+    expect(m).toContain("DROP FUNCTION IF EXISTS public.incident_escalation_recipient_ids(UUID, INTEGER);");
+  });
+  it("keeps the old table, unused, so nothing is lost", () => {
+    expect(m).not.toMatch(/DROP TABLE/);
+  });
+});

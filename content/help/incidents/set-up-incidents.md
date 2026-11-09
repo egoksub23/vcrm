@@ -57,7 +57,7 @@ The same page has **Before an incident moves on**: what must be true before an i
 > [!WARNING]
 > The PDPA deadlines come from the law. Change them only after your data protection officer or legal adviser agrees.
 
-How long an incident can sit at a level before it escalates, and who is told, are under **Settings, Incidents** on the **Escalation timers** and **Recipients** tabs.
+How long an incident can sit at a level before it escalates is under **Settings, Incidents**, **Escalation timers**. Who is told when it escalates is set under **Rules**: there is no separate list of names any more. The first time this was updated, anyone on the old list was brought across as a role (Escalation level 2, Escalation level 3) with a rule telling it; a school with no old list got two rules telling the Principal (and, at the top, the incident lead). Check them under Setup, Rules.
 
 ## Categories
 

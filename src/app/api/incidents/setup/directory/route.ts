@@ -10,9 +10,7 @@ export async function GET() {
     const ctx = await requireCapability("incidents.configure");
     await ensureStarterRoles(ctx.accountId);
     const directory = await loadDirectory(ctx.supabase, ctx.accountId);
-    const { data: legacy } = await ctx.supabase.from("incident_escalation_recipients").select("user_id").eq("account_id", ctx.accountId);
-    const imported = directory.roles.some((r) => r.key === "escalation_level_2" || r.key === "escalation_level_3");
-    return NextResponse.json({ ...directory, legacyToImport: imported ? 0 : (legacy ?? []).length });
+    return NextResponse.json(directory);
   } catch (err) {
     return toErrorResponse(err);
   }

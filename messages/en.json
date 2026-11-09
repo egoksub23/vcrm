@@ -5082,10 +5082,9 @@
     },
     "incidents": {
       "title": "Incidents",
-      "description": "Escalation timers, who gets notified as an incident escalates, and the 24/7 incident contact used on generated reports.",
+      "description": "Escalation timers, the incident templates and packs, and the 24/7 incident contact used on generated reports. Who is told when an incident escalates is set under Incidents, Setup, Rules.",
       "tabs": {
         "timers": "Escalation timers",
-        "recipients": "Recipients",
         "standards": "Standards"
       },
       "standards": {
@@ -5127,18 +5126,6 @@
         "saveFailed": "Could not save the escalation timer. Try again.",
         "reset": "Reset to the default timer.",
         "resetFailed": "Could not reset the escalation timer. Try again."
-      },
-      "recipients": {
-        "intro": "Who gets notified when an incident escalates to each level. Leave a level empty to use the default.",
-        "level2Title": "Level 2 recipients",
-        "level2Hint": "Notified when an incident is unacknowledged long enough to escalate past level 1.",
-        "level3Title": "Level 3 recipients",
-        "level3Hint": "Notified when an incident escalates all the way to the top.",
-        "noneConfigured": "No recipients configured",
-        "recipientCount": "{count, plural, =1 {1 recipient} other {# recipients}}",
-        "noMembers": "No members found.",
-        "fallbackHint": "Falling back to Admins, the Owner, and anyone with incident-management access.",
-        "saveFailed": "Could not save that change. Try again."
       },
       "contact": {
         "title": "24/7 incident contact",
@@ -14435,11 +14422,6 @@
         "phonesHelp": "Kept for WhatsApp and SMS, which are not connected yet. Email is used until then.",
         "save": "Save",
         "cancel": "Cancel"
-      },
-      "legacy": {
-        "help": "You already have {count, plural, one {1 person} other {# people}} on the old escalation lists (level 2 and level 3). Bring them across as roles, so rules can tell them like anyone else.",
-        "button": "Bring them across",
-        "done": "{count, plural, =0 {Nothing new to add} one {1 person added to a role} other {# people added to roles}}"
       }
     },
     "rules": {

@@ -29,6 +29,8 @@ Migration 206 is already applied. Run these, in order, once, from `supabase/migr
 | 216 | `216_incident_school_pack.sql` | A school's own compliance pack (built-in packs stay shared; this one is visible only to its school) |
 | 217 | `217_incident_webhooks.sql` | Events pushed to the coach portal, with retries |
 | 220 | `220_incident_school_categories.sql` | A school's own copy of the incident template, and categories it can hide |
+| 225 | `225_incident_escalation_rules_only.sql` | Retires the separate escalation name list: brings it across as roles and escalation rules (or Principal rules for a school with no list); Escalate now and the sweep only raise and record the level; the old helper functions are dropped (the table is kept, unused) |
+| 224 | `224_incident_findings_void.sql` | `incident_comments.is_finding`; `voided_at/voided_by/void_reason` on incidents; `incident_deletions` log; voided/restored activity |
 | 223 | `223_incident_triage_audit.sql` | Activity trail also records root cause changes and file deletions; `incident_unacknowledged` also counts an incident nobody was ever asked to acknowledge (from when it was raised) |
 | 222 | `222_incident_escalation_by_roles.sql` | New rule trigger `escalated`; for a school with an enabled `escalated` rule, escalating (button or sweep) tells people through Roles and Rules and leaves the old `incident_escalation_recipients` list out; the sweep returns what it escalated |
 | 221 | `221_incident_filed_reports.sql` | `incident_filed_reports` (a PDF per closed incident, versioned, linked to the incident) and plain wording for the school starter steps |

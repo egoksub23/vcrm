@@ -23,7 +23,6 @@ export interface Directory {
   roles: RoleView[];
   contacts: IncidentContact[];
   /** People on the old escalation-recipient lists who have not been brought across as roles yet. */
-  legacyToImport?: number;
 }
 
 /** Creates the starter roles the first time Setup is opened. Service role only (the SQL function is not callable by browser roles). */
@@ -133,59 +132,3 @@ export async function roleKeysForUser(db: PgDb, accountId: string, userId: strin
   return ((roles ?? []) as { key: string }[]).map((r) => r.key);
 }
 
-export const LEGACY_ROLE_KEYS = { 2: "escalation_level_2", 3: "escalation_level_3" } as const;
-
-/**
- * Brings the old "escalation recipients" (level 2 and level 3, picked by Halo user) across as two ordinary roles with those people in them, so they
- * can be told by a rule like anyone else. Safe to run twice: existing contacts, roles and members are reused. Service connection.
- */
-export async function importLegacyEscalation(admin: PgDb, accountId: string): Promise<{ imported: number }> {
-  const { data: legacy } = await admin.from("incident_escalation_recipients").select("level, user_id").eq("account_id", accountId);
-  const rows = (legacy ?? []) as { level: 2 | 3; user_id: string }[];
-  if (rows.length === 0) return { imported: 0 };
-
-  const userIds = [...new Set(rows.map((r) => r.user_id))];
-  const { data: profiles } = await admin.from("profiles").select("user_id, full_name, email").in("user_id", userIds);
-  const profileOf = new Map(((profiles ?? []) as { user_id: string; full_name: string | null; email: string | null }[]).map((p) => [p.user_id, p]));
-
-  const { data: existing } = await admin.from("incident_contacts").select("id, user_id").eq("account_id", accountId).in("user_id", userIds);
-  const contactOf = new Map(((existing ?? []) as { id: string; user_id: string }[]).map((c) => [c.user_id, c.id]));
-  for (const userId of userIds) {
-    const p = profileOf.get(userId);
-    if (contactOf.has(userId) || !p?.email) continue;
-    const { data } = await admin
-      .from("incident_contacts")
-      .insert({ account_id: accountId, user_id: userId, name: p.full_name || p.email, kind: "staff", emails: [p.email], phones: [], preferred_channels: ["email"] })
-      .select("id")
-      .single();
-    if (data) contactOf.set(userId, (data as { id: string }).id);
-  }
-
-  let imported = 0;
-  for (const level of [2, 3] as const) {
-    const people = rows.filter((r) => r.level === level);
-    if (people.length === 0) continue;
-    const key = LEGACY_ROLE_KEYS[level];
-    let { data: role } = await admin.from("incident_roles").select("id").eq("account_id", accountId).eq("key", key).maybeSingle();
-    if (!role) {
-      const created = await admin
-        .from("incident_roles")
-        .insert({ account_id: accountId, key, name: { en: `Escalation level ${level}` }, description: "People who were told when an incident reached this level (brought across from the old settings).", kind: "fixed", sort_order: 400 + level })
-        .select("id")
-        .single();
-      role = created.data;
-    }
-    if (!role) continue;
-    const roleId = (role as { id: string }).id;
-    const { data: have } = await admin.from("incident_role_members").select("contact_id").eq("role_id", roleId);
-    const haveIds = new Set(((have ?? []) as { contact_id: string }[]).map((m) => m.contact_id));
-    let position = haveIds.size;
-    for (const person of people) {
-      const contactId = contactOf.get(person.user_id);
-      if (!contactId || haveIds.has(contactId)) continue;
-      const { error } = await admin.from("incident_role_members").insert({ account_id: accountId, role_id: roleId, contact_id: contactId, position: ++position });
-      if (!error) imported += 1;
-    }
-  }
-  return { imported };
-}

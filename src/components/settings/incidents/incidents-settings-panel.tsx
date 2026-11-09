@@ -1,9 +1,9 @@
 "use client";
 
-// Settings > Incidents (incidents.manage). Two tabs — Escalation timers
-// (business-day-aware, migration 122) and Recipients (per-account
-// overrides, migration 122) — plus the 24/7 incident contact used by
-// generated Form A/D (migration 123).
+// Settings > Incidents (incidents.manage). Escalation timers (business-day-aware,
+// migration 122) and the templates and packs, plus the 24/7 incident contact used
+// by generated Form A/D (migration 123). Who is told on an escalation is set under
+// Incidents, Setup, Rules (migration 225 retired the separate list of names).
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -11,11 +11,10 @@ import { useTranslations } from "next-intl";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsPanelHead } from "../settings-panel-head";
 import { EscalationTimersTab } from "./escalation-timers-tab";
-import { EscalationRecipientsTab } from "./escalation-recipients-tab";
 import { IncidentContactForm } from "./incident-contact-form";
 import { IncidentStandardsTab } from "./incident-standards-tab";
 
-type Tab = "timers" | "recipients" | "standards";
+type Tab = "timers" | "standards";
 
 export function IncidentsSettingsPanel() {
   const t = useTranslations("Settings.incidents");
@@ -28,13 +27,11 @@ export function IncidentsSettingsPanel() {
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList>
           <TabsTrigger value="timers">{t("tabs.timers")}</TabsTrigger>
-          <TabsTrigger value="recipients">{t("tabs.recipients")}</TabsTrigger>
           <TabsTrigger value="standards">{t("tabs.standards")}</TabsTrigger>
         </TabsList>
       </Tabs>
 
       {tab === "timers" ? <EscalationTimersTab /> : null}
-      {tab === "recipients" ? <EscalationRecipientsTab /> : null}
       {tab === "standards" ? <IncidentStandardsTab /> : null}
 
       {tab !== "standards" ? (
