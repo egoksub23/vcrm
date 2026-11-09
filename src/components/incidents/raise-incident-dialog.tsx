@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { AlertTriangle, FileText, Loader2, Paperclip, ShieldAlert, Upload, X } from "lucide-react";
@@ -98,6 +98,11 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // The date and time start as today and now each time the form opens (a page left open overnight must not offer yesterday).
+  useEffect(() => {
+    if (open) setWhen(nowParts());
+  }, [open]);
 
   const defaultSeverity = severities[Math.max(0, severities.length - 2)]?.slug ?? "P3";
   const effectiveSeverity = severity ?? defaultSeverity;
@@ -221,14 +226,16 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
       // under it). A failed file does not undo the report.
       if (staged.length > 0 && user) {
         let failed = 0;
+        let reason = "";
         for (const s of staged) {
           try {
             await attachFileToIncident(incident, s.file, user.id);
-          } catch {
+          } catch (err) {
             failed += 1;
+            reason = reason || (err instanceof Error ? err.message : "");
           }
         }
-        if (failed > 0) toast.error(t("attachmentsFailed", { count: failed }));
+        if (failed > 0) toast.error(t("attachmentsFailed", { count: failed }), { description: reason || undefined, duration: 15000 });
       }
 
       toast.success(t("created", { key: `INC-${new Date(incident.created_at).getFullYear()}-${incident.incident_number}` }), {

@@ -48,7 +48,9 @@ export async function attachFileToIncident(
   }).catch(() => null);
   if (!res?.ok) {
     void deleteAccountMedia(BUCKET, path).catch(() => {});
-    throw new Error('Could not save the attachment.');
+    // Say why when the server said why, so a failed photo is never a mystery.
+    const why = (await res?.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(why?.error ? `Could not save the attachment: ${why.error}` : 'Could not save the attachment.');
   }
   const json = (await res.json().catch(() => null)) as { attachment?: IncidentAttachment } | null;
   if (!json?.attachment) {

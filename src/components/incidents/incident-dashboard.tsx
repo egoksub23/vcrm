@@ -316,6 +316,7 @@ export function IncidentDashboard() {
       <RaiseIncidentDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
+        onCreated={() => void reload()}
         onOpenCreated={(id) => {
           router.push(`/incidents/${id}`);
         }}
