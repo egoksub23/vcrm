@@ -8275,6 +8275,12 @@
       "findingBadge": "Finding",
       "markFinding": "Mark as finding",
       "unmarkFinding": "Unmark",
+      "edit": "Edit",
+      "editSave": "Save",
+      "edited": "edited",
+      "editFailed": "Couldn't save that change.",
+      "editKept": "The earlier wording is kept in the Audit log.",
+      "earlierWording": "Earlier wording, written by {who} on {when}:",
       "findingFailed": "Couldn't save that change.",
       "cancel": "Cancel"
     }

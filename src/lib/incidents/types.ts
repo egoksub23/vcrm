@@ -94,6 +94,9 @@ export interface IncidentComment {
   mentions: string[];
   created_at: string;
   edited_at: string | null;
+  /** Who last changed the words, and what the note said before each change (migration 229). */
+  edited_by?: string | null;
+  previous_versions?: { body: string; at: string; by: string | null }[];
   /** Marked as a finding: it stands out in the Timeline and in the report for filing. */
   is_finding?: boolean;
 }

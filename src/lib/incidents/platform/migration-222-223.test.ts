@@ -118,3 +118,14 @@ describe("migration 228 (channels and email-in)", () => {
     expect(m).toContain("CHECK (source IN ('halo', 'coach_portal', 'api', 'email'))");
   });
 });
+
+describe("migration 229 (editing a note)", () => {
+  const m = read("229_incident_note_edit_history.sql");
+  it("keeps what a note said before each change, with when and who wrote it", () => {
+    expect(m).toContain("ADD COLUMN IF NOT EXISTS previous_versions JSONB NOT NULL DEFAULT '[]'::jsonb");
+    expect(m).toContain("jsonb_build_object('body', OLD.body, 'at', COALESCE(OLD.edited_at, OLD.created_at), 'by', COALESCE(OLD.edited_by, OLD.author_id))");
+  });
+  it("only records a version when the words change", () => {
+    expect(m).toContain("IF NEW.body IS DISTINCT FROM OLD.body THEN");
+  });
+});

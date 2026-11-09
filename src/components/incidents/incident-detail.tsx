@@ -402,6 +402,31 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     }
   };
 
+  /** Correct what a note says (a finding, say). The earlier wording stays in the note's history and in the Audit log. */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+  const saveNote = async (c: IncidentComment) => {
+    if (!incident || editBusy) return;
+    const text = editText.trim();
+    if (!text) return;
+    if (text === c.body) return setEditingId(null);
+    setEditBusy(true);
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/comments/${encodeURIComponent(c.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: text }),
+    });
+    setEditBusy(false);
+    if (!res.ok) {
+      const reason = ((await res.json().catch(() => ({}))) as { error?: string }).error;
+      return void toast.error(reason || t("editFailed"));
+    }
+    const { comment } = (await res.json()) as { comment?: Partial<IncidentComment> };
+    setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, ...(comment ?? { body: text, edited_at: new Date().toISOString() }) } : x)));
+    setEditingId(null);
+  };
+
   // Voiding (raised by mistake) and deleting for good (Owner only, a voided incident, typing the reference).
   const [voidOpen, setVoidOpen] = useState(false);
   const [voidReason, setVoidReason] = useState("");
@@ -890,13 +915,48 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                         <span className="font-medium text-foreground">{item.comment.author_id ? nameOf(item.comment.author_id) : t("unknown")}</span>
                         {item.comment.is_finding ? <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-700 uppercase dark:text-amber-300">{t("findingBadge")}</span> : null}
                         <span title={format(new Date(item.at), "PPpp")}>{view === "audit" ? format(new Date(item.at), "d MMM yyyy, HH:mm:ss") : formatDistanceToNow(new Date(item.at), { addSuffix: true })}</span>
-                        {canManage && view === "timeline" ? (
-                          <button type="button" onClick={() => void toggleFinding(item.comment)} className="ml-auto text-[11px] font-medium text-primary hover:underline">
-                            {item.comment.is_finding ? t("unmarkFinding") : t("markFinding")}
-                          </button>
+                        {item.comment.edited_at ? <span className="italic" title={format(new Date(item.comment.edited_at), "PPpp")}>{t("edited")}</span> : null}
+                        {canManage && view === "timeline" && editingId !== item.comment.id ? (
+                          <span className="ml-auto flex items-center gap-3">
+                            <button type="button" onClick={() => { setEditingId(item.comment.id); setEditText(item.comment.body); }} className="text-[11px] font-medium text-primary hover:underline">
+                              {t("edit")}
+                            </button>
+                            <button type="button" onClick={() => void toggleFinding(item.comment)} className="text-[11px] font-medium text-primary hover:underline">
+                              {item.comment.is_finding ? t("unmarkFinding") : t("markFinding")}
+                            </button>
+                          </span>
                         ) : null}
                       </div>
-                      <LinkifiedText text={item.comment.body} className="mt-0.5 text-[13px] whitespace-pre-wrap text-foreground" />
+                      {editingId === item.comment.id ? (
+                        <div className="mt-1 flex flex-col gap-2">
+                          <textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            maxLength={10000}
+                            rows={3}
+                            autoFocus
+                            aria-label={t("edit")}
+                            className="w-full resize-y rounded-md border border-input bg-background px-2 py-1.5 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                          />
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" disabled={editBusy || !editText.trim()} onClick={() => void saveNote(item.comment)}>{t("editSave")}</Button>
+                            <Button size="sm" variant="outline" disabled={editBusy} onClick={() => setEditingId(null)}>{t("cancel")}</Button>
+                            <span className="text-[11px] text-muted-foreground">{t("editKept")}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <LinkifiedText text={item.comment.body} className="mt-0.5 text-[13px] whitespace-pre-wrap text-foreground" />
+                      )}
+                      {view === "audit" && (item.comment.previous_versions?.length ?? 0) > 0 ? (
+                        <ul className="mt-2 flex flex-col gap-1 border-t border-border pt-2 text-[12px] text-muted-foreground">
+                          {[...(item.comment.previous_versions ?? [])].reverse().map((v, i) => (
+                            <li key={i}>
+                              <span className="font-medium">{t("earlierWording", { who: v.by ? nameOf(v.by) : t("unknown"), when: format(new Date(v.at), "d MMM yyyy, HH:mm:ss") })}</span>
+                              <span className="whitespace-pre-wrap"> {v.body}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </div>
                   </div>
                 ) : (

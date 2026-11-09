@@ -29,6 +29,7 @@ Migration 206 is already applied. Run these, in order, once, from `supabase/migr
 | 216 | `216_incident_school_pack.sql` | A school's own compliance pack (built-in packs stay shared; this one is visible only to its school) |
 | 217 | `217_incident_webhooks.sql` | Events pushed to the coach portal, with retries |
 | 220 | `220_incident_school_categories.sql` | A school's own copy of the incident template, and categories it can hide |
+| 229 | `229_incident_note_edit_history.sql` | `incident_comments.edited_by` and `previous_versions` (each earlier wording with when and who wrote it, appended by the existing edit trigger); a note, including a finding, can be edited |
 | 228 | `228_incident_channels_email_in.sql` | `incident_channel_settings` (one row per school): WhatsApp/SMS/push switches and the WhatsApp template; the email-in secret address, allowed senders and category; `incidents.source` also allows `'email'`. Closed to all but `incidents.configure` (it holds the secret) |
 | 227 | `227_incident_business_hours.sql` | `incident_settings.business_hours_schedule_id`; the three sweep functions take `p_schedule` and `p_wait_seconds` and count the wait inside the schedule's hours (`sla_add_business_seconds`) |
 | 226 | `226_incident_custom_statuses.sql` | `incident_status_options` (a school's renamed base statuses and its own extra ones, each mapped to one of the six base statuses); `incidents.status_key` |

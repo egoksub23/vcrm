@@ -7,6 +7,10 @@ updated: 2026-11-09
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
 
+## 10 November 2026 — Incidents: edit a note or finding
+
+- **Edit a note.** People who manage incidents can click **Edit** on a note, including a finding, to correct its words. It shows **edited**, and the earlier wording stays in the Audit log. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).
+
 ## 9 November 2026 (evening) — Incidents: findings, void, your own statuses, business hours, more channels, email in
 
 - **Mark a note as a finding.** Notes that state what the investigation established show under **Key findings** and print first in the report for filing. Approvals now update on the page by themselves.
