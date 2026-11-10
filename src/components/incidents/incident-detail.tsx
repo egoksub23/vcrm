@@ -78,7 +78,6 @@ import { InfoTip } from "./info-tip";
 import { useStatusOptions } from "@/hooks/use-status-options";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TriageDialog, type TriageResult } from "./triage-dialog";
-import { FindingsPanel } from "./findings-panel";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { severityText } from "@/lib/incidents/severity-display";
@@ -226,7 +225,9 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
   const [approvalList, setApprovalList] = useState<ApprovalEntry[]>([]);
   const [escalations, setEscalations] = useState<EscalationEntry[]>([]);
   const [custody, setCustody] = useState<EvidenceEntry[]>([]);
-  const [view, setView] = useState<"timeline" | "audit">("timeline");
+  const [view, setView] = useState<"timeline" | "audit" | "summary">("timeline");
+  const [summaryDraft, setSummaryDraft] = useState("");
+  const [summaryBusy, setSummaryBusy] = useState(false);
   const [triageOpen, setTriageOpen] = useState(false);
   const [filedReports, setFiledReports] = useState<FiledReportEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -246,6 +247,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       obligations: IncidentObligation[];
     };
     setIncident(json.incident ?? null);
+    setSummaryDraft(json.incident?.root_cause ?? "");
     setComments(json.comments ?? []);
     setActivity(json.activity ?? []);
     setAttachments(json.attachments ?? []);
@@ -959,7 +961,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           <div className="flex items-center gap-2">
             {canManage ? (
               <div className="flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist" aria-label={t("timelineTitle")}>
-                {(["timeline", "audit"] as const).map((k) => (
+                {(["timeline", "summary", "audit"] as const).map((k) => (
                   <button
                     key={k}
                     type="button"
@@ -968,17 +970,75 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                     onClick={() => setView(k)}
                     className={cn("rounded-md px-3 py-1 text-xs font-medium transition-colors", view === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
                   >
-                    {k === "timeline" ? t("timelineTitle") : t("auditTitle")}
+                    {k === "timeline" ? t("timelineTitle") : k === "summary" ? t("summaryTab") : t("auditTitle")}
                   </button>
                 ))}
               </div>
             ) : (
               <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t("timelineTitle")}</h2>
             )}
-            <InfoTip text={view === "timeline" ? tTips("timeline") : tTips("audit")} />
+            <InfoTip text={view === "timeline" ? tTips("timeline") : view === "summary" ? t("summaryHelp") : tTips("audit")} />
           </div>
-          <p className="mt-2 mb-3 text-xs text-muted-foreground">{view === "timeline" ? t("timelineHelp") : t("auditHelp")}</p>
-          {anyKinds ? (
+          {view !== "summary" ? <p className="mt-2 mb-3 text-xs text-muted-foreground">{view === "timeline" ? t("timelineHelp") : t("auditHelp")}</p> : null}
+          {view === "summary" ? (
+            <div className="mt-3 flex flex-col gap-3">
+              <Textarea
+                value={summaryDraft}
+                onChange={(e) => setSummaryDraft(e.target.value)}
+                placeholder={t("summaryPlaceholder")}
+                rows={8}
+                disabled={!canManage}
+                className="resize-y bg-muted text-[13px]"
+              />
+              {canManage ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={summaryBusy}
+                    onClick={async () => {
+                      setSummaryBusy(true);
+                      try {
+                        const res = await fetch(`/api/incidents/${encodeURIComponent(incidentId)}/ai-summary`, { method: "POST" });
+                        if (res.ok) {
+                          const json = (await res.json()) as { summary: string };
+                          setSummaryDraft(json.summary);
+                        } else {
+                          toast.error("Could not generate summary.");
+                        }
+                      } finally {
+                        setSummaryBusy(false);
+                      }
+                    }}
+                  >
+                    {summaryBusy ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUpCircle className="size-3.5" />}
+                    {summaryBusy ? t("summaryGenerating") : t("summaryGenerate")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={summaryBusy || summaryDraft.trim() === (incident?.root_cause ?? "").trim()}
+                    onClick={() => void patch({ root_cause: summaryDraft.trim() || null })}
+                  >
+                    {t("summarySave")}
+                  </Button>
+                </div>
+              ) : null}
+              {comments.length > 0 ? (
+                <div className="mt-2 border-t border-border pt-3">
+                  <p className="mb-2 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">{t("filterAll")} {t("kind.investigation")}s & {t("kind.finding")}s</p>
+                  <ul className="flex flex-col gap-1.5">
+                    {conclusionsOf(comments).investigation.concat(conclusionsOf(comments).findings).map((c) => (
+                      <li key={c.id} className={cn("rounded-md px-2.5 py-1.5 text-[12.5px] whitespace-pre-wrap text-foreground", kindOf(c) === "finding" ? "bg-amber-500/10" : "bg-sky-500/10")}>
+                        <span className={cn("mr-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase", kindOf(c) === "finding" ? "bg-amber-500/20 text-amber-700 dark:text-amber-300" : "bg-sky-500/20 text-sky-700 dark:text-sky-300")}>{t(`kind.${kindOf(c)!}`)}</span>
+                        {c.body}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {view !== "summary" && anyKinds ? (
             <div className="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("filterLabel")}>
               {(["all", ...NOTE_KINDS] as const).map((k) => (
                 <button
@@ -993,7 +1053,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               ))}
             </div>
           ) : null}
-          <div className="flex flex-col gap-3">
+          {view !== "summary" ? <div className="flex flex-col gap-3">
             {shown.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("timelineEmpty")}</p>
             ) : (
@@ -1073,7 +1133,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                 ),
               )
             )}
-          </div>
+          </div> : null}
 
           {view === "timeline" ? (
           <div className="relative mt-4">
@@ -1132,7 +1192,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           ) : null}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4 2xl:block 2xl:columns-2 2xl:gap-4 2xl:[&>*]:mb-4 2xl:[&>*]:break-inside-avoid">
+        <div className="flex min-w-0 flex-col gap-4">
           <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <Paperclip className="size-3.5" />
@@ -1178,8 +1238,6 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               {tRecord("open")}
             </Link>
           ) : null}
-
-          <FindingsPanel value={incident.root_cause ?? null} canEdit={canManage} onSave={(text) => patch({ root_cause: text || null })} closingNotes={conclusionsOf(comments).closing.map((c) => c.body)} findings={conclusionsOf(comments).findings.map((c) => c.body)} />
 
           {canExport && incident.status === "closed" ? <FilingPanel incidentId={incident.id} onChanged={() => void loadFiledReports()} /> : null}
 
