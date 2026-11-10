@@ -85,8 +85,11 @@ export async function POST(request: Request) {
 
     // INSERT into auth.users directly — the handle_new_user trigger fires
     // and builds the account + owner profile synchronously.
-    const metaJson = JSON.stringify({ full_name: ownerName ?? companyName });
-    const appMetaJson = JSON.stringify({ provisioned: true });
+    // Pass objects directly (not JSON.stringify + ::jsonb) so postgres.js sends
+    // them with the JSONB type OID, which the enforce_invite_only_signup trigger
+    // reads via raw_app_meta_data ->> 'provisioned'.
+    const metaObj = { full_name: ownerName ?? companyName };
+    const appMetaObj = { provisioned: true };
     const createdRows = await sql`
       INSERT INTO auth.users (
         id, instance_id, aud, role, email,
@@ -96,7 +99,7 @@ export async function POST(request: Request) {
         gen_random_uuid(),
         '00000000-0000-0000-0000-000000000000',
         'authenticated', 'authenticated', ${ownerEmail},
-        NOW(), ${metaJson}::jsonb, ${appMetaJson}::jsonb,
+        NOW(), ${metaObj}, ${appMetaObj},
         NOW(), NOW(), false, false
       )
       RETURNING id
