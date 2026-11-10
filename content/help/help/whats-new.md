@@ -7,8 +7,13 @@ updated: 2026-11-09
 
 This page lists what changed in each release, in plain words, newest first. It only includes things you can see or use as an agent. Some features need your admin to switch them on.
 
-## 10 November 2026 — Incidents: edit a note or finding
+## 10 November 2026 — Incidents: edit wording, kinds of note, closing note, a wider page
 
+- **Change the title and description.** Click **Edit** beside the title. The old and new wording go to the Audit log; once an incident is closed a reason is required.
+- **Kinds of note.** Mark a note as an **Investigation note**, a **Finding** or a **Closing note**. Findings and the closing note show under **Conclusions**; the Timeline can be filtered by kind.
+- **Closing note.** Closing an incident now asks how it ended. Your school can require it. The report for filing starts with the conclusions.
+- **Who was emailed when it escalated.** The escalation line in the Timeline names the people told, or says that no one was.
+- **A wider page.** The incident page uses the full width of your screen, with the side panels in two columns on a large screen.
 - **Edit a note.** People who manage incidents can click **Edit** on a note, including a finding, to correct its words. It shows **edited**, and the earlier wording stays in the Audit log. See [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).
 
 ## 9 November 2026 (evening) — Incidents: findings, void, your own statuses, business hours, more channels, email in

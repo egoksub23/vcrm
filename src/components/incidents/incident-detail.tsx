@@ -61,6 +61,18 @@ import { EscalationChip, SeverityBadge, StatusLozenge } from "./incident-visuals
 import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { ObligationsPanel } from "./obligations-panel";
 import { MessageLogPanel, roleLabel, type DeliveryRow } from "./message-log-panel";
+import { IncidentWording } from "./incident-wording";
+import { CloseDialog } from "./close-dialog";
+import { NOTE_KINDS, conclusionsOf, kindOf, type NoteKind } from "@/lib/incidents/platform/note-kinds";
+
+/** How each kind of note looks in the Timeline: the box, and the small badge beside the author. */
+const KIND_STYLE: Record<NoteKind | "none", { box: string; badge: string }> = {
+  none: { box: "bg-muted/50", badge: "" },
+  investigation: { box: "bg-sky-500/10 ring-1 ring-sky-500/40", badge: "bg-sky-500/20 text-sky-700 dark:text-sky-300" },
+  finding: { box: "bg-amber-500/10 ring-1 ring-amber-500/40", badge: "bg-amber-500/20 text-amber-700 dark:text-amber-300" },
+  closing: { box: "bg-emerald-500/10 ring-1 ring-emerald-500/40", badge: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" },
+};
+import { toldAtEscalation } from "@/lib/incidents/platform/escalation-told";
 import { DeleteButton, EvidenceGallery, isPicture } from "./evidence-gallery";
 import { InfoTip } from "./info-tip";
 import { useStatusOptions } from "@/hooks/use-status-options";
@@ -365,7 +377,11 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     ];
     return items.sort((a, b) => a.at.localeCompare(b.at));
   }, [comments, activity, attachments, obligations, deliveries, notificationsSent, approvalList, filedReports, actions, escalations, custody]);
-  const shown = view === "timeline" ? timeline.filter((i) => !isAuditOnly(i)) : timeline;
+  // A filter on the kind of note (all, investigation notes, findings, closing notes), offered once any note has a kind.
+  const [noteFilter, setNoteFilter] = useState<NoteKind | "all">("all");
+  const anyKinds = comments.some((c) => kindOf(c) !== null);
+  const baseShown = view === "timeline" ? timeline.filter((i) => !isAuditOnly(i)) : timeline;
+  const shown = noteFilter === "all" || !anyKinds ? baseShown : baseShown.filter((i) => i.kind === "comment" && kindOf(i.comment) === noteFilter);
 
   const patch = async (fields: Partial<Incident>): Promise<boolean> => {
     if (!incident) return false;
@@ -386,20 +402,37 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     return true;
   };
 
-  /** A note can be marked as a finding, so it stands out (and prints as one in the report for filing). */
-  const toggleFinding = async (c: IncidentComment) => {
+  /** A note can be marked as an investigation note, a finding or a closing note, so it stands out (and is printed that way in the report for filing). */
+  const setKind = async (c: IncidentComment, kind: NoteKind | null) => {
     if (!incident) return;
-    const next = !c.is_finding;
-    setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, is_finding: next } : x)));
+    const before = { kind: c.kind ?? null, is_finding: c.is_finding };
+    setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, kind, is_finding: kind === "finding" } : x)));
     const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/comments/${encodeURIComponent(c.id)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_finding: next }),
+      body: JSON.stringify({ kind }),
     });
     if (!res.ok) {
-      setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, is_finding: !next } : x)));
+      setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, ...before } : x)));
       toast.error(t("findingFailed"));
     }
+  };
+
+  /** Amend the title and description. The server checks them and the database writes the old and new wording to the Audit log (with a reason once closed). */
+  const amendWording = async (fields: { title: string; description: string }, reason: string): Promise<boolean> => {
+    if (!incident) return false;
+    const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: fields.title, description: fields.description, ...(reason ? { amend_reason: reason } : {}) }),
+    });
+    if (!res.ok) {
+      const why = ((await res.json().catch(() => ({}))) as { error?: string }).error;
+      toast.error(why || t("editFailed"));
+      return false;
+    }
+    await load();
+    return true;
   };
 
   /** Correct what a note says (a finding, say). The earlier wording stays in the note's history and in the Audit log. */
@@ -481,7 +514,32 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
     if (base === "triaged" && incident.status === "reported") {
       setPendingStatusKey(statusKey);
       setTriageOpen(true);
+    } else if (base === "closed" && incident.status !== "closed") {
+      // Closing asks how it ended: a closing note (optional unless the school requires one).
+      setPendingStatusKey(statusKey);
+      setCloseOpen(true);
     } else void patch({ status: base, status_key: statusKey });
+  };
+  const [closeOpen, setCloseOpen] = useState(false);
+  const closeNotePosted = useRef(false);
+  const confirmClose = async (note: string) => {
+    if (!incident) return;
+    // The note goes first so a school that requires one finds it there when the move is checked. If the move is then refused, the note is not written twice.
+    if (note && !closeNotePosted.current) {
+      const res = await fetch(`/api/incidents/${encodeURIComponent(incident.id)}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: note, mentions: [], kind: "closing" }),
+      });
+      if (!res.ok) return void toast.error(t("close.noteFailed"));
+      const saved = (await res.json().catch(() => null)) as { comment?: IncidentComment } | null;
+      if (saved?.comment) setComments((prev) => (prev.some((c) => c.id === saved.comment!.id) ? prev : [...prev, saved.comment!]));
+      closeNotePosted.current = true;
+    }
+    const ok = await patch({ status: "closed", status_key: pendingStatusKey });
+    if (!ok) return;
+    closeNotePosted.current = false;
+    setCloseOpen(false);
   };
   const confirmTriage = async (r: TriageResult) => {
     if (!incident) return;
@@ -639,7 +697,14 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
       }
       case "escalation": {
         const how = item.event.reason === "manual" ? "escalateHowManual" : item.event.reason === "rule" ? "escalateHowRule" : "escalateHowTimer";
-        return { who: item.event.triggered_by ? nameOf(item.event.triggered_by) : null, text: tActivity("escalatedTo", { level: item.event.to_level, how: tActivity(how) }) };
+        // Who the escalation rules told, so the line answers "who knows about this now?" without opening the message log.
+        const nextAt = escalations.map((x) => x.created_at).filter((at) => at > item.event.created_at).sort()[0] ?? null;
+        const told = toldAtEscalation(item.event.created_at, nextAt, deliveries);
+        // Only people who manage incidents have the message log loaded; for anyone else the line stays as it was rather than claim nobody was told.
+        const toldText = !canManage ? "" : told.length > 0
+          ? ` · ${tActivity("escalatedTold", { people: told.map((p) => `${p.name} (${roleLabel(p.roleKey)})${p.failed ? ` ${tActivity("escalatedNotSent")}` : ""}`).join(", ") })}`
+          : ` · ${tActivity("escalatedNobody")}`;
+        return { who: item.event.triggered_by ? nameOf(item.event.triggered_by) : null, text: `${tActivity("escalatedTo", { level: item.event.to_level, how: tActivity(how) })}${toldText}` };
       }
       case "evidence":
         return { who: item.entry.collected_by ? nameOf(item.entry.collected_by) : null, text: `${tActivity("custody", { description: item.entry.description })}${item.entry.file_hash ? ` · SHA-256 ${item.entry.file_hash.slice(0, 12)}…` : ""}` };
@@ -673,6 +738,13 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         return tActivity("voidedEvent", { reason: event.to_value ?? "" });
       case "restored":
         return tActivity("restoredEvent");
+      case "title_changed":
+        return `${tActivity("titleChanged", { from: event.from_value ?? "", to: event.to_value ?? "" })}${event.reason ? ` · ${tActivity("amendReason", { reason: event.reason })}` : ""}`;
+      case "description_changed": {
+        const cut = (s: string | null) => ((s ?? "").length > 300 ? `${(s ?? "").slice(0, 300)}…` : (s ?? ""));
+        const base = view === "audit" ? tActivity("descriptionChangedFull", { from: cut(event.from_value) || "–", to: cut(event.to_value) || "–" }) : tActivity("descriptionChanged");
+        return `${base}${event.reason ? ` · ${tActivity("amendReason", { reason: event.reason })}` : ""}`;
+      }
       default:
         return event.event_type;
     }
@@ -716,7 +788,14 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
               <EscalationChip level={incident.escalation_level} />
               {incident.escalation_level > 1 ? <InfoTip text={tTips("level")} /> : null}
             </div>
-            <h1 className="mt-1 text-xl font-bold text-foreground">{incident.title}</h1>
+            <IncidentWording
+              title={incident.title}
+              description={incident.description ?? null}
+              descriptionNode={incident.description ? <LinkifiedText text={incident.description} className="text-sm whitespace-pre-wrap text-foreground" /> : null}
+              closed={incident.status === "closed"}
+              canEdit={canManage && !incident.voided_at}
+              onSave={amendWording}
+            />
           </div>
           {canManage ? (
             <div className="flex shrink-0 items-center gap-1.5">
@@ -759,10 +838,6 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             {canManage ? <Button variant="outline" size="sm" onClick={() => void restoreIncident()}>{t("restore")}</Button> : null}
             {isOwner ? <Button size="sm" className="bg-destructive text-white hover:bg-destructive/90" onClick={() => setDeleteOpen(true)}>{t("deleteForGood")}</Button> : null}
           </div>
-        ) : null}
-
-        {incident.description ? (
-          <LinkifiedText text={incident.description} className="mt-3 text-sm whitespace-pre-wrap text-foreground" />
         ) : null}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
@@ -878,7 +953,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
         ) : null}
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
+      {/* Fluid: the Timeline takes what is left, the side panels grow a little with the screen, and on a wide screen they sit in two columns of their own. */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(280px,28vw,380px)] 2xl:grid-cols-[minmax(0,1fr)_clamp(580px,40vw,780px)]">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2">
             {canManage ? (
@@ -902,6 +978,21 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             <InfoTip text={view === "timeline" ? tTips("timeline") : tTips("audit")} />
           </div>
           <p className="mt-2 mb-3 text-xs text-muted-foreground">{view === "timeline" ? t("timelineHelp") : t("auditHelp")}</p>
+          {anyKinds ? (
+            <div className="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("filterLabel")}>
+              {(["all", ...NOTE_KINDS] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={noteFilter === k}
+                  onClick={() => setNoteFilter(k)}
+                  className={cn("rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors", noteFilter === k ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground")}
+                >
+                  {k === "all" ? t("filterAll") : t(`kind.${k}`)}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="flex flex-col gap-3">
             {shown.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("timelineEmpty")}</p>
@@ -910,10 +1001,10 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                 item.kind === "comment" ? (
                   <div key={item.id} className="flex items-start gap-2.5">
                     <PersonAvatar name={item.comment.author_id ? nameOf(item.comment.author_id) : null} avatarUrl={profileOf(item.comment.author_id ?? undefined)?.avatar_url} />
-                    <div className={cn("min-w-0 flex-1 rounded-lg px-3 py-2", item.comment.is_finding ? "bg-amber-500/10 ring-1 ring-amber-500/40" : "bg-muted/50")}>
+                    <div className={cn("min-w-0 flex-1 rounded-lg px-3 py-2", KIND_STYLE[kindOf(item.comment) ?? "none"].box)}>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <span className="font-medium text-foreground">{item.comment.author_id ? nameOf(item.comment.author_id) : t("unknown")}</span>
-                        {item.comment.is_finding ? <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-700 uppercase dark:text-amber-300">{t("findingBadge")}</span> : null}
+                        {kindOf(item.comment) ? <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase", KIND_STYLE[kindOf(item.comment)!].badge)}>{t(`kind.${kindOf(item.comment)!}`)}</span> : null}
                         <span title={format(new Date(item.at), "PPpp")}>{view === "audit" ? format(new Date(item.at), "d MMM yyyy, HH:mm:ss") : formatDistanceToNow(new Date(item.at), { addSuffix: true })}</span>
                         {item.comment.edited_at ? <span className="italic" title={format(new Date(item.comment.edited_at), "PPpp")}>{t("edited")}</span> : null}
                         {canManage && view === "timeline" && editingId !== item.comment.id ? (
@@ -921,9 +1012,18 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                             <button type="button" onClick={() => { setEditingId(item.comment.id); setEditText(item.comment.body); }} className="text-[11px] font-medium text-primary hover:underline">
                               {t("edit")}
                             </button>
-                            <button type="button" onClick={() => void toggleFinding(item.comment)} className="text-[11px] font-medium text-primary hover:underline">
-                              {item.comment.is_finding ? t("unmarkFinding") : t("markFinding")}
-                            </button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger render={<button type="button" className="inline-flex items-center gap-0.5 text-[11px] font-medium text-primary hover:underline" />}>
+                                {kindOf(item.comment) ? t("markAsChange") : t("markAs")}
+                                <ChevronDown className="size-3" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {NOTE_KINDS.filter((k) => k !== kindOf(item.comment)).map((k) => (
+                                  <DropdownMenuItem key={k} onClick={() => void setKind(item.comment, k)}>{t(`kind.${k}`)}</DropdownMenuItem>
+                                ))}
+                                {kindOf(item.comment) ? <DropdownMenuItem onClick={() => void setKind(item.comment, null)}>{t("unmarkKind")}</DropdownMenuItem> : null}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </span>
                         ) : null}
                       </div>
@@ -1032,7 +1132,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4 2xl:block 2xl:columns-2 2xl:gap-4 2xl:[&>*]:mb-4 2xl:[&>*]:break-inside-avoid">
           <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <Paperclip className="size-3.5" />
@@ -1079,7 +1179,7 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
             </Link>
           ) : null}
 
-          <FindingsPanel value={incident.root_cause ?? null} canEdit={canManage} onSave={(text) => patch({ root_cause: text || null })} findings={comments.filter((c) => c.is_finding).map((c) => c.body)} />
+          <FindingsPanel value={incident.root_cause ?? null} canEdit={canManage} onSave={(text) => patch({ root_cause: text || null })} closingNotes={conclusionsOf(comments).closing.map((c) => c.body)} findings={conclusionsOf(comments).findings.map((c) => c.body)} />
 
           {canExport && incident.status === "closed" ? <FilingPanel incidentId={incident.id} onChanged={() => void loadFiledReports()} /> : null}
 
@@ -1159,6 +1259,8 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           onConfirm={confirmTriage}
         />
       ) : null}
+
+      {canManage ? <CloseDialog open={closeOpen} onOpenChange={setCloseOpen} hasClosingNote={comments.some((c) => kindOf(c) === "closing")} onConfirm={confirmClose} /> : null}
 
       {canManage && hasBnmForms ? (
         <GenerateDocumentDialog

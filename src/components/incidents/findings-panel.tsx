@@ -13,7 +13,7 @@ import { InfoTip } from "./info-tip";
  * on"), and it prints in the report for filing. Anyone who manages incidents can write it; everyone who can see the incident can read it. Saving is recorded
  * in the Timeline.
  */
-export function FindingsPanel({ value, canEdit, onSave, findings = [] }: { value: string | null; canEdit: boolean; onSave: (text: string) => Promise<boolean>; findings?: string[] }) {
+export function FindingsPanel({ value, canEdit, onSave, findings = [], closingNotes = [] }: { value: string | null; canEdit: boolean; onSave: (text: string) => Promise<boolean>; findings?: string[]; closingNotes?: string[] }) {
   const t = useTranslations("Incidents.detail.findings");
   const [draft, setDraft] = useState(value ?? "");
   const [busy, setBusy] = useState(false);
@@ -23,16 +23,20 @@ export function FindingsPanel({ value, canEdit, onSave, findings = [] }: { value
     setDraft(value ?? "");
   }, [value]);
 
-  if (!canEdit && !value && findings.length === 0) return null;
+  if (!canEdit && !value && findings.length === 0 && closingNotes.length === 0) return null;
   const changed = draft.trim() !== (value ?? "").trim();
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         <Search className="size-3.5" />
+        {t("conclusions")}
+        <InfoTip text={t("conclusionsTip")} />
+      </h3>
+      <p className="mb-1.5 flex items-center gap-1 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">
         {t("title")}
         <InfoTip text={t("tip")} />
-      </h3>
+      </p>
       {canEdit ? (
         <>
           <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={2000} placeholder={t("placeholder")} className="bg-muted text-[13px]" />
@@ -53,6 +57,16 @@ export function FindingsPanel({ value, canEdit, onSave, findings = [] }: { value
         </>
       ) : value ? (
         <p className="text-[13px] whitespace-pre-wrap text-foreground">{value}</p>
+      ) : null}
+      {closingNotes.length > 0 ? (
+        <div className="mt-3 border-t border-border pt-3">
+          <p className="mb-1.5 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">{t("closingNote")}</p>
+          <ul className="flex flex-col gap-1.5">
+            {closingNotes.map((c, n) => (
+              <li key={n} className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-[12.5px] whitespace-pre-wrap text-foreground">{c}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
       {findings.length > 0 ? (
         <div className="mt-3 border-t border-border pt-3">

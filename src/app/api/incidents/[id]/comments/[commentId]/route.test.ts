@@ -43,7 +43,19 @@ describe("PATCH /api/incidents/[id]/comments/[commentId]", () => {
   it("still marks and unmarks a finding without touching the words", async () => {
     const res = await call({ is_finding: true });
     expect(res.status).toBe(200);
-    expect(updates).toEqual([{ is_finding: true }]);
+    expect(updates).toEqual([{ is_finding: true, kind: "finding" }]);
+  });
+
+  it("sets the kind of a note, and clears it with null", async () => {
+    expect((await call({ kind: "closing" })).status).toBe(200);
+    expect((await call({ kind: "investigation" })).status).toBe(200);
+    expect((await call({ kind: null })).status).toBe(200);
+    expect(updates).toEqual([
+      { kind: "closing", is_finding: false },
+      { kind: "investigation", is_finding: false },
+      { kind: null, is_finding: false },
+    ]);
+    expect((await call({ kind: "gossip" })).status).toBe(400);
   });
 
   it("does not count saving the same words again as an edit", async () => {

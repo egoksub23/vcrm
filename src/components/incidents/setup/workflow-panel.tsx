@@ -70,6 +70,7 @@ export function WorkflowPanel() {
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={Boolean(r.root_cause)} onChange={(e) => set(s.key, { root_cause: e.target.checked })} />{t("rootCause")}</label>
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={Boolean(r.steps_done)} onChange={(e) => set(s.key, { steps_done: e.target.checked })} />{t("stepsDone")}</label>
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={Boolean(r.lead_assigned)} onChange={(e) => set(s.key, { lead_assigned: e.target.checked })} />{t("leadAssigned")}</label>
+                <label className="flex items-center gap-1.5"><input type="checkbox" checked={Boolean(r.closing_note)} onChange={(e) => set(s.key, { closing_note: e.target.checked })} />{t("closingNote")}</label>
                 <label className="flex items-center gap-1.5">
                   {t("approvedBy")}
                   <select className={selectClass} value={r.approval_role ?? ""} onChange={(e) => set(s.key, { approval_role: e.target.value || null })} aria-label={t("approvedBy")}>

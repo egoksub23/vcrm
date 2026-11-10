@@ -58,6 +58,26 @@ const input = (d: EvidenceDoc, extra: Partial<FilingInput> = {}): FilingInput =>
   ...extra,
 });
 
+describe("filing report (PDF), conclusions and amendments", () => {
+  it("builds with a closing note, findings, investigation notes, edited notes and amended wording", async () => {
+    const d = doc({
+      comments: [
+        { body: "Checked the field: it was wet.", created_at: "2026-11-05T03:00:00.000Z", author: "Nurse Tan", kind: "investigation" },
+        { body: "Goalposts were not padded.", created_at: "2026-11-05T04:00:00.000Z", author: "Nurse Tan", is_finding: true, kind: "finding", edited_at: "2026-11-06T01:00:00.000Z" },
+        { body: "Strapped, parents collected him, back after two weeks.", created_at: "2026-11-08T09:00:00.000Z", author: "Ms Wong", kind: "closing" },
+      ],
+      timeline: [
+        { event_type: "created", from_value: null, to_value: "reported", created_at: "2026-11-05T01:00:00.000Z", actor: "Coach Lim" },
+        { event_type: "title_changed", from_value: "Arvin sprained ankle", to_value: "Arvin Raj Year 2E sprained ankle", created_at: "2026-11-09T01:00:00.000Z", actor: "Ms Wong", reason: "Added his class" },
+        { event_type: "description_changed", from_value: "a", to_value: "b", created_at: "2026-11-09T01:01:00.000Z", actor: "Ms Wong", reason: null },
+      ],
+    });
+    const r = await buildFilingPdf(input(d));
+    expect(Buffer.from(r.bytes.slice(0, 5)).toString()).toBe("%PDF-");
+    expect(r.unsupportedCharacters).toBe(0);
+  });
+});
+
 describe("filing report (PDF)", () => {
   it("produces a real PDF with the picture embedded", async () => {
     const r = await buildFilingPdf(input(doc()));

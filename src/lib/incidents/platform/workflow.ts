@@ -8,6 +8,8 @@ export interface Requires {
   root_cause?: boolean;
   steps_done?: boolean;
   lead_assigned?: boolean;
+  /** A note of kind "closing" is written (the closing note). */
+  closing_note?: boolean;
   /** The incident role that must approve before the move, for example "principal". */
   approval_role?: string | null;
 }
@@ -22,6 +24,8 @@ export interface MoveFacts {
   to: string;
   rootCause: string | null;
   leadAssigned: boolean;
+  /** A closing note has been written. */
+  hasClosingNote?: boolean;
   openSteps: number;
   /** Decisions on this incident, newest first. */
   approvals: { role_key: string; decision: "approved" | "rejected" | null }[];
@@ -49,6 +53,7 @@ export function evaluateMove(args: { facts: MoveFacts; guards: readonly Guard[];
   const req = guards.find((g) => g.to_status === facts.to)?.requires ?? {};
   if (req.root_cause && !(facts.rootCause ?? "").trim()) problems.push("Write the root cause first.");
   if (req.lead_assigned && !facts.leadAssigned) problems.push("Assign an incident lead first.");
+  if (req.closing_note && !facts.hasClosingNote) problems.push("Write the closing note first.");
   if (req.steps_done && facts.openSteps > 0) problems.push(`${facts.openSteps === 1 ? "1 required step is" : `${facts.openSteps} required steps are`} still open.`);
   if (req.approval_role) {
     const mine = facts.approvals.filter((a) => a.role_key === req.approval_role);
@@ -67,7 +72,7 @@ export function evaluateMove(args: { facts: MoveFacts; guards: readonly Guard[];
 }
 
 /** The requirement sets a school can switch on, as the screen lists them. */
-export const REQUIREMENT_KEYS = ["root_cause", "steps_done", "lead_assigned"] as const;
+export const REQUIREMENT_KEYS = ["root_cause", "steps_done", "lead_assigned", "closing_note"] as const;
 
 export function parseGuards(body: unknown, knownRoles: readonly string[]): { ok: true; guards: Guard[]; allowBackward: boolean | null } | { ok: false; error: string } {
   if (typeof body !== "object" || body === null) return { ok: false, error: "Send the requirements." };

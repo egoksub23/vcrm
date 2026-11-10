@@ -8,6 +8,7 @@ import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf
 
 import { embedFonts, measureRuns, runsFor } from "@/lib/sign/pdf/fonts";
 import type { EvidenceDoc } from "./evidence-doc";
+import { conclusionsOf, kindOf } from "./note-kinds";
 
 export interface FilingImage {
   filename: string;
@@ -51,9 +52,13 @@ const EVENT_WORDS: Record<string, string> = {
   escalated: "Escalated",
   closed: "Incident closed",
   root_cause_changed: "Root cause recorded",
+  title_changed: "Title changed",
+  description_changed: "Description changed",
   voided: "Incident voided",
   restored: "Incident restored",
 };
+/** What a note is called in the report, by its kind. */
+const NOTE_LABEL: Record<string, string> = { none: "Note", investigation: "Investigation note", finding: "Finding", closing: "Closing note" };
 const STATUS_WORDS: Record<string, string> = { reported: "Reported", triaged: "Triaged", contained: "Contained", investigating: "Investigating", recovered: "Recovered", closed: "Closed" };
 const STEP_WORDS: Record<string, string> = { open: "Open", done: "Done", skipped: "Skipped", not_applicable: "Not applicable" };
 
@@ -260,7 +265,15 @@ export async function buildFilingPdf(input: FilingInput): Promise<FilingResult> 
   w.kv("Reported by", i.reporter_name ? `${i.reporter_name}${i.source === "coach_portal" ? " (through the coach portal)" : ""}${i.reporter_email ? `, ${i.reporter_email}` : ""}` : null);
   w.kv("Activity", i.activity?.name ? [i.activity.name, i.activity.venue, i.activity.date, i.activity.time].filter(Boolean).join(", ") : null);
   w.kv("Involves", (i.incident_flags ?? []).length > 0 ? (i.incident_flags ?? []).map(words).join(", ") : null);
-  w.kv("Root cause", i.root_cause);
+
+  // How it ended, first: the closing note, the root cause and the findings, then the account of what happened.
+  const conclusions = conclusionsOf(doc.comments);
+  if (conclusions.closing.length > 0 || (i.root_cause ?? "").trim() || conclusions.findings.length > 0) {
+    w.heading("Conclusions");
+    for (const c of conclusions.closing) w.kv("Closing note", c.body);
+    w.kv("Root cause", i.root_cause);
+    for (const f of conclusions.findings) w.bullet(`Finding: ${f.body}`);
+  }
 
   w.heading("What happened");
   w.text(i.description?.trim() || "No description was recorded.");
@@ -286,14 +299,16 @@ export async function buildFilingPdf(input: FilingInput): Promise<FilingResult> 
       let text = EVENT_WORDS[e.event_type] ?? words(e.event_type);
       if (e.event_type === "status_changed" && e.to_value) text = `Status changed${e.from_value ? ` from ${STATUS_WORDS[e.from_value] ?? words(e.from_value)}` : ""} to ${STATUS_WORDS[e.to_value] ?? words(e.to_value)}`;
       else if (e.event_type === "severity_changed" && e.to_value) text = `Severity changed${e.from_value ? ` from ${labelOfSeverity(doc, e.from_value)}` : ""} to ${labelOfSeverity(doc, e.to_value)}`;
-      return { at: e.created_at, who: e.actor, text, note: false, finding: false };
+      else if (e.event_type === "title_changed") text = `Title changed from "${e.from_value ?? ""}" to "${e.to_value ?? ""}"`;
+      if (e.reason && (e.event_type === "title_changed" || e.event_type === "description_changed")) text += ` (reason: ${e.reason})`;
+      return { at: e.created_at, who: e.actor, text, note: false, label: "" };
     }),
-    ...doc.comments.map((c) => ({ at: c.created_at, who: c.author, text: c.body, note: true, finding: Boolean(c.is_finding) })),
+    ...doc.comments.map((c) => ({ at: c.created_at, who: c.author, text: c.edited_at ? `${c.body} (edited ${when(c.edited_at)})` : c.body, note: true, label: NOTE_LABEL[kindOf(c) ?? "none"] })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   w.heading("What was done, in order");
   if (story.length === 0) w.text("Nothing else was recorded.");
   for (const e of story) {
-    w.bullet(`${when(e.at)}${e.who ? `, ${e.who}` : ""}: ${e.note ? `${e.finding ? "Finding" : "Note"}: ${e.text}` : e.text}`);
+    w.bullet(`${when(e.at)}${e.who ? `, ${e.who}` : ""}: ${e.note ? `${e.label}: ${e.text}` : e.text}`);
   }
 
   if (doc.required_steps.length > 0) {

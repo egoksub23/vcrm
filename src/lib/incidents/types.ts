@@ -80,9 +80,11 @@ export interface IncidentActivity {
   id: string;
   incident_id: string;
   actor_id: string | null;
-  event_type: "created" | "status_changed" | "severity_changed" | "type_changed" | "lead_changed" | "escalated" | "closed" | "root_cause_changed" | "file_deleted" | "voided" | "restored";
+  event_type: "created" | "status_changed" | "severity_changed" | "type_changed" | "lead_changed" | "escalated" | "closed" | "root_cause_changed" | "file_deleted" | "voided" | "restored" | "title_changed" | "description_changed";
   from_value: string | null;
   to_value: string | null;
+  /** Why, when the incident was closed and its wording was changed (migration 230). */
+  reason?: string | null;
   created_at: string;
 }
 
@@ -97,6 +99,8 @@ export interface IncidentComment {
   /** Who last changed the words, and what the note said before each change (migration 229). */
   edited_by?: string | null;
   previous_versions?: { body: string; at: string; by: string | null }[];
+  /** investigation note, finding or closing note; null is an ordinary note (migration 230). */
+  kind?: "investigation" | "finding" | "closing" | null;
   /** Marked as a finding: it stands out in the Timeline and in the report for filing. */
   is_finding?: boolean;
 }

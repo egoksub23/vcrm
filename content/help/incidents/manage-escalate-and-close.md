@@ -24,6 +24,10 @@ Every change is recorded in the **Timeline** with who made it and when.
 
 When you move an incident from **Reported** to **Triaged**, Halo asks for the three things triage is for: confirm the **severity**, choose the **incident lead**, and add a short **note**. They are saved together and appear in the Timeline, for example "Triage note: nurse has seen him, suspected sprain, parents called". Triaging also stops the "nobody acknowledged" timer, because someone has taken the incident on.
 
+## Change the title or description
+
+People who manage incidents can click **Edit** beside the title to correct the title and the description. Nothing is overwritten: the old and the new wording go to the **Audit log**, and the Timeline notes that it was changed. Once an incident is **Closed** you must give a short reason, which is kept with the change, so a filed record cannot be reworded without saying why. The report for filing lists any change.
+
 ## Root cause
 
 The **Root cause** box on the right is where you write what went wrong and why. Your school can require it before an incident can be closed. Saving it is recorded in the Timeline, and it prints in the report for filing.
@@ -43,12 +47,12 @@ Steps are added when the incident is raised, and again if what it involves chang
 - Click **Attach files** or **Upload evidence** to add photos, documents and screenshots.
 - **Photos show as small pictures** under Evidence files. Click one to see it large, then use the arrow keys or the arrows on the picture to move to the next. Other files stay in a list.
 - The card has two tabs. **Timeline** is the story: notes, triage, status, severity and lead changes, escalations, corrective actions added and done, root cause, files added, required steps done, approvals, notices you logged by hand, notices that could not be sent, and the report for filing. **Audit log** is everything, with exact times: every email sent and acknowledged, each file's custody record and checksum, and files that were deleted. It is read-only.
-- **Mark a note as a finding.** On any note, click **Mark as finding** when it states something the investigation established, for example "the goalposts were not padded". Findings are shown under **Key findings** at the top of the incident and are printed first in the [report for filing](#make-a-report-for-filing). Click **Unmark** to take one back. Click **Edit** on a note (a finding, for example) to correct its words. The note shows **edited**, and the earlier wording is kept and shown in the **Audit log**, so a correction never rewrites the record.
+- **Mark what a note is.** On any note, click **Mark as** and choose **Investigation note** (work done while looking into it), **Finding** (something the investigation established, for example "the goalposts were not padded") or **Closing note** (how it ended). Each shows a coloured label, and the small buttons above the notes filter the Timeline to one kind. Findings and the closing note appear under **Conclusions** on the right and are printed first in the [report for filing](#make-a-report-for-filing). Choose **Ordinary note** to take a label back. Click **Edit** on a note (a finding, for example) to correct its words. The note shows **edited**, and the earlier wording is kept and shown in the **Audit log**, so a correction never rewrites the record.
 - **Approvals update by themselves.** When someone answers an approval, or one is asked, the incident page refreshes within a few seconds; you do not need to reload it.
 
 ## Escalation
 
-Every incident has an escalation level from 1 to 3. If an incident stays at **Reported** too long, Halo raises the level on its own and tells more senior people. Your administrator sets how long. The levels are named: Level 1 (Reported, where every incident starts), Level 2 (Escalated) and Level 3 (Top level). Click **Escalate now** and choose a level to do it at once, for example when you want a second pair of eyes; the incident can jump straight to the Top level. Who is told depends on your rules: if your school has a rule for **an incident is escalated**, the people in the role it names for that level are told; see [Set up Incidents](/help/incidents/set-up-incidents).
+Every incident has an escalation level from 1 to 3. If an incident stays at **Reported** too long, Halo raises the level on its own and tells more senior people. Your administrator sets how long. The levels are named: Level 1 (Reported, where every incident starts), Level 2 (Escalated) and Level 3 (Top level). The Timeline line for an escalation also says who was emailed by the escalation rules (for example "told Principal Lim (Principal) by email"), or that no one was told because no rule tells a role at that level. Click **Escalate now** and choose a level to do it at once, for example when you want a second pair of eyes; the incident can jump straight to the Top level. Who is told depends on your rules: if your school has a rule for **an incident is escalated**, the people in the role it names for that level are told; see [Set up Incidents](/help/incidents/set-up-incidents).
 
 ## Hints on the page
 
@@ -77,7 +81,7 @@ If someone tells the police, the education authority, the PDP Commissioner, pare
 
 1. Check the required steps are done.
 2. Write the root cause if your school asks for one.
-3. Set the status to **Closed**.
+3. Set the status to **Closed**. Halo asks for a **closing note**: what was done and what happens next. It is kept as a note of that kind, shown under **Conclusions** and printed first in the report for filing. Your school can make it required.
 
 Closing deletes nothing: the timeline, steps, notes, evidence and message log stay for audit. Your administrator can remove old closed incidents in bulk, after exporting them, under Keeping records.
 

@@ -1,10 +1,13 @@
-// PATCH /api/incidents/[id]/comments/[commentId] — change a note. Body: { is_finding?: boolean, body?: string }. Requires incidents.manage.
-//   is_finding  mark a note as a finding (or unmark it): it stands out in the Timeline and in the report for filing
+// PATCH /api/incidents/[id]/comments/[commentId] — change a note. Body: { kind?: "investigation" | "finding" | "closing" | null, is_finding?: boolean, body?: string }. Requires incidents.manage.
+//   kind        mark a note as an investigation note, a finding or a closing note (null: an ordinary note again). A finding and a closing note stand out in the
+//               Timeline, in the Conclusions panel and in the report for filing (migration 230)
+//   is_finding  the older yes/no for a finding, still accepted
 //   body        correct what the note says (migration 229): the earlier wording is kept in the note's history and shown in the Audit log
 import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { createAdminPgDb } from "@/lib/postgres/db";
+import { isNoteKind } from "@/lib/incidents/platform/note-kinds";
 
 type Params = { params: Promise<{ id: string; commentId: string }> };
 
@@ -14,12 +17,17 @@ export async function PATCH(request: Request, { params }: Params) {
   try {
     const ctx = await requireCapability("incidents.manage");
     const { id, commentId } = await params;
-    const body = (await request.json().catch(() => null)) as { is_finding?: unknown; body?: unknown } | null;
+    const body = (await request.json().catch(() => null)) as { kind?: unknown; is_finding?: unknown; body?: unknown } | null;
 
     const patch: Record<string, unknown> = {};
-    if (body?.is_finding !== undefined) {
+    if (body?.kind !== undefined) {
+      if (body.kind !== null && !isNoteKind(body.kind)) return NextResponse.json({ error: "That kind of note is not known." }, { status: 400 });
+      patch.kind = body.kind;
+      patch.is_finding = body.kind === "finding";
+    } else if (body?.is_finding !== undefined) {
       if (typeof body.is_finding !== "boolean") return NextResponse.json({ error: "'is_finding' must be true or false" }, { status: 400 });
       patch.is_finding = body.is_finding;
+      patch.kind = body.is_finding ? "finding" : null;
     }
     if (body?.body !== undefined) {
       const text = typeof body.body === "string" ? body.body.trim() : "";

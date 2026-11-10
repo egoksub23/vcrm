@@ -129,3 +129,20 @@ describe("migration 229 (editing a note)", () => {
     expect(m).toContain("IF NEW.body IS DISTINCT FROM OLD.body THEN");
   });
 });
+
+describe("migration 230 (amending, and kinds of note)", () => {
+  const m = read("230_incident_amend_note_kinds.sql");
+  it("limits a note's kind to investigation, finding or closing and copies existing findings across", () => {
+    expect(m).toContain("CHECK (kind IS NULL OR kind IN ('investigation', 'finding', 'closing'))");
+    expect(m).toContain("UPDATE public.incident_comments SET kind = 'finding' WHERE is_finding AND kind IS NULL;");
+  });
+  it("keeps every earlier activity type and adds title and description changes", () => {
+    expect(m).toContain("'root_cause_changed', 'file_deleted', 'voided', 'restored', 'title_changed', 'description_changed'");
+  });
+  it("writes the old and new wording, and the reason, to the trail and clears the pass-through column", () => {
+    expect(m).toContain("'title_changed', left(COALESCE(OLD.title, ''), 1000)");
+    expect(m).toContain("'description_changed', left(COALESCE(OLD.description, ''), 10000)");
+    expect(m).toContain("NEW.amend_reason := NULL;");
+    expect(m).toContain("BEFORE UPDATE ON public.incidents");
+  });
+});

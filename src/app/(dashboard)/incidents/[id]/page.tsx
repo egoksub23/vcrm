@@ -10,7 +10,7 @@ export default function IncidentPage() {
   const incidentId = params.id as string;
 
   return (
-    <div className="mx-auto max-w-[1100px]">
+    <div className="mx-auto w-full max-w-[1800px]">
       <IncidentDetail key={incidentId} incidentId={incidentId} onBack={() => router.push("/incidents")} />
     </div>
   );

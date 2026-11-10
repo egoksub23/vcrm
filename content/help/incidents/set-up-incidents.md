@@ -48,7 +48,7 @@ Click **Switch on the starter set** for ready-made rules: serious injuries, susp
 
 **Who is told when an incident is escalated.** Add the workflow rules **Tell the Principal when an incident is escalated to Level 2** and **Tell the Principal and the incident lead when an incident reaches Top level** (or write your own rule with **When: an incident is escalated** and **Only if the incident reaches** Level 2 or Level 3), and choose the roles. From then on, **Escalate now**, a timed escalation and a rule that raises the level all tell the people in that role, and the notice appears in the incident's message log. If nobody could be told at submission (for example the role has nobody in it, or the person has no email address), the "nobody acknowledged" rule still counts from the time the incident was raised, so it escalates instead of waiting silently. Once you have one switched-on escalation rule, the older separate list of names is no longer told, so you manage escalation in one place, with your Roles. Without such a rule, Halo keeps the older behaviour (every Admin and Owner, or the names set in the database).
 
-The same page has **Before an incident moves on**: what must be true before an incident can move to each status, such as a root cause written, every required step done, a lead assigned, or approval by a named person.
+The same page has **Before an incident moves on**: what must be true before an incident can move to each status, such as a root cause written, a closing note written, every required step done, a lead assigned, or approval by a named person.
 
 ## Timing and deadlines
 

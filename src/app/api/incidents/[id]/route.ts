@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAccount, toErrorResponse } from "@/lib/auth/account";
+import { parseAmend } from "@/lib/incidents/platform/amend";
 import { deleteIncidentForGood } from "@/lib/incidents/platform/delete-data";
 import { processIncidentEvent } from "@/lib/incidents/platform/run";
 import { checkMove } from "@/lib/incidents/platform/workflow-data";
@@ -36,6 +37,20 @@ export async function PATCH(request: Request, { params }: Params) {
       if (typeof body.incident_lead_id === "string" || body.incident_lead_id === null) after.incident_lead_id = body.incident_lead_id as string | null;
       const move = await checkMove({ incident: after, to: body.status, userId: ctx.userId });
       if (!move.ok) return NextResponse.json({ error: move.error, problems: move.problems }, { status: move.status });
+    }
+
+    // Amending the title or description: checked here, and written to the audit trail (with the reason, once the incident is closed) by the database.
+    if (body.title !== undefined || body.description !== undefined) {
+      const { data: now } = await ctx.supabase.from("incidents").select("status").eq("id", id).eq("account_id", ctx.accountId).maybeSingle();
+      if (!now) return NextResponse.json({ error: "Incident not found." }, { status: 404 });
+      const amend = parseAmend(body, (now as { status: string }).status);
+      if (!amend.ok) return NextResponse.json({ error: amend.error }, { status: 400 });
+      delete body.title;
+      delete body.description;
+      delete body.amend_reason;
+      Object.assign(body, amend.patch);
+    } else {
+      delete body.amend_reason;
     }
 
     const { error } = await ctx.supabase

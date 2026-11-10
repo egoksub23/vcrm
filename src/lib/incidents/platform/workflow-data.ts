@@ -50,17 +50,18 @@ export async function checkMove(args: { incident: { id: string; account_id: stri
   const { incident, to } = args;
   if (incident.status === to) return { ok: true };
 
-  const [{ guards, allowBackward }, steps, approvals, roles] = await Promise.all([
+  const [{ guards, allowBackward }, steps, approvals, roles, closing] = await Promise.all([
     loadGuards(admin, incident.account_id),
     admin.from("incident_obligations").select("id", { count: "exact", head: true }).eq("incident_id", incident.id).eq("status", "open"),
     loadApprovals(admin, incident.id, incident.account_id),
     admin.from("incident_roles").select("key, name").eq("account_id", incident.account_id),
+    admin.from("incident_comments").select("id", { count: "exact", head: true }).eq("incident_id", incident.id).eq("kind", "closing"),
   ]);
   const names = new Map(((roles.data ?? []) as { key: string; name: Record<string, string> }[]).map((r) => [r.key, labelOf(r.name)]));
   const roleName = (k: string) => names.get(k) ?? k.replace(/_/g, " ");
 
   const result = evaluateMove({
-    facts: { from: incident.status, to, rootCause: incident.root_cause, leadAssigned: Boolean(incident.incident_lead_id), openSteps: steps.count ?? 0, approvals },
+    facts: { from: incident.status, to, rootCause: incident.root_cause, leadAssigned: Boolean(incident.incident_lead_id), hasClosingNote: (closing.count ?? 0) > 0, openSteps: steps.count ?? 0, approvals },
     guards,
     allowBackward,
     roleName,
