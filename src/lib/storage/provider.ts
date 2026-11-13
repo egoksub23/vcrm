@@ -85,7 +85,7 @@ export interface AppStorage {
 
 let _minio: MinioClient | null = null
 
-function getMinioClient(): MinioClient {
+export function getMinioClient(): MinioClient {
   if (!_minio) {
     _minio = new MinioClient({
       endPoint: process.env.MINIO_ENDPOINT!,

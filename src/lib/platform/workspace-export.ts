@@ -21,10 +21,10 @@ import { type PgDb } from '@/lib/postgres/db'
 import { Zip, ZipDeflate, ZipPassThrough, strToU8 } from 'fflate'
 
 import { toCsv } from '@/lib/csv'
+import { listObjectsByPrefix } from '@/lib/storage/list-by-prefix'
 import { appStorage } from '@/lib/storage/provider'
 
 const PAGE = 500
-const FILE_PAGE = 200
 
 interface ManifestEntry {
   table: string
@@ -116,36 +116,28 @@ export async function* workspaceExportChunks(
   // ---- stored files ----
   if (opts.files !== false) {
     const prefix = `account-${accountId}/`
-    let afterBucket: string | null = null
-    let afterName: string | null = null
-    for (;;) {
-      const { data, error } = await db.rpc('storage_objects_by_prefix', {
-        p_prefix: prefix,
-        p_after_bucket: afterBucket,
-        p_after_name: afterName,
-        p_limit: FILE_PAGE,
-      })
-      if (error) throw new Error(`export files: ${error.message}`)
-      const objects = (data ?? []) as { bucket: string; name: string; size: number }[]
-      for (const o of objects) {
-        const path = `files/${o.bucket}/${o.name.slice(prefix.length)}`
-        try {
-          const { data: blob, error: dlError } = await appStorage().from(o.bucket).download(o.name)
-          if (dlError || !blob) throw new Error(dlError?.message ?? 'empty')
-          // Files are already compressed (images, video, pdf): store them.
-          const f = new ZipPassThrough(path)
-          zip.add(f)
-          f.push(new Uint8Array(await blob.arrayBuffer()), true)
-          summary.files += 1
-        } catch {
-          summary.filesFailed.push(`${o.bucket}/${o.name}`)
-        }
-        yield* flush()
+    // The folder is listed from the store itself (disk or MinIO); only the names are held
+    // in memory, each file is read and written one at a time.
+    let objects
+    try {
+      objects = await listObjectsByPrefix(prefix)
+    } catch (err) {
+      throw new Error(`export files: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    for (const o of objects) {
+      const path = `files/${o.bucket}/${o.name.slice(prefix.length)}`
+      try {
+        const { data: blob, error: dlError } = await appStorage().from(o.bucket).download(o.name)
+        if (dlError || !blob) throw new Error(dlError?.message ?? 'empty')
+        // Files are already compressed (images, video, pdf): store them.
+        const f = new ZipPassThrough(path)
+        zip.add(f)
+        f.push(new Uint8Array(await blob.arrayBuffer()), true)
+        summary.files += 1
+      } catch {
+        summary.filesFailed.push(`${o.bucket}/${o.name}`)
       }
-      if (objects.length < FILE_PAGE) break
-      const last = objects[objects.length - 1]
-      afterBucket = last.bucket
-      afterName = last.name
+      yield* flush()
     }
   }
 

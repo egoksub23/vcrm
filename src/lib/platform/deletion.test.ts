@@ -1,6 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PgDb } from '@/lib/postgres/db'
 
+// The stored files: what the store lists under a folder, and what removing does to it.
+const h = vi.hoisted(() => ({
+  world: null as null | { files: Record<string, { bucket: string; name: string }[]>; failRemove?: boolean },
+  removed: [] as string[],
+  // The logins step marks the people's logins deleted with one database statement.
+  log: [] as string[],
+  loginError: null as string | null,
+}))
+
+vi.mock('@/lib/postgres/client', () => ({
+  getPool: () => async (_strings: TemplateStringsArray, ids: string[]) => {
+    if (h.loginError) throw new Error(h.loginError)
+    h.log.push(`logins:${ids.join(',')}`)
+    return []
+  },
+}))
+
+vi.mock('@/lib/storage/list-by-prefix', () => ({
+  listObjectsByPrefix: async (prefix: string) => h.world?.files[prefix] ?? [],
+}))
+
+vi.mock('@/lib/storage/provider', () => ({
+  appStorage: () => ({
+    from: (bucket: string) => ({
+      remove: async (names: string[]) => {
+        const world = h.world
+        if (!world) return { error: null }
+        if (world.failRemove) return { error: { message: 'storage down' } }
+        for (const n of names) h.removed.push(`${bucket}/${n}`)
+        for (const k of Object.keys(world.files)) world.files[k] = world.files[k].filter((f) => !names.includes(f.name))
+        return { error: null }
+      },
+    }),
+  }),
+}))
+
 vi.mock('./teardown', () => ({
   teardownWorkspaceChannels: vi.fn(async () => ({ gmail: 'ok', whatsapp: 'not connected' })),
 }))
@@ -19,12 +55,17 @@ interface World {
   files: Record<string, { bucket: string; name: string }[]>
   failRpc?: string
   failRemove?: boolean
-  authErrors?: Record<string, string>
+  /** the database statement that marks the logins deleted fails with this message */
+  loginError?: string
 }
 
 function setup(world: World) {
   const log: string[] = []
   const removed: string[] = []
+  h.world = world
+  h.removed = removed
+  h.log = log
+  h.loginError = world.loginError ?? null
   const db = {
     from: (table: string) => ({
       select: () => ({
@@ -36,37 +77,15 @@ function setup(world: World) {
         }),
       }),
     }),
-    rpc: async (name: string, args: Record<string, unknown>) => {
+    rpc: async (name: string) => {
       log.push(name)
       if (world.failRpc === name) return { data: null, error: { message: `${name} failed` } }
       if (name === 'workspace_deletion_begin') {
         world.tomb = { step: 'started', member_user_ids: [MEMBER], visitor_user_ids: [VISITOR], storage_objects_removed: 0 }
         return { data: { member_user_ids: [MEMBER], visitor_user_ids: [VISITOR] }, error: null }
       }
-      if (name === 'storage_objects_by_prefix') {
-        const prefix = args.p_prefix as string
-        return { data: world.files[prefix] ?? [], error: null }
-      }
       if (name === 'delete_workspace_data') world.accountExists = false
       return { data: null, error: null }
-    },
-    storage: {
-      from: (bucket: string) => ({
-        remove: async (names: string[]) => {
-          if (world.failRemove) return { error: { message: 'storage down' } }
-          for (const n of names) removed.push(`${bucket}/${n}`)
-          for (const k of Object.keys(world.files)) world.files[k] = world.files[k].filter((f) => !names.includes(f.name))
-          return { error: null }
-        },
-      }),
-    },
-    auth: {
-      admin: {
-        deleteUser: async (id: string) => {
-          log.push(`deleteUser:${id}`)
-          return { error: world.authErrors?.[id] ? { message: world.authErrors[id] } : null }
-        },
-      },
     },
   } as unknown as PgDb
   return { db, log, removed }
@@ -92,8 +111,7 @@ describe('runWorkspaceDeletion', () => {
     expect(order).toEqual([
       'workspace_deletion_begin',
       'delete_workspace_data',
-      `deleteUser:${MEMBER}`,
-      `deleteUser:${VISITOR}`,
+      `logins:${MEMBER},${VISITOR}`,
       'workspace_deletion_finish',
     ])
     expect(teardownWorkspaceChannels).toHaveBeenCalledTimes(1)
@@ -125,14 +143,16 @@ describe('runWorkspaceDeletion', () => {
     const { db, log } = setup(world)
     const r = await runWorkspaceDeletion(db, ID)
     expect(r).toMatchObject({ ok: true, storageRemoved: 7 })
-    expect(log).toEqual([`deleteUser:${MEMBER}`, `deleteUser:${VISITOR}`, 'workspace_deletion_finish'])
+    expect(log).toEqual([`logins:${MEMBER},${VISITOR}`, 'workspace_deletion_finish'])
     expect(teardownWorkspaceChannels).not.toHaveBeenCalled()
   })
 
-  it('treats a login that is already gone as done, but stops on any other failure', async () => {
-    const gone: World = { tomb: { step: 'data_deleted', member_user_ids: [MEMBER], visitor_user_ids: [] }, accountExists: false, files: {}, authErrors: { [MEMBER]: 'User not found' } }
-    expect((await runWorkspaceDeletion(setup(gone).db, ID)).ok).toBe(true)
-    const broken: World = { tomb: { step: 'data_deleted', member_user_ids: [MEMBER], visitor_user_ids: [] }, accountExists: false, files: {}, authErrors: { [MEMBER]: 'database error' } }
+  it('has nothing to do for the logins when the workspace had none, and stops if marking them fails', async () => {
+    const none: World = { tomb: { step: 'data_deleted', member_user_ids: [], visitor_user_ids: [] }, accountExists: false, files: {} }
+    const first = setup(none)
+    expect((await runWorkspaceDeletion(first.db, ID)).ok).toBe(true)
+    expect(first.log).toEqual(['workspace_deletion_finish'])
+    const broken: World = { tomb: { step: 'data_deleted', member_user_ids: [MEMBER], visitor_user_ids: [] }, accountExists: false, files: {}, loginError: 'database error' }
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const r = await runWorkspaceDeletion(setup(broken).db, ID)
     expect(r).toMatchObject({ ok: false, step: 'logins' })
