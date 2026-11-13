@@ -7958,6 +7958,7 @@
       "colLead": "Lead",
       "colAge": "Age",
       "unassigned": "Unassigned",
+      "selectAll": "Select all visible incidents",
       "loadFailed": "Couldn't load incidents.",
       "retry": "Retry",
       "empty": "No incidents match your filters.",
@@ -15047,7 +15048,19 @@
       "to": "To",
       "clear": "Clear filters",
       "count": "Showing {shown} of {total}",
-      "newest": "The newest {count} incidents are loaded; use Reports for older ones."
+      "newest": "The newest {count} incidents are loaded; use Reports for older ones.",
+      "bulk": {
+        "selected": "{count, plural, one {# incident selected} other {# incidents selected}}",
+        "exportCsv": "Export CSV",
+        "assignLead": "Assign lead",
+        "assignLeadTitle": "Set lead to",
+        "assignedLead": "{updated, plural, one {# incident updated} other {# incidents updated}}{skipped, select, 0 {} other {, # skipped (closed or voided)}}",
+        "changeStatus": "Change status",
+        "changeStatusTitle": "Move to",
+        "changedStatus": "{updated, plural, one {# incident updated} other {# incidents updated}}{skipped, select, 0 {} other {, # skipped (closed or voided)}}",
+        "clear": "Clear selection",
+        "error": "The action could not be completed."
+      }
     },
     "reportsHub": {
       "title": "Reports",

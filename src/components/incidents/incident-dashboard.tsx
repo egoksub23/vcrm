@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Filter, HeartPulse, KanbanSquare, List, Loader2, Plus, ShieldAlert, X } from "lucide-react";
+import { CheckSquare, ChevronDown, Download, Filter, HeartPulse, KanbanSquare, List, Loader2, Plus, ShieldAlert, UserCheck, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -169,6 +169,65 @@ export function IncidentDashboard() {
   const [createOpen, setCreateOpen] = useState(false);
   const openIncident = (id: string) => router.push(`/incidents/${id}`);
 
+  // ── bulk selection ──────────────────────────────────────────────────────────
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const prevFilteredRef = useRef(filtered);
+  useEffect(() => {
+    if (prevFilteredRef.current !== filtered) {
+      setSelected(new Set());
+      prevFilteredRef.current = filtered;
+    }
+  }, [filtered]);
+
+  const bulkExportCsv = async () => {
+    setBulkBusy(true);
+    const res = await fetch("/api/incidents/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "export-csv", ids: [...selected] }),
+    });
+    setBulkBusy(false);
+    if (!res.ok) { toast.error(td("bulk.error")); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `incidents-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const bulkAssignLead = async (leadId: string) => {
+    setBulkBusy(true);
+    const res = await fetch("/api/incidents/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "assign-lead", ids: [...selected], leadId }),
+    });
+    setBulkBusy(false);
+    if (!res.ok) { toast.error(td("bulk.error")); return; }
+    const { updated, skipped } = (await res.json()) as { updated: number; skipped: number };
+    toast.success(td("bulk.assignedLead", { updated, skipped }));
+    setSelected(new Set());
+    void reload();
+  };
+
+  const bulkChangeStatus = async (status: string) => {
+    setBulkBusy(true);
+    const res = await fetch("/api/incidents/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "change-status", ids: [...selected], status }),
+    });
+    setBulkBusy(false);
+    if (!res.ok) { toast.error(td("bulk.error")); return; }
+    const { updated, skipped } = (await res.json()) as { updated: number; skipped: number };
+    toast.success(td("bulk.changedStatus", { updated, skipped }));
+    setSelected(new Set());
+    void reload();
+  };
+
   const handleMove = async (id: string, status: string) => {
     const undo = applyPatch(id, { status: status as never });
     const moveRes = await fetch(`/api/incidents/${encodeURIComponent(id)}`, {
@@ -287,6 +346,63 @@ export function IncidentDashboard() {
             </p>
           ) : null}
 
+          {/* bulk action bar — only in list view when items are selected */}
+          {view === "list" && selected.size > 0 && canManage ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-4 py-2.5">
+              <CheckSquare className="size-4 text-primary" />
+              <span className="text-sm font-medium text-primary">{td("bulk.selected", { count: selected.size })}</span>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" disabled={bulkBusy} onClick={() => void bulkExportCsv()}>
+                  <Download className="size-3.5" />
+                  {td("bulk.exportCsv")}
+                </Button>
+                <Popover>
+                  <PopoverTrigger render={<Button variant="outline" size="sm" disabled={bulkBusy} />}>
+                    <UserCheck className="size-3.5" />
+                    {td("bulk.assignLead")}
+                    <ChevronDown className="size-3" />
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="max-h-64 w-56 overflow-y-auto p-2">
+                    <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">{td("bulk.assignLeadTitle")}</p>
+                    {members.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => void bulkAssignLead(m.user_id)}
+                        className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-sm hover:bg-muted"
+                      >
+                        {m.full_name}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger render={<Button variant="outline" size="sm" disabled={bulkBusy} />}>
+                    {td("bulk.changeStatus")}
+                    <ChevronDown className="size-3" />
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-48 p-2">
+                    <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">{td("bulk.changeStatusTitle")}</p>
+                    {(["reported", "triaged", "contained", "investigating", "recovered"] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => void bulkChangeStatus(s)}
+                        className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-sm hover:bg-muted"
+                      >
+                        {tStatus(s)}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+                <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                  <X className="size-3.5" />
+                  {td("bulk.clear")}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <div className={cn("mt-3", view === "list" && "rounded-xl border border-border bg-card")}>
             {loading ? (
               <div className="flex items-center justify-center py-16">
@@ -307,7 +423,12 @@ export function IncidentDashboard() {
             ) : view === "board" ? (
               <IncidentBoard rows={filtered} canManage={canManage} onOpen={openIncident} onMove={(id, s) => void handleMove(id, s)} />
             ) : (
-              <IncidentListView rows={filtered} onOpen={openIncident} />
+              <IncidentListView
+                rows={filtered}
+                onOpen={openIncident}
+                selected={canManage ? selected : undefined}
+                onSelectChange={canManage ? setSelected : undefined}
+              />
             )}
           </div>
         </>

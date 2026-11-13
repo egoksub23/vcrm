@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       if (!profile) return NextResponse.json({ error: "Lead not found in this school." }, { status: 404 });
       let updated = 0;
       for (const id of validIds) {
-        const { error } = await ctx.supabase.from("incidents").update({ lead_id: leadId }).eq("id", id).eq("account_id", ctx.accountId).neq("status", "closed").is("voided_at", null);
+        const { error } = await ctx.supabase.from("incidents").update({ incident_lead_id: leadId }).eq("id", id).eq("account_id", ctx.accountId).neq("status", "closed").is("voided_at", null);
         if (!error) updated += 1;
       }
       return NextResponse.json({ updated, skipped: validIds.length - updated });
