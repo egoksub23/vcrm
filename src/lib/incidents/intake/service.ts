@@ -111,6 +111,8 @@ export interface IntakeStore {
   clearances(accountId: string, studentIds: string[], today: string): Promise<ClearanceRow[]>;
   photoCount(incidentId: string): Promise<number>;
   savePhoto(args: { accountId: string; incidentId: string; filename: string; mime: string; bytes: Uint8Array }): Promise<void>;
+  /** Look up an already-filed direct-submit incident by its idempotency key (key_id + group_id + idem). */
+  directIncidentByIdem(keyId: string, groupId: string, idem: string): Promise<{ id: string } | null>;
   newId(): string;
   now(): Date;
   /** How many calls this key may make in a minute (checked by the caller's limiter). */
@@ -397,6 +399,136 @@ export async function clearances(deps: ServiceDeps, args: { authorization: strin
   return reply(200, {
     clearances: rows.map((r) => ({ student_id: r.external_student_id, type: r.type, not_before: r.not_before, incident: r.incident_reference })),
   });
+}
+
+// ---- direct submit (headless) -----------------------------------------------------------------------------------
+
+export interface DirectSubmitInput {
+  authorization: string | null;
+  group: string | null;
+  idempotencyKey: string | null;
+  body: unknown;
+}
+
+function str(v: unknown, max: number): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t.length > 0 && t.length <= max ? t : null;
+}
+function optStr(v: unknown, max: number): string | null | undefined {
+  if (v === undefined || v === null || v === "") return null;
+  return str(v, max) ?? undefined;
+}
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/**
+ * POST /api/public/incident-intake/submit — file an incident directly without the browser form.
+ * Requires the "direct.submit" scope on the platform key.
+ *
+ * Body:
+ *   coach: { name, email, phone? }
+ *   activity: { name, venue?, date? }
+ *   title: string
+ *   type: string        (category code)
+ *   severity: string    (severity slug)
+ *   flags?: string[]
+ *   description?: string
+ *   involved?: { student_id, name, class? }[]
+ */
+export async function directSubmit(deps: ServiceDeps, args: DirectSubmitInput): Promise<Reply> {
+  const auth = await authenticate(deps, args.authorization, args.group, "direct.submit", "POST direct-submit");
+  if (!auth.ok) return auth.reply;
+  const { key } = auth;
+  const s = deps.store;
+
+  if (!isObj(args.body)) return err(400, "invalid_request", "Send a JSON object.");
+  const b = args.body as Record<string, unknown>;
+
+  // Idempotency: accepts the Idempotency-Key header or a body field.
+  const idemRaw = args.idempotencyKey ?? (typeof b.idempotency_key === "string" ? b.idempotency_key : null);
+  const idem = idemRaw?.trim().slice(0, 200) || null;
+  if (idem) {
+    const existing = await s.directIncidentByIdem(key.id, key.group_id, idem);
+    if (existing) {
+      const reference = (await s.incidentReference(existing.id)) ?? "";
+      return reply(200, { reference, duplicate: true, mode: key.mode });
+    }
+  }
+
+  // Validate coach.
+  if (!isObj(b.coach)) return err(400, "invalid_request", '"coach" is required.', { field: "coach" });
+  const coachName = str(b.coach.name, 120);
+  if (!coachName) return err(400, "invalid_request", '"coach.name" is required.', { field: "coach.name" });
+  const coachEmail = str(b.coach.email, 200) ?? null;
+  const coachPhone = optStr(b.coach.phone, 30);
+  if (coachPhone === undefined) return err(400, "invalid_request", '"coach.phone" is not valid.', { field: "coach.phone" });
+
+  // Validate activity.
+  if (!isObj(b.activity)) return err(400, "invalid_request", '"activity" is required.', { field: "activity" });
+  const actName = str(b.activity.name, 160);
+  if (!actName) return err(400, "invalid_request", '"activity.name" is required.', { field: "activity.name" });
+  const venue = optStr(b.activity.venue, 160);
+  if (venue === undefined) return err(400, "invalid_request", '"activity.venue" is too long.', { field: "activity.venue" });
+  const actDate = optStr(b.activity.date, 10);
+  if (actDate === undefined || (actDate && (!/^\d{4}-\d{2}-\d{2}$/.test(actDate) || Number.isNaN(Date.parse(actDate))))) {
+    return err(400, "invalid_request", '"activity.date" must look like 2026-11-11.', { field: "activity.date" });
+  }
+
+  // Validate incident fields.
+  const title = str(b.title, 200);
+  if (!title) return err(400, "invalid_request", '"title" is required (at most 200 characters).', { field: "title" });
+  const type = str(b.type, 100);
+  if (!type) return err(400, "invalid_request", '"type" is required (the category code).', { field: "type" });
+  const severity = str(b.severity, 60);
+  if (!severity) return err(400, "invalid_request", '"severity" is required (the severity slug).', { field: "severity" });
+  const flags = Array.isArray(b.flags) ? (b.flags as unknown[]).filter((f): f is string => typeof f === "string").slice(0, 20) : [];
+  const description = str(b.description, 5000) ?? null;
+
+  // Validate against the school's template.
+  const template = await s.template(key.account_id);
+  if (!template) return err(422, "template_not_supported", "The school has no incident template. Set one up first.");
+  if (!template.categoryCodes.includes(type)) {
+    return err(422, "invalid_type", `Category code "${type}" is not in this school's template. Use one of: ${template.categoryCodes.slice(0, 10).join(", ")}.`);
+  }
+  if (!template.severities.some((sv) => sv.slug === severity)) {
+    const slugs = template.severities.map((sv) => sv.slug).slice(0, 10).join(", ");
+    return err(422, "invalid_severity", `Severity slug "${severity}" is not in this school's template. Use one of: ${slugs}.`);
+  }
+
+  // Validate involved.
+  const rawInvolved = Array.isArray(b.involved) ? (b.involved as unknown[]) : [];
+  const involved: NewIncident["involved"] = [];
+  for (const [i, p] of rawInvolved.slice(0, 200).entries()) {
+    if (!isObj(p)) return err(400, "invalid_request", `involved[${i}] must be an object.`, { field: "involved" });
+    const pid = str(p.student_id, 100) ?? null;
+    const name = str(p.name, 120);
+    if (!name) return err(400, "invalid_request", `involved[${i}].name is required.`, { field: "involved" });
+    const cls = optStr(p.class, 60);
+    if (cls === undefined) return err(400, "invalid_request", `involved[${i}].class is too long.`, { field: "involved" });
+    involved.push({ studentId: pid, name, className: cls ?? null, guardians: [] });
+  }
+
+  const refId = `direct:${key.id}:${key.group_id}${idem ? `:${idem}` : `:${s.newId()}`}`;
+
+  const created = await s.createIncident({
+    accountId: key.account_id,
+    mode: key.mode,
+    sessionId: refId,
+    title,
+    description: description ?? "",
+    category: type,
+    severity,
+    flags,
+    coach: { id: "direct-api", name: coachName, email: coachEmail ?? "noreply@example.test", phone: coachPhone ?? null },
+    activity: { id: "direct-api", name: actName, venue: venue ?? null, date: actDate ?? null },
+    involved,
+    answers: {},
+    formVersion: null,
+  });
+  await deps.afterFiled(created.id);
+  await s.logCall(key.account_id, key.id, "POST direct-submit", 201, `${created.reference} (${key.mode})`);
+
+  return reply(201, { reference: created.reference, duplicate: false, mode: key.mode, incident_id: created.id });
 }
 
 // ---- test report (admin) ----------------------------------------------------------------------------------------

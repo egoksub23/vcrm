@@ -212,6 +212,13 @@ export class PgIntakeStore implements IntakeStore {
     }
   }
 
+  async directIncidentByIdem(keyId: string, groupId: string, idem: string): Promise<{ id: string } | null> {
+    // The idempotency ref is encoded in external_ref as "direct:<keyId>:<groupId>:<idem>".
+    const ref = `direct:${keyId}:${groupId}:${idem}`;
+    const { data } = await this.db.from("incidents").select("id").eq("external_ref", ref).maybeSingle();
+    return (data as { id: string } | null) ?? null;
+  }
+
   newId(): string {
     return randomUUID();
   }

@@ -7,7 +7,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export type KeyMode = "live" | "test";
-export const KEY_SCOPES = ["launch", "clearances.read"] as const;
+export const KEY_SCOPES = ["launch", "clearances.read", "direct.submit"] as const;
 export type KeyScope = (typeof KEY_SCOPES)[number];
 
 export function generateKey(mode: KeyMode): { key: string; prefix: string; hash: string } {

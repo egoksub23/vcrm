@@ -112,6 +112,11 @@ export class MemoryStore implements IntakeStore {
   async savePhoto(a: { incidentId: string; filename: string }) {
     this.photos.push({ incidentId: a.incidentId, filename: a.filename });
   }
+  async directIncidentByIdem(keyId: string, groupId: string, idem: string) {
+    const ref = `direct:${keyId}:${groupId}:${idem}`;
+    const hit = this.incidents.find((i) => i.sessionId === ref);
+    return hit ? { id: hit.id } : null;
+  }
   newId() {
     return `00000000-0000-4000-8000-${String(++this.n).padStart(12, "0")}`;
   }
