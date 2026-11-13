@@ -1,4 +1,4 @@
-// How much each workspace has stored, for the daily usage job (migration 231).
+// How much each workspace has stored, for the daily usage job (migration 232).
 //
 // Every workspace keeps its files under an `account-<uuid>/` folder at the top of
 // each bucket, whichever store is in use:

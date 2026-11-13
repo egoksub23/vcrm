@@ -1,5 +1,5 @@
 -- ============================================================
--- 231: the daily usage job no longer reads Supabase's storage.objects.
+-- 232: the daily usage job no longer reads Supabase's storage.objects.
 --
 -- Migration 152 added up each workspace's stored files with a query on
 -- storage.objects, which only exists on Supabase. On our own server files live on

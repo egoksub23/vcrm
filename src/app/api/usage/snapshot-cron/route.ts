@@ -17,7 +17,7 @@ import { measureAccountStorage } from '@/lib/storage/usage-measure'
 export const GET = cronRoute('usage-snapshot', CRON_INTERVALS['usage-snapshot'], async () => {
   // Stored files are measured here, where the files are (disk or MinIO), and handed to
   // the database job. If measuring fails the job still writes every other counter and
-  // each workspace keeps its last known storage figure (migration 231).
+  // each workspace keeps its last known storage figure (migration 232).
   let storage: Record<string, number> | null = null
   try {
     storage = await measureAccountStorage()

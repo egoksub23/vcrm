@@ -4,13 +4,13 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  path.join(process.cwd(), 'supabase/migrations/231_usage_storage_from_app.sql'),
+  path.join(process.cwd(), 'supabase/migrations/232_usage_storage_from_app.sql'),
   'utf8',
 ).replace(/\r\n/g, '\n')
 // The SQL without its comments, which talk about storage.objects on purpose.
 const code = sql.replace(/--.*$/gm, '')
 
-describe('migration 231 (usage job no longer reads storage.objects)', () => {
+describe('migration 232 (usage job no longer reads storage.objects)', () => {
   it('does not touch Supabase storage any more', () => {
     expect(code).not.toMatch(/storage\.objects/)
   })
