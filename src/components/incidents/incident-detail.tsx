@@ -20,6 +20,7 @@ import {
   Share2,
   ShieldCheck,
   Upload,
+  FileDown,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -1273,6 +1274,14 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
                 {tRecord("open")}
               </Link>
               <ShareLinkButton incidentId={incident.id} />
+              <a
+                href={`/api/incidents/${encodeURIComponent(incident.id)}/notification-docx`}
+                download
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-3 text-xs font-medium text-primary hover:bg-muted/40"
+              >
+                <FileDown size={12} />
+                Download notification letter
+              </a>
             </div>
           ) : null}
 

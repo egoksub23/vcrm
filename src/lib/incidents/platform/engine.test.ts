@@ -86,6 +86,26 @@ describe("runTrigger: raised", () => {
     expect(new Set(s.deliveries.map((d) => d.address))).toEqual(new Set(["admin@school.test"]));
     expect(s.deliveries.every((d) => d.is_test && d.reason === "test")).toBe(true);
   });
+
+  it("3.9 auto-escalates to level 2 when every notify role is empty", async () => {
+    const s = seeded();
+    s.directory.members = [];
+    s.rules = [ruleFromRecipe("serious_injury", "r1")];
+    const out = await runTrigger(s, { incidentId: "i1", trigger: "raised" });
+    expect(out.escalatedTo).toBe(2);
+    expect(s.incidents.get("i1")!.escalation_level).toBe(2);
+    expect(s.deliveries).toHaveLength(0);
+  });
+
+  it("3.9 does not auto-escalate when at least one notify is delivered", async () => {
+    const s = seeded();
+    s.directory.members = s.directory.members.filter((m) => m.role_id !== "role-head_of_sport");
+    s.rules = [ruleFromRecipe("serious_injury", "r1")];
+    const out = await runTrigger(s, { incidentId: "i1", trigger: "raised" });
+    expect(out.escalatedTo).toBe(null);
+    expect(s.incidents.get("i1")!.escalation_level).toBe(1);
+    expect(s.deliveries).toHaveLength(1);
+  });
 });
 
 describe("the outbox", () => {
