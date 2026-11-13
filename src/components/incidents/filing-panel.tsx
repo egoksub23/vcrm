@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Download, FileText, Loader2 } from "lucide-react";
+import { Download, FileText, Loader2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/components/incidents/setup/api";
 import { InfoTip } from "./info-tip";
 
@@ -29,6 +30,8 @@ export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onC
   const [reports, setReports] = useState<Report[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [narrative, setNarrative] = useState("");
+  const [narrativeBusy, setNarrativeBusy] = useState(false);
 
   const load = useCallback(async () => {
     const res = await api<{ reports: Report[] }>(`/api/incidents/${incidentId}/filed-reports`);
@@ -40,6 +43,15 @@ export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onC
     void load();
   }, [load]);
 
+  async function draftNarrative() {
+    setNarrativeBusy(true);
+    const res = await api<{ narrative: string }>(`/api/incidents/${incidentId}/ai-narrative`, "POST", {});
+    setNarrativeBusy(false);
+    if (!res.ok) return void toast.error(res.error);
+    setNarrative(res.data.narrative);
+    toast.success(t("narrativeDrafted"));
+  }
+
   async function generate() {
     setBusy(true);
     setWarnings([]);
@@ -49,7 +61,7 @@ export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onC
     } catch {
       /* keep UTC */
     }
-    const res = await api<{ report: Report; unsupportedCharacters: number; picturesNotShown: number }>(`/api/incidents/${incidentId}/filed-reports`, "POST", { timeZone });
+    const res = await api<{ report: Report; unsupportedCharacters: number; picturesNotShown: number }>(`/api/incidents/${incidentId}/filed-reports`, "POST", { timeZone, narrative: narrative.trim() || undefined });
     setBusy(false);
     if (!res.ok) {
       toast.error(res.error);
@@ -99,6 +111,25 @@ export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onC
       {warnings.map((w) => (
         <p key={w} role="status" className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">{w}</p>
       ))}
+
+      <div className="mt-4 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <p className="flex-1 text-xs font-medium">{t("narrativeLabel")}</p>
+          <Button variant="outline" size="sm" onClick={() => void draftNarrative()} disabled={narrativeBusy || busy}>
+            {narrativeBusy ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            {t("narrativeDraft")}
+          </Button>
+        </div>
+        <Textarea
+          value={narrative}
+          onChange={(e) => setNarrative(e.target.value)}
+          placeholder={t("narrativePlaceholder")}
+          className="min-h-[120px] text-sm"
+          disabled={busy}
+          maxLength={8000}
+        />
+        <p className="text-[11px] text-muted-foreground">{t("narrativeHelp")}</p>
+      </div>
 
       <Button size="sm" className="mt-3" onClick={() => void generate()} disabled={busy || reports === null}>
         {busy ? <Loader2 className="animate-spin" /> : <FileText />}

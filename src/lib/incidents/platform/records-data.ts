@@ -6,7 +6,7 @@ import { textDates } from "./dates";
 import { loadActiveTemplate } from "./setup-data";
 
 export const REGISTER_LIMIT = 5000;
-const SELECT = "id, incident_number, created_at, closed_at, title, incident_type, severity, status, incident_flags, source, is_test, activity, standard_id";
+const SELECT = "id, incident_number, created_at, closed_at, title, incident_type, severity, status, incident_flags, source, is_test, activity, standard_id, occurred_at";
 
 export async function loadRegisterRows(db: PgDb, accountId: string, since: string | null = null): Promise<{ rows: RegisterIncident[]; truncated: boolean }> {
   // A voided incident (raised by mistake) is not part of any report or register.

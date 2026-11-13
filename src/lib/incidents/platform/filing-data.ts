@@ -60,6 +60,7 @@ export async function generateFilingReport(args: {
   incidentId: string;
   canMedical: boolean;
   timeZone: string;
+  narrative?: string | null;
 }): Promise<GenerateResult> {
   const { db, accountId, incidentId } = args;
   const admin = createAdminPgDb();
@@ -100,7 +101,7 @@ export async function generateFilingReport(args: {
   const { data: latest } = await db.from("incident_filed_reports").select("version").eq("incident_id", incidentId).order("version", { ascending: false }).limit(1);
   const version = (((latest ?? []) as { version: number }[])[0]?.version ?? 0) + 1;
 
-  const pdf = await buildFilingPdf({ doc, schoolName: args.accountName, generatedBy, version, timeZone: args.timeZone, images, imagesNotShown: notShown });
+  const pdf = await buildFilingPdf({ doc, schoolName: args.accountName, generatedBy, version, timeZone: args.timeZone, images, imagesNotShown: notShown, narrative: args.narrative });
 
   const filename = `${doc.reference}-incident-report-v${version}.pdf`;
   const storagePath = `account-${accountId}/incidents/reports/${incidentId}-v${version}-${randomUUID()}.pdf`;

@@ -11,6 +11,8 @@ export const RECENT_DAYS = 30;
 export const REPEAT_DAYS = 90;
 export const REPEAT_PLACE_MIN = 3;
 export const REPEAT_STUDENT_MIN = 2;
+export const REPEAT_ACTIVITY_TYPE_MIN = 3;
+export const REPEAT_TIME_BAND_MIN = 3;
 
 export interface InsightIncident extends RegisterIncident {
   standard_id?: string | null;
@@ -32,7 +34,9 @@ export type Attention =
   | { kind: "seriousOpen"; count: number; href: string }
   | { kind: "repeatStudent"; name: string; count: number; href: string }
   | { kind: "repeatPlace"; place: string; count: number; latest: string; href: string }
-  | { kind: "rising"; recent: number; previous: number; href: string };
+  | { kind: "rising"; recent: number; previous: number; href: string }
+  | { kind: "repeatActivityType"; category: string; count: number; href: string }
+  | { kind: "repeatTimeOfDay"; band: string; count: number; href: string };
 
 export interface Share {
   key: string;
@@ -170,6 +174,47 @@ export function buildInsights(args: {
   }
   for (const e of [...perPlace.values()].filter((x) => x.count >= REPEAT_PLACE_MIN).sort((a, b) => b.count - a.count).slice(0, 5)) {
     attention.push({ kind: "repeatPlace", place: e.place, count: e.count, latest: e.latest.slice(0, 10), href: q({ q: e.place }) });
+  }
+
+  // The same incident category keeps recurring.
+  const perType = new Map<string, { label: string; count: number }>();
+  for (const r of rows) {
+    if (new Date(r.created_at).getTime() < repeatFrom) continue;
+    const label = names.category(r.incident_type, r.standard_id);
+    const e = perType.get(r.incident_type) ?? { label, count: 0 };
+    e.count += 1;
+    perType.set(r.incident_type, e);
+  }
+  for (const e of [...perType.values()].filter((x) => x.count >= REPEAT_ACTIVITY_TYPE_MIN).sort((a, b) => b.count - a.count).slice(0, 3)) {
+    attention.push({ kind: "repeatActivityType", category: e.label, count: e.count, href: q({ type: e.label }) });
+  }
+
+  // Incidents clustering in the same time-of-day band.
+  const bandLabel = (hour: number): string => {
+    if (hour < 7) return "before 07:00";
+    if (hour < 10) return "07:00–10:00";
+    if (hour < 13) return "10:00–13:00";
+    if (hour < 16) return "13:00–16:00";
+    if (hour < 19) return "16:00–19:00";
+    return "after 19:00";
+  };
+  const perBand = new Map<string, number>();
+  for (const r of rows) {
+    if (new Date(r.created_at).getTime() < repeatFrom) continue;
+    const timeStr = r.activity?.time ?? r.occurred_at ?? null;
+    if (!timeStr) continue;
+    let hour: number | null = null;
+    if (/^\d{2}:\d{2}/.test(timeStr)) hour = parseInt(timeStr.slice(0, 2), 10);
+    else {
+      const d = new Date(timeStr);
+      if (!Number.isNaN(d.getTime())) hour = d.getUTCHours();
+    }
+    if (hour === null) continue;
+    const band = bandLabel(hour);
+    perBand.set(band, (perBand.get(band) ?? 0) + 1);
+  }
+  for (const [band, count] of [...perBand.entries()].filter(([, c]) => c >= REPEAT_TIME_BAND_MIN).sort((a, b) => b[1] - a[1]).slice(0, 2)) {
+    attention.push({ kind: "repeatTimeOfDay", band, count, href: q({ open: "1" }) });
   }
 
   if (raisedRecent >= 3 && raisedRecent >= raisedBefore * 1.5) attention.push({ kind: "rising", recent: raisedRecent, previous: raisedBefore, href: q({ from: new Date(recentFrom).toISOString().slice(0, 10) }) });

@@ -23,8 +23,9 @@ export async function POST(request: Request, { params }: Params) {
   try {
     const ctx = await requireCapability("incidents.export");
     const { id } = await params;
-    const body = (await request.json().catch(() => null)) as { timeZone?: unknown } | null;
+    const body = (await request.json().catch(() => null)) as { timeZone?: unknown; narrative?: unknown } | null;
     const timeZone = typeof body?.timeZone === "string" ? body.timeZone.slice(0, 60) : "UTC";
+    const narrative = typeof body?.narrative === "string" && body.narrative.trim() ? body.narrative.trim().slice(0, 8000) : null;
     const result = await generateFilingReport({
       db: ctx.supabase,
       accountId: ctx.accountId,
@@ -33,6 +34,7 @@ export async function POST(request: Request, { params }: Params) {
       incidentId: id,
       canMedical: ctx.capabilities.has("incidents.medical"),
       timeZone,
+      narrative,
     });
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
     return NextResponse.json({ report: result.report, unsupportedCharacters: result.unsupportedCharacters, picturesNotShown: result.picturesNotShown }, { status: 201 });

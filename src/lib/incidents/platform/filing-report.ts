@@ -27,6 +27,8 @@ export interface FilingInput {
   images: readonly FilingImage[];
   /** Pictures that could not be drawn (a format the PDF cannot hold, or too large): listed by name instead. */
   imagesNotShown: readonly string[];
+  /** Optional AI-drafted or manually written narrative that appears before the sign-off block. */
+  narrative?: string | null;
 }
 
 export interface FilingResult {
@@ -378,6 +380,11 @@ export async function buildFilingPdf(input: FilingInput): Promise<FilingResult> 
     w.heading(`Files kept with the incident (${doc.files.length})`);
     for (const f of doc.files) w.bullet(`${f.filename} (${Math.max(1, Math.round(f.size_bytes / 1024))} KB), added ${when(f.created_at)}`, { sub: f.file_hash ? `SHA-256 ${f.file_hash}` : undefined });
     if (notShown.length > 0) w.text(`Not drawn above (the format cannot be shown here): ${notShown.join(", ")}.`, { size: 8.5, color: MUTED });
+  }
+
+  if (input.narrative?.trim()) {
+    w.heading("Filing narrative");
+    w.text(input.narrative.trim());
   }
 
   w.heading("Sign-off");

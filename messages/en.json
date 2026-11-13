@@ -14811,6 +14811,8 @@
         "repeatStudent": "{name} has been named on {count} incidents in the last 90 days",
         "repeatPlace": "{place}: {count} incidents in the last 90 days, the latest on {latest}",
         "rising": "{recent} incidents in the last 30 days, up from {previous} in the 30 days before",
+        "repeatActivityType": "{category}: {count} incidents in the last 90 days",
+        "repeatTimeOfDay": "{count} incidents in the last 90 days between {band}",
         "look": "See them"
       },
       "stat": {
@@ -15208,7 +15210,12 @@
       "made": "Report ready: version {version}.",
       "keepNote": "Each time you generate, a new version is kept. Earlier versions stay.",
       "charsWarn": "{count, plural, one {# character} other {# characters}} (for example Chinese or Korean names) could not be shown in the PDF and appear as ?. Ask your administrator to set up the extra font, or check those details on screen.",
-      "picturesWarn": "{count, plural, one {# picture} other {# pictures}} could not be shown in the PDF (the format cannot be used, or the file is large) and are listed by name instead."
+      "picturesWarn": "{count, plural, one {# picture} other {# pictures}} could not be shown in the PDF (the format cannot be used, or the file is large) and are listed by name instead.",
+      "narrativeLabel": "Filing narrative",
+      "narrativeDraft": "Draft with AI",
+      "narrativePlaceholder": "Write a summary of what happened, what was done, and the outcome — this will appear in the filing report.",
+      "narrativeHelp": "Optional. The AI draft is a starting point; edit it before generating.",
+      "narrativeDrafted": "Narrative drafted — please review before generating the report."
     },
     "voided": {
       "title": "Voided incidents",

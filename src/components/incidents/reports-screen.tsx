@@ -74,6 +74,10 @@ export function ReportsView({ data }: { data: Insights }) {
         return t("item.repeatPlace", { place: a.place, count: a.count, latest: a.latest });
       case "rising":
         return t("item.rising", { recent: a.recent, previous: a.previous });
+      case "repeatActivityType":
+        return t("item.repeatActivityType", { category: a.category, count: a.count });
+      case "repeatTimeOfDay":
+        return t("item.repeatTimeOfDay", { band: a.band, count: a.count });
     }
   };
 

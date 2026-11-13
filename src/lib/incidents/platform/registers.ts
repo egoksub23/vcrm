@@ -15,8 +15,9 @@ export interface RegisterIncident {
   incident_flags: string[] | null;
   source?: string | null;
   is_test?: boolean | null;
-  activity?: { name?: string; venue?: string } | null;
+  activity?: { name?: string; venue?: string; date?: string | null; time?: string | null } | null;
   involved_count?: number;
+  occurred_at?: string | null;
 }
 
 export const REGISTERS = ["all", "injury", "breach", "near_miss", "property", "safeguarding"] as const;
