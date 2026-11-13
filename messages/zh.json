@@ -55,7 +55,21 @@
     "sign": "Secure Sign",
     "kyc": "KYC 审核",
     "compliance": "合规",
-    "share": "Secure Share"
+    "share": "Secure Share",
+    "incidentsTasks": "我的任务",
+    "incidentsSetup": "设置",
+    "incidentsSetupGuide": "设置向导",
+    "incidentsRoles": "角色与联系人",
+    "incidentsRules": "规则",
+    "incidentsPacks": "合规包",
+    "incidentsReports": "报表",
+    "incidentsForm": "报告表单",
+    "incidentsSteps": "自定义步骤",
+    "incidentsTiming": "时限与截止期限",
+    "incidentsChannels": "通知渠道与邮件接收",
+    "incidentsDashboard": "仪表板",
+    "incidentsCategories": "类别",
+    "incidentsRecords": "记录保存"
   },
   "Header": {
     "dashboard": "仪表板",
@@ -6422,6 +6436,18 @@
       "share_send": {
         "label": "Send share links",
         "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
+      },
+      "incidents_configure": {
+        "label": "设置事件通知",
+        "description": "决定谁会收到事件通知：角色及其成员、通知规则、合规包、表单和教练门户密钥。默认仅限所有者和管理员。"
+      },
+      "incidents_medical": {
+        "label": "查看医疗详情",
+        "description": "查看并设置恢复参赛日期以及事件报告中的医疗部分。默认仅限所有者和管理员，可向下授予客服（例如校医）。"
+      },
+      "incidents_export": {
+        "label": "导出事件记录",
+        "description": "下载登记册和证据包。默认仅限所有者和管理员。"
       }
     },
     "group": {
@@ -12808,6 +12834,76 @@
       "page": "Page {current} of {total}",
       "sharedVia": "Shared via {product}",
       "tooManyRequests": "Too many requests. Please try again in a moment."
+    }
+  },
+  "IncidentPlatform": {
+    "report": {
+      "notice": {
+        "invalid": {
+          "title": "此链接无效",
+          "body": "链接可能复制不完整，或已被替换。请返回教练门户，再点一次“报告”。"
+        },
+        "expired": {
+          "title": "此链接已过期",
+          "body": "链接有效期为 2 小时。请返回教练门户，再点一次“报告”。您输入的内容没有发送。"
+        },
+        "submitted": {
+          "title": "此报告已发送",
+          "body": "已登记为 {reference}。如需报告其他事件，请返回教练门户，再点一次“报告”。"
+        }
+      },
+      "backToPortal": "返回教练门户",
+      "back": "返回",
+      "stepOf": "第 {n} 步，共 {total} 步",
+      "next": "下一步",
+      "send": "发送报告",
+      "waitingToSend": "等待网络连接",
+      "sendFailed": "报告未能发送。您的答案已保存在这部手机上，请再试一次。",
+      "testBanner": "测试报告。不会发送给真实的人。",
+      "offline": "没有网络。您的报告已保存在这部手机上，恢复网络后会自动发送。照片可在发送后再添加。",
+      "yes": "是",
+      "no": "否",
+      "noRoster": "此活动没有学生名单。请在下面输入姓名。",
+      "someoneElse": "其他人或访客",
+      "addOther": "添加此人",
+      "removeOther": "移除 {name}",
+      "addPhoto": "添加照片",
+      "removePhoto": "移除 {name}",
+      "photoNote": "最多 5 个文件，每个 10 MB。照片在报告发送后添加。",
+      "sent": {
+        "title": "报告已发送",
+        "testNote": "这是测试报告，所以只通知了学校管理员。",
+        "told": "已通知：{roles}。",
+        "toldNobody": "学校办公室已收到。目前还没有自动通知任何人。",
+        "photoFailed": "未添加。请告知学校办公室。"
+      }
+    },
+    "dashboard": {
+      "viewPlay": "恢复参赛",
+      "stats": {
+        "open": "未结事件",
+        "needs": "现在需要处理",
+        "overdue": "逾期的必办步骤",
+        "unacknowledged": "尚未确认"
+      },
+      "mine": "我的",
+      "status": "状态",
+      "category": "类别",
+      "severity": "严重程度",
+      "flag": "涉及",
+      "lead": "负责人",
+      "anyLead": "任何负责人",
+      "student": "学生姓名",
+      "from": "从",
+      "to": "至",
+      "clear": "清除筛选",
+      "count": "显示 {total} 件中的 {shown} 件",
+      "newest": "已载入最新的 {count} 件事件；较早的请查看报告。"
+    },
+    "reportsHub": {
+      "title": "报告",
+      "trends": "趋势",
+      "registers": "登记册"
     }
   }
 }

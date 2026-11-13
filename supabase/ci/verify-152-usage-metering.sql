@@ -109,11 +109,10 @@ BEGIN
 
   -- 5. The daily job: one row per active workspace, none for a suspended one, nothing on a second run,
   --    storage counted from the workspace's folder.
-  INSERT INTO storage.objects (bucket_id, name, metadata)
-    VALUES ('chat-media', 'account-' || acctA || '/verify-152.bin', '{"size": 4096}'::jsonb);
+  -- (Migration 231: the app measures stored files and passes them in; 4096 bytes for workspace A.)
   PERFORM set_config('request.jwt.claims', '', true);
   UPDATE account_platform SET status = 'suspended' WHERE account_id = acctB;
-  SELECT usage_snapshot_run(10000) INTO v_n;
+  SELECT usage_snapshot_run(10000, jsonb_build_object(acctA::text, 4096)) INTO v_n;
   IF v_n < 1 THEN RAISE EXCEPTION 'FAIL the daily job measured nothing'; END IF;
   IF NOT EXISTS (SELECT 1 FROM account_usage_daily WHERE account_id = acctA AND day = (now() AT TIME ZONE 'utc')::date) THEN
     RAISE EXCEPTION 'FAIL no snapshot for the active workspace';
@@ -127,7 +126,7 @@ BEGIN
      OR (SELECT contacts FROM account_usage_daily WHERE account_id = acctA) <> 3 THEN
     RAISE EXCEPTION 'FAIL the snapshot numbers are wrong: %', (SELECT row_to_json(d)::text FROM account_usage_daily d WHERE account_id = acctA);
   END IF;
-  SELECT usage_snapshot_run(10000) INTO v_n;
+  SELECT usage_snapshot_run(10000, jsonb_build_object(acctA::text, 4096)) INTO v_n;
   IF v_n <> 0 THEN RAISE EXCEPTION 'FAIL a second run on the same day measured % workspaces again', v_n; END IF;
   UPDATE account_platform SET status = 'active' WHERE account_id = acctB;
 
@@ -148,11 +147,11 @@ BEGIN
   END IF;
 
   -- 8. The job is for the service role only.
-  IF has_function_privilege('authenticated', 'public.usage_snapshot_run(integer)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.usage_snapshot_run(integer)', 'EXECUTE') THEN
+  IF has_function_privilege('authenticated', 'public.usage_snapshot_run(integer, jsonb)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.usage_snapshot_run(integer, jsonb)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FAIL a client role can run the usage job';
   END IF;
-  IF NOT has_function_privilege('service_role', 'public.usage_snapshot_run(integer)', 'EXECUTE') THEN
+  IF NOT has_function_privilege('service_role', 'public.usage_snapshot_run(integer, jsonb)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FAIL the service role cannot run the usage job';
   END IF;
 

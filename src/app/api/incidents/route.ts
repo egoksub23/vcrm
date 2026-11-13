@@ -9,40 +9,53 @@
 // incident lead / Admin-Owner fallback); this route just reads back who
 // it notified (the notifications rows it inserted) and emails them.
 //
-// GET is not needed here — the list/board/detail views read `incidents`
-// directly via the browser Supabase client, same as Tickets; RLS alone
-// decides what each caller can see.
+// GET lists the incidents the caller may see (RLS decides), with the students named on each so the dashboard can filter by person. The names are read as the
+// caller too, so a student on an incident the caller cannot open never shows up.
 // ============================================================
 
 import { NextResponse } from "next/server";
 
 import { getCurrentAccount, requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { notifyIncidentEmail } from "@/lib/email/incident-notification-email";
+import { accountHasRaisedRules, processIncidentEvent } from "@/lib/incidents/platform/run";
 import {
   checkRateLimit,
   rateLimitResponse,
   RATE_LIMITS,
 } from "@/lib/rate-limit";
 import { INCIDENT_DETECTION_SOURCES, isIncidentFlag } from "@/lib/incidents/constants";
+import { parseInjuryDetails } from "@/lib/incidents/platform/injury-details";
+import { createAdminPgDb } from "@/lib/postgres/db";
 import { LIST_PAGE_SIZE } from "@/lib/incidents/constants";
 
 const MAX_TITLE_LEN = 200;
 const MAX_DESCRIPTION_LEN = 10000;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const ctx = await getCurrentAccount();
-    const { data, error } = await ctx.supabase
-      .from("incidents")
-      .select("*")
-      .eq("account_id", ctx.accountId)
+    // Voided incidents (raised by mistake) stay out of the lists; ?voided=1 lists only them (for people who manage incidents, in Keeping records).
+    const onlyVoided = new URL(request.url).searchParams.get("voided") === "1";
+    const base = ctx.supabase.from("incidents").select("*").eq("account_id", ctx.accountId);
+    const { data, error } = await (onlyVoided ? base.not("voided_at", "is", null) : base.is("voided_at", null))
       .order("created_at", { ascending: false })
       .limit(LIST_PAGE_SIZE);
     if (error) {
       console.error("[GET /api/incidents] fetch error:", error);
       return NextResponse.json({ error: "Failed to load incidents" }, { status: 500 });
     }
-    return NextResponse.json({ incidents: data ?? [] });
+    const incidents = (data ?? []) as { id: string }[];
+    const involved: Record<string, { name: string; class_name: string | null }[]> = {};
+    if (incidents.length > 0) {
+      const people = await ctx.supabase
+        .from("incident_involved")
+        .select("incident_id, name, class_name")
+        .in("incident_id", incidents.map((i) => i.id));
+      for (const p of (people.data ?? []) as { incident_id: string; name: string; class_name: string | null }[]) {
+        (involved[p.incident_id] ??= []).push({ name: p.name, class_name: p.class_name });
+      }
+    }
+    return NextResponse.json({ incidents: data ?? [], involved });
   } catch (err) {
     return toErrorResponse(err);
   }
@@ -63,6 +76,7 @@ export async function POST(request: Request) {
           severity?: unknown;
           detectionSource?: unknown;
           flags?: unknown;
+          details?: unknown;
         }
       | null;
 
@@ -109,13 +123,17 @@ export async function POST(request: Request) {
 
     const { data: typeRow } = await ctx.supabase
       .from("incident_type_catalogue")
-      .select("id, default_flags")
+      .select("id, default_flags, is_hidden")
       .eq("standard_id", standardId)
       .eq("code", incidentType)
       .maybeSingle();
 
     if (!typeRow) {
       return NextResponse.json({ error: "'incidentType' is not a recognized incident type" }, { status: 400 });
+    }
+    // A category the school has hidden is not offered any more (the coach portal's report form still files under it).
+    if ((typeRow as { is_hidden?: boolean }).is_hidden === true) {
+      return NextResponse.json({ error: "That category is not available any more. Pick another." }, { status: 400 });
     }
 
     const { data: levels } = await ctx.supabase
@@ -146,6 +164,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "'flags' contains an unrecognized flag" }, { status: 400 });
     }
 
+    // Injury details (who was hurt, the activity, where on the body ...) are optional and only make sense for an injury; they are stored where the coach
+    // form's answers are, so both entrances read the same.
+    const parsedDetails = parseInjuryDetails(body?.details);
+    if (!parsedDetails.ok) return NextResponse.json({ error: parsedDetails.error }, { status: 400 });
+    const details = parsedDetails.value;
+    if (details?.concussion && !flags.includes("concussion") && isIncidentFlag("concussion")) flags = [...flags, "concussion"];
+
     const detectionSource = typeof body?.detectionSource === "string" ? body.detectionSource : "other";
     if (!INCIDENT_DETECTION_SOURCES.some((d) => d.value === detectionSource)) {
       return NextResponse.json({ error: "'detectionSource' is not recognized" }, { status: 400 });
@@ -172,6 +197,8 @@ export async function POST(request: Request) {
         reporter_id: ctx.userId,
         standard_id: standardId,
         incident_flags: flags,
+        ...(details?.activity ? { activity: details.activity } : {}),
+        ...(details && Object.keys(details.customFields).length > 0 ? { custom_fields: details.customFields } : {}),
       })
       .select("*")
       .single();
@@ -181,11 +208,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to raise incident" }, { status: 500 });
     }
 
+    // The people named. A person raising an incident cannot write this table themselves (it holds children's details), so the server does, after the checks above.
+    if (details && details.people.length > 0) {
+      const { error: peopleError } = await createAdminPgDb()
+        .from("incident_involved")
+        .insert(details.people.map((p) => ({ incident_id: inserted.id, account_id: ctx.accountId, name: p.name, class_name: p.class_name, involvement: "injured" })));
+      if (peopleError) console.error("[POST /api/incidents] people insert error:", peopleError);
+    }
+
     // Best-effort email on top of the in-app notification the raise
     // trigger already inserted — read back exactly who it notified
     // rather than re-deriving recipients here.
+    // When the school has notification rules switched on, the rules decide who is told (by role), so the old "email every manager" message is not sent as well.
+    const rulesDecide = await accountHasRaisedRules(ctx.accountId);
     const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    if (appBaseUrl) {
+    if (appBaseUrl && !rulesDecide) {
       const { data: notifiedRows } = await ctx.supabase
         .from("notifications")
         .select("user_id")
@@ -207,6 +244,9 @@ export async function POST(request: Request) {
         console.error("[POST /api/incidents] notify email error:", err);
       }
     }
+
+    // Role-based notices (migration 208/209): never throws, and a problem shows in the incident's message log.
+    await processIncidentEvent(inserted.id as string, "raised");
 
     return NextResponse.json({ incident: inserted }, { status: 201 });
   } catch (err) {

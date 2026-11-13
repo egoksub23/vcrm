@@ -55,7 +55,21 @@
     "sign": "Secure Sign",
     "kyc": "KYC 검토",
     "compliance": "컴플라이언스",
-    "share": "Secure Share"
+    "share": "Secure Share",
+    "incidentsTasks": "내 작업",
+    "incidentsSetup": "설정",
+    "incidentsSetupGuide": "설정 가이드",
+    "incidentsRoles": "역할 및 연락처",
+    "incidentsRules": "규칙",
+    "incidentsPacks": "컴플라이언스 팩",
+    "incidentsReports": "보고서",
+    "incidentsForm": "보고 양식",
+    "incidentsSteps": "자체 필수 단계",
+    "incidentsTiming": "시간 및 기한",
+    "incidentsChannels": "알림 채널과 이메일 접수",
+    "incidentsDashboard": "대시보드",
+    "incidentsCategories": "분류",
+    "incidentsRecords": "기록 보관"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -5072,7 +5086,6 @@
       "description": "에스컬레이션 타이머, 인시던트가 확대될 때 알림을 받을 사람, 그리고 생성된 보고서에 사용되는 24/7 인시던트 연락처입니다.",
       "tabs": {
         "timers": "에스컬레이션 타이머",
-        "recipients": "수신자",
         "standards": "표준"
       },
       "timers": {
@@ -5089,18 +5102,6 @@
         "saveFailed": "에스컬레이션 타이머를 저장하지 못했습니다. 다시 시도하세요.",
         "reset": "기본 타이머로 재설정했습니다.",
         "resetFailed": "에스컬레이션 타이머를 재설정하지 못했습니다. 다시 시도하세요."
-      },
-      "recipients": {
-        "intro": "인시던트가 각 단계로 확대될 때 알림을 받을 사람입니다. 비워두면 기본값을 사용합니다.",
-        "level2Title": "레벨 2 수신자",
-        "level2Hint": "인시던트가 레벨 1을 지나 확대될 만큼 오래 확인되지 않았을 때 알림을 받습니다.",
-        "level3Title": "레벨 3 수신자",
-        "level3Hint": "인시던트가 최고 단계까지 확대되었을 때 알림을 받습니다.",
-        "noneConfigured": "수신자가 설정되지 않음",
-        "recipientCount": "수신자 {count}명",
-        "noMembers": "구성원을 찾을 수 없습니다.",
-        "fallbackHint": "관리자, 소유자, 그리고 인시던트 관리 권한이 있는 모든 사람에게 대신 전달됩니다.",
-        "saveFailed": "변경 사항을 저장하지 못했습니다. 다시 시도하세요."
       },
       "contact": {
         "title": "24/7 인시던트 연락처",
@@ -7177,6 +7178,18 @@
       "share_send": {
         "label": "Send share links",
         "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
+      },
+      "incidents_configure": {
+        "label": "인시던트 알림 설정",
+        "description": "인시던트를 누구에게 알릴지 정합니다: 역할과 구성원, 알림 규칙, 컴플라이언스 팩, 양식, 코치 포털 키. 기본값: 소유자와 관리자만 해당합니다."
+      },
+      "incidents_medical": {
+        "label": "의료 정보 보기",
+        "description": "복귀 가능 날짜와 인시던트 보고서의 의료 항목을 보고 설정합니다. 기본값: 소유자와 관리자만 해당하며, 학교 보건 담당자를 위해 에이전트까지 권한을 부여할 수 있습니다."
+      },
+      "incidents_export": {
+        "label": "인시던트 기록 내보내기",
+        "description": "대장과 증거 자료 묶음을 내려받습니다. 기본값: 소유자와 관리자만 해당합니다."
       }
     },
     "group": {
@@ -7933,7 +7946,7 @@
   "Incidents": {
     "list": {
       "pageTitle": "인시던트 리포팅",
-      "pageDesc": "보안 인시던트 등록부 — 인시던트를 신고, 분류하고 종료까지 추적합니다.",
+      "pageDesc": "사고를 보고하고 추적하고 종결합니다. 첫 보고부터 최종 검토까지.",
       "raiseIncident": "인시던트 등록",
       "searchPlaceholder": "인시던트 검색…",
       "colKey": "번호",
@@ -7955,7 +7968,7 @@
       "list": "목록"
     },
     "common": {
-      "escalationLevel": "레벨 {level}",
+      "escalationLevel": "{level, select, 2 {레벨 2 · 상향} 3 {레벨 3 · 최상위} other {레벨 {level}}}",
       "severity": {
         "P1": "치명적",
         "P2": "높음",
@@ -7979,7 +7992,8 @@
       "property_damage": "재산 손상 또는 분실",
       "security_breach": "침입자 또는 보안 침해",
       "safeguarding": "아동 복지 우려",
-      "outside_agency": "경찰, 소방 또는 구급차 호출"
+      "outside_agency": "경찰, 소방 또는 구급차 호출",
+      "concussion": "뇌진탕 의심 (머리를 부딪힘)"
     },
     "raise": {
       "title": "인시던트 등록",
@@ -8013,7 +8027,30 @@
       "typeRequired": "인시던트 유형을 선택해 주세요.",
       "createFailed": "인시던트를 등록하지 못했습니다.",
       "created": "{key} 신고됨",
-      "open": "열기"
+      "open": "열기",
+      "injury": {
+        "title": "부상 세부 정보",
+        "who": "누가 다쳤나요?",
+        "whoName": "이름",
+        "whoClass": "반",
+        "addPerson": "다른 사람 추가",
+        "removePerson": "이 사람 삭제",
+        "activity": "활동",
+        "activityPlaceholder": "축구, 넷볼, 수영…",
+        "where": "장소",
+        "wherePlaceholder": "운동장 1, 강당, 수영장…",
+        "date": "날짜",
+        "time": "시간",
+        "body": "어디를 다쳤나요?",
+        "body_head": "머리 또는 얼굴",
+        "body_arm": "팔 또는 손",
+        "body_leg": "다리 또는 발",
+        "body_back": "등 또는 목",
+        "body_other": "다른 부위",
+        "head": "학생이 머리를 부딪혔거나 어지러워하거나 혼란스러워 보였나요?",
+        "yes": "예",
+        "no": "아니요"
+      }
     },
     "detail": {
       "back": "인시던트 목록으로",
@@ -8056,7 +8093,39 @@
         "typeChanged": "유형이 {from}에서 {to}(으)로 변경됨",
         "leadChanged": "인시던트 담당자가 {name}(으)로 지정됨",
         "escalatedEvent": "인시던트가 에스컬레이션되었습니다",
-        "closedEvent": "인시던트가 종료되었습니다"
+        "closedEvent": "인시던트가 종료되었습니다",
+        "photoAdded": "사진 추가: {name}",
+        "fileAdded": "파일 추가: {name}",
+        "stepDone": "단계 완료: {title}",
+        "mailSent": "{name}님({role})에게 이메일 발송",
+        "mailAcknowledged": "{name}님이 알림을 확인했습니다",
+        "noticeLogged": "{party}에 알림 기록",
+        "noticeLoggedRef": "{party}에 알림 기록 (참조 {reference})",
+        "approvalAsked": "{role}에 승인 요청",
+        "approvalApproved": "{role} 승인",
+        "approvalRejected": "{role} 미승인",
+        "reportFiled": "제출용 보고서 생성 (버전 {version})",
+        "mailFailed": "{name}님({role})에게 이메일을 보내지 못했습니다: {why}",
+        "rootCauseChanged": "근본 원인 기록: {text}",
+        "fileDeleted": "파일 삭제: {name}",
+        "actionAdded": "조치 추가: {description}{detail}",
+        "actionDone": "조치 완료: {description}",
+        "owner": "담당",
+        "due": "기한",
+        "escalatedTo": "{level, select, 2 {레벨 2 · 상향} 3 {레벨 3 · 최상위} other {레벨 {level}}}(으)로 상향 ({how})",
+        "escalateHowManual": "직접",
+        "escalateHowTimer": "제때 확인되지 않아 자동으로",
+        "escalateHowRule": "규칙에 따라",
+        "titleChanged": "제목 변경: “{from}” → “{to}”",
+        "descriptionChanged": "설명 변경",
+        "descriptionChangedFull": "설명 변경. 이전: “{from}”. 이후: “{to}”",
+        "amendReason": "이유: {reason}",
+        "escalatedTold": "이메일로 알림: {people}",
+        "escalatedNotSent": "(전송 실패)",
+        "escalatedNobody": "알린 사람 없음: 이 레벨에 역할에게 알리는 규칙이 없습니다",
+        "custody": "파일 기록: {description}",
+        "voidedEvent": "사건 무효 처리: {reason}",
+        "restoredEvent": "사건 복원"
       },
       "actions": {
         "title": "조치 사항",
@@ -8144,7 +8213,113 @@
         "generated": "문서가 생성되었습니다.",
         "generateFailed": "문서를 생성하지 못했습니다. 다시 시도하세요.",
         "attachFailed": "문서는 생성되었지만 증거로 저장하지 못했습니다."
-      }
+      },
+      "timelineHelp": "이 사건에 일어나는 모든 일이 순서대로 기록됩니다. 아래에 메모를 추가하고, @로 동료에게 알릴 수 있습니다.",
+      "pictureOf": "사진 {n} / {total}",
+      "picturePrev": "이전 사진",
+      "pictureNext": "다음 사진",
+      "pictureOpen": "원본 열기",
+      "deleteFile": "이 파일 삭제",
+      "deleteYes": "삭제",
+      "deleteNo": "취소",
+      "deleted": "파일을 삭제했습니다.",
+      "deleteFailed": "파일을 삭제할 수 없습니다.",
+      "deleteTitle": "이 파일을 삭제할까요?",
+      "deleteBody": "“{name}”이(가) 이 사건에서 영구적으로 삭제됩니다. 추가되었다는 기록은 사건 로그에 남습니다.",
+      "escalateTo": "{level, select, 2 {레벨 2 · 상향} 3 {레벨 3 · 최상위} other {레벨 {level}}}(으)로 상향",
+      "auditTitle": "감사 로그",
+      "auditHelp": "정확한 시각과 함께 기록된 모든 이벤트(발송된 이메일, 각 파일의 체크섬 포함). 읽기 전용이며 수정할 수 없습니다.",
+      "tips": {
+        "severity": "사건의 심각도입니다. P1이 가장 심각합니다. 신고자가 먼저 추정하고, 분류 담당자가 확인하거나 수정합니다.",
+        "status": "처리 단계: 접수, 분류됨, 억제됨, 조사 중, 복구됨, 종료. 접수에서 넘기면 누군가 맡았다는 뜻입니다.",
+        "type": "사건 유형입니다. 어떤 필수 단계와 규칙이 적용되는지 결정합니다.",
+        "lead": "이 사건 처리를 책임지는 사람입니다. 기한이 지난 단계를 통보받습니다.",
+        "level": "사건이 담당자 체계에서 얼마나 위로 올라갔는지입니다. 모든 사건은 레벨 1에서 시작하며, 레벨 2는 상향, 레벨 3은 최상위입니다.",
+        "escalate": "사건을 지금 상향하고 해당 레벨에 대해 규칙이 정한 사람들에게 알립니다. 기다리지 않고 상급자가 필요할 때 사용하세요.",
+        "involves": "사건과 관련된 사항입니다. 적용되는 필수 단계와 알림을 결정하므로 해당되는 것을 모두 선택하세요.",
+        "evidence": "사건과 함께 보관되는 사진과 파일입니다. 사진을 클릭하면 크게 볼 수 있습니다.",
+        "timeline": "사건의 경과: 메모, 변경, 파일, 완료된 단계, 승인, 상향. 아래에 메모를 추가하고 @로 동료에게 알릴 수 있습니다.",
+        "audit": "정확한 시각과 함께 사건에 대해 기록된 모든 것(발송된 이메일, 파일 체크섬 포함). 수정할 수 없습니다.",
+        "steps": "메시지가 아니라 할 일입니다. 각각 역할과 기한이 있으며, 완료되면 누군가 완료로 표시합니다.",
+        "messageLog": "이 사건과 관련해 Halo가 누구에게 언제 이메일을 보냈고 확인했는지 보여줍니다.",
+        "filing": "사건이 종료되면 기록된 모든 내용을 제출용 PDF로 만듭니다.",
+        "approvals": "사건을 다음 단계로 넘기기 전에 학교가 요구하는 역할의 승인 여부입니다."
+      },
+      "findings": {
+        "title": "근본 원인",
+        "tip": "문제가 무엇이고 왜 생겼는지 파악되면 적습니다. 학교가 종료 전에 필수로 요구할 수 있으며 제출용 보고서에 인쇄됩니다.",
+        "placeholder": "무엇이 잘못되었고 왜 그랬나요? 예: 운동장이 젖어 있었고 골대에 보호대가 없었음.",
+        "save": "저장",
+        "keyFindings": "주요 발견 사항",
+        "conclusions": "결론",
+        "conclusionsTip": "사건의 결말: 근본 원인, 종결 메모, 조사에서 나온 발견 사항. 모두 제출용 보고서에 인쇄됩니다.",
+        "closingNote": "종결 메모"
+      },
+      "triage": {
+        "title": "이 사건 분류",
+        "help": "사건을 '분류됨'으로 옮기면 누군가 맡았다는 뜻입니다. 심각도를 확인하고, 담당자를 정하고, 짧은 메모를 남기세요.",
+        "severity": "심각도",
+        "lead": "사건 담당자",
+        "noLead": "아직 담당자 없음",
+        "note": "분류 메모",
+        "notePlaceholder": "확인한 내용과 다음 조치. 예: 간호사가 확인함, 염좌 의심, 학부모에게 연락함.",
+        "notePrefix": "분류 메모: {text}",
+        "cancel": "취소",
+        "confirm": "분류 확정"
+      },
+      "void": "무효 처리",
+      "voided": "사건을 무효 처리했습니다.",
+      "restored": "사건을 복원했습니다.",
+      "voidTitle": "이 사건을 무효 처리할까요?",
+      "voidHelp": "실수로 접수된 사건에 사용하세요. 대시보드와 보고서에서 빠지고 타이머가 멈추지만, 누가 왜 무효 처리했는지와 함께 기록은 남습니다. 복원할 수 있습니다.",
+      "voidReasonPlaceholder": "사유: 예) 실수로 두 번 접수됨, INC-2026-8과 중복.",
+      "voidConfirm": "사건 무효 처리",
+      "voidedBanner": "이 사건은 무효 처리되었습니다.",
+      "voidedBecause": "사유:",
+      "restore": "복원",
+      "deleteForGood": "영구 삭제",
+      "deleteForGoodTitle": "이 사건을 영구 삭제할까요?",
+      "deleteForGoodHelp": "{key}와 그 아래의 모든 것(언급된 사람, 메모, 단계, 알림, 파일, 보고서)이 삭제되며 되돌릴 수 없습니다. 삭제되었다는 기록과 삭제한 사람만 남습니다.",
+      "deleteTypeRef": "확인하려면 참조 번호를 입력하세요",
+      "deletedForGood": "사건을 삭제했습니다.",
+      "findingBadge": "발견 사항",
+      "markFinding": "발견 사항으로 표시",
+      "unmarkFinding": "표시 해제",
+      "kind": {
+        "investigation": "조사 메모",
+        "finding": "발견 사항",
+        "closing": "종결 메모"
+      },
+      "markAs": "유형 지정",
+      "markAsChange": "유형 변경",
+      "unmarkKind": "일반 메모",
+      "filterLabel": "메모 유형별 보기",
+      "filterAll": "전체",
+      "close": {
+        "title": "이 사건 종결",
+        "help": "어떻게 끝났는지 적어 주세요. 무엇을 했고 앞으로 무엇이 이어지는지. 종결 메모로 보관되어 결론 아래에 표시되고 제출용 보고서의 맨 앞에 인쇄됩니다.",
+        "alreadyWritten": "이미 종결 메모가 있습니다. 달라진 점이 있을 때만 추가하세요.",
+        "placeholder": "예: 간호사가 발목을 고정했고 부모님이 데려갔으며 2주 후 축구를 재개합니다.",
+        "note": "종결 메모",
+        "cancel": "취소",
+        "confirm": "사건 종결",
+        "noteFailed": "종결 메모를 저장하지 못했습니다. 사건은 종결되지 않았습니다."
+      },
+      "amendEdit": "수정",
+      "amendTitleLabel": "제목",
+      "amendDescriptionLabel": "설명",
+      "amendReasonLabel": "변경하는 이유는 무엇입니까?",
+      "amendReasonPlaceholder": "예: 학생 이름 오타",
+      "amendClosedNote": "종결된 사건이므로 이유가 필요합니다. 이유는 감사 기록에 보관됩니다.",
+      "amendKept": "이전 내용은 감사 기록에 보관됩니다.",
+      "edit": "수정",
+      "editSave": "저장",
+      "edited": "수정됨",
+      "editFailed": "변경 사항을 저장하지 못했습니다.",
+      "editKept": "이전 내용은 감사 기록에 보관됩니다.",
+      "earlierWording": "{who}님이 {when}에 작성한 이전 내용:",
+      "findingFailed": "변경 내용을 저장할 수 없습니다.",
+      "cancel": "취소"
     }
   },
   "Sembang": {

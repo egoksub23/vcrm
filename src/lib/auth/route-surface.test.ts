@@ -53,7 +53,13 @@ const ACCOUNT_REFERENCE = new RegExp(
 
 /** Reachable without a session or key. Why each is safe. */
 const PUBLIC_ROUTES: Record<string, string> = {
-  'auth/[...nextauth]': 'Auth.js session and OAuth handler; this IS the authentication endpoint — it creates and validates sessions',
+  'public/incident-intake/launch': "called by the coach portal's server; authenticated by a school key (ik_live_ / ik_test_) checked by SHA-256 hash in the route; the school comes from the key, never the body; rate-limited per key",
+  'public/clearances': "read by the coach portal with the same school key (clearances.read scope); returns only that school's Return to Play dates for the student ids asked; rate-limited per key",
+  'public/incident-report': "the coach's phone page posts here; authenticated by the signed one-time report token (HMAC, expires in 2 hours, one report per link); rate-limited",
+  'public/incident-report/photo': 'photos added to a report just sent; the same signed report token, accepted for 30 minutes after sending; images and PDF only, 10 MB each, five at most',
+  'public/incident-ack': 'the one-tap acknowledge link in a notice; authenticated by an HMAC-signed token for one message; it can only mark that one message acknowledged',
+  'public/incident-email-in/[token]': "turns an email into an incident; authenticated by the school's long random address (the token, looked up in incident_channel_settings, only while email-in is switched on); only senders the school listed are accepted, the same message id files once, an unknown or switched-off address answers 404; rate-limited per caller address",
+  'auth/[...nextauth]':'Auth.js session and OAuth handler; this IS the authentication endpoint — it creates and validates sessions',
   'auth/forgot-password': 'public password-reset request; sends a recovery email with a one-time link; rate-limited per caller; never reveals whether an address is registered',
   'auth/reset-password': 'password reset; guarded by the pw_reset recovery cookie (a signed JWT from /auth/confirm, one-time, short-lived); the cookie is the proof of identity',
   'auth/signup': 'account sign-up; open only when the platform has open_signup on (off by default — invitation-only); hashed password, rate-limited per caller',

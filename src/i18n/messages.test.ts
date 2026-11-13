@@ -20,9 +20,14 @@ const TRANSLATED_LOCALES = ['ko', 'ms', 'zh'];
 // operator console). ms and zh leave them out: src/i18n/request.ts lays every
 // translation over English, so they fall back to English. Everything else must
 // be translated, and what IS translated is still held to placeholder parity.
+//
+// IncidentPlatform (the incident roles, rules, report-form builder and coach report) is English first by decision: the screens an admin sets up in are
+// English, and the coach's phone page is translated into Malay and Chinese separately (IncidentPlatform.report, held to placeholder parity by its own
+// test). Korean is a backup language, so it leaves the namespace out too and falls back to English.
 const EXEMPT_NAMESPACES: Record<string, string[]> = {
-  ms: ['Jira', 'Incidents', 'Platform', 'Settings.jira', 'Settings.incidents'],
-  zh: ['Jira', 'Incidents', 'Platform', 'Settings.jira', 'Settings.incidents'],
+  ko: ['IncidentPlatform'],
+  ms: ['Jira', 'Incidents', 'Platform', 'Settings.jira', 'Settings.incidents', 'IncidentPlatform'],
+  zh: ['Jira', 'Incidents', 'Platform', 'Settings.jira', 'Settings.incidents', 'IncidentPlatform'],
 };
 
 function isExempt(locale: string, key: string): boolean {

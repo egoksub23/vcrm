@@ -1,6 +1,27 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { strFromU8, unzipSync } from 'fflate'
 import type { PgDb } from '@/lib/postgres/db'
+
+// The stored files live outside the database: what the store lists, and what a download returns.
+const h = vi.hoisted(() => ({
+  objects: [] as { bucket: string; name: string; size: number }[],
+  failDownload: [] as string[],
+}))
+
+vi.mock('@/lib/storage/list-by-prefix', () => ({
+  listObjectsByPrefix: async (prefix: string) => h.objects.filter((o) => o.name.startsWith(prefix)),
+}))
+
+vi.mock('@/lib/storage/provider', () => ({
+  appStorage: () => ({
+    from: (bucket: string) => ({
+      download: async (name: string) =>
+        h.failDownload.includes(name)
+          ? { data: null, error: { message: 'gone' } }
+          : { data: new Blob([`bytes of ${bucket}/${name}`]), error: null },
+    }),
+  }),
+}))
 
 import { exportCell, exportFileName, workspaceExportChunks, type ExportSummary } from './workspace-export'
 
@@ -15,6 +36,8 @@ interface FakeOptions {
 }
 
 function fakeDb(o: FakeOptions): PgDb {
+  h.objects = o.objects ?? []
+  h.failDownload = o.failDownload ?? []
   return {
     rpc: async (name: string, args: Record<string, unknown>) => {
       if (name === 'workspace_export_manifest') return { data: o.manifest, error: null }
@@ -24,20 +47,7 @@ function fakeDb(o: FakeOptions): PgDb {
         const rows = pages[index] ?? []
         return { data: { rows, last: rows.length > 0 ? String(index + 1) : null }, error: null }
       }
-      if (name === 'storage_objects_by_prefix') {
-        const all = o.objects ?? []
-        const after = args.p_after_name as string | null
-        return { data: all.filter((x) => after === null || x.name > after), error: null }
-      }
       return { data: null, error: { message: `unexpected rpc ${name}` } }
-    },
-    storage: {
-      from: (bucket: string) => ({
-        download: async (name: string) =>
-          o.failDownload?.includes(name)
-            ? { data: null, error: { message: 'gone' } }
-            : { data: new Blob([`bytes of ${bucket}/${name}`]), error: null },
-      }),
     },
   } as unknown as PgDb
 }

@@ -269,6 +269,13 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   def("incidents.raise", "incidents", ALL, "viewer", "database"),
   def("incidents.manage", "incidents", ADMIN_UP, "agent", "database"),
 
+  // Incident platform (migration 208). configure = the one-time setup: roles and who holds them, notification rules, the form, compliance packs, the coach-portal key.
+  // Database tier: it guards the incident_roles / incident_contacts / incident_rules tables. medical = clearances and the medical parts of a report (server routes).
+  // export = registers and evidence packs (server routes). All three default to Owner and Admin and can be granted down to Agent.
+  def("incidents.configure", "incidents", ADMIN_UP, "agent", "database"),
+  def("incidents.medical", "incidents", ADMIN_UP, "agent"),
+  def("incidents.export", "incidents", ADMIN_UP, "agent"),
+
   // ---- Doc Sign (electronic signing, migration 157) ----
   // menu.sign (above, in Menus) is the reading gate. send, templates and settings guard writes to
   // tables through RLS. void and sign act through server routes only: a sent document's status and
@@ -374,6 +381,9 @@ export type CapabilityKey = (typeof MENU_CAPABILITIES)[number] | (
   | "sembang.manage"
   | "incidents.raise"
   | "incidents.manage"
+  | "incidents.configure"
+  | "incidents.medical"
+  | "incidents.export"
   | "sign.send"
   | "sign.void"
   | "sign.templates"

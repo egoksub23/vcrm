@@ -1,51 +1,72 @@
 ---
 title: Raise an incident
-description: Report a suspected security, fraud or data incident — what to fill in now and what can wait.
+description: Report an incident in about a minute. What to fill in now and what can wait.
 order: 2
-updated: 2026-09-28
+updated: 2026-11-09
 ---
 
-Anyone can raise an incident. Add what you know now — mark anything unclear as "under investigation" rather than waiting. A Compliance Officer completes the classification and impact assessment during triage.
+Anyone can raise an incident. Add what you know now. Anything unclear can be added later as a note.
 
 ## Report what you know
 
-1. Click **Raise Incident**, on the Incidents page or from the sidebar.
-2. Fill in a short **Title** — a one-line summary of what happened.
-3. Describe **What happened?** in as much detail as you have: what you saw, when, and any accounts or transactions involved.
-4. Choose an **Incident type** from the list (for example Security breach, Data breach, Account takeover, Suspicious activity).
-5. Choose **How was this detected?** — Customer report, Staff member, Monitoring alert, Reconciliation break, Merchant report, Regulator or partner, Vendor advisory, or Other.
-6. Set an **Initial severity** — your best guess. Compliance confirms it during triage.
+1. Click **Raise Incident** (the red button, top right of the Dashboard).
+2. Choose the **Incident type** (the category) first. If nothing fits, choose **Other**. The type decides what else the form asks.
+3. Type a short **Title**, a one-line summary. For example "Student fell during football practice".
+4. Under **What happened?**, write what you saw, when and where, and who was involved. Write facts, not theories.
+5. For an injury type, fill in the **Injury details** box (below).
+6. Check the **Severity**. It is your best guess; the incident team confirms it.
 7. Click **Submit report**.
 
-![The Raise Incident dialog with title, description, type, detection source and severity fields](/help/img/raise-an-incident-01-dialog.png)
+![The Raise Incident form with incident type first, then title, what happened and severity](/help/img/raise-an-incident-01-dialog.png)
 
-> [!TIP]
-> Some incident types (data breach, float/safeguarding, account takeover, third-party) are usually at least **P2** by policy. If your report matches one of these, the form tells you — you do not need to second-guess the severity, just report it.
+## Injury details
 
-## Describe what happened
+When the type is an injury, such as a CCA or sports injury, the form adds an **Injury details** box. It asks the same questions as the coach report form, so an injury reads the same whoever raised it.
 
-The description box works like a Sembang message: paste a screenshot straight in, drag a file onto it, or click **Attach files** — no need to attach it separately. Logs, zip files and screenshots are all fine, up to 16 MB each. A link you paste into the description becomes clickable once the incident is saved.
+- **Who was hurt?** Type the name and class. Click **Add another person** if more than one student was hurt.
+- **Activity** and **Where?** For example "Football" and "Field 1".
+- **Date** and **Time**. They start as today and now. Change them if the injury happened earlier.
+- **Where was the injury?** Head or face, arm or hand, leg or foot, back or neck, or somewhere else.
+- **Did the student hit their head, or seem dazed or confused?** Choose **Yes** if there is any doubt. Halo then marks a possible concussion and tells the school nurse.
+
+Everything in the box is optional. Add what you know now; you can add a note later for the rest.
+
+You will see a confirmation with the incident reference, for example "Reported INC-2026-014", and an **Open** link.
+
+## What the category fills in for you
+
+Picking a category sets a starting **severity** and ticks what the incident usually involves. Under the severity buttons is one line, **This incident involves**, with a number. Click it to open the list. Tick or untick to match what really happened, for example "Someone was injured" or "Personal data involved".
+
+These choices decide which **required steps** are added to the incident. Below them Halo lists "These will be tracked for you", with the due time for each.
+
+> [!NOTE]
+> You do not need to open that list for a routine report. The category has already ticked the usual items.
+
+## Add a screenshot or file
+
+The description box works like a message: paste a screenshot straight in, drag a file onto it, or click **Attach files**. Photos, documents and screenshots are all fine, up to 16 MB each.
 
 ## What happens after you submit
 
-- You see a confirmation with the incident's key, for example "Reported INC-2026-014".
-- You and anyone the incident is later assigned to are notified about updates.
-- The incident starts at status **Reported**. A Compliance Officer triages it from there — see [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close).
-- You can see your own report in the Incidents list at any time, even though you cannot see incidents raised by other people (unless you also have manage access).
+- The people your school's rules name are told by email. Anyone asked to acknowledge gets an **I have seen this** button.
+- The incident starts at status **Reported**.
+- You can always see your own report, even though you cannot see other people's.
 
 ## Tips
 
-- Write down what you actually saw, not your theory of what happened — Compliance separates fact from suspicion during triage.
-- Attach evidence while it is still on your screen. A screenshot taken an hour later is worse than one taken now.
-- If you are updating an incident you already reported (new information, a related event), add a note on the incident rather than raising a second one.
+- Write down what you actually saw, not your theory of why.
+- Attach evidence while you have it: a photo of the damage, a screenshot of the email.
+- If you are adding to an incident you already reported, add a note to it rather than raising a second one.
+- Keep sensitive identifiers, such as ID or card numbers, out of the title.
 
 ## Common mistakes
 
-- **Waiting to gather more information before reporting.** Report now with what you know; add more later as a note.
-- **Guessing a low severity to avoid "overreacting."** Guess honestly — Compliance will correct it either way, and a slow escalation is worse than a fast downgrade.
-- **Putting a customer's full card or account credentials directly in the title.** Keep sensitive identifiers in the description, which has tighter access controls than a title shown in list views.
+- **Waiting to gather more information.** Report now, add more later.
+- **Guessing a low severity to avoid overreacting.** Guess honestly. The incident team will correct it either way.
+- **Raising a second incident for an update.** Add a note to the first.
 
 ## Related pages
 
 - [Incidents overview](/help/incidents/incidents-overview)
 - [Manage, escalate and close an incident](/help/incidents/manage-escalate-and-close)
+- [Reports from the coach portal](/help/incidents/coach-reports)

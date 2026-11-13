@@ -20,10 +20,15 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "storage_path and url required" }, { status: 400 });
     }
 
+    // The file is filed under an incident of this school (another school's, or one this person cannot see, is a 404).
+    const { data: owner } = await ctx.supabase.from("incidents").select("id").eq("id", id).eq("account_id", ctx.accountId).maybeSingle();
+    if (!owner) return NextResponse.json({ error: "Incident not found." }, { status: 404 });
+
     const { data, error } = await ctx.supabase
       .from("incident_attachments")
       .insert({
         incident_id: id,
+        account_id: ctx.accountId,
         comment_id: body.comment_id ?? null,
         storage_path: body.storage_path,
         url: body.url,

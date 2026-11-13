@@ -55,7 +55,21 @@
     "sign": "Secure Sign",
     "kyc": "Semakan KYC",
     "compliance": "Pematuhan",
-    "share": "Secure Share"
+    "share": "Secure Share",
+    "incidentsTasks": "Tugas saya",
+    "incidentsSetup": "Tetapan",
+    "incidentsSetupGuide": "Panduan persediaan",
+    "incidentsRoles": "Peranan & kenalan",
+    "incidentsRules": "Peraturan",
+    "incidentsPacks": "Pek pematuhan",
+    "incidentsReports": "Laporan",
+    "incidentsForm": "Borang laporan",
+    "incidentsSteps": "Langkah sendiri",
+    "incidentsTiming": "Masa & tarikh akhir",
+    "incidentsChannels": "Saluran & e-mel masuk",
+    "incidentsDashboard": "Papan pemuka",
+    "incidentsCategories": "Kategori",
+    "incidentsRecords": "Simpanan rekod"
   },
   "Header": {
     "dashboard": "Papan pemuka",
@@ -6422,6 +6436,18 @@
       "share_send": {
         "label": "Send share links",
         "description": "Upload a document, create a trackable share link with an optional email or OTP gate, and manage (revoke, toggle download) any share link in this workspace. Also needed for the Shares tab on a contact."
+      },
+      "incidents_configure": {
+        "label": "Sediakan pemberitahuan insiden",
+        "description": "Tentukan siapa dimaklumkan tentang insiden: peranan dan orang di dalamnya, peraturan pemberitahuan, pek pematuhan, borang dan kunci portal jurulatih. Lalai: Pemilik dan Pentadbir sahaja."
+      },
+      "incidents_medical": {
+        "label": "Lihat butiran perubatan",
+        "description": "Lihat dan tetapkan tarikh kembali bermain serta bahagian perubatan dalam laporan insiden. Lalai: Pemilik dan Pentadbir sahaja. Berikan kepada Ejen untuk jururawat sekolah."
+      },
+      "incidents_export": {
+        "label": "Eksport rekod insiden",
+        "description": "Muat turun daftar dan pek bukti. Lalai: Pemilik dan Pentadbir sahaja."
       }
     },
     "group": {
@@ -12808,6 +12834,76 @@
       "page": "Page {current} of {total}",
       "sharedVia": "Shared via {product}",
       "tooManyRequests": "Too many requests. Please try again in a moment."
+    }
+  },
+  "IncidentPlatform": {
+    "report": {
+      "notice": {
+        "invalid": {
+          "title": "Pautan ini tidak sah",
+          "body": "Pautan mungkin tersalin tidak lengkap, atau sudah diganti. Kembali ke portal jurulatih dan ketik Lapor sekali lagi."
+        },
+        "expired": {
+          "title": "Pautan ini telah tamat tempoh",
+          "body": "Pautan sah selama 2 jam. Kembali ke portal jurulatih dan ketik Lapor sekali lagi. Tiada yang anda taip telah dihantar."
+        },
+        "submitted": {
+          "title": "Laporan ini sudah dihantar",
+          "body": "Ia direkodkan sebagai {reference}. Untuk melaporkan perkara lain, kembali ke portal jurulatih dan ketik Lapor sekali lagi."
+        }
+      },
+      "backToPortal": "Kembali ke portal jurulatih",
+      "back": "Kembali",
+      "stepOf": "Langkah {n} daripada {total}",
+      "next": "Seterusnya",
+      "send": "Hantar laporan",
+      "waitingToSend": "Menunggu sambungan",
+      "sendFailed": "Laporan tidak dapat dihantar. Jawapan anda disimpan pada telefon ini. Cuba lagi.",
+      "testBanner": "Laporan ujian. Tiada apa dihantar kepada orang sebenar.",
+      "offline": "Tiada sambungan. Laporan anda disimpan pada telefon ini dan akan dihantar sebaik sahaja anda kembali dalam talian. Gambar boleh ditambah selepas ia dihantar.",
+      "yes": "Ya",
+      "no": "Tidak",
+      "noRoster": "Tiada senarai pelajar untuk aktiviti ini. Taip nama di bawah.",
+      "someoneElse": "Orang lain atau pelawat",
+      "addOther": "Tambah orang ini",
+      "removeOther": "Buang {name}",
+      "addPhoto": "Tambah gambar",
+      "removePhoto": "Buang {name}",
+      "photoNote": "Sehingga 5 fail, 10 MB setiap satu. Gambar ditambah selepas laporan dihantar.",
+      "sent": {
+        "title": "Laporan dihantar",
+        "testNote": "Ini laporan ujian, jadi hanya pentadbir sekolah dimaklumkan.",
+        "told": "Dimaklumkan: {roles}.",
+        "toldNobody": "Pejabat sekolah telah menerimanya. Belum ada sesiapa dimaklumkan secara automatik.",
+        "photoFailed": "Tidak ditambah. Beritahu pejabat sekolah."
+      }
+    },
+    "dashboard": {
+      "viewPlay": "Kembali bermain",
+      "stats": {
+        "open": "Insiden terbuka",
+        "needs": "Perlu tindakan sekarang",
+        "overdue": "Langkah wajib lewat tempoh",
+        "unacknowledged": "Belum diakui"
+      },
+      "mine": "Saya",
+      "status": "Status",
+      "category": "Kategori",
+      "severity": "Tahap keterukan",
+      "flag": "Melibatkan",
+      "lead": "Ketua",
+      "anyLead": "Mana-mana ketua",
+      "student": "Nama murid",
+      "from": "Dari",
+      "to": "Hingga",
+      "clear": "Kosongkan penapis",
+      "count": "Menunjukkan {shown} daripada {total}",
+      "newest": "{count} insiden terbaharu dimuatkan; gunakan Laporan untuk yang lebih lama."
+    },
+    "reportsHub": {
+      "title": "Laporan",
+      "trends": "Trend",
+      "registers": "Daftar"
     }
   }
 }

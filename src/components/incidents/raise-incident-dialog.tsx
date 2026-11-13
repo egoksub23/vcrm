@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { AlertTriangle, FileText, Loader2, Paperclip, ShieldAlert, Upload, X } from "lucide-react";
@@ -34,6 +34,8 @@ import {
   type IncidentDetectionSource,
 } from "@/lib/incidents/constants";
 import { useIncidentStandard } from "@/hooks/use-incident-standard";
+import { severityText } from "@/lib/incidents/severity-display";
+import { BODY_PARTS, MAX_PEOPLE } from "@/lib/incidents/platform/injury-details";
 import type { Incident } from "@/lib/incidents/types";
 import { severityStyle } from "./incident-visuals";
 
@@ -47,6 +49,13 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+/** Today's date and the time now, as the date and time boxes want them (in the reporter's own clock). */
+function nowParts(): { date: string; time: string } {
+  const d = new Date();
+  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
 }
 
 interface RaiseIncidentDialogProps {
@@ -79,10 +88,22 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
   const [detectionSource, setDetectionSource] = useState<IncidentDetectionSource>("customer");
   const [severity, setSeverity] = useState<string | null>(null);
   const [flags, setFlags] = useState<string[]>([]);
+  // Injury details (only asked for an injury kind of incident)
+  const [people, setPeople] = useState<{ name: string; class_name: string }[]>([{ name: "", class_name: "" }]);
+  const [activity, setActivity] = useState("");
+  const [venue, setVenue] = useState("");
+  const [when, setWhen] = useState(nowParts);
+  const [bodyPart, setBodyPart] = useState<string>("");
+  const [headInjury, setHeadInjury] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // The date and time start as today and now each time the form opens (a page left open overnight must not offer yesterday).
+  useEffect(() => {
+    if (open) setWhen(nowParts());
+  }, [open]);
 
   const defaultSeverity = severities[Math.max(0, severities.length - 2)]?.slug ?? "P3";
   const effectiveSeverity = severity ?? defaultSeverity;
@@ -94,6 +115,12 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
     setDetectionSource("customer");
     setSeverity(null);
     setFlags([]);
+    setPeople([{ name: "", class_name: "" }]);
+    setActivity("");
+    setVenue("");
+    setWhen(nowParts());
+    setBodyPart("");
+    setHeadInjury(null);
     for (const s of staged) if (s.preview) URL.revokeObjectURL(s.preview);
     setStaged([]);
   };
@@ -137,6 +164,13 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
   const obligations = rules.filter((r) => flags.includes(r.trigger_flag));
   const showFlags = incidentType !== "" && rules.length > 0;
 
+  // An injury kind of category (a CCA or sports injury) also asks who was hurt, where and when. The answers are the coach report form's own.
+  const isInjury = (selectedType?.default_flags ?? []).includes("injury");
+  const chooseHead = (value: boolean) => {
+    setHeadInjury(value);
+    setFlags((prev) => (value ? (prev.includes("concussion") ? prev : [...prev, "concussion"]) : prev.filter((f) => f !== "concussion")));
+  };
+
   const showMinSeverityHint =
     incidentType !== "" &&
     selectedType?.min_severity != null &&
@@ -165,8 +199,21 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
           description: description.trim() || undefined,
           incidentType,
           severity: effectiveSeverity,
-          detectionSource,
+          detectionSource: isBnm ? detectionSource : "staff",
           flags,
+          ...(isInjury
+            ? {
+                details: {
+                  people: people.filter((p) => p.name.trim()).map((p) => ({ name: p.name.trim(), class_name: p.class_name.trim() || undefined })),
+                  activity: activity.trim() || undefined,
+                  venue: venue.trim() || undefined,
+                  date: when.date || undefined,
+                  time: when.time || undefined,
+                  bodyPart: bodyPart || undefined,
+                  headInjury: headInjury ?? undefined,
+                },
+              }
+            : {}),
         }),
       });
       const body = (await res.json().catch(() => null)) as { incident?: Incident; error?: string } | null;
@@ -180,14 +227,16 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
       // under it). A failed file does not undo the report.
       if (staged.length > 0 && user) {
         let failed = 0;
+        let reason = "";
         for (const s of staged) {
           try {
             await attachFileToIncident(incident, s.file, user.id);
-          } catch {
+          } catch (err) {
             failed += 1;
+            reason = reason || (err instanceof Error ? err.message : "");
           }
         }
-        if (failed > 0) toast.error(t("attachmentsFailed", { count: failed }));
+        if (failed > 0) toast.error(t("attachmentsFailed", { count: failed }), { description: reason || undefined, duration: 15000 });
       }
 
       toast.success(t("created", { key: `INC-${new Date(incident.created_at).getFullYear()}-${incident.incident_number}` }), {
@@ -226,6 +275,41 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
         </DialogHeader>
 
         <div className="space-y-6 py-1">
+          <div className={cn("grid gap-4", isBnm && "sm:grid-cols-2")}>
+            <div className="space-y-2">
+              <Label className="text-foreground">{t("typeLabel")}</Label>
+              <Select value={incidentType} onValueChange={(v) => chooseType(v ?? "")}>
+                <SelectTrigger className="h-10 w-full bg-muted">
+                  <SelectValue placeholder={t("typePlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {types.filter((ty) => !ty.is_hidden).map((ty) => (
+                    <SelectItem key={ty.code} value={ty.code}>
+                      {isBnm ? `${ty.code} — ${ty.name}` : ty.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {isBnm ? (
+            <div className="space-y-2">
+              <Label className="text-foreground">{t("detectedLabel")}</Label>
+              <Select value={detectionSource} onValueChange={(v) => setDetectionSource(v as IncidentDetectionSource)}>
+                <SelectTrigger className="h-10 w-full bg-muted">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INCIDENT_DETECTION_SOURCES.map((d) => (
+                    <SelectItem key={d.value} value={d.value}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            ) : null}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="incident-title" className="text-foreground">
               {t("titleLabel")} <span className="text-destructive">*</span>
@@ -237,7 +321,6 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
               placeholder={t("titlePlaceholder")}
               disabled={busy}
               maxLength={200}
-              autoFocus
               className="h-10"
             />
           </div>
@@ -271,7 +354,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t("whatHappenedPlaceholder")}
-                rows={8}
+                rows={4}
                 disabled={busy}
                 className="resize-y bg-muted text-[13.5px] leading-relaxed"
               />
@@ -331,38 +414,114 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
             ) : null}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-foreground">{t("typeLabel")}</Label>
-              <Select value={incidentType} onValueChange={(v) => chooseType(v ?? "")}>
-                <SelectTrigger className="h-10 w-full bg-muted">
-                  <SelectValue placeholder={t("typePlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {types.map((ty) => (
-                    <SelectItem key={ty.code} value={ty.code}>
-                      {ty.code} — {ty.name}
-                    </SelectItem>
+          {isInjury ? (
+            <div className="space-y-4 rounded-xl border border-border bg-muted/30 p-4">
+              <p className="text-sm font-medium text-foreground">{t("injury.title")}</p>
+
+              <div className="space-y-2">
+                <Label className="text-foreground">{t("injury.who")}</Label>
+                {people.map((p, n) => (
+                  <div key={n} className="flex gap-2">
+                    <Input
+                      value={p.name}
+                      onChange={(e) => setPeople((prev) => prev.map((x, i) => (i === n ? { ...x, name: e.target.value } : x)))}
+                      placeholder={t("injury.whoName")}
+                      aria-label={t("injury.whoName")}
+                      maxLength={120}
+                      disabled={busy}
+                      className="h-9 min-w-0 flex-1"
+                    />
+                    <Input
+                      value={p.class_name}
+                      onChange={(e) => setPeople((prev) => prev.map((x, i) => (i === n ? { ...x, class_name: e.target.value } : x)))}
+                      placeholder={t("injury.whoClass")}
+                      aria-label={t("injury.whoClass")}
+                      maxLength={40}
+                      disabled={busy}
+                      className="h-9 w-24"
+                    />
+                    {people.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => setPeople((prev) => prev.filter((_, i) => i !== n))}
+                        disabled={busy}
+                        aria-label={t("injury.removePerson")}
+                        className="rounded p-1.5 text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+                {people.length < MAX_PEOPLE ? (
+                  <button type="button" onClick={() => setPeople((prev) => [...prev, { name: "", class_name: "" }])} disabled={busy} className="text-xs font-medium text-primary hover:underline">
+                    + {t("injury.addPerson")}
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="injury-activity" className="text-foreground">{t("injury.activity")}</Label>
+                  <Input id="injury-activity" value={activity} onChange={(e) => setActivity(e.target.value)} placeholder={t("injury.activityPlaceholder")} maxLength={120} disabled={busy} className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="injury-venue" className="text-foreground">{t("injury.where")}</Label>
+                  <Input id="injury-venue" value={venue} onChange={(e) => setVenue(e.target.value)} placeholder={t("injury.wherePlaceholder")} maxLength={120} disabled={busy} className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="injury-date" className="text-foreground">{t("injury.date")}</Label>
+                  <Input id="injury-date" type="date" value={when.date} onChange={(e) => setWhen((w) => ({ ...w, date: e.target.value }))} disabled={busy} className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="injury-time" className="text-foreground">{t("injury.time")}</Label>
+                  <Input id="injury-time" type="time" value={when.time} onChange={(e) => setWhen((w) => ({ ...w, time: e.target.value }))} disabled={busy} className="h-9" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-foreground">{t("injury.body")}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {BODY_PARTS.map((part) => (
+                    <button
+                      key={part}
+                      type="button"
+                      aria-pressed={bodyPart === part}
+                      onClick={() => setBodyPart(bodyPart === part ? "" : part)}
+                      disabled={busy}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                        bodyPart === part ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      {t(`injury.body_${part}`)}
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground">{t("detectedLabel")}</Label>
-              <Select value={detectionSource} onValueChange={(v) => setDetectionSource(v as IncidentDetectionSource)}>
-                <SelectTrigger className="h-10 w-full bg-muted">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {INCIDENT_DETECTION_SOURCES.map((d) => (
-                    <SelectItem key={d.value} value={d.value}>
-                      {d.label}
-                    </SelectItem>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-foreground">{t("injury.head")}</Label>
+                <div className="flex gap-2">
+                  {[true, false].map((v) => (
+                    <button
+                      key={String(v)}
+                      type="button"
+                      aria-pressed={headInjury === v}
+                      onClick={() => chooseHead(v)}
+                      disabled={busy}
+                      className={cn(
+                        "rounded-lg border px-4 py-1.5 text-xs font-semibold transition-colors",
+                        headInjury === v ? (v ? "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-300" : "border-primary/40 bg-primary/10 text-primary") : "border-border bg-background text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      {v ? t("injury.yes") : t("injury.no")}
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="space-y-2">
             <Label className="text-foreground">
@@ -386,7 +545,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                       <div className="mt-0.5 text-[10.5px] font-normal">{sev.label}</div>
                     </>
                   ) : (
-                    sev.label
+                    severityText(sev.slug, severities)
                   )}
                 </button>
               ))}
@@ -406,10 +565,12 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
           </div>
 
           {showFlags ? (
-            <div className="space-y-2">
-              <Label className="text-foreground">
-                {t("flagsLabel")} <span className="font-normal text-muted-foreground">{t("flagsHint")}</span>
-              </Label>
+            <details className="group space-y-2">
+              <summary className="cursor-pointer list-none text-sm font-medium text-foreground marker:hidden">
+                {t("flagsLabel")} <span className="font-normal text-muted-foreground">({flags.length})</span>
+                <span className="ml-1 text-xs font-normal text-primary group-open:hidden">▸</span>
+              </summary>
+              <p className="text-xs text-muted-foreground">{t("flagsHint")}</p>
               <div className="flex flex-wrap gap-2">
                 {INCIDENT_FLAGS.map((flag) => (
                   <button
@@ -444,7 +605,7 @@ export function RaiseIncidentDialog({ open, onOpenChange, onCreated, onOpenCreat
                   </ul>
                 </div>
               ) : null}
-            </div>
+            </details>
           ) : null}
         </div>
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { severityText } from "@/lib/incidents/severity-display";
+import { useStatusOptions } from "@/hooks/use-status-options";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
 
@@ -79,6 +81,8 @@ export function SeverityBadge({
   const catalogueLabel = catalogue?.severities.find((s) => s.slug === severity)?.label;
   const displayLabel =
     label ?? (_BNM_SEVERITY_SLUGS.has(severity) ? t(severity as IncidentSeverity) : (catalogueLabel ?? severity));
+  // A school's named levels are numbered as well (P1 · Critical), most serious first.
+  const numbered = !label && !_BNM_SEVERITY_SLUGS.has(severity) && catalogue ? severityText(severity, catalogue.severities) : null;
   return (
     <span
       className={cn(
@@ -88,13 +92,13 @@ export function SeverityBadge({
       )}
     >
       {severityRank(severity) === 0 ? <AlertTriangle className="size-3" /> : null}
-      {displayLabel.toLowerCase() === severity.toLowerCase() ? displayLabel : `${severity} · ${displayLabel}`}
+      {numbered ?? (displayLabel.toLowerCase() === severity.toLowerCase() ? displayLabel : `${severity} · ${displayLabel}`)}
     </span>
   );
 }
 
-export function StatusLozenge({ status, className }: { status: IncidentStatus; className?: string }) {
-  const t = useTranslations("Incidents.common.status");
+export function StatusLozenge({ status, statusKey, className }: { status: IncidentStatus; /** The school's own status, when the incident is in one (migration 226). */ statusKey?: string | null; className?: string }) {
+  const { label } = useStatusOptions();
   return (
     <span
       className={cn(
@@ -103,7 +107,7 @@ export function StatusLozenge({ status, className }: { status: IncidentStatus; c
         className,
       )}
     >
-      {t(status)}
+      {label(status, statusKey)}
     </span>
   );
 }

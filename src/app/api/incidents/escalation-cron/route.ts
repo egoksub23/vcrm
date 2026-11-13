@@ -1,15 +1,6 @@
 import { CRON_INTERVALS, cronRoute } from '@/lib/cron/guard'
 import { createAdminPgDb } from '@/lib/postgres/db'
-import { notifyIncidentEmail } from '@/lib/email/incident-notification-email'
-
-interface SweepNotified {
-  user_id: string
-  incident_id: string
-  key: string
-  severity: string
-  title: string
-  level: number
-}
+import { processIncidentEvent, runIncidentCron } from '@/lib/incidents/platform/run'
 
 /**
  * Sweep incident escalation (migration 116).
@@ -33,26 +24,19 @@ export const GET = cronRoute('incident-escalation', CRON_INTERVALS['incident-esc
     return { status: 500, body: { error: error.message } }
   }
 
-  const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL
-  const rpcData = data as { notified?: SweepNotified[]; escalated?: number; notifications?: number } | null
-  const notified = (rpcData?.notified ?? []) as SweepNotified[]
-  if (appBaseUrl && notified.length > 0) {
-    await Promise.allSettled(
-      notified.map((n) =>
-        notifyIncidentEmail({
-          userIds: [n.user_id],
-          kind: 'escalated',
-          key: n.key,
-          title: n.title,
-          severity: n.severity,
-          detail: `Unacknowledged and escalated to level ${n.level}.`,
-          incidentId: n.incident_id,
-          appBaseUrl,
-        }),
-      ),
-    )
+  const rpcData = data as { escalated?: number; notifications?: number; escalated_incidents?: { incident_id: string }[] } | null
+
+  // Schools that write a rule for the moment of escalation (migration 222) tell people through their roles.
+  for (const e of rpcData?.escalated_incidents ?? []) await processIncidentEvent(e.incident_id, 'escalated')
+
+  // Role-based rules (migration 209): timed rules (nobody acknowledged, step overdue), then the outbox. Failures are logged and never fail the heartbeat.
+  let rules: { unacknowledged: number; overdueSteps: number; sent: number; failed: number } | null = null
+  try {
+    rules = await runIncidentCron()
+  } catch (err) {
+    console.error('[incidents-escalation-cron] rules sweep failed:', err)
   }
 
   // The per-recipient detail stays out of the stored heartbeat result.
-  return { body: { escalated: rpcData?.escalated ?? 0, notifications: rpcData?.notifications ?? 0 } }
+  return { body: { escalated: rpcData?.escalated ?? 0, notifications: rpcData?.notifications ?? 0, rules } }
 })

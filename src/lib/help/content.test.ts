@@ -32,7 +32,7 @@ const EXPECTED: Record<string, string[]> = {
   contacts: ["contacts-overview", "merge-duplicates", "import-and-export", "pipelines-and-deals"],
   knowledge: ["knowledge-overview", "use-articles-in-chat", "write-and-edit-articles", "translations"],
   tickets: ["tickets-overview", "create-a-ticket", "work-a-ticket", "jira-link"],
-  incidents: ["incidents-overview", "raise-an-incident", "manage-escalate-and-close"],
+  incidents: ["incidents-overview", "raise-an-incident", "manage-escalate-and-close", "return-to-play", "reports-and-registers", "set-up-incidents", "coach-reports"],
   // KYC review (migration 182) and Compliance requests (migration 183): their own section, listed between Incidents and Sembang
   compliance: ["kyc-review", "compliance-requests"],
   sembang: [

@@ -33,7 +33,7 @@ Changing flags on an open incident adds the obligations that now apply, marks op
 The framework rules are defaults, not legal advice. Have the school's data protection officer / leadership confirm before relying on them:
 
 - PDPA: assess within 24 h, notify the PDP Commissioner within 72 h, notify data subjects (timing 240 h from detection = 72 h + 7 days). Check the current notification threshold (migration 197's description says 500 data subjects) against the PDPC guideline.
-- School policy: every rule is marked "Starter rule". Which incidents must be reported to the education office or ministry, by when, and the child-protection reporting duties depend on the school.
+- School steps (starter): every rule is marked "Starter rule". These are Halo's own suggestions, not taken from any ministry or education-office policy (none is cited anywhere in the product). Which incidents the school must report outside, by when, and the child-protection reporting duties are for the school to set. Migration 221 renamed the pack "School steps (starter)" and removed the ministry wording.
 
 ## Adding a template or framework
 

@@ -5,12 +5,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import type { Incident } from "@/lib/incidents/types";
+import type { NamedStudent } from "@/lib/incidents/platform/dashboard";
 
 export function useIncidents() {
   const { accountId } = useAuth();
   const [rows, setRows] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  /** The students named on each incident, for the dashboard's person filter. */
+  const [involved, setInvolved] = useState<Record<string, NamedStudent[]>>({});
   const rowsRef = useRef<Incident[]>([]);
   useEffect(() => {
     rowsRef.current = rows;
@@ -22,8 +25,9 @@ export function useIncidents() {
     try {
       const res = await fetch("/api/incidents");
       if (!res.ok) throw new Error("fetch failed");
-      const { incidents } = (await res.json()) as { incidents?: Incident[] };
-      setRows(incidents ?? []);
+      const body = (await res.json()) as { incidents?: Incident[]; involved?: Record<string, NamedStudent[]> };
+      setRows(body.incidents ?? []);
+      setInvolved(body.involved ?? {});
     } catch (fetchError) {
       console.error("[useIncidents] fetch error:", fetchError);
       setError(true);
@@ -66,5 +70,5 @@ export function useIncidents() {
     !!accountId,
   );
 
-  return { rows, loading, error, reload, applyPatch, removeRow };
+  return { rows, involved, loading, error, reload, applyPatch, removeRow };
 }

@@ -126,6 +126,8 @@ const nextConfig: NextConfig = {
     // Doc Sign's PDF engine reads its fonts from disk (src/lib/sign/pdf/assets) when it stamps and seals.
     "/api/sign/**/*": ["./src/lib/sign/pdf/assets/**/*", "./src/lib/sign/addons/**/*"],
     "/api/v1/sign/**/*": ["./src/lib/sign/pdf/assets/**/*"],
+    // The filed incident report (PDF) reuses the same fonts.
+    "/api/incidents/**/*": ["./src/lib/sign/pdf/assets/**/*"],
   },
 
   /**
@@ -212,8 +214,21 @@ const nextConfig: NextConfig = {
         // Security headers on every response, including /_next/static
         // assets (nosniff matters there) and /api/* (HSTS + referrer-
         // policy don't hurt).
-        source: "/:path*",
+        // Not /report/*: the coach's report page is opened inside the coach portal's frame or a phone web view, so it gets its own set below
+        // (no X-Frame-Options, which cannot name an allowed site; the proxy sets frame-ancestors from the link instead).
+        source: "/:path((?!report/).*)",
         headers: [...SECURITY_HEADERS],
+      },
+      {
+        source: "/report/:path*",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          // The camera is for the page itself (a coach photographing damage); a framing page must also allow it with allow="camera".
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=(), usb=()" },
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
       },
       {
         // Doc Sign registration pages (/r/<slug>). Listed last on purpose: for the same header key the last matching
