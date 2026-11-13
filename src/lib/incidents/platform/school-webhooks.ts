@@ -20,24 +20,10 @@ import { createHmac, randomUUID } from "node:crypto";
 import { createAdminPgDb, type PgDb } from "@/lib/postgres/db";
 import { validateWebhookUrl } from "@/lib/incidents/webhooks/core";
 
-export const SCHOOL_WEBHOOK_EVENTS = ["incident.filed", "incident.closed", "incident.escalated", "incident.status_changed"] as const;
-export type SchoolWebhookEvent = (typeof SCHOOL_WEBHOOK_EVENTS)[number];
+import { SCHOOL_WEBHOOK_EVENTS, type SchoolWebhookEvent, type SchoolWebhookRow, type SchoolWebhookView } from "./school-webhook-types";
 
-export interface SchoolWebhookRow {
-  id: string;
-  account_id: string;
-  url: string;
-  events: SchoolWebhookEvent[];
-  label: string | null;
-  enabled: boolean;
-  created_at: string;
-  last_called_at: string | null;
-  last_status_code: number | null;
-}
-
-export interface SchoolWebhookView extends SchoolWebhookRow {
-  url_host: string;
-}
+export { SCHOOL_WEBHOOK_EVENTS };
+export type { SchoolWebhookEvent, SchoolWebhookRow, SchoolWebhookView };
 
 // ----- CRUD --------------------------------------------------------------------
 

@@ -7,7 +7,7 @@ import { Check, ChevronDown, ChevronUp, Copy, ExternalLink, Loader2, Pencil, Plu
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SCHOOL_WEBHOOK_EVENTS, type SchoolWebhookEvent, type SchoolWebhookView } from "@/lib/incidents/platform/school-webhooks";
+import { SCHOOL_WEBHOOK_EVENTS, type SchoolWebhookEvent, type SchoolWebhookView } from "@/lib/incidents/platform/school-webhook-types";
 import { api } from "./api";
 
 interface ListData {
