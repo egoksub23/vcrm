@@ -21,6 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { CoachPortalCard } from "@/components/platform/coach-portal-card";
 import { EncryptionCard } from "@/components/platform/encryption-card";
+import { IncidentCatalogueCard } from "@/components/platform/incident-catalogue-card";
+import { IncidentStandardsCard } from "@/components/platform/incident-standards-card";
 import { Textarea } from "@/components/ui/textarea";
 import type { CronJobStatus } from "@/lib/cron/status";
 import { PLATFORM_FEATURES, isFeatureEnabled, parsePlatformRow } from "@/lib/platform/features";
@@ -415,6 +417,10 @@ export function PlatformConsole() {
       <EncryptionCard />
 
       <CoachPortalCard />
+
+      <IncidentStandardsCard />
+
+      <IncidentCatalogueCard />
 
       <Card className="border-border bg-card">
         <CardContent className="p-0">

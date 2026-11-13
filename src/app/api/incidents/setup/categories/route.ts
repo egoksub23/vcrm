@@ -129,7 +129,28 @@ export async function POST(request: Request) {
       return NextResponse.json(await loadCategoriesView(db, ctx.accountId), { status: 201 });
     }
 
-    return NextResponse.json({ error: "Say what to do: copy or add." }, { status: 400 });
+    if (body?.action === "reorder") {
+      const order = Array.isArray(body.order) ? (body.order as string[]) : null;
+      if (!order || order.length === 0) return NextResponse.json({ error: "Provide the new order." }, { status: 400 });
+
+      const view = await loadCategoriesView(db, ctx.accountId);
+      if (!view) return NextResponse.json({ error: "This school has no incident template yet." }, { status: 404 });
+      if (!view.template.ownCopy) return NextResponse.json({ error: "Make your school's own copy of the template first." }, { status: 409 });
+
+      const knownIds = new Set(view.categories.map((c) => c.id));
+      if (order.some((id) => !knownIds.has(id))) return NextResponse.json({ error: "One or more category IDs are not part of this template." }, { status: 400 });
+
+      for (let i = 0; i < order.length; i++) {
+        const { error } = await db.from("incident_type_catalogue").update({ position: i + 1 }).eq("id", order[i]).eq("standard_id", view.template.id);
+        if (error) {
+          console.error("[categories reorder]", error);
+          return NextResponse.json({ error: "Could not save the new order." }, { status: 500 });
+        }
+      }
+      return NextResponse.json(await loadCategoriesView(db, ctx.accountId));
+    }
+
+    return NextResponse.json({ error: "Say what to do: copy, add, or reorder." }, { status: 400 });
   } catch (err) {
     return toErrorResponse(err);
   }

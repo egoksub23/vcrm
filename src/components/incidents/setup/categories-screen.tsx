@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,16 @@ export function CategoriesScreen() {
       onAdd={(name) => run(() => api<Data>("/api/incidents/setup/categories", "POST", { action: "add", name }))}
       onPatch={(id, body) => run(() => api<Data>(`/api/incidents/setup/categories/${id}`, "PATCH", body))}
       onDelete={(id) => run(() => api<Data>(`/api/incidents/setup/categories/${id}`, "DELETE"), t("deleted"))}
+      onMove={(id, dir) => {
+        if (!data) return;
+        const idx = data.categories.findIndex((c) => c.id === id);
+        if (idx === -1) return;
+        const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= data.categories.length) return;
+        const newOrder = [...data.categories];
+        [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
+        void run(() => api<Data>("/api/incidents/setup/categories", "POST", { action: "reorder", order: newOrder.map((c) => c.id) }));
+      }}
     />
   );
 }
@@ -72,6 +82,7 @@ export function CategoriesView({
   onAdd,
   onPatch,
   onDelete,
+  onMove,
 }: {
   data: Data;
   busy: boolean;
@@ -79,6 +90,7 @@ export function CategoriesView({
   onAdd: (name: string) => Promise<void>;
   onPatch: (id: string, body: Record<string, unknown>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onMove?: (id: string, dir: "up" | "down") => void;
 }) {
   const t = useTranslations("IncidentPlatform.categories");
   const [name, setName] = useState("");
@@ -114,8 +126,8 @@ export function CategoriesView({
     <div className="flex flex-col gap-4">
       <p className="max-w-2xl text-sm text-muted-foreground">{t("ownHelp", { name: data.template.name })}</p>
       <ul className="flex flex-col gap-2" aria-label={t("listLabel")}>
-        {data.categories.map((c) => (
-          <CategoryItem key={c.id} c={c} data={data} busy={busy} onPatch={onPatch} onDelete={onDelete} />
+        {data.categories.map((c, i) => (
+          <CategoryItem key={c.id} c={c} data={data} busy={busy} onPatch={onPatch} onDelete={onDelete} onMove={onMove} isFirst={i === 0} isLast={i === data.categories.length - 1} />
         ))}
       </ul>
       <form
@@ -138,7 +150,7 @@ export function CategoriesView({
   );
 }
 
-function CategoryItem({ c, data, busy, onPatch, onDelete }: { c: CategoryRow; data: Data; busy: boolean; onPatch: (id: string, body: Record<string, unknown>) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
+function CategoryItem({ c, data, busy, onPatch, onDelete, onMove, isFirst, isLast }: { c: CategoryRow; data: Data; busy: boolean; onPatch: (id: string, body: Record<string, unknown>) => Promise<void>; onDelete: (id: string) => Promise<void>; onMove?: (id: string, dir: "up" | "down") => void; isFirst?: boolean; isLast?: boolean }) {
   const t = useTranslations("IncidentPlatform.categories");
   const tFlag = useTranslations("Incidents.flags");
   const [name, setName] = useState(c.name);
@@ -150,6 +162,12 @@ function CategoryItem({ c, data, busy, onPatch, onDelete }: { c: CategoryRow; da
   return (
     <li className={cn("rounded-xl border border-border bg-card p-3", c.is_hidden && "opacity-70")}>
       <div className="flex flex-wrap items-center gap-2">
+        {onMove ? (
+          <div className="flex flex-col">
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onMove(c.id, "up")} disabled={busy || isFirst} aria-label={t("moveUp")}><ChevronUp className="size-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onMove(c.id, "down")} disabled={busy || isLast} aria-label={t("moveDown")}><ChevronDown className="size-3.5" /></Button>
+          </div>
+        ) : null}
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
