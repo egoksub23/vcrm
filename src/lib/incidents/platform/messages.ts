@@ -12,6 +12,10 @@ export interface NoticeInput {
   incidentUrl: string;
   /** One-tap acknowledge page, when the notice asks for an acknowledgement. */
   ackUrl?: string | null;
+  /** One-tap approve link (no sign-in), when reason is "approval". */
+  approveUrl?: string | null;
+  /** One-tap reject link (no sign-in), when reason is "approval". */
+  rejectUrl?: string | null;
   /** Reports made with a test key are marked, so nobody mistakes them for real. */
   isTest?: boolean;
   /** Name of the school or workspace, for the footer. */
@@ -51,6 +55,8 @@ export function buildNotice(input: NoticeInput): Notice {
     `Severity: ${input.severityName}`,
     "",
     input.ackUrl ? `Acknowledge that you have seen this (no sign-in needed): ${input.ackUrl}` : "",
+    input.approveUrl ? `Approve (no sign-in needed): ${input.approveUrl}` : "",
+    input.rejectUrl ? `Reject (no sign-in needed): ${input.rejectUrl}` : "",
     `Open the incident (sign-in required): ${input.incidentUrl}`,
     "",
     "For privacy this message carries no names or medical detail. Those are in Halo.",
@@ -71,6 +77,8 @@ export function buildNotice(input: NoticeInput): Notice {
       </table>
       <p style="margin:20px 0 8px;">
         ${input.ackUrl ? button(input.ackUrl, "I have seen this", "#B42318") : ""}
+        ${input.approveUrl ? button(input.approveUrl, "Approve", "#027A48") : ""}
+        ${input.rejectUrl ? button(input.rejectUrl, "Reject", "#B42318") : ""}
         ${button(input.incidentUrl, "Open incident", "#344054")}
       </p>
       <p style="font-size:12px;color:#777;line-height:1.5;">For privacy this message carries no names or medical detail. Those are in Halo.${input.senderName ? ` Sent for ${escapeHtml(input.senderName)}.` : ""}</p>

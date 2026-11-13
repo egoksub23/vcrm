@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, TrendingUp } from "lucide-react";
+import type { BenchmarkData } from "@/app/api/incidents/benchmarks/route";
 
 import { NoAccess } from "@/components/auth/no-access";
 import { useAuth, useCapability } from "@/hooks/use-auth";
@@ -139,6 +140,96 @@ export function ReportsView({ data }: { data: Insights }) {
   );
 }
 
+function BenchmarksSection() {
+  const [data, setData] = useState<BenchmarkData | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  function load() {
+    void api<BenchmarkData>("/api/incidents/benchmarks").then((res) => {
+      setLoaded(true);
+      if (res.ok) setData(res.data);
+    });
+  }
+
+  if (!loaded) {
+    return (
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          <TrendingUp className="size-4 text-muted-foreground" />
+          How you compare
+        </h2>
+        <p className="text-sm text-muted-foreground">See how your school compares to others on Halo — anonymously.</p>
+        <button
+          onClick={load}
+          className="self-start rounded-md border border-border bg-muted px-3 py-1.5 text-xs font-medium hover:bg-muted/80"
+        >
+          Load benchmarks
+        </button>
+      </section>
+    );
+  }
+
+  if (!data) {
+    return (
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          <TrendingUp className="size-4 text-muted-foreground" />
+          How you compare
+        </h2>
+        <p className="text-sm text-muted-foreground">Could not load benchmark data.</p>
+      </section>
+    );
+  }
+
+  const { mine, network } = data;
+
+  return (
+    <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+        <TrendingUp className="size-4 text-primary" />
+        How you compare
+        {network.schoolCount > 0 ? (
+          <span className="ml-auto text-xs font-normal text-muted-foreground">
+            {network.schoolCount} {network.schoolCount === 1 ? "school" : "schools"} in network
+          </span>
+        ) : null}
+      </h2>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <p className="text-xs text-muted-foreground">Your median close time</p>
+          <p className="mt-0.5 text-2xl font-semibold tabular-nums">
+            {mine.medianDaysToClose === null ? "–" : `${mine.medianDaysToClose}d`}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <p className="text-xs text-muted-foreground">Network median close time</p>
+          <p className="mt-0.5 text-2xl font-semibold tabular-nums">
+            {network.medianDaysToClose === null ? "–" : `${network.medianDaysToClose}d`}
+          </p>
+          {network.p25DaysToClose !== null && network.p75DaysToClose !== null ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Middle 50%: {network.p25DaysToClose}–{network.p75DaysToClose} days
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {network.typicalMonthlyRate !== null ? (
+        <p className="text-sm text-muted-foreground">
+          A typical school on Halo handles about <strong>{network.typicalMonthlyRate}</strong> incident
+          {network.typicalMonthlyRate === 1 ? "" : "s"} per month.
+          {mine.total > 0 ? ` You have reported ${mine.total} in the past 12 months.` : ""}
+        </p>
+      ) : null}
+
+      <p className="text-xs text-muted-foreground">
+        Benchmarks include only schools with at least 5 closed incidents. No school's data is identifiable.
+      </p>
+    </section>
+  );
+}
+
 /** Reports: what needs attention (each with a link to the incidents behind it), a few numbers that mean something, and where and when incidents happen. */
 export function ReportsScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useTranslations("IncidentPlatform.reports");
@@ -176,6 +267,7 @@ export function ReportsScreen({ embedded = false }: { embedded?: boolean } = {})
       {error ? <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
       {!data && !error ? <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label={t("loading")} /> : null}
       {data ? <ReportsView data={data} /> : null}
+      {allowed ? <BenchmarksSection /> : null}
     </div>
   );
 }

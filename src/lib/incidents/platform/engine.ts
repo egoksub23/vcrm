@@ -148,6 +148,26 @@ export function verifyAckToken(token: string, secret = ackSecret()): string | nu
   return timingSafeEqual(expected, given) ? id : null;
 }
 
+/** Signed token for a one-tap approval or rejection: `<approvalId>.<decision>.<hmac>` where decision is "a" (approved) or "r" (rejected). */
+export function approvalToken(approvalId: string, decision: "a" | "r", secret = ackSecret()): string {
+  const mac = createHmac("sha256", secret).update(`incident-approval:${approvalId}:${decision}`).digest("hex").slice(0, 32);
+  return `${approvalId}.${decision}.${mac}`;
+}
+
+/** Returns `{approvalId, decision}` when the token is valid, null otherwise. */
+export function verifyApprovalToken(token: string, secret = ackSecret()): { approvalId: string; decision: "a" | "r" } | null {
+  if (!secret) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [approvalId, decision, mac] = parts;
+  if (!approvalId || !/^[0-9a-f-]{36}$/i.test(approvalId)) return null;
+  if (decision !== "a" && decision !== "r") return null;
+  const expected = Buffer.from(createHmac("sha256", secret).update(`incident-approval:${approvalId}:${decision}`).digest("hex").slice(0, 32));
+  const given = Buffer.from((mac ?? "").slice(0, 32));
+  if (expected.length !== given.length) return null;
+  return timingSafeEqual(expected, given) ? { approvalId, decision } : null;
+}
+
 // ---- running a trigger ------------------------------------------------------------------------------------------
 
 export interface TriggerResult {
@@ -241,6 +261,20 @@ export async function runTrigger(
     result.queued += next.queued;
     result.warnings.push(...next.warnings);
   }
+  // 3.9 Absence escalation: when every notify rule for 'raised' resolves to no_members (the incident would go to no one),
+  // immediately escalate to level 2 rather than letting it silently disappear.
+  if (args.trigger === "raised" && result.escalatedTo === null && incident.escalation_level === 1) {
+    const anyNotify = matching.some((r) => r.actions.some((a) => a.type === "notify"));
+    if (anyNotify && result.queued === 0 && result.warnings.some((w) => w.warning === "no_members")) {
+      const raised = await store.raiseEscalationLevel(incident.id, 2);
+      if (raised) {
+        result.escalatedTo = 2;
+        const next = await runTrigger(store, { incidentId: incident.id, trigger: "escalated" });
+        result.queued += next.queued;
+        result.warnings.push(...next.warnings);
+      }
+    }
+  }
   return result;
 }
 
@@ -292,6 +326,8 @@ export async function dispatchDue(store: EngineStore, adapters: AdapterMap, limi
         continue;
       }
       const root = base.replace(/\/+$/, "");
+      const approvalId = row.reason === "approval" && row.ref_key.startsWith("approval:") ? row.ref_key.slice(9) : null;
+      const validApprovalId = approvalId && /^[0-9a-f-]{36}$/i.test(approvalId) ? approvalId : null;
       const notice = buildNotice({
         reference: cached.incident.reference,
         categoryName: cached.labels.categoryName,
@@ -299,6 +335,8 @@ export async function dispatchDue(store: EngineStore, adapters: AdapterMap, limi
         reason: row.reason,
         incidentUrl: `${root}/incidents/${row.incident_id}`,
         ackUrl: row.ask_ack ? `${root}/incident-ack/${ackToken(row.id)}` : null,
+        approveUrl: validApprovalId ? `${root}/incident-approval/${approvalToken(validApprovalId, "a")}` : null,
+        rejectUrl: validApprovalId ? `${root}/incident-approval/${approvalToken(validApprovalId, "r")}` : null,
         isTest: row.is_test,
         senderName: await store.senderName(row.account_id),
       });

@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   ArrowUpCircle,
   Check,
+  Copy,
   FileOutput,
   FileText,
   ListChecks,
@@ -16,6 +17,7 @@ import {
   Paperclip,
   Plus,
   Send,
+  Share2,
   ShieldCheck,
   Upload,
 } from "lucide-react";
@@ -86,6 +88,38 @@ import { ClearancePanel } from "./clearance-panel";
 import { ApprovalsPanel } from "./approvals-panel";
 import { ReportAnswersPanel } from "./report-answers-panel";
 import { FilingPanel } from "./filing-panel";
+
+function ShareLinkButton({ incidentId }: { incidentId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function share() {
+    setBusy(true);
+    const res = await api<{ url: string }>(`/api/incidents/${encodeURIComponent(incidentId)}/share-link`, "POST");
+    setBusy(false);
+    if (!res.ok) { toast.error(res.error); return; }
+    try {
+      await navigator.clipboard.writeText(res.data.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+      toast.success("Read-only link copied. Valid for 7 days.");
+    } catch {
+      toast.info(`Link: ${res.data.url}`);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void share()}
+      disabled={busy}
+      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-3 text-xs font-medium text-primary hover:bg-muted/40 disabled:opacity-50"
+    >
+      {busy ? <Loader2 size={12} className="animate-spin" /> : copied ? <Copy size={12} className="text-green-600" /> : <Share2 size={12} />}
+      Share read-only link
+    </button>
+  );
+}
 
 /** Plain text with any URL turned into a clickable link — same link
  *  definition Sembang uses (findLinkTokens), so a link pasted into an
@@ -1234,9 +1268,12 @@ export function IncidentDetail({ incidentId, onBack }: { incidentId: string; onB
           />
 
           {canExport ? (
-            <Link href={`/incidents/${incident.id}/record`} className="rounded-xl border border-border bg-card px-4 py-3 text-xs font-medium text-primary hover:bg-muted/40">
-              {tRecord("open")}
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href={`/incidents/${incident.id}/record`} className="rounded-xl border border-border bg-card px-4 py-3 text-xs font-medium text-primary hover:bg-muted/40">
+                {tRecord("open")}
+              </Link>
+              <ShareLinkButton incidentId={incident.id} />
+            </div>
           ) : null}
 
           {canExport && incident.status === "closed" ? <FilingPanel incidentId={incident.id} onChanged={() => void loadFiledReports()} /> : null}

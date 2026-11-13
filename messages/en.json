@@ -8062,6 +8062,11 @@
       "escalateFailed": "Couldn't escalate the incident.",
       "escalated": "Escalated.",
       "escalateNow": "Escalate now",
+      "shareLink": "Share link",
+      "shareLinkTitle": "Share this incident",
+      "shareLinkHelp": "Anyone with this link can view the incident (no names or medical detail). Valid for 30 days.",
+      "shareLinkCopied": "Link copied",
+      "shareLinkFailed": "Couldn't generate a share link.",
       "notFound": "That incident could not be found, or you don't have access to it.",
       "fieldSeverity": "Severity",
       "fieldStatus": "Status",
@@ -15316,6 +15321,26 @@
       "noSenders": "No sender is allowed yet, so every email is turned away.",
       "howTitle": "How to connect your mail system",
       "how": "Any tool that can post JSON to an address will do: a forwarding rule in your mail provider, an automation, or an inbound-email service. It posts each email to the address above. Sending the same message id twice files only one incident."
+    },
+    "webhooks": {
+      "title": "Webhooks",
+      "pageHelp": "Register HTTPS endpoints that Halo calls when incidents are filed, closed, escalated, or change status.",
+      "none": "No webhooks yet. Add one to receive real-time incident events.",
+      "add": "Add webhook",
+      "saved": "Webhook saved.",
+      "added": "Webhook added.",
+      "deleted": "Webhook removed.",
+      "deleteConfirm": "Remove this webhook? Events will stop being sent to it.",
+      "test": "Send test",
+      "testSent": "Test sent (HTTP {code}).",
+      "testFailed": "Could not reach the endpoint.",
+      "never": "Never called"
+    },
+    "share": {
+      "button": "Share read-only link",
+      "copied": "Link copied to clipboard.",
+      "copyFailed": "Could not copy. The link is in your address bar.",
+      "help": "Anyone with the link can view a read-only summary — no login needed. The link expires in 7 days."
     }
   }
 }

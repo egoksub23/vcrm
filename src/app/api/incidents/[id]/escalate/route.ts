@@ -10,6 +10,8 @@ import { NextResponse } from "next/server";
 
 import { requireCapability, toErrorResponse } from "@/lib/auth/account";
 import { processIncidentEvent } from "@/lib/incidents/platform/run";
+import { deliverSchoolWebhookEvent } from "@/lib/incidents/platform/school-webhooks";
+import { incidentKey } from "@/lib/incidents/types";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -39,6 +41,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // The people told are the roles the school's escalation rules name for the new level.
       await processIncidentEvent(id, "escalated");
     }
+
+    // School webhook (Phase 3.6) — fire-and-forget.
+    void (async () => {
+      const { data } = await ctx.supabase.from("incidents").select("account_id, incident_number, created_at, incident_type, severity, status, escalation_level").eq("id", id).maybeSingle();
+      if (!data) return;
+      const inc = data as { account_id: string; incident_number: number; created_at: string; incident_type: string; severity: string; status: string; escalation_level: number };
+      deliverSchoolWebhookEvent(inc.account_id, "incident.escalated", { incident_id: id, reference: incidentKey(inc), escalation_level: inc.escalation_level, category: inc.incident_type, severity: inc.severity });
+    })();
 
     return NextResponse.json(last);
   } catch (err) {

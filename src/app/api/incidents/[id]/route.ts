@@ -3,6 +3,8 @@ import { getCurrentAccount, toErrorResponse } from "@/lib/auth/account";
 import { parseAmend } from "@/lib/incidents/platform/amend";
 import { deleteIncidentForGood } from "@/lib/incidents/platform/delete-data";
 import { processIncidentEvent } from "@/lib/incidents/platform/run";
+import { deliverSchoolWebhookEvent } from "@/lib/incidents/platform/school-webhooks";
+import { incidentKey } from "@/lib/incidents/types";
 import { checkMove } from "@/lib/incidents/platform/workflow-data";
 import { loadStatusOptions } from "@/lib/incidents/platform/statuses-data";
 
@@ -65,6 +67,19 @@ export async function PATCH(request: Request, { params }: Params) {
     // Triage can raise the severity, change the category or add what the incident involves after it was raised. Run the "raised" rules again so a role that now
     // matches is told. A notice already sent is never sent twice (the outbox remembers it), so this only adds what is new.
     if (body.severity !== undefined || body.incident_type !== undefined || body.incident_flags !== undefined) await processIncidentEvent(id, "raised");
+
+    // School webhooks (Phase 3.6) — fire-and-forget on status changes.
+    if (typeof body.status === "string") {
+      void (async () => {
+        const db = ctx.supabase;
+        const { data } = await db.from("incidents").select("account_id, incident_number, created_at, incident_type, severity, status").eq("id", id).maybeSingle();
+        if (!data) return;
+        const inc = data as { account_id: string; incident_number: number; created_at: string; incident_type: string; severity: string; status: string };
+        const event = inc.status === "closed" ? "incident.closed" : "incident.status_changed";
+        deliverSchoolWebhookEvent(inc.account_id, event, { incident_id: id, reference: incidentKey(inc), category: inc.incident_type, severity: inc.severity, status: inc.status });
+      })();
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);
