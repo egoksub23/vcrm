@@ -17,11 +17,10 @@ import { getPool } from '@/lib/postgres/client'
 // ============================================================
 
 import { teardownWorkspaceChannels } from './teardown'
+import { listObjectsByPrefix } from '@/lib/storage/list-by-prefix'
 import { appStorage } from '@/lib/storage/provider'
 
 const FILE_BATCH = 200
-/** More rounds than any workspace needs; a guard against a removal that never takes effect. */
-const MAX_ROUNDS = 5_000
 
 export interface DeletionResult {
   accountId: string
@@ -31,27 +30,28 @@ export interface DeletionResult {
   error?: string
 }
 
-type ObjectRef = { bucket: string; name: string }
-
-async function removeByPrefix(db: PgDb, prefix: string): Promise<number> {
-  let removed = 0
-  for (let round = 0; round < MAX_ROUNDS; round++) {
-    const { data, error } = await db.rpc('storage_objects_by_prefix', { p_prefix: prefix, p_limit: FILE_BATCH })
-    if (error) throw new Error(`list files: ${error.message}`)
-    const objects = (data ?? []) as ObjectRef[]
-    if (objects.length === 0) return removed
-    const byBucket = new Map<string, string[]>()
-    for (const o of objects) byBucket.set(o.bucket, [...(byBucket.get(o.bucket) ?? []), o.name])
-    let progressed = false
-    for (const [bucket, names] of byBucket) {
-      const { error: rmError } = await appStorage().from(bucket).remove(names)
-      if (rmError) throw new Error(`remove files from ${bucket}: ${rmError.message}`)
-      removed += names.length
-      progressed = true
-    }
-    if (!progressed) return removed
+/**
+ * Removes every stored file under `prefix`. The folder is listed from the store itself
+ * (disk or MinIO), so a run that stopped half way simply finds fewer files next time.
+ */
+async function removeByPrefix(prefix: string): Promise<number> {
+  let objects
+  try {
+    objects = await listObjectsByPrefix(prefix)
+  } catch (err) {
+    throw new Error(`list files: ${err instanceof Error ? err.message : String(err)}`)
   }
-  throw new Error('removing files did not finish')
+  let removed = 0
+  for (let i = 0; i < objects.length; i += FILE_BATCH) {
+    const byBucket = new Map<string, string[]>()
+    for (const o of objects.slice(i, i + FILE_BATCH)) byBucket.set(o.bucket, [...(byBucket.get(o.bucket) ?? []), o.name])
+    for (const [bucket, names] of byBucket) {
+      const { error } = await appStorage().from(bucket).remove(names)
+      if (error) throw new Error(`remove files from ${bucket}: ${error.message}`)
+      removed += names.length
+    }
+  }
+  return removed
 }
 
 async function deleteLogins(_db: PgDb, ids: string[]): Promise<void> {
@@ -115,9 +115,9 @@ export async function runWorkspaceDeletion(
       await note(db, accountId, 'teardown_done', { teardown })
 
       step = 'files'
-      storageRemoved += await removeByPrefix(db, `account-${accountId}/`)
+      storageRemoved += await removeByPrefix(`account-${accountId}/`)
       // a member's avatar (and older flow media) is kept under their own login id
-      for (const id of memberIds) storageRemoved += await removeByPrefix(db, `${id}/`)
+      for (const id of memberIds) storageRemoved += await removeByPrefix(`${id}/`)
       await note(db, accountId, 'files_removed', { storageRemoved })
 
       step = 'data'
