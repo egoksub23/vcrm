@@ -20,12 +20,16 @@ export async function POST(_req: Request, { params }: Params) {
     const { id } = await params;
 
     const [incRow, comRows] = await Promise.all([
-      supabase.from("incidents").select("title, description, status, severity, root_cause, occurred_at, closed_at, incident_type").eq("id", id).eq("account_id", accountId).maybeSingle(),
+      supabase.from("incidents").select("title, description, status, severity, root_cause, detected_at, activity, closed_at, incident_type").eq("id", id).eq("account_id", accountId).maybeSingle(),
       supabase.from("incident_comments").select("body, kind, is_finding, created_at").eq("incident_id", id).eq("account_id", accountId).order("created_at", { ascending: true }),
     ]);
 
+    if (incRow.error) {
+      console.error("[incident-ai] could not read the incident:", incRow.error);
+      return NextResponse.json({ error: "The incident could not be read." }, { status: 500 });
+    }
     if (!incRow.data) return NextResponse.json({ error: "Incident not found." }, { status: 404 });
-    const incident = incRow.data as { title: string; description: string | null; status: string; severity: string | null; root_cause: string | null; occurred_at: string | null; closed_at: string | null; incident_type: string };
+    const incident = incRow.data as { title: string; description: string | null; status: string; severity: string | null; root_cause: string | null; detected_at: string | null; activity: { name?: string; venue?: string; date?: string | null; time?: string | null } | null; closed_at: string | null; incident_type: string };
     if (incident.status !== "closed") return NextResponse.json({ error: "The incident is not closed yet. Close it before drafting the filing narrative." }, { status: 409 });
     const comments = (comRows.data ?? []) as Array<{ body: string; kind: string | null; is_finding: boolean | null; created_at: string }>;
 
@@ -37,6 +41,7 @@ export async function POST(_req: Request, { params }: Params) {
       return NextResponse.json({ error: "AI assistant is not set up. Enable it in Settings → AI Assistant.", code: "ai_not_configured" }, { status: 400 });
     }
 
+    const when = incident.activity?.date ? [incident.activity.date, incident.activity.time].filter(Boolean).join(" ") : incident.detected_at ? new Date(incident.detected_at).toUTCString() : null;
     const findings = comments.filter((c) => kindOf(c) === "finding").map((c) => `• ${c.body}`).join("\n");
     const investigations = comments.filter((c) => kindOf(c) === "investigation").map((c) => `• ${c.body}`).join("\n");
     const closing = comments.filter((c) => kindOf(c) === "closing").map((c) => `• ${c.body}`).join("\n");
@@ -46,7 +51,8 @@ export async function POST(_req: Request, { params }: Params) {
       incident.description ? `Description: ${incident.description}` : null,
       incident.incident_type ? `Category: ${incident.incident_type}` : null,
       incident.severity ? `Severity: ${incident.severity}` : null,
-      incident.occurred_at ? `Date of incident: ${new Date(incident.occurred_at).toUTCString()}` : null,
+      when ? `Date of incident: ${when}` : null,
+      incident.activity?.name ? `Activity: ${incident.activity.name}${incident.activity.venue ? ` at ${incident.activity.venue}` : ""}` : null,
       incident.closed_at ? `Date closed: ${new Date(incident.closed_at).toUTCString()}` : null,
       incident.root_cause ? `Root cause: ${incident.root_cause}` : null,
       investigations ? `Investigation notes:\n${investigations}` : null,

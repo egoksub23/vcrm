@@ -6,11 +6,12 @@ import { textDates } from "./dates";
 import { loadActiveTemplate } from "./setup-data";
 
 export const REGISTER_LIMIT = 5000;
-const SELECT = "id, incident_number, created_at, closed_at, title, incident_type, severity, status, incident_flags, source, is_test, activity, standard_id, occurred_at";
+// Every name here must be a real column of incidents: a name that is not makes the whole query fail, and nothing below checks for that (src/lib/incidents/columns.test.ts does).
+export const REGISTER_SELECT = "id, incident_number, created_at, closed_at, title, incident_type, severity, status, incident_flags, source, is_test, activity, standard_id";
 
 export async function loadRegisterRows(db: PgDb, accountId: string, since: string | null = null): Promise<{ rows: RegisterIncident[]; truncated: boolean }> {
   // A voided incident (raised by mistake) is not part of any report or register.
-  let q = db.from("incidents").select(SELECT).eq("account_id", accountId).is("voided_at", null).order("created_at", { ascending: false }).limit(REGISTER_LIMIT + 1);
+  let q = db.from("incidents").select(REGISTER_SELECT).eq("account_id", accountId).is("voided_at", null).order("created_at", { ascending: false }).limit(REGISTER_LIMIT + 1);
   if (since) q = q.gte("created_at", since);
   const { data } = await q;
   const all = ((data ?? []) as RegisterIncident[]).map((r) => textDates(r, ["created_at", "closed_at"]));

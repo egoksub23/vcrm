@@ -18,12 +18,16 @@ export async function POST(_req: Request, { params }: Params) {
     const { id } = await params;
 
     const [incRow, comRows] = await Promise.all([
-      supabase.from("incidents").select("title, description, status, severity, root_cause, occurred_at").eq("id", id).eq("account_id", accountId).maybeSingle(),
+      supabase.from("incidents").select("title, description, status, severity, root_cause, detected_at, activity").eq("id", id).eq("account_id", accountId).maybeSingle(),
       supabase.from("incident_comments").select("body, kind, is_finding, created_at").eq("incident_id", id).eq("account_id", accountId).order("created_at", { ascending: true }),
     ]);
 
+    if (incRow.error) {
+      console.error("[incident-ai] could not read the incident:", incRow.error);
+      return NextResponse.json({ error: "The incident could not be read." }, { status: 500 });
+    }
     if (!incRow.data) return NextResponse.json({ error: "Incident not found." }, { status: 404 });
-    const incident = incRow.data as { title: string; description: string | null; status: string; severity: string | null; root_cause: string | null; occurred_at: string | null };
+    const incident = incRow.data as { title: string; description: string | null; status: string; severity: string | null; root_cause: string | null; detected_at: string | null; activity: { name?: string; venue?: string; date?: string | null; time?: string | null } | null };
     const comments = (comRows.data ?? []) as Array<{ body: string; kind: string | null; is_finding: boolean | null; created_at: string }>;
 
     const config = await loadAiConfig(supabase, accountId, { task: "draft" }).catch((err) => {
@@ -34,6 +38,7 @@ export async function POST(_req: Request, { params }: Params) {
       return NextResponse.json({ error: "AI assistant is not set up. Enable it in Settings → AI Assistant.", code: "ai_not_configured" }, { status: 400 });
     }
 
+    const when = incident.activity?.date ? [incident.activity.date, incident.activity.time].filter(Boolean).join(" ") : incident.detected_at ? new Date(incident.detected_at).toUTCString() : null;
     const findings = comments.filter((c) => kindOf(c) === "finding").map((c) => `• ${c.body}`).join("\n");
     const investigations = comments.filter((c) => kindOf(c) === "investigation").map((c) => `• ${c.body}`).join("\n");
     const closing = comments.filter((c) => kindOf(c) === "closing").map((c) => `• ${c.body}`).join("\n");
@@ -43,7 +48,8 @@ export async function POST(_req: Request, { params }: Params) {
       `Incident: ${incident.title}`,
       incident.description ? `Description: ${incident.description}` : null,
       incident.severity ? `Severity: ${incident.severity}` : null,
-      incident.occurred_at ? `Occurred: ${new Date(incident.occurred_at).toUTCString()}` : null,
+      when ? `Occurred: ${when}` : null,
+      incident.activity?.name ? `Activity: ${incident.activity.name}${incident.activity.venue ? ` at ${incident.activity.venue}` : ""}` : null,
       incident.root_cause ? `Root cause on record: ${incident.root_cause}` : null,
       investigations ? `Investigation notes:\n${investigations}` : null,
       findings ? `Findings:\n${findings}` : null,
