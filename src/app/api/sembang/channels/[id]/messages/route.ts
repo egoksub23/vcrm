@@ -53,6 +53,7 @@ import { triggerSembangAiReply } from '@/lib/sembang/ai-reply'
 import { loadJiraContext } from '@/lib/jira/http'
 import { matchJiraIssueKey } from '@/lib/jira/issue-url'
 import { createAdminPgDb } from '@/lib/postgres/db'
+import { sendSembangPushNotifications } from '@/lib/sembang/push-notify'
 
 const SEMBANG_MENTION_RE = /@sembang\b/i
 
@@ -325,6 +326,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           if (previewErr) console.error('[POST /api/sembang/channels/[id]/messages] link preview insert error:', previewErr)
         } catch (err) {
           console.error('[POST /api/sembang/channels/[id]/messages] link preview fetch error:', err)
+        }
+      })
+    }
+
+    // Web Push: notify channel members who are not the sender, post-response.
+    // Best-effort — push failure never blocks or fails the message send.
+    {
+      const pushAccountId  = ctx.accountId
+      const pushChannelId  = channelId
+      const pushMessageId  = (row as SembangMessageRow).id
+      const pushMessageBody = messageBody
+      const pushSenderId   = ctx.userId
+      after(async () => {
+        try {
+          await sendSembangPushNotifications({
+            accountId:   pushAccountId,
+            channelId:   pushChannelId,
+            messageId:   pushMessageId,
+            messageBody: pushMessageBody,
+            senderId:    pushSenderId,
+          })
+        } catch (e) {
+          console.error('[sembang-push]', e)
         }
       })
     }
