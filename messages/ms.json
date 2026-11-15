@@ -6964,7 +6964,12 @@
       "mentionsNavLabel": "Sebutan",
       "openMyTasksTooltip": "{count, plural, =1 {# tugasan terbuka} other {# tugasan terbuka}}",
       "myTasksNavLabel": "Tugasan Saya",
-      "removeDmAriaLabel": "Buang {name} daripada bar sisi"
+      "removeDmAriaLabel": "Buang {name} daripada bar sisi",
+      "activityToggleAriaLabel": "Togol paparan aktiviti",
+      "allCaughtUp": "Anda sudah selesai",
+      "allCaughtUpSub": "Tiada saluran atau mesej yang belum dibaca.",
+      "noUnreadChannels": "Tiada saluran yang belum dibaca.",
+      "noUnreadDms": "Tiada mesej langsung yang belum dibaca."
     },
     "createDialog": {
       "title": "Cipta saluran",

@@ -6964,7 +6964,12 @@
       "mentionsNavLabel": "提及",
       "openMyTasksTooltip": "{count, plural, =1 {# 个待办任务} other {# 个待办任务}}",
       "myTasksNavLabel": "我的任务",
-      "removeDmAriaLabel": "从侧边栏移除 {name}"
+      "removeDmAriaLabel": "从侧边栏移除 {name}",
+      "activityToggleAriaLabel": "切换活动视图",
+      "allCaughtUp": "您已全部读完",
+      "allCaughtUpSub": "目前没有未读的频道或消息。",
+      "noUnreadChannels": "没有未读频道。",
+      "noUnreadDms": "没有未读私信。"
     },
     "createDialog": {
       "title": "创建频道",
