@@ -27,7 +27,8 @@ export interface SembangMessageRow {
   id: string;
   channel_id: string;
   account_id: string;
-  author_id: string;
+  /** Null for bot messages (migration 233). */
+  author_id: string | null;
   body: string;
   mentions: string[];
   // Migration 099 columns.
@@ -36,6 +37,8 @@ export interface SembangMessageRow {
   deleted_at: string | null;
   deleted_by: string | null;
   created_at: string;
+  // Migration 233. 'user' for human posts, 'bot' for AI replies.
+  sender_type?: 'user' | 'bot';
 }
 
 /** Migration 099. No `channel_id` column on this table — a reaction row

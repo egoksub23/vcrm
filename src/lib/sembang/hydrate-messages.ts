@@ -17,7 +17,8 @@ export interface SembangMessageRow {
   id: string
   channel_id: string
   account_id: string
-  author_id: string
+  /** Null for bot messages (migration 233 made this column nullable). */
+  author_id: string | null
   body: string
   mentions: string[] | null
   // Migration 099 columns. Selected with `select('*')` so they come
@@ -34,6 +35,9 @@ export interface SembangMessageRow {
   also_in_channel?: boolean
   // Migration 115. Same possibly-absent typing reasoning.
   quoted_message_id?: string | null
+  // Migration 233. 'user' for human posts, 'bot' for AI replies.
+  // Possibly-absent so this compiles against a pre-233 database too.
+  sender_type?: 'user' | 'bot'
 }
 
 interface AttachmentRow {
@@ -110,7 +114,9 @@ export async function hydrateMessages(
 ): Promise<SembangMessage[]> {
   if (rows.length === 0) return []
 
-  const authorIds = Array.from(new Set(rows.map((r) => r.author_id)))
+  // Filter out null author_ids — bot messages (sender_type='bot', migration 233)
+  // have no auth.users entry; we synthesise their author below instead.
+  const authorIds = Array.from(new Set(rows.map((r) => r.author_id).filter((id): id is string => id !== null)))
   const messageIds = rows.map((r) => r.id)
   const topLevelIds = rows.filter((r) => !r.parent_message_id).map((r) => r.id)
   // Migration 101. Every DISTINCT parent a row in this batch replies to
@@ -265,7 +271,15 @@ export async function hydrateMessages(
   }
 
   return rows.map((row) => {
-    const profile = profileByUser.get(row.author_id)
+    const isBot = row.sender_type === 'bot'
+    // Bot rows (migration 233) have a null author_id. Synthesise a display
+    // author so the UI can show "Halo AI" without a profiles lookup.
+    const profile = row.author_id ? profileByUser.get(row.author_id) : undefined
+    const resolvedAuthor = isBot
+      ? { id: 'bot', fullName: 'Halo AI', avatarUrl: null }
+      : profile
+        ? { id: row.author_id as string, fullName: profile.full_name ?? '', avatarUrl: profile.avatar_url }
+        : null
     const isTopLevel = !row.parent_message_id
     const summary = isTopLevel ? threadSummaryByParent.get(row.id) : undefined
     const parent = row.parent_message_id ? refById.get(row.parent_message_id) : undefined
@@ -276,7 +290,7 @@ export async function hydrateMessages(
       id: row.id,
       channelId: row.channel_id,
       accountId: row.account_id,
-      authorId: row.author_id,
+      authorId: row.author_id ?? 'bot',
       body: row.body,
       mentions: row.mentions ?? [],
       parentMessageId: row.parent_message_id ?? null,
@@ -286,9 +300,8 @@ export async function hydrateMessages(
       deletedAt: row.deleted_at,
       deletedBy: row.deleted_by,
       createdAt: row.created_at,
-      author: profile
-        ? { id: row.author_id, fullName: profile.full_name ?? '', avatarUrl: profile.avatar_url }
-        : null,
+      senderType: (row.sender_type ?? 'user') as 'user' | 'bot',
+      author: resolvedAuthor,
       attachments: attachmentsByMessage.get(row.id) ?? [],
       linkPreview: linkPreviewByMessage.get(row.id) ?? null,
       ...(isTopLevel ? { replyCount: summary?.count ?? 0, lastReplyAt: summary?.lastReplyAt ?? null } : {}),

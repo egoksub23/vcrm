@@ -1768,6 +1768,9 @@ export interface SembangMessage {
   channelId: string;
   accountId: string;
   authorId: string;
+  /** Migration 233. 'user' for human posts, 'bot' for AI replies.
+   *  Defaults to 'user' for messages predating the migration. */
+  senderType: 'user' | 'bot';
   body: string;
   /** Plain array of mentioned user-id strings (not objects). */
   mentions: string[];

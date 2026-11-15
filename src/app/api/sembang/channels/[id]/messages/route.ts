@@ -49,9 +49,12 @@ import { requireCapability, toErrorResponse } from '@/lib/auth/account'
 import { hydrateMessages, type SembangMessageRow } from '@/lib/sembang/hydrate-messages'
 import { extractLinks } from '@/lib/sembang/extract-links'
 import { fetchLinkPreview } from '@/lib/sembang/link-preview'
+import { triggerSembangAiReply } from '@/lib/sembang/ai-reply'
 import { loadJiraContext } from '@/lib/jira/http'
 import { matchJiraIssueKey } from '@/lib/jira/issue-url'
 import { createAdminPgDb } from '@/lib/postgres/db'
+
+const SEMBANG_MENTION_RE = /@sembang\b/i
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
@@ -322,6 +325,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           if (previewErr) console.error('[POST /api/sembang/channels/[id]/messages] link preview insert error:', previewErr)
         } catch (err) {
           console.error('[POST /api/sembang/channels/[id]/messages] link preview fetch error:', err)
+        }
+      })
+    }
+
+    // AI @sembang mention: fire-and-forget in an `after()` block so it
+    // never delays the response or breaks the send on AI failure.
+    // Multi-tenancy: accountId and channelId are always from ctx — never
+    // from user-supplied payload.
+    if (SEMBANG_MENTION_RE.test(messageBody)) {
+      const aiAccountId = ctx.accountId
+      const aiChannelId = channelId
+      const aiMessageId = (row as SembangMessageRow).id
+      const aiMessageBody = messageBody
+      after(async () => {
+        try {
+          await triggerSembangAiReply({
+            accountId: aiAccountId,
+            channelId: aiChannelId,
+            triggerMessageId: aiMessageId,
+            triggerText: aiMessageBody,
+          })
+        } catch (e) {
+          console.error('[sembang-ai]', e)
         }
       })
     }
