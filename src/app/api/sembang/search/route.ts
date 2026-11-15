@@ -99,9 +99,20 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url)
     const q = url.searchParams.get('q')?.trim() ?? ''
-    if (q.length < MIN_QUERY_LENGTH) {
+    const channelId = url.searchParams.get('channelId')?.trim() || null
+    const authorId = url.searchParams.get('authorId')?.trim() || null
+    const has = url.searchParams.get('has')?.trim() || null
+
+    // q can be empty when other filters are active; only enforce min length when q is the only filter
+    if (q.length > 0 && q.length < MIN_QUERY_LENGTH) {
       return NextResponse.json(
         { error: `q must be at least ${MIN_QUERY_LENGTH} characters` },
+        { status: 400 },
+      )
+    }
+    if (!q && !channelId && !authorId && !has) {
+      return NextResponse.json(
+        { error: 'At least one filter (q, channelId, authorId, has) is required' },
         { status: 400 },
       )
     }
@@ -111,12 +122,33 @@ export async function GET(request: Request) {
       ? Math.min(Math.trunc(limitParam), MAX_LIMIT)
       : DEFAULT_LIMIT
 
-    const { data, error } = await ctx.supabase
+    // For has=files, resolve message_ids from attachments first
+    let fileMessageIds: string[] | null = null
+    if (has === 'files') {
+      const { data: attachRows } = await ctx.supabase
+        .from('sembang_attachments')
+        .select('message_id')
+        .eq('account_id', ctx.accountId)
+      fileMessageIds = Array.from(new Set((attachRows ?? []).map((r: any) => r.message_id as string)))
+      if (fileMessageIds.length === 0) {
+        return NextResponse.json({ results: [] })
+      }
+    }
+
+    let query = ctx.supabase
       .from('sembang_messages')
       .select('*')
       .eq('account_id', ctx.accountId)
       .is('deleted_at', null)
-      .ilike('body', `%${q}%`)
+
+    if (q) query = query.ilike('body', `%${q}%`)
+    if (channelId) query = query.eq('channel_id', channelId)
+    if (authorId) query = query.eq('author_id', authorId)
+    if (has === 'links') query = query.ilike('body', '%http%')
+    if (has === 'mentions') query = query.ilike('body', '%@%')
+    if (fileMessageIds) query = query.in('id', fileMessageIds)
+
+    const { data, error } = await query
       .order('created_at', { ascending: false })
       .limit(limit)
 

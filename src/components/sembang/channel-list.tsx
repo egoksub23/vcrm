@@ -156,6 +156,8 @@ export function ChannelList({
               avatarUrl={c.dmParticipantAvatarUrls?.[0] ?? null}
               size="sm"
             />
+          ) : c.icon ? (
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none" aria-hidden>{c.icon}</span>
           ) : c.isPrivate ? (
             <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           ) : (

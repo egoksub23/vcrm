@@ -1673,6 +1673,8 @@ export interface SembangChannel {
    *  personal, not a channel-wide setting. False for a channel the
    *  caller can see but hasn't joined (no membership row to read). */
   muted: boolean;
+  /** Migration 235. Optional emoji icon for the channel. */
+  icon?: string | null;
 }
 
 /**
@@ -1707,6 +1709,8 @@ export interface SembangChannelSummary {
    *  DM count here too). Task-assignment notifications are excluded —
    *  those already have their own per-channel Tasks affordance. */
   unreadMentionCount: number;
+  /** Migration 235. Optional emoji icon for the channel. */
+  icon?: string | null;
 }
 
 /** A file attached to a Sembang message. `url` is a short-lived signed

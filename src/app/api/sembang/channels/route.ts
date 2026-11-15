@@ -43,6 +43,8 @@ interface ChannelSummaryRow {
   muted: boolean
   // Sembang mentions.
   unread_mention_count: number
+  // Migration 235.
+  icon: string | null
 }
 
 export async function GET() {
@@ -76,6 +78,7 @@ export async function GET() {
       dmParticipantAvatarUrls: row.dm_participant_avatar_urls,
       muted: row.muted,
       unreadMentionCount: Number(row.unread_mention_count) || 0,
+      icon: row.icon ?? null,
     }))
 
     return NextResponse.json({ channels })
@@ -93,6 +96,7 @@ export async function POST(request: Request) {
       topic?: unknown
       isPrivate?: unknown
       inviteUserIds?: unknown
+      icon?: unknown
     } | null
 
     const name = typeof body?.name === 'string' ? body.name.trim() : ''
@@ -121,6 +125,9 @@ export async function POST(request: Request) {
       ? Array.from(new Set(body.inviteUserIds.filter((v): v is string => typeof v === 'string')))
       : []
 
+    const icon: string | null =
+      typeof body?.icon === 'string' && body.icon.trim() ? body.icon.trim() : null
+
     const { data: row, error } = await ctx.supabase
       .from('sembang_channels')
       .insert({
@@ -129,6 +136,7 @@ export async function POST(request: Request) {
         topic,
         is_private: isPrivate,
         created_by: ctx.userId,
+        icon,
       })
       .select('*')
       .single()
@@ -180,11 +188,9 @@ export async function POST(request: Request) {
       createdBy: row.created_by,
       createdAt: row.created_at,
       archivedAt: row.archived_at,
-      // The DB trigger (`sembang_add_creator_as_moderator`) always makes
-      // the creator a moderator, synchronously within the same insert.
       memberRole: 'moderator',
-      // A freshly created channel is never muted.
       muted: false,
+      icon: row.icon ?? null,
     }
 
     return NextResponse.json({ channel }, { status: 201 })

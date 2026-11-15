@@ -394,7 +394,7 @@ function SembangPageInner() {
         onUnarchived={handleChannelUnarchived}
       />
       <StarredPanel open={starredOpen} onOpenChange={setStarredOpen} />
-      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} channels={channels ?? []} />
       <ThreadsPanel open={threadsOpen} onOpenChange={setThreadsOpen} />
       <MemberDirectoryDialog open={directoryOpen} onOpenChange={setDirectoryOpen} />
       <BrowseChannelsDialog open={browseOpen} onOpenChange={setBrowseOpen} onJoined={handleChannelJoined} />

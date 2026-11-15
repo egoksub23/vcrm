@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Globe2, Lock, Loader2 } from "lucide-react";
+import { Globe2, Hash, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,9 +35,15 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
 
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
+  const [icon, setIcon] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [inviteIds, setInviteIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+
+  const QUICK_EMOJIS = [
+    "💬","📢","🔔","⭐","🚀","💡","📌","🎯","🔥","✅",
+    "🏆","📊","🛠️","🤝","📝","🎉","💼","🌐","🔒","❤️",
+  ];
 
   const invitable = useMemo(
     () => members.filter((m) => m.user_id !== user?.id),
@@ -47,6 +53,7 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
   const reset = () => {
     setName("");
     setTopic("");
+    setIcon("");
     setIsPrivate(false);
     setInviteIds(new Set());
   };
@@ -78,6 +85,7 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
           topic: topic.trim() || undefined,
           isPrivate,
           inviteUserIds: isPrivate ? Array.from(inviteIds) : undefined,
+          icon: icon || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -85,7 +93,7 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
         toast.error(data?.error || t("createFailed"));
         return;
       }
-      const created = data.channel as { id: string; name: string; topic: string | null; isPrivate: boolean; createdBy: string; createdAt: string };
+      const created = data.channel as { id: string; name: string; topic: string | null; isPrivate: boolean; createdBy: string; createdAt: string; icon?: string | null };
       onCreated({
         id: created.id,
         name: created.name,
@@ -95,9 +103,6 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
         createdBy: created.createdBy,
         createdAt: created.createdAt,
         memberRole: "moderator",
-        // Migration 101 — a freshly created channel is never muted; there's
-        // no membership row to read a mute state from yet at this point,
-        // so this is the one correct value to synthesize locally.
         muted: false,
         lastReadAt: created.createdAt,
         unreadCount: 0,
@@ -106,8 +111,8 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
         lastMessageAuthorId: null,
         dmParticipantNames: null,
         dmParticipantAvatarUrls: null,
-        // A freshly created channel has no notifications against it yet.
         unreadMentionCount: 0,
+        icon: created.icon ?? null,
       });
       reset();
     } catch {
@@ -143,6 +148,36 @@ export function CreateChannelDialog({ open, onOpenChange, onCreated }: CreateCha
                 className="h-8 border-none pl-0 focus-visible:ring-0"
                 autoFocus
               />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-foreground">{t("iconLabel")}</p>
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => setIcon("")}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-md border text-sm transition-colors",
+                  !icon ? "border-primary bg-primary/10" : "border-border hover:bg-muted",
+                )}
+                title={t("iconNone")}
+              >
+                <Hash className="h-4 w-4 text-muted-foreground" aria-hidden />
+              </button>
+              {QUICK_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setIcon(e)}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-md border text-base transition-colors",
+                    icon === e ? "border-primary bg-primary/10" : "border-border hover:bg-muted",
+                  )}
+                >
+                  {e}
+                </button>
+              ))}
             </div>
           </div>
 

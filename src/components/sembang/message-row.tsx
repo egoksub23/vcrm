@@ -10,12 +10,13 @@
 // mutation here goes through a callback prop so there is exactly one place
 // that talks to the API and patches local state.
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import {
   CornerUpRight,
   FileText,
+  Languages,
   Loader2,
   MessageSquareText,
   Pencil,
@@ -140,6 +141,8 @@ export function MessageRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.body);
   const [saving, setSaving] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [translation, setTranslation] = useState<string | null>(null);
 
   const isDeleted = !!message.deletedAt;
   const isOwn = !!currentUserId && message.authorId === currentUserId;
@@ -166,6 +169,25 @@ export function MessageRow({
     setSaving(false);
     if (updated) setEditing(false);
   };
+
+  const handleTranslate = useCallback(async () => {
+    if (translating || translation) {
+      setTranslation(null);
+      return;
+    }
+    setTranslating(true);
+    try {
+      const res = await fetch("/api/sembang/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: message.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setTranslation(data.translation ?? null);
+    } finally {
+      setTranslating(false);
+    }
+  }, [message.id, translating, translation]);
 
   const isBot = message.senderType === "bot";
   const isWebhook = !message.author && !!message.botName;
@@ -253,6 +275,12 @@ export function MessageRow({
               </div>
             )}
             {message.body && <MessageBody body={message.body} peopleNames={peopleNames} />}
+            {translation && (
+              <div className="mt-1 rounded-md border border-dashed border-primary/40 bg-primary/5 px-2.5 py-1.5 text-sm text-foreground">
+                <span className="mr-1.5 text-xs font-medium text-primary">{t("translationLabel")}</span>
+                {translation}
+              </div>
+            )}
             {message.attachments.length > 0 && (
               <div className="mt-1 flex flex-col gap-1">
                 {message.attachments.map((a) =>
@@ -391,6 +419,18 @@ export function MessageRow({
               onClick={() => onQuoteReply(message)}
             >
               <Reply className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {!message.deletedAt && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={translation ? t("translateHide") : t("translate")}
+              title={translation ? t("translateHide") : t("translate")}
+              onClick={handleTranslate}
+              disabled={translating}
+            >
+              {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
             </Button>
           )}
           <EmojiPicker onPick={(emoji) => onReact(message.id, emoji)} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />

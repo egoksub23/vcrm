@@ -34,6 +34,8 @@ interface ChannelRow {
   created_by: string
   created_at: string
   archived_at: string | null
+  // Migration 235.
+  icon: string | null
 }
 
 async function resolveMemberRole(
@@ -69,6 +71,7 @@ function toChannel(row: ChannelRow, member: MemberRoleAndMute): SembangChannel {
     archivedAt: row.archived_at,
     memberRole: member.role,
     muted: member.muted,
+    icon: row.icon ?? null,
   }
 }
 
@@ -107,9 +110,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = (await request.json().catch(() => null)) as {
       topic?: unknown
       archived?: unknown
+      icon?: unknown
     } | null
 
-    const update: { topic?: string | null; archived_at?: string | null } = {}
+    const update: { topic?: string | null; archived_at?: string | null; icon?: string | null } = {}
 
     if (body?.topic !== undefined) {
       if (typeof body.topic !== 'string') {
@@ -127,6 +131,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         return NextResponse.json({ error: 'archived must be a boolean' }, { status: 400 })
       }
       update.archived_at = body.archived ? new Date().toISOString() : null
+    }
+
+    if (body?.icon !== undefined) {
+      update.icon =
+        typeof body.icon === 'string' && body.icon.trim() ? body.icon.trim() : null
     }
 
     if (Object.keys(update).length === 0) {

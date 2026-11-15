@@ -45,7 +45,7 @@ import { useSembangChannelRealtime } from "@/hooks/use-sembang-realtime";
 import { useTypingIndicator } from "@/hooks/use-typing-indicator";
 import { useSembangPresence } from "@/hooks/use-sembang-presence";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
-import { MessageComposer, type PendingSembangAttachment } from "./message-composer";
+import { MessageComposer, type MessageComposerHandle, type PendingSembangAttachment } from "./message-composer";
 import { MembersPanel } from "./members-panel";
 import { MessageRow } from "./message-row";
 import { ThreadPanel } from "./thread-panel";
@@ -178,6 +178,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   const { pushState, subscribe: subscribePush, unsubscribe: unsubscribePush } = usePushSubscription();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<MessageComposerHandle>(null);
   const suppressAutoScrollRef = useRef(false);
   // "Jump to new messages" — the id of the last message we last reacted to,
   // so a merge that doesn't actually change the bottom message (a reaction
@@ -547,6 +548,13 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
       setJoining(false);
     }
   }, [channelId, user?.id, joining, t, fetchMembers]);
+
+  // ---- Quote reply (main thread) ------------------------------------------
+  const handleQuoteReply = useCallback((message: SembangMessage) => {
+    const authorName =
+      accountMembers.find((m) => m.user_id === message.authorId)?.full_name ?? message.authorId;
+    composerRef.current?.quoteMessage({ id: message.id, authorName, body: message.body ?? "" });
+  }, [accountMembers]);
 
   // ---- Send / edit / remove message ---------------------------------------
   const handleSendMessage = useCallback(
@@ -1373,6 +1381,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
                   onEdit={handleEditMessage}
                   onRemove={handleRemoveMessage}
                   onAddToTask={handleAddToTask}
+                  onQuoteReply={handleQuoteReply}
                 />
               ))
             )}
@@ -1403,7 +1412,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
           </div>
         )}
         {channel && activeTab !== "messages" ? null : channel && isMember ? (
-          <MessageComposer channelId={channel.id} channelName={channelDisplayName} onSend={handleSendMessage} onTyping={notifyTyping} />
+          <MessageComposer ref={composerRef} channelId={channel.id} channelName={channelDisplayName} onSend={handleSendMessage} onTyping={notifyTyping} />
         ) : channel && !channel.isPrivate && !channel.isDm ? (
           <div className="border-t border-border bg-card p-3.5 text-center">
             <Button onClick={handleJoin} disabled={joining}>
