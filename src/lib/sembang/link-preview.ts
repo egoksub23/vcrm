@@ -29,7 +29,9 @@ export interface LinkPreviewMeta {
 
 function metaTags(head: string): string[] {
   const out: string[] = []
-  for (const m of head.matchAll(/<meta\b[^>]{0,500}>/gi)) out.push(m[0])
+  // Allow up to 10 000 chars per meta tag so that long content= attributes
+  // (e.g. og:description with 500+ chars) are not silently dropped.
+  for (const m of head.matchAll(/<meta\b[^>]{0,10000}>/gi)) out.push(m[0])
   return out
 }
 
