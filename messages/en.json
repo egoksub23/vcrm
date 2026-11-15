@@ -8370,7 +8370,12 @@
       "mentionsNavLabel": "Mentions",
       "openMyTasksTooltip": "{count, plural, =1 {# open task} other {# open tasks}}",
       "myTasksNavLabel": "My Tasks",
-      "removeDmAriaLabel": "Remove {name} from the sidebar"
+      "removeDmAriaLabel": "Remove {name} from the sidebar",
+      "activityToggleAriaLabel": "Toggle activity view",
+      "allCaughtUp": "You're all caught up",
+      "allCaughtUpSub": "No unread channels or messages right now.",
+      "noUnreadChannels": "No unread channels.",
+      "noUnreadDms": "No unread direct messages."
     },
     "createDialog": {
       "title": "Create a channel",

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Archive, AtSign, BellOff, CheckSquare, Compass, Hash, Lock, Plus, Search, X } from "lucide-react";
+import { Activity, Archive, AtSign, BellOff, CheckSquare, Compass, Hash, Lock, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +76,35 @@ export function ChannelList({
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
 
+  // Activity view — persisted in localStorage so the toggle survives page
+  // refreshes. Defaults to false (show all) until we read localStorage.
+  const [activityView, setActivityView] = useState(false);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("sembang:activity-view");
+      if (stored === "true") setActivityView(true);
+    } catch {
+      // localStorage unavailable (private mode or blocked storage) — ignore
+    }
+  }, []);
+  function toggleActivityView() {
+    setActivityView((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("sembang:activity-view", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
+
+  /** Number of channels (channels + DMs) that have any unread activity. */
+  const unreadChannelCount = useMemo(
+    () => (channels ?? []).filter((c) => c.unreadCount > 0 || c.unreadMentionCount > 0).length,
+    [channels],
+  );
+
   const sorted = useMemo(() => {
     const list = channels ?? [];
     // Always re-sort by last activity rather than trusting arrival order —
@@ -88,13 +117,18 @@ export function ChannelList({
   }, [channels]);
 
   const filtered = useMemo(() => {
+    let list = sorted;
+    // Activity view — only unread channels/DMs
+    if (activityView) {
+      list = list.filter((c) => c.unreadCount > 0 || c.unreadMentionCount > 0);
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return sorted;
-    return sorted.filter((c) => {
+    if (!q) return list;
+    return list.filter((c) => {
       const label = c.isDm ? dmLabel(c, "") : (c.name ?? "");
       return label.toLowerCase().includes(q);
     });
-  }, [sorted, query]);
+  }, [sorted, query, activityView]);
 
   const filteredChannels = useMemo(() => filtered.filter((c) => !c.isDm), [filtered]);
   const filteredDms = useMemo(() => filtered.filter((c) => c.isDm), [filtered]);
@@ -186,6 +220,31 @@ export function ChannelList({
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
         <h2 className="text-sm font-semibold text-foreground">{t("title")}</h2>
         <div className="flex items-center gap-1">
+          {/* Activity toggle — accent fill when ON to match the
+              mentionsActive / myTasksActive pattern below */}
+          <Button
+            variant={activityView ? "default" : "ghost"}
+            size="icon-sm"
+            aria-label={t("activityToggleAriaLabel")}
+            aria-pressed={activityView}
+            onClick={toggleActivityView}
+            className="relative"
+          >
+            <Activity className="h-4 w-4" />
+            {unreadChannelCount > 0 && (
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold leading-none",
+                  activityView
+                    ? "bg-primary-foreground text-primary"
+                    : "bg-primary text-primary-foreground",
+                )}
+              >
+                {unreadChannelCount > 99 ? "99+" : unreadChannelCount}
+              </span>
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -275,6 +334,13 @@ export function ChannelList({
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
+        ) : activityView && filtered.length === 0 ? (
+          // Activity view with nothing unread — dedicated "all caught up" state
+          <div className="flex flex-col items-center justify-center gap-2 px-4 py-16 text-center">
+            <Activity className="h-8 w-8 text-muted-foreground/40" aria-hidden />
+            <p className="text-sm font-medium text-foreground">{t("allCaughtUp")}</p>
+            <p className="text-xs text-muted-foreground">{t("allCaughtUpSub")}</p>
+          </div>
         ) : (
           <>
             {/* Channels section */}
@@ -284,7 +350,7 @@ export function ChannelList({
             {filteredChannels.length === 0 ? (
               <div className="px-4 py-4 text-center">
                 <p className="text-xs text-muted-foreground">
-                  {query ? t("noMatches") : t("noChannels")}
+                  {query ? t("noMatches") : activityView ? t("noUnreadChannels") : t("noChannels")}
                 </p>
               </div>
             ) : (
@@ -326,7 +392,7 @@ export function ChannelList({
             {filteredDms.length === 0 ? (
               <div className="px-4 py-4 text-center">
                 <p className="text-xs text-muted-foreground">
-                  {query ? t("noMatches") : t("noDirectMessages")}
+                  {query ? t("noMatches") : activityView ? t("noUnreadDms") : t("noDirectMessages")}
                 </p>
               </div>
             ) : (

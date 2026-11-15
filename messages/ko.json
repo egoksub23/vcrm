@@ -8356,7 +8356,12 @@
       "mentionsNavLabel": "멘션",
       "openMyTasksTooltip": "미완료 작업 {count}개",
       "myTasksNavLabel": "내 작업",
-      "removeDmAriaLabel": "사이드바에서 {name} 제거"
+      "removeDmAriaLabel": "사이드바에서 {name} 제거",
+      "activityToggleAriaLabel": "활동 보기 전환",
+      "allCaughtUp": "모두 확인했습니다",
+      "allCaughtUpSub": "읽지 않은 채널이나 메시지가 없습니다.",
+      "noUnreadChannels": "읽지 않은 채널이 없습니다.",
+      "noUnreadDms": "읽지 않은 다이렉트 메시지가 없습니다."
     },
     "createDialog": {
       "title": "채널 만들기",
