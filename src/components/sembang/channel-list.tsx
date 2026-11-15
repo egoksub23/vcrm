@@ -334,7 +334,7 @@ export function ChannelList({
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-        ) : activityView && filtered.length === 0 ? (
+        ) : activityView && !query.trim() && unreadChannelCount === 0 ? (
           // Activity view with nothing unread — dedicated "all caught up" state
           <div className="flex flex-col items-center justify-center gap-2 px-4 py-16 text-center">
             <Activity className="h-8 w-8 text-muted-foreground/40" aria-hidden />

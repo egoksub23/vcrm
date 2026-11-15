@@ -82,7 +82,8 @@ interface LinkPreviewRow {
 interface ParentRow {
   id: string
   body: string
-  author_id: string
+  /** Null for bot messages (migration 233). */
+  author_id: string | null
 }
 
 /** Groups raw `sembang_reactions` rows (all for one message) into the
@@ -188,7 +189,11 @@ export async function hydrateMessages(
   // or replying inside the same page of messages), and only querying
   // for the rest.
   const refAuthorIds = Array.from(
-    new Set(Array.from(refById.values()).map((p) => p.author_id).filter((id) => !profileByUser.has(id))),
+    new Set(
+      Array.from(refById.values())
+        .map((p) => p.author_id)
+        .filter((id): id is string => id !== null && !profileByUser.has(id)),
+    ),
   )
   if (refAuthorIds.length > 0) {
     const { data: parentProfileRows } = await supabase
