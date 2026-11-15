@@ -12,7 +12,7 @@
 // Called fire-and-forget inside an after() block from the messages POST route,
 // so errors are logged and never surface to the sender.
 
-import webpush from 'web-push'
+import * as webpush from 'web-push'
 import { createAdminPgDb } from '@/lib/postgres/db'
 
 const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY  ?? process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
