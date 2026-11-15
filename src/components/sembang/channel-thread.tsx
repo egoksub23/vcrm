@@ -41,6 +41,7 @@ import { useAccountMembers } from "@/hooks/use-account-members";
 import { hasMinRole } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 import { useSembangChannelRealtime } from "@/hooks/use-sembang-realtime";
+import { useTypingIndicator } from "@/hooks/use-typing-indicator";
 import { MessageComposer, type PendingSembangAttachment } from "./message-composer";
 import { MembersPanel } from "./members-panel";
 import { MessageRow } from "./message-row";
@@ -111,7 +112,7 @@ interface ChannelThreadProps {
 export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchived }: ChannelThreadProps) {
   const t = useTranslations("Sembang.thread");
   const tTasksPanel = useTranslations("Sembang.tasksPanel");
-  const { user, accountRole } = useAuth();
+  const { user, profile, accountRole } = useAuth();
   const { members: accountMembers } = useAccountMembers();
 
   const [channel, setChannel] = useState<SembangChannel | null>(null);
@@ -165,6 +166,10 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
 
   // ---- P3: mute toggle ----------------------------------------------------
   const [muting, setMuting] = useState(false);
+
+  // ---- Typing indicator (ephemeral in-memory, no DB) ---------------------
+  const userName = profile?.full_name ?? user?.email ?? "";
+  const { typingUsers, notifyTyping } = useTypingIndicator(channelId, user?.id ?? null, userName);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const suppressAutoScrollRef = useRef(false);
@@ -1285,8 +1290,21 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
           </div>
         )}
 
+        {channel && activeTab === "messages" && typingUsers.length > 0 && (
+          <div
+            aria-live="polite"
+            aria-atomic="true"
+            className="animate-pulse border-t border-border bg-card px-4 py-1.5 text-xs text-muted-foreground"
+          >
+            {typingUsers.length === 1
+              ? t("typingOne", { name: typingUsers[0]!.name })
+              : typingUsers.length === 2
+              ? t("typingTwo", { name1: typingUsers[0]!.name, name2: typingUsers[1]!.name })
+              : t("typingSeveral")}
+          </div>
+        )}
         {channel && activeTab !== "messages" ? null : channel && isMember ? (
-          <MessageComposer channelId={channel.id} channelName={channelDisplayName} onSend={handleSendMessage} />
+          <MessageComposer channelId={channel.id} channelName={channelDisplayName} onSend={handleSendMessage} onTyping={notifyTyping} />
         ) : channel && !channel.isPrivate && !channel.isDm ? (
           <div className="border-t border-border bg-card p-3.5 text-center">
             <Button onClick={handleJoin} disabled={joining}>

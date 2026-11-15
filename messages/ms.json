@@ -7061,7 +7061,10 @@
       "meetingMenuAriaLabel": "Pilihan mesyuarat",
       "scheduleMeeting": "Jadualkan mesyuarat…",
       "scheduledMeetingMessage": "📅 {title} — {when}\n{url}",
-      "scheduledMeetingAttendees": "{count, plural, =1 {# orang dijemput} other {# orang dijemput}}"
+      "scheduledMeetingAttendees": "{count, plural, =1 {# orang dijemput} other {# orang dijemput}}",
+      "typingOne": "{name} sedang menaip…",
+      "typingTwo": "{name1} dan {name2} sedang menaip…",
+      "typingSeveral": "Beberapa orang sedang menaip…"
     },
     "composer": {
       "fileTooLarge": "Fail itu melebihi had {max} MB.",

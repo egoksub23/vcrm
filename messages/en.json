@@ -8467,7 +8467,10 @@
       "meetingMenuAriaLabel": "Meeting options",
       "scheduleMeeting": "Schedule a meeting…",
       "scheduledMeetingMessage": "📅 {title} — {when}\n{url}",
-      "scheduledMeetingAttendees": "{count, plural, =1 {# person invited} other {# people invited}}"
+      "scheduledMeetingAttendees": "{count, plural, =1 {# person invited} other {# people invited}}",
+      "typingOne": "{name} is typing…",
+      "typingTwo": "{name1} and {name2} are typing…",
+      "typingSeveral": "Several people are typing…"
     },
     "composer": {
       "fileTooLarge": "That file is over the {max} MB limit.",

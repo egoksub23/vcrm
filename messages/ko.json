@@ -8453,7 +8453,10 @@
       "meetingMenuAriaLabel": "회의 옵션",
       "scheduleMeeting": "회의 예약…",
       "scheduledMeetingMessage": "📅 {title} — {when}\n{url}",
-      "scheduledMeetingAttendees": "{count, plural, other {#명 초대됨}}"
+      "scheduledMeetingAttendees": "{count, plural, other {#명 초대됨}}",
+      "typingOne": "{name}이(가) 입력 중…",
+      "typingTwo": "{name1}, {name2}이(가) 입력 중…",
+      "typingSeveral": "여러 사람이 입력 중…"
     },
     "composer": {
       "fileTooLarge": "파일이 {max}MB 제한을 초과했습니다.",

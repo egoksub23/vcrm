@@ -7061,7 +7061,10 @@
       "meetingMenuAriaLabel": "会议选项",
       "scheduleMeeting": "预约会议…",
       "scheduledMeetingMessage": "📅 {title} — {when}\n{url}",
-      "scheduledMeetingAttendees": "{count, plural, =1 {已邀请 # 人} other {已邀请 # 人}}"
+      "scheduledMeetingAttendees": "{count, plural, =1 {已邀请 # 人} other {已邀请 # 人}}",
+      "typingOne": "{name} 正在输入…",
+      "typingTwo": "{name1} 和 {name2} 正在输入…",
+      "typingSeveral": "多人正在输入…"
     },
     "composer": {
       "fileTooLarge": "该文件超过 {max} MB 的上限。",
