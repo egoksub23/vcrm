@@ -43,10 +43,16 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Vircle Halo",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#020617",
+  themeColor: "#2d5be3",
   colorScheme: "dark light",
 };
 
@@ -110,6 +116,13 @@ export default async function RootLayout({
           id="theme-boot"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+        />
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){});}`,
+          }}
         />
       </head>
       <body className="min-h-full bg-background text-foreground font-sans">

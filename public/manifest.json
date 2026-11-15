@@ -1,0 +1,30 @@
+{
+  "name": "Vircle Halo",
+  "short_name": "Halo",
+  "description": "Vircle Halo — WhatsApp shared inbox and business automation.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2d5be3",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/brand/mascot-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
