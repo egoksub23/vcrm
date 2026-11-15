@@ -59,6 +59,9 @@ interface MessageComposerProps {
    *  When true, renders a "Also send to #<channelName>" checkbox near the
    *  send button (Slack's own reply-composer affordance). */
   showAlsoInChannelOption?: boolean;
+  /** Called whenever the user types a character. Used by the parent
+   *  component to signal the channel's typing indicator. */
+  onTyping?: () => void;
 }
 
 /** Imperative handle so a caller (thread-panel.tsx's "quote reply" icon on
@@ -92,6 +95,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   disabled,
   parentMessageId,
   showAlsoInChannelOption,
+  onTyping,
 }, ref) {
   const t = useTranslations("Sembang.composer");
   const { members } = useAccountMembers();
@@ -512,7 +516,10 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
           <MentionTextarea
             ref={textareaRef}
             value={text}
-            onValueChange={setText}
+            onValueChange={(v) => {
+              setText(v);
+              if (v.length > 0) onTyping?.();
+            }}
             onMention={(userId) => setMentionedIds((prev) => new Set(prev).add(userId))}
             members={members}
             placeholder={t("placeholder", { channel: channelName })}
