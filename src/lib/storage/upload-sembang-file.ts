@@ -13,8 +13,8 @@
  * result's `path`/`filename`/etc. in that request's `attachments` array.
  */
 
-/** 16 MB — matches the `sembang-files` bucket's `file_size_limit` (migration 098). */
-export const SEMBANG_MAX_BYTES = 16 * 1024 * 1024;
+/** 250 MB — matches the `sembang-files` bucket's `file_size_limit` (migration 234 raised it from 16 MB). */
+export const SEMBANG_MAX_BYTES = 250 * 1024 * 1024;
 
 /**
  * TTL for a signed URL into `sembang-files`. Short-lived by design (the

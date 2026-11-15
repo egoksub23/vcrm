@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Bell,
   BellOff,
+  BellPlus,
   Bookmark,
   Check,
   CheckSquare,
@@ -42,6 +43,8 @@ import { hasMinRole } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 import { useSembangChannelRealtime } from "@/hooks/use-sembang-realtime";
 import { useTypingIndicator } from "@/hooks/use-typing-indicator";
+import { useSembangPresence } from "@/hooks/use-sembang-presence";
+import { usePushSubscription } from "@/hooks/use-push-subscription";
 import { MessageComposer, type PendingSembangAttachment } from "./message-composer";
 import { MembersPanel } from "./members-panel";
 import { MessageRow } from "./message-row";
@@ -167,9 +170,12 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
   // ---- P3: mute toggle ----------------------------------------------------
   const [muting, setMuting] = useState(false);
 
-  // ---- Typing indicator (ephemeral in-memory, no DB) ---------------------
+  // ---- Typing indicator + per-room presence (ephemeral, no DB) ------------
   const userName = profile?.full_name ?? user?.email ?? "";
+  const userAvatar = (profile as unknown as { avatar_url?: string } | null)?.avatar_url ?? null;
   const { typingUsers, notifyTyping } = useTypingIndicator(channelId, user?.id ?? null, userName);
+  const { presentUsers } = useSembangPresence(channelId, user?.id ?? null, userName, userAvatar);
+  const { pushState, subscribe: subscribePush, unsubscribe: unsubscribePush } = usePushSubscription();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const suppressAutoScrollRef = useRef(false);
@@ -472,6 +478,45 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, channel?.memberRole, messages.length]);
 
+  // ---- Offline queue flush: retry queued messages when network returns ------
+  useEffect(() => {
+    const flushQueue = async () => {
+      let queued: Array<{ channelId: string; payload: object; queuedAt: number }>;
+      try {
+        queued = JSON.parse(localStorage.getItem("sembang_outbox") ?? "[]");
+      } catch {
+        return;
+      }
+      if (queued.length === 0) return;
+      localStorage.removeItem("sembang_outbox");
+      let sent = 0;
+      for (const item of queued) {
+        try {
+          const res = await fetch(`/api/sembang/channels/${item.channelId}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(item.payload),
+          });
+          if (res.ok) sent++;
+        } catch {
+          // Requeue on failure
+          try {
+            const remaining = JSON.parse(localStorage.getItem("sembang_outbox") ?? "[]") as object[];
+            remaining.push(item);
+            localStorage.setItem("sembang_outbox", JSON.stringify(remaining));
+          } catch { /* ignore */ }
+        }
+      }
+      if (sent > 0) {
+        void fetchMessages().then(mergeMessages).catch(() => {});
+        toast.success(t("offlineFlushed", { count: sent }));
+      }
+    };
+
+    window.addEventListener("online", flushQueue);
+    return () => window.removeEventListener("online", flushQueue);
+  }, [t, fetchMessages, mergeMessages]);
+
   // ---- Join (public channel, not yet a member) --------------------------
   const handleJoin = useCallback(async () => {
     if (!channelId || !user?.id || joining) return;
@@ -511,19 +556,38 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
       attachments: PendingSembangAttachment[],
       parentMessageId?: string,
       alsoInChannel?: boolean,
+      quotedMessageId?: string,
     ): Promise<boolean> => {
       if (!channelId) return false;
+
+      const payload = {
+        body,
+        mentions,
+        attachments: attachments.length > 0 ? attachments : undefined,
+        parentMessageId,
+        alsoInChannel,
+        quotedMessageId,
+      };
+
+      // Offline queue: if the browser reports no network, stash in localStorage
+      // and retry on reconnect rather than showing an error immediately.
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        try {
+          const queued = JSON.parse(localStorage.getItem("sembang_outbox") ?? "[]") as object[];
+          queued.push({ channelId, payload, queuedAt: Date.now() });
+          localStorage.setItem("sembang_outbox", JSON.stringify(queued));
+        } catch {
+          // localStorage unavailable — fall through to the fetch which will fail visibly
+        }
+        toast.info(t("savedOffline"));
+        return true;
+      }
+
       try {
         const res = await fetch(`/api/sembang/channels/${channelId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            body,
-            mentions,
-            attachments: attachments.length > 0 ? attachments : undefined,
-            parentMessageId,
-            alsoInChannel,
-          }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -1132,6 +1196,41 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
                   </div>
                 </PopoverContent>
               </Popover>
+              {/* Per-room presence — avatars of members currently viewing */}
+              {presentUsers.length > 0 && (
+                <div className="flex -space-x-1.5" title={presentUsers.map((p) => p.name).join(", ")}>
+                  {presentUsers.slice(0, 5).map((p) => (
+                    <PersonAvatar
+                      key={p.userId}
+                      name={p.name}
+                      avatarUrl={p.avatarUrl}
+                      size="sm"
+                      className="h-5 w-5 ring-2 ring-background"
+                    />
+                  ))}
+                  {presentUsers.length > 5 && (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground ring-2 ring-background">
+                      +{presentUsers.length - 5}
+                    </span>
+                  )}
+                </div>
+              )}
+              {/* Push notification subscribe — hidden when unsupported or already denied */}
+              {pushState !== "unsupported" && pushState !== "denied" && isMember && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={pushState === "granted" ? unsubscribePush : subscribePush}
+                  disabled={pushState === "loading"}
+                  title={pushState === "granted" ? t("pushDisable") : t("pushEnable")}
+                >
+                  {pushState === "granted" ? (
+                    <Bell className="h-4 w-4 text-primary" />
+                  ) : (
+                    <BellPlus className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
               {/* DM participants are fixed at creation — no manage controls
                   needed, so the whole button is hidden rather than shown
                   read-only (migration 100, frontend item 3). */}

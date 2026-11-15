@@ -1821,6 +1821,22 @@ export interface SembangMessage {
   /** Migration 107. Null until the async unfurl lands (or never, if the
    *  message has no URL or nothing worth previewing was found). */
   linkPreview: SembangLinkPreview | null;
+  /** Migration 234. Rich bot card attachments from webhooks or AI.
+   *  Null for ordinary user messages. */
+  cards?: SembangBotCard[] | null;
+  /** Migration 234. Display name for a webhook/bot message where authorId
+   *  is null (the message was posted via an incoming webhook). */
+  botName?: string | null;
+}
+
+export interface SembangBotCard {
+  color?: string | null;
+  title?: string | null;
+  title_url?: string | null;
+  pretext?: string | null;
+  text?: string | null;
+  fields?: Array<{ title: string; value: string; short?: boolean }> | null;
+  footer?: string | null;
 }
 
 /** A channel member row, joined with `profiles` (GET .../members). */

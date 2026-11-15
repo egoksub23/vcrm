@@ -37,3 +37,33 @@ self.addEventListener('fetch', (e) => {
   else if (isStatic(url)) e.respondWith(cacheFirst(e.request));
   // Navigation requests pass through unintercepted.
 });
+
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data?.json() ?? {}; } catch {}
+  const title = data.title ?? 'New Sembang message';
+  const options = {
+    body: data.body ?? '',
+    icon: '/brand/mascot-icon.png',
+    badge: '/brand/mascot-icon.png',
+    tag: data.messageId ?? 'sembang-message',
+    renotify: true,
+    data: { url: data.url ?? '/sembang' },
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url ?? '/sembang';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(url) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
+});

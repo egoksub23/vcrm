@@ -38,6 +38,10 @@ export interface SembangMessageRow {
   // Migration 233. 'user' for human posts, 'bot' for AI replies.
   // Possibly-absent so this compiles against a pre-233 database too.
   sender_type?: 'user' | 'bot'
+  // Migration 234. Bot card attachments; null for ordinary messages.
+  cards?: unknown
+  // Migration 234. Display name for webhook/bot messages (author_id = null).
+  bot_name?: string | null
 }
 
 interface AttachmentRow {
@@ -288,9 +292,9 @@ export async function hydrateMessages(
     const isTopLevel = !row.parent_message_id
     const summary = isTopLevel ? threadSummaryByParent.get(row.id) : undefined
     const parent = row.parent_message_id ? refById.get(row.parent_message_id) : undefined
-    const parentAuthorProfile = parent ? profileByUser.get(parent.author_id) : undefined
+    const parentAuthorProfile = parent?.author_id ? profileByUser.get(parent.author_id) : undefined
     const quoted = row.quoted_message_id ? refById.get(row.quoted_message_id) : undefined
-    const quotedAuthorProfile = quoted ? profileByUser.get(quoted.author_id) : undefined
+    const quotedAuthorProfile = quoted?.author_id ? profileByUser.get(quoted.author_id) : undefined
     return {
       id: row.id,
       channelId: row.channel_id,
@@ -324,6 +328,9 @@ export async function hydrateMessages(
       quotedPreview: quoted
         ? { id: quoted.id, body: quoted.body, authorName: quotedAuthorProfile?.full_name ?? '' }
         : null,
+      // Migration 234.
+      cards: (row.cards as import('@/types').SembangBotCard[] | null | undefined) ?? null,
+      botName: row.bot_name ?? null,
     }
   })
 }

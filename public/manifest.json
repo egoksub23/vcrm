@@ -15,6 +15,12 @@
       "purpose": "any"
     },
     {
+      "src": "/brand/mascot-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
       "src": "/icon.png",
       "sizes": "any",
       "type": "image/png",

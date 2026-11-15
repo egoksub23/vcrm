@@ -168,6 +168,10 @@ export function MessageRow({
   };
 
   const isBot = message.senderType === "bot";
+  const isWebhook = !message.author && !!message.botName;
+  const authorDisplayName = isWebhook
+    ? message.botName!
+    : (message.author?.fullName ?? t("unknownAuthor"));
 
   return (
     <div className={cn("group flex gap-2.5 px-3 py-1.5 sm:px-4", isBot ? "bg-muted/30 hover:bg-muted/50" : "hover:bg-muted/30")}>
@@ -190,8 +194,13 @@ export function MessageRow({
         )}
         <div className="flex items-baseline gap-2">
           <span className="truncate text-sm font-semibold text-foreground">
-            {message.author?.fullName ?? t("unknownAuthor")}
+            {authorDisplayName}
           </span>
+          {isWebhook && (
+            <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              App
+            </span>
+          )}
           {message.senderType === "bot" && (
             <span className="shrink-0 rounded bg-primary/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
               AI
@@ -249,6 +258,9 @@ export function MessageRow({
                 {message.attachments.map((a) =>
                   a.mimeType?.startsWith("audio/") ? (
                     <audio key={a.id} src={a.url} controls className="h-10 max-w-72" />
+                  ) : a.mimeType?.startsWith("video/") ? (
+                    // eslint-disable-next-line jsx-a11y/media-has-caption -- inline preview; captions not required
+                    <video key={a.id} src={a.url} controls className="max-h-72 max-w-72 rounded-lg border border-border" />
                   ) : a.mimeType?.startsWith("image/") ? (
                     <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="block w-fit">
                       {/* eslint-disable-next-line @next/next/no-img-element -- a signed Storage URL, not an optimizable static asset */}
@@ -291,6 +303,52 @@ export function MessageRow({
                 className="mt-1.5"
               />
             ) : null}
+            {message.cards && message.cards.length > 0 && (
+              <div className="mt-2 flex flex-col gap-2">
+                {message.cards.map((card, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "rounded-lg border border-border bg-muted/40 overflow-hidden text-sm",
+                      card.color === "green"  && "border-l-4 border-l-green-500",
+                      card.color === "red"    && "border-l-4 border-l-red-500",
+                      card.color === "yellow" && "border-l-4 border-l-yellow-500",
+                      card.color === "blue"   && "border-l-4 border-l-blue-500",
+                    )}
+                  >
+                    <div className="px-3 py-2.5 space-y-1">
+                      {card.pretext && (
+                        <p className="text-xs text-muted-foreground">{card.pretext}</p>
+                      )}
+                      {card.title && (
+                        card.title_url ? (
+                          <a href={card.title_url} target="_blank" rel="noopener noreferrer"
+                             className="font-semibold text-primary hover:underline">
+                            {card.title}
+                          </a>
+                        ) : (
+                          <p className="font-semibold">{card.title}</p>
+                        )
+                      )}
+                      {card.text && <p className="text-muted-foreground">{card.text}</p>}
+                      {card.fields && card.fields.length > 0 && (
+                        <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
+                          {card.fields.map((f, fi) => (
+                            <div key={fi} className={cn(f.short === false && "col-span-2")}>
+                              <span className="text-xs font-medium text-foreground">{f.title}</span>
+                              <p className="text-xs text-muted-foreground">{f.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {card.footer && (
+                        <p className="text-[11px] text-muted-foreground/70 mt-1">{card.footer}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <ReactionRow reactions={message.reactions} onReact={(emoji) => onReact(message.id, emoji)} />
             {showThread && (message.replyCount ?? 0) > 0 && (
               <button
