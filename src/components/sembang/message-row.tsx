@@ -167,8 +167,10 @@ export function MessageRow({
     if (updated) setEditing(false);
   };
 
+  const isBot = message.senderType === "bot";
+
   return (
-    <div className="group flex gap-2.5 px-3 py-1.5 hover:bg-muted/30 sm:px-4">
+    <div className={cn("group flex gap-2.5 px-3 py-1.5 sm:px-4", isBot ? "bg-muted/30 hover:bg-muted/50" : "hover:bg-muted/30")}>
       <PersonAvatar name={message.author?.fullName} avatarUrl={message.author?.avatarUrl} size="md" className="mt-0.5" />
       <div className="min-w-0 flex-1">
         {message.parentPreview && onOpenParentThread && (
@@ -190,6 +192,11 @@ export function MessageRow({
           <span className="truncate text-sm font-semibold text-foreground">
             {message.author?.fullName ?? t("unknownAuthor")}
           </span>
+          {message.senderType === "bot" && (
+            <span className="shrink-0 rounded bg-primary/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+              AI
+            </span>
+          )}
           <span className="shrink-0 text-[11px] text-muted-foreground">{format(new Date(message.createdAt), "HH:mm")}</span>
           {message.editedAt && !isDeleted && (
             <span className="shrink-0 text-[11px] text-muted-foreground">{t("edited")}</span>
