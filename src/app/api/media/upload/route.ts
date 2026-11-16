@@ -45,6 +45,13 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Missing file or bucket', { status: 400 })
   }
 
+  // 260 MB hard cap (above the 250 MB sembang-files limit) — guard against memory
+  // exhaustion if a client bypasses the per-caller check.
+  const MAX_UPLOAD_BYTES = 260 * 1024 * 1024
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return new NextResponse('File too large', { status: 413 })
+  }
+
   const admin = createAdminPgDb()
   const { data: profile } = await admin
     .from('profiles')
