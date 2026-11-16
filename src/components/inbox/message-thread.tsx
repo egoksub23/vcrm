@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { playChime } from "@/lib/sounds/chime";
 import { useAccountSse, type SsePayload } from "@/hooks/use-account-sse";
 import { usePresence } from "@/hooks/use-presence";
 import { useTeams } from "@/hooks/use-teams";
@@ -516,7 +517,9 @@ export function MessageThread({
       ? (payload: SsePayload) => {
           if (payload.eventType !== "INSERT") return;
           if ((payload.new as { conversation_id?: string }).conversation_id !== conversationId) return;
-          onNewMessageRef.current(payload.new as Message);
+          const incoming = payload.new as Message;
+          if (incoming.sender_type === "customer") playChime();
+          onNewMessageRef.current(incoming);
         }
       : undefined,
     !!conversationId,

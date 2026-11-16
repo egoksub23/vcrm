@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { playChime } from "@/lib/sounds/chime";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -417,6 +418,7 @@ export function ChannelThread({ channelId, onBack, onChannelRead, onChannelArchi
         // only refetch for messages that arrived from someone else (the
         // realtime payload has no author/attachments join to render with).
         if (row.author_id === user?.id) return;
+        playChime();
         void fetchMessages()
           .then(mergeMessages)
           .catch(() => {});
