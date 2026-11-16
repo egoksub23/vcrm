@@ -68,5 +68,5 @@ AS $$
   ORDER BY COALESCE(lm.created_at, c.created_at) DESC;
 $$;
 
-ALTER FUNCTION public.list_sembang_channels_for_current_user(UUID) OWNER TO postgres;
+ALTER FUNCTION public.list_sembang_channels_for_current_user(UUID) OWNER TO wacrm;
 GRANT EXECUTE ON FUNCTION public.list_sembang_channels_for_current_user(UUID) TO authenticated;
