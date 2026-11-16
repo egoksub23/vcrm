@@ -3523,5 +3523,11 @@
     "emptyBody": "Los comentarios de tus publicaciones de Facebook, Instagram y TikTok aparecen aquí cuando esos canales estén conectados en Ajustes → Canales.",
     "loadMore": "Cargar más",
     "selectPrompt": "Selecciona un comentario para ver la publicación, la conversación y responder."
+  },
+  "Sembang": {
+    "thread": {
+      "savedOffline": "Estás sin conexión — el mensaje se guardó y se enviará cuando te reconectes.",
+      "offlineFlushed": "{count, plural, =1 {1 mensaje en cola enviado} other {# mensajes en cola enviados}}"
+    }
   }
 }
