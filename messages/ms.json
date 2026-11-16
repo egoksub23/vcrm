@@ -2880,14 +2880,14 @@
       "toastUploadFailed": "Muat naik gagal."
     },
     "roles": {
-      "admin": "Admin",
+      "admin": "Admin Ruang Kerja",
       "adminHint": "Urus ahli + semua perkara",
       "agent": "Ejen",
       "agentHint": "Guna ciri; tiada tetapan",
       "viewer": "Penonton",
       "viewerHint": "Baca sahaja di seluruh aplikasi",
-      "owner": "Pemilik",
-      "ownerHint": "Kawalan penuh ke atas akaun dan pengebilan"
+      "owner": "Pemilik Ruang Kerja",
+      "ownerHint": "Kawalan penuh ke atas ruang kerja dan pengebilan"
     },
     "whatsapp": {
       "title": "Sambungan WhatsApp",

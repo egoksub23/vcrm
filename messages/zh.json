@@ -2880,14 +2880,14 @@
       "toastUploadFailed": "上传失败。"
     },
     "roles": {
-      "admin": "管理员",
+      "admin": "工作区管理员",
       "adminHint": "管理成员及所有功能",
       "agent": "客服",
       "agentHint": "可使用功能，无设置权限",
       "viewer": "查看者",
       "viewerHint": "全应用只读",
-      "owner": "所有者",
-      "ownerHint": "对账户和计费拥有完全控制权"
+      "owner": "工作区所有者",
+      "ownerHint": "对工作区和计费拥有完全控制权"
     },
     "whatsapp": {
       "title": "WhatsApp 连接",

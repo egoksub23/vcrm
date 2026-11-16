@@ -2887,14 +2887,14 @@
       "toastUploadFailed": "Upload failed."
     },
     "roles": {
-      "admin": "Admin",
+      "admin": "Workspace Admin",
       "adminHint": "Manage members + everything",
       "agent": "Agent",
       "agentHint": "Use features; no settings",
       "viewer": "Viewer",
       "viewerHint": "Read-only across the app",
-      "owner": "Owner",
-      "ownerHint": "Full control over account and billing"
+      "owner": "Workspace Owner",
+      "ownerHint": "Full control over workspace and billing"
     },
     "whatsapp": {
       "title": "WhatsApp connection",

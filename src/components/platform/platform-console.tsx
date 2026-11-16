@@ -77,9 +77,26 @@ interface CreateDraft {
   ownerName: string;
   plan: string;
   seats: string;
+  features: Record<string, boolean>;
 }
 
-const EMPTY_CREATE: CreateDraft = { companyName: "", ownerEmail: "", ownerName: "", plan: "", seats: "" };
+const EMPTY_CREATE: CreateDraft = {
+  companyName: "",
+  ownerEmail: "",
+  ownerName: "",
+  plan: "",
+  seats: "",
+  features: {
+    incidents: false,
+    jira: false,
+    vircle_chat: false,
+    sign: false,
+    sign_merchant: false,
+    kyc: false,
+    compliance: false,
+    share: true,
+  },
+};
 
 async function errorFrom(res: Response, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -217,6 +234,7 @@ export function PlatformConsole() {
           ownerName: create.ownerName || undefined,
           plan: create.plan || undefined,
           seats: create.seats ? Number(create.seats) : undefined,
+          features: create.features,
         }),
       });
       if (!res.ok) throw new Error(await errorFrom(res, t("createFailed")));
@@ -595,6 +613,20 @@ export function PlatformConsole() {
                 <div className="space-y-1.5">
                   <Label htmlFor="pc-seats">{t("fieldSeats")}</Label>
                   <Input id="pc-seats" type="number" min={1} placeholder={t("unlimited")} value={create.seats} onChange={(e) => setCreate({ ...create, seats: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">{t("featuresTitle")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {PLATFORM_FEATURES.map((f) => (
+                    <div key={f} className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5">
+                      <p className="text-sm text-foreground">{t(`feature_${f}`)}</p>
+                      <Switch
+                        checked={create.features[f] ?? false}
+                        onCheckedChange={(v) => setCreate({ ...create, features: { ...create.features, [f]: v } })}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

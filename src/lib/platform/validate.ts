@@ -22,6 +22,7 @@ export interface CreateTenantInput {
   ownerName: string | null;
   plan: string | null;
   seats: number | null;
+  features: Record<string, boolean> | null;
 }
 
 export function parseCreateTenant(body: unknown): Result<CreateTenantInput> {
@@ -63,7 +64,23 @@ export function parseCreateTenant(body: unknown): Result<CreateTenantInput> {
     seats = n;
   }
 
-  return { ok: true, value: { companyName, ownerEmail, ownerName, plan, seats } };
+  let features: Record<string, boolean> | null = null;
+  if (body.features !== undefined && body.features !== null) {
+    if (!isObject(body.features)) return { ok: false, error: "'features' must be an object" };
+    const out: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(body.features)) {
+      if (!(PLATFORM_FEATURES as readonly string[]).includes(k)) {
+        return { ok: false, error: `Unknown feature '${k}'` };
+      }
+      if (typeof v !== "boolean") {
+        return { ok: false, error: `Feature '${k}' must be true or false` };
+      }
+      out[k] = v;
+    }
+    features = out;
+  }
+
+  return { ok: true, value: { companyName, ownerEmail, ownerName, plan, seats, features } };
 }
 
 export interface UpdateTenantInput {

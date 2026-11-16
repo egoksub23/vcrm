@@ -1937,14 +1937,14 @@
       "toastUploadFailed": "Error al subir."
     },
     "roles": {
-      "admin": "Administrador",
+      "admin": "Admin del Espacio de Trabajo",
       "adminHint": "Administra miembros + todo lo demás",
       "agent": "Agente",
       "agentHint": "Usa las funciones; sin configuración",
       "viewer": "Observador",
       "viewerHint": "Solo lectura en toda la app",
-      "owner": "Propietario",
-      "ownerHint": "Control total de la cuenta y la facturación"
+      "owner": "Propietario del Espacio de Trabajo",
+      "ownerHint": "Control total del espacio de trabajo y la facturación"
     },
     "whatsapp": {
       "title": "Conexión con WhatsApp",

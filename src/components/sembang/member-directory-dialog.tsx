@@ -9,6 +9,8 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
+import { ROLE_META } from "@/components/settings/role-meta";
+import type { AccountRole } from "@/lib/auth/roles";
 import {
   Dialog,
   DialogContent,
@@ -77,8 +79,8 @@ export function MemberDirectoryDialog({ open, onOpenChange }: MemberDirectoryDia
                 <div key={m.userId} className="flex items-center gap-2 rounded-md px-2 py-1.5">
                   <PersonAvatar name={m.fullName} avatarUrl={m.avatarUrl} size="sm" />
                   <span className="min-w-0 flex-1 truncate text-sm text-foreground">{m.fullName}</span>
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground capitalize">
-                    {m.accountRole}
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {ROLE_META[m.accountRole as AccountRole]?.label ?? m.accountRole}
                   </span>
                 </div>
               ))

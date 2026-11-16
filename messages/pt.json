@@ -1937,14 +1937,14 @@
       "toastUploadFailed": "Falha no upload."
     },
     "roles": {
-      "admin": "Administrador",
+      "admin": "Admin do Espaço de Trabalho",
       "adminHint": "Gerencia membros + tudo o mais",
       "agent": "Agente",
       "agentHint": "Usa os recursos; sem configurações",
       "viewer": "Visualizador",
       "viewerHint": "Somente leitura em todo o app",
-      "owner": "Proprietário",
-      "ownerHint": "Controle total da conta e do faturamento"
+      "owner": "Proprietário do Espaço de Trabalho",
+      "ownerHint": "Controle total do espaço de trabalho e do faturamento"
     },
     "whatsapp": {
       "title": "Conexão com o WhatsApp",

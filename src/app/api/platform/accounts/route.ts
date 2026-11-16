@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
     const parsed = parseCreateTenant(await request.json().catch(() => null));
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-    const { companyName, ownerEmail, ownerName, plan, seats } = parsed.value;
+    const { companyName, ownerEmail, ownerName, plan, seats, features } = parsed.value;
 
     const admin = createAdminPgDb();
     const sql = getPool();
@@ -138,12 +138,13 @@ export async function POST(request: Request) {
     const platformPatch: Record<string, unknown> = {};
     if (plan) platformPatch.plan = plan;
     if (seats !== null) platformPatch.limits = { seats };
+    if (features && Object.keys(features).length > 0) platformPatch.features = features;
     if (Object.keys(platformPatch).length > 0) {
       const { error: platformError } = await admin
         .from("account_platform")
         .update(platformPatch)
         .eq("account_id", accountId);
-      if (platformError) console.error("[POST /api/platform/accounts] plan/limits failed:", platformError);
+      if (platformError) console.error("[POST /api/platform/accounts] plan/limits/features failed:", platformError);
     }
 
     // One-time "set your password" link — generate a recovery token and store
