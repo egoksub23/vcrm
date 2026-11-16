@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentAccount, toErrorResponse } from "@/lib/auth/account";
 import { loadMetrics, loadConversationsSeries, loadPipelineDonut, loadResponseTime, loadActivity } from "@/lib/dashboard/queries";
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 export async function GET(request: Request) {
   try {
     const ctx = await getCurrentAccount();
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("query") ?? "metrics";
-    const db = ctx.supabase as unknown as SupabaseClient;
+    const db = ctx.supabase;
 
     switch (query) {
       case "metrics": {

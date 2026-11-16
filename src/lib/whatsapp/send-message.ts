@@ -10,7 +10,7 @@
 //   4. persists the message + updates the conversation,
 //   5. pauses any active Flow run for the contact (agent stepped in).
 //
-// It is transport-agnostic: it takes a `SupabaseClient` and an
+// It is transport-agnostic: it takes a `PgDb` and an
 // `accountId` and throws `SendMessageError` on failure. The callers
 // own auth, rate-limiting, body parsing, and mapping the error to
 // their respective response shapes (internal `{ error }` vs the v1
@@ -19,7 +19,6 @@
 // without duplicating ~250 lines of Meta plumbing.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PgDb } from '@/lib/postgres/db';
 import { assertCanSendMessage, UsageLimitError } from '@/lib/platform/usage';
 

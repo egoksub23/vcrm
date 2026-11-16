@@ -20,28 +20,6 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import { SignJWT } from "jose";
-
-// ── Session JWT signing key ──────────────────────────────────
-// JWT_SECRET is the symmetric key used to sign all app JWTs (session tokens,
-// visitor anon tokens, password-reset cookies). Set it in .env.local.
-
-const JWT_SIGNING_KEY = new TextEncoder().encode(
-  process.env.JWT_SECRET!,
-);
-
-async function makeSupabaseJwt(userId: string, email: string): Promise<string> {
-  return new SignJWT({
-    sub: userId,
-    role: "authenticated",
-    email,
-    aud: "authenticated",
-  })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("60m")
-    .sign(JWT_SIGNING_KEY);
-}
 
 // ── Credentials: bcrypt against auth.users.encrypted_password ───────────────
 
@@ -183,20 +161,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async session({ session, token }) {
-      // Attach the user UUID to the session so server code can read it.
       if (token.sub) session.user.id = token.sub;
-
-      // Create a fresh Supabase-compatible JWT for this session window.
-      // Runs server-side only — the result is exposed to client JS via
-      // useSession() so the browser Supabase client can pass it as the
-      // Authorization header.
-      if (token.sub && session.user.email) {
-        session.supabaseAccessToken = await makeSupabaseJwt(
-          token.sub,
-          session.user.email,
-        );
-      }
-
       return session;
     },
   },

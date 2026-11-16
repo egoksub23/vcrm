@@ -11,17 +11,13 @@ import type { StagedKnowledgeAttachment } from '@/lib/knowledge-types'
 // so the routes stay thin and the editor and the server agree.
 // ============================================================
 
-/** The images policy for an account.
- *  Null when neither a Supabase URL nor a site URL is configured. */
+/** The images policy for an account. Null when NEXT_PUBLIC_SITE_URL is not configured. */
 export function kbImagePolicy(accountId: string): KbImagePolicy | null {
   const fsBase = process.env.NEXT_PUBLIC_SITE_URL
-  const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!fsBase && !supabaseBase) return null
+  if (!fsBase) return null
   return {
     accountId,
-    // Keep legacy Supabase URLs recognisable when the env var is still set;
-    // fall back to the site URL so the policy works without it.
-    publicBaseUrl: supabaseBase ?? fsBase!,
+    publicBaseUrl: fsBase,
     fsBaseUrl: fsBase,
   }
 }

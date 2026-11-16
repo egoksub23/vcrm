@@ -9,7 +9,6 @@
 // For admin queries (userId null) the operation runs on the pool user directly
 // with no role switching, bypassing RLS exactly as the service-role key did.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Sql } from 'postgres'
 import { getPool } from './client'
 import { PgQueryBuilder } from './builder'
@@ -105,6 +104,3 @@ export function createAdminPgDb(): PgDb {
   return new PgDb(getPool(), 'public', null)
 }
 
-// Cast helper so callers can do `createPgDb(id) as PgAsSupabase` without
-// repeating the ugly cast everywhere.
-export type PgAsSupabase = SupabaseClient

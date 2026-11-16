@@ -9,8 +9,6 @@
 // Meta-hosted link, a proxy path) comes back untouched.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
-
 import { appStorage } from '@/lib/storage/provider'
 import {
   HANDOFF_URL_TTL_SECONDS,
@@ -25,7 +23,7 @@ import {
  * returns null (never sign it); any other URL is returned as given.
  */
 export async function signMediaUrl(
-  _admin: Pick<SupabaseClient, 'storage'> | null | undefined,
+  _admin: unknown,
   url: string,
   accountId: string,
   ttlSeconds: number = HANDOFF_URL_TTL_SECONDS,
@@ -40,7 +38,7 @@ export async function signMediaUrl(
 
 /** `signMediaUrl` for a list, in one Storage round trip per private file (order and nulls kept). */
 export async function signMediaUrls(
-  _admin: Pick<SupabaseClient, 'storage'> | null | undefined,
+  _admin: unknown,
   urls: readonly string[],
   accountId: string,
   ttlSeconds: number = HANDOFF_URL_TTL_SECONDS,
@@ -54,7 +52,7 @@ export async function signMediaUrls(
  * the template header sample. Null for a URL outside the workspace's folder.
  */
 export async function downloadPrivateMedia(
-  _admin: Pick<SupabaseClient, 'storage'> | null | undefined,
+  _admin: unknown,
   url: string,
   accountId: string,
 ): Promise<Blob | null> {

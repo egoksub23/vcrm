@@ -41,7 +41,6 @@ import { type PgDb } from '@/lib/postgres/db'
  * the stub on (account_id, name, language).
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizeStatus } from './template-status-normalize'
 
 const TEMPLATE_WEBHOOK_FIELDS = new Set([
@@ -101,9 +100,6 @@ const PG_UNIQUE_VIOLATION = '23505'
  */
 export async function handleTemplateWebhookChange(
   change: TemplateWebhookChange,
-  // SupabaseClient typed loosely — the webhook route lazy-initialises
-  // the admin client and exposes it as `any`. Type as the generic
-  // SupabaseClient here so this module is testable in isolation.
   supabase: PgDb
 ): Promise<void> {
   switch (change.field) {

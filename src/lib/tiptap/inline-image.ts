@@ -21,26 +21,8 @@ import { PRIVATE_MEDIA_BUCKET, PUBLIC_MEDIA_BUCKET } from "@/lib/storage/media-u
 // (remote pictures, data: URLs, file: paths) is ignored, never inserted.
 // ============================================================
 
-/** Where this project's public files live (public-assets), legacy Supabase Storage form.
- *  Returns null when NEXT_PUBLIC_SUPABASE_URL is not set (filesystem-only deploy). */
-export function ownImagePrefix(): string | null {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!base) return null;
-  try {
-    return `${new URL(base).origin}/storage/v1/object/public/${PUBLIC_MEDIA_BUCKET}/`;
-  } catch {
-    return null;
-  }
-}
-
-/** The address those files had before they moved out of chat-media (migration 146). */
-function legacyImagePrefix(): string | null {
-  const prefix = ownImagePrefix();
-  return prefix ? prefix.replace(`/${PUBLIC_MEDIA_BUCKET}/`, `/${PRIVATE_MEDIA_BUCKET}/`) : null;
-}
-
 /** Where this project's public files live when served by the filesystem provider. */
-function ownFsImagePrefix(): string | null {
+export function ownImagePrefix(): string | null {
   const base = process.env.NEXT_PUBLIC_SITE_URL;
   if (!base) return null;
   try {
@@ -50,16 +32,11 @@ function ownFsImagePrefix(): string | null {
   }
 }
 
-/** True for a URL of one of this project's public files (Supabase Storage or filesystem). */
+/** True for a URL of one of this project's public files. */
 export function isOwnImageUrl(src: string | null | undefined): boolean {
   if (!src) return false;
-  const fsPrefix = ownFsImagePrefix();
-  if (fsPrefix && src.startsWith(fsPrefix)) return true;
   const prefix = ownImagePrefix();
-  if (prefix && src.startsWith(prefix)) return true;
-  const legacy = legacyImagePrefix();
-  if (legacy && src.startsWith(legacy)) return true;
-  return false;
+  return !!(prefix && src.startsWith(prefix));
 }
 
 export interface InlineImageOptions {

@@ -68,30 +68,6 @@ export async function proxy(request: NextRequest) {
     response = NextResponse.next();
   }
 
-  // Forward the JWT in a non-HTTP-only cookie (sb-access-token) so any
-  // server-side code that still reads it for PostgREST-style role checks
-  // continues to work without changes.
-  //
-  // Exception: /reset-password uses sb-access-token as the recovery JWT
-  // set by /auth/confirm — never overwrite or delete it on that path.
-  const secure = process.env.NODE_ENV === "production";
-  const isResetPassword =
-    request.nextUrl.pathname.startsWith("/reset-password") ||
-    request.nextUrl.pathname === "/api/auth/reset-password";
-  if (!isResetPassword) {
-    if (session?.supabaseAccessToken) {
-      response.cookies.set("sb-access-token", session.supabaseAccessToken, {
-        httpOnly: false,
-        secure,
-        sameSite: "lax",
-        maxAge: 3600,
-        path: "/",
-      });
-    } else {
-      response.cookies.delete("sb-access-token");
-    }
-  }
-
   return response;
 }
 
