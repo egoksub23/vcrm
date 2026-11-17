@@ -10,9 +10,14 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1. Raise file size limit on the sembang-files storage bucket
 -- ─────────────────────────────────────────────────────────────────────────────
-UPDATE storage.buckets
-  SET file_size_limit = 262144000   -- 250 × 1024 × 1024 bytes
-  WHERE id = 'sembang-files';
+-- Only where Supabase storage exists: the Halo VPS keeps files on disk and has no storage schema.
+DO $ BEGIN
+  IF to_regclass('storage.buckets') IS NOT NULL THEN
+    UPDATE storage.buckets
+      SET file_size_limit = 262144000   -- 250 × 1024 × 1024 bytes
+      WHERE id = 'sembang-files';
+  END IF;
+END $;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. Web Push subscriptions
@@ -35,6 +40,7 @@ CREATE INDEX IF NOT EXISTS sembang_push_subs_user    ON public.sembang_push_subs
 ALTER TABLE public.sembang_push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Users manage only their own subscriptions
+DROP POLICY IF EXISTS sembang_push_own ON public.sembang_push_subscriptions;
 CREATE POLICY sembang_push_own ON public.sembang_push_subscriptions
   USING  (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid() AND public.has_capability(account_id, 'menu.sembang'));
@@ -60,6 +66,7 @@ CREATE INDEX IF NOT EXISTS sembang_webhooks_token   ON public.sembang_webhooks (
 ALTER TABLE public.sembang_webhooks ENABLE ROW LEVEL SECURITY;
 
 -- Channel members can read webhooks for channels they belong to
+DROP POLICY IF EXISTS sembang_webhooks_select ON public.sembang_webhooks;
 CREATE POLICY sembang_webhooks_select ON public.sembang_webhooks
   FOR SELECT USING (
     public.has_capability(account_id, 'menu.sembang')
@@ -67,6 +74,7 @@ CREATE POLICY sembang_webhooks_select ON public.sembang_webhooks
   );
 
 -- Channel members can create webhooks (they become the creator)
+DROP POLICY IF EXISTS sembang_webhooks_insert ON public.sembang_webhooks;
 CREATE POLICY sembang_webhooks_insert ON public.sembang_webhooks
   FOR INSERT WITH CHECK (
     created_by = auth.uid()
@@ -75,9 +83,11 @@ CREATE POLICY sembang_webhooks_insert ON public.sembang_webhooks
   );
 
 -- Only the creator can update or delete
+DROP POLICY IF EXISTS sembang_webhooks_update ON public.sembang_webhooks;
 CREATE POLICY sembang_webhooks_update ON public.sembang_webhooks
   FOR UPDATE USING (created_by = auth.uid()) WITH CHECK (created_by = auth.uid());
 
+DROP POLICY IF EXISTS sembang_webhooks_delete ON public.sembang_webhooks;
 CREATE POLICY sembang_webhooks_delete ON public.sembang_webhooks
   FOR DELETE USING (created_by = auth.uid());
 
