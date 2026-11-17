@@ -11,13 +11,13 @@
 -- 1. Raise file size limit on the sembang-files storage bucket
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Only where Supabase storage exists: the Halo VPS keeps files on disk and has no storage schema.
-DO $ BEGIN
+DO $$ BEGIN
   IF to_regclass('storage.buckets') IS NOT NULL THEN
     UPDATE storage.buckets
       SET file_size_limit = 262144000   -- 250 × 1024 × 1024 bytes
       WHERE id = 'sembang-files';
   END IF;
-END $;
+END $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. Web Push subscriptions
