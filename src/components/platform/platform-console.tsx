@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Building2, Copy, Download, LifeBuoy, Loader2, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { Building2, Download, LifeBuoy, Loader2, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,13 +26,9 @@ import { IncidentCatalogueCard } from "@/components/platform/incident-catalogue-
 import { IncidentStandardsCard } from "@/components/platform/incident-standards-card";
 import { Textarea } from "@/components/ui/textarea";
 import type { CronJobStatus } from "@/lib/cron/status";
-import { PLATFORM_FEATURES, isFeatureEnabled, parsePlatformRow } from "@/lib/platform/features";
 import { diagnosticRows, SUPPORT_SECTIONS, type SupportSection } from "@/lib/platform/support";
 import type { UsageMeter, UsageState } from "@/lib/platform/usage";
 
-/** The limits the console edits besides seats and the broadcast cap, all measured against usage (migration 152). */
-const USAGE_LIMIT_FIELDS = ["contacts", "messages_per_month", "ai_tokens_per_month", "storage_mb", "sign_documents_per_month"] as const;
-type UsageLimitField = (typeof USAGE_LIMIT_FIELDS)[number];
 
 interface SupportGrantRow {
   grant_id: string;
@@ -71,33 +68,6 @@ interface TenantRow {
   seed_ok?: boolean;
 }
 
-interface CreateDraft {
-  companyName: string;
-  ownerEmail: string;
-  ownerName: string;
-  plan: string;
-  seats: string;
-  features: Record<string, boolean>;
-}
-
-const EMPTY_CREATE: CreateDraft = {
-  companyName: "",
-  ownerEmail: "",
-  ownerName: "",
-  plan: "",
-  seats: "",
-  features: {
-    incidents: false,
-    jira: false,
-    vircle_chat: false,
-    sign: false,
-    sign_merchant: false,
-    kyc: false,
-    compliance: false,
-    share: true,
-  },
-};
-
 async function errorFrom(res: Response, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { error?: string } | null;
   return body?.error ?? fallback;
@@ -133,12 +103,9 @@ function UsageCell({ row, t }: { row: UsageRow | null; t: ReturnType<typeof useT
  */
 export function PlatformConsole() {
   const t = useTranslations("Platform");
+  const router = useRouter();
   const [rows, setRows] = useState<TenantRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [create, setCreate] = useState<CreateDraft | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [link, setLink] = useState<string | null>(null);
-  const [edit, setEdit] = useState<{ row: TenantRow; plan: string; seats: string; broadcastPerDay: string; usageLimits: Record<UsageLimitField, string>; features: Record<string, boolean> } | null>(null);
   const [usage, setUsage] = useState<Map<string, UsageRow> | null>(null);
   const [deletions, setDeletions] = useState<Map<string, DeletionRow>>(new Map());
   const [support, setSupport] = useState<Map<string, SupportGrantRow>>(new Map());
@@ -221,36 +188,6 @@ export function PlatformConsole() {
     };
   }, [rows]);
 
-  const submitCreate = async () => {
-    if (!create) return;
-    setCreating(true);
-    try {
-      const res = await fetch("/api/platform/accounts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyName: create.companyName,
-          ownerEmail: create.ownerEmail,
-          ownerName: create.ownerName || undefined,
-          plan: create.plan || undefined,
-          seats: create.seats ? Number(create.seats) : undefined,
-          features: create.features,
-        }),
-      });
-      if (!res.ok) throw new Error(await errorFrom(res, t("createFailed")));
-      const body = (await res.json()) as { emailed: boolean; setPasswordUrl?: string; warning?: string };
-      setCreate(null);
-      if (body.setPasswordUrl) setLink(body.setPasswordUrl);
-      else if (body.warning) toast.warning(body.warning);
-      else toast.success(t("createdEmailed", { email: create.ownerEmail }));
-      await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("createFailed"));
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const patch = async (id: string, body: Record<string, unknown>, ok: string) => {
     setBusy(true);
     try {
@@ -325,32 +262,6 @@ export function PlatformConsole() {
     }
   };
 
-  const saveEdit = async () => {
-    if (!edit) return;
-    const seats = edit.seats.trim();
-    const broadcastPerDay = edit.broadcastPerDay.trim();
-    const platform = parsePlatformRow({ features: edit.row.features });
-    const features: Record<string, boolean | null> = {};
-    for (const f of PLATFORM_FEATURES) {
-      const next = edit.features[f] ?? isFeatureEnabled(platform, f);
-      features[f] = next;
-    }
-    const ok = await patch(
-      edit.row.id,
-      {
-        plan: edit.plan.trim() || edit.row.plan,
-        limits: {
-          seats: seats ? Number(seats) : null,
-          broadcast_per_day: broadcastPerDay ? Number(broadcastPerDay) : null,
-          ...Object.fromEntries(USAGE_LIMIT_FIELDS.map((k) => [k, edit.usageLimits[k].trim() ? Number(edit.usageLimits[k]) : null])),
-        },
-        features,
-      },
-      t("saved"),
-    );
-    if (ok) setEdit(null);
-  };
-
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -361,7 +272,7 @@ export function PlatformConsole() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
-        <Button onClick={() => setCreate(EMPTY_CREATE)}>
+        <Button onClick={() => router.push("/platform/accounts/new")}>
           <Plus className="mr-2 h-4 w-4" />
           {t("newCustomer")}
         </Button>
@@ -505,20 +416,7 @@ export function PlatformConsole() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() =>
-                              setEdit({
-                                row: r,
-                                plan: r.plan,
-                                seats: typeof r.limits?.seats === "number" ? String(r.limits.seats) : "",
-                                broadcastPerDay: typeof r.limits?.broadcast_per_day === "number" ? String(r.limits.broadcast_per_day) : "",
-                                usageLimits: Object.fromEntries(
-                                  USAGE_LIMIT_FIELDS.map((k) => [k, typeof r.limits?.[k] === "number" ? String(r.limits[k]) : ""]),
-                                ) as Record<UsageLimitField, string>,
-                                features: Object.fromEntries(
-                                  PLATFORM_FEATURES.map((f) => [f, isFeatureEnabled(parsePlatformRow({ features: r.features }), f)]),
-                                ),
-                              })
-                            }
+                            onClick={() => router.push(`/platform/accounts/${r.id}/edit`)}
                           >
                             <Pencil className="mr-1 h-3.5 w-3.5" />
                             {t("edit")}
@@ -584,156 +482,7 @@ export function PlatformConsole() {
         </CardContent>
       </Card>
 
-      {/* Create */}
-      <Dialog open={create !== null} onOpenChange={(o) => !o && !creating && setCreate(null)}>
-        <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("createTitle")}</DialogTitle>
-            <DialogDescription className="text-muted-foreground">{t("createDesc")}</DialogDescription>
-          </DialogHeader>
-          {create && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="pc-company">{t("fieldCompany")}</Label>
-                <Input id="pc-company" value={create.companyName} onChange={(e) => setCreate({ ...create, companyName: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pc-email">{t("fieldOwnerEmail")}</Label>
-                <Input id="pc-email" type="email" value={create.ownerEmail} onChange={(e) => setCreate({ ...create, ownerEmail: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pc-name">{t("fieldOwnerName")}</Label>
-                <Input id="pc-name" value={create.ownerName} onChange={(e) => setCreate({ ...create, ownerName: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="pc-plan">{t("fieldPlan")}</Label>
-                  <Input id="pc-plan" placeholder="standard" value={create.plan} onChange={(e) => setCreate({ ...create, plan: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="pc-seats">{t("fieldSeats")}</Label>
-                  <Input id="pc-seats" type="number" min={1} placeholder={t("unlimited")} value={create.seats} onChange={(e) => setCreate({ ...create, seats: e.target.value })} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">{t("featuresTitle")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {PLATFORM_FEATURES.map((f) => (
-                    <div key={f} className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5">
-                      <p className="text-sm text-foreground">{t(`feature_${f}`)}</p>
-                      <Switch
-                        checked={create.features[f] ?? false}
-                        onCheckedChange={(v) => setCreate({ ...create, features: { ...create.features, [f]: v } })}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" disabled={creating} onClick={() => setCreate(null)}>{t("cancel")}</Button>
-            <Button disabled={creating || !create?.companyName.trim() || !create?.ownerEmail.trim()} onClick={() => void submitCreate()}>
-              {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("createSubmit")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* One-time link, shown only when no email provider is configured */}
-      <Dialog open={link !== null} onOpenChange={(o) => !o && setLink(null)}>
-        <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t("linkTitle")}</DialogTitle>
-            <DialogDescription className="text-muted-foreground">{t("linkDesc")}</DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center gap-2">
-            <Input readOnly value={link ?? ""} onFocus={(e) => e.currentTarget.select()} />
-            <Button
-              variant="outline"
-              onClick={() => {
-                void navigator.clipboard?.writeText(link ?? "");
-                toast.success(t("copied"));
-              }}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setLink(null)}>{t("done")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit */}
-      <Dialog open={edit !== null} onOpenChange={(o) => !o && !busy && setEdit(null)}>
-        <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t("editTitle", { name: edit?.row.name ?? "" })}</DialogTitle>
-            <DialogDescription className="text-muted-foreground">{t("editDesc")}</DialogDescription>
-          </DialogHeader>
-          {edit && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="pe-plan">{t("fieldPlan")}</Label>
-                  <Input id="pe-plan" value={edit.plan} onChange={(e) => setEdit({ ...edit, plan: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="pe-seats">{t("fieldSeats")}</Label>
-                  <Input id="pe-seats" type="number" min={1} placeholder={t("unlimited")} value={edit.seats} onChange={(e) => setEdit({ ...edit, seats: e.target.value })} />
-                </div>
-                <div className="col-span-2 space-y-1.5">
-                  <Label htmlFor="pe-broadcast">{t("fieldBroadcastPerDay")}</Label>
-                  <Input id="pe-broadcast" type="number" min={1} placeholder={t("unlimited")} value={edit.broadcastPerDay} onChange={(e) => setEdit({ ...edit, broadcastPerDay: e.target.value })} />
-                  <p className="text-xs text-muted-foreground">{t("fieldBroadcastPerDayHint")}</p>
-                </div>
-                {USAGE_LIMIT_FIELDS.map((k) => (
-                  <div key={k} className="space-y-1.5">
-                    <Label htmlFor={`pe-${k}`}>{t(`meter_${k}`)}</Label>
-                    <Input
-                      id={`pe-${k}`}
-                      type="number"
-                      min={1}
-                      placeholder={t("unlimited")}
-                      value={edit.usageLimits[k]}
-                      onChange={(e) => setEdit({ ...edit, usageLimits: { ...edit.usageLimits, [k]: e.target.value } })}
-                    />
-                  </div>
-                ))}
-                <p className="col-span-2 text-xs text-muted-foreground">{t("fieldUsageLimitsHint")}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">{t("featuresTitle")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                {PLATFORM_FEATURES.map((f) => (
-                  <div key={f} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-                    <div>
-                      <p className="text-sm text-foreground">{t(`feature_${f}`)}</p>
-                      <p className="text-xs text-muted-foreground">{t(`feature_${f}_desc`)}</p>
-                    </div>
-                    <Switch
-                      checked={edit.features[f] ?? true}
-                      onCheckedChange={(v) => setEdit({ ...edit, features: { ...edit.features, [f]: v } })}
-                    />
-                  </div>
-                ))}
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" disabled={busy} onClick={() => setEdit(null)}>{t("cancel")}</Button>
-            <Button disabled={busy} onClick={() => void saveEdit()}>
-              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Suspend */}
+      {/* Support view */}
       <Dialog open={view !== null} onOpenChange={(o) => !o && setView(null)}>
         <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-2xl">
           <DialogHeader>

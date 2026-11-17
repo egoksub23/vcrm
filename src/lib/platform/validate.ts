@@ -16,10 +16,14 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+const MAX_ADMIN_EMAILS = 10;
+
 export interface CreateTenantInput {
   companyName: string;
+  legalName: string | null;
   ownerEmail: string;
   ownerName: string | null;
+  adminEmails: string[];
   plan: string | null;
   seats: number | null;
   features: Record<string, boolean> | null;
@@ -31,6 +35,14 @@ export function parseCreateTenant(body: unknown): Result<CreateTenantInput> {
   const companyName = typeof body.companyName === "string" ? body.companyName.trim() : "";
   if (!companyName || companyName.length > MAX_NAME) {
     return { ok: false, error: `'companyName' is required (max ${MAX_NAME} characters)` };
+  }
+
+  let legalName: string | null = null;
+  if (body.legalName !== undefined && body.legalName !== null && body.legalName !== "") {
+    if (typeof body.legalName !== "string" || body.legalName.trim().length > MAX_NAME) {
+      return { ok: false, error: `'legalName' must be at most ${MAX_NAME} characters` };
+    }
+    legalName = body.legalName.trim() || null;
   }
 
   const ownerEmail =
@@ -45,6 +57,28 @@ export function parseCreateTenant(body: unknown): Result<CreateTenantInput> {
       return { ok: false, error: `'ownerName' must be at most ${MAX_NAME} characters` };
     }
     ownerName = body.ownerName.trim() || null;
+  }
+
+  // Additional admin emails (comma or newline separated string, or array)
+  const adminEmails: string[] = [];
+  const rawAdmins = body.adminEmails;
+  if (rawAdmins !== undefined && rawAdmins !== null && rawAdmins !== "") {
+    const list = Array.isArray(rawAdmins)
+      ? (rawAdmins as unknown[]).map((e) => String(e))
+      : typeof rawAdmins === "string"
+        ? rawAdmins.split(/[\n,]+/)
+        : [];
+    for (const raw of list) {
+      const e = raw.trim().toLowerCase();
+      if (!e) continue;
+      if (!EMAIL_RE.test(e)) return { ok: false, error: `'${e}' is not a valid email address` };
+      if (e === ownerEmail) continue; // skip duplicate of owner
+      if (adminEmails.includes(e)) continue;
+      adminEmails.push(e);
+    }
+    if (adminEmails.length > MAX_ADMIN_EMAILS) {
+      return { ok: false, error: `At most ${MAX_ADMIN_EMAILS} additional admin emails are allowed` };
+    }
   }
 
   let plan: string | null = null;
@@ -80,12 +114,14 @@ export function parseCreateTenant(body: unknown): Result<CreateTenantInput> {
     features = out;
   }
 
-  return { ok: true, value: { companyName, ownerEmail, ownerName, plan, seats, features } };
+  return { ok: true, value: { companyName, legalName, ownerEmail, ownerName, adminEmails, plan, seats, features } };
 }
 
 export interface UpdateTenantInput {
   status?: "active" | "suspended";
   reason?: string | null;
+  name?: string;
+  legalName?: string | null;
   plan?: string;
   /** A key set to null removes that limit. */
   limits?: Record<string, number | null>;
@@ -130,6 +166,21 @@ export function parseUpdateTenant(body: unknown): Result<UpdateTenantInput> {
       return { ok: false, error: `'reason' must be at most ${MAX_REASON} characters` };
     }
     out.reason = body.reason.trim() || null;
+  }
+  if (body.name !== undefined) {
+    if (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > MAX_NAME) {
+      return { ok: false, error: `'name' must be 1-${MAX_NAME} characters` };
+    }
+    out.name = body.name.trim();
+  }
+  if (body.legalName !== undefined) {
+    if (body.legalName === null || body.legalName === "") {
+      out.legalName = null;
+    } else if (typeof body.legalName !== "string" || body.legalName.trim().length > MAX_NAME) {
+      return { ok: false, error: `'legalName' must be at most ${MAX_NAME} characters` };
+    } else {
+      out.legalName = body.legalName.trim() || null;
+    }
   }
   if (body.plan !== undefined) {
     if (typeof body.plan !== "string" || !body.plan.trim() || body.plan.trim().length > MAX_PLAN) {

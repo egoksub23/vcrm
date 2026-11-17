@@ -13,6 +13,7 @@
 import { NextResponse } from "next/server";
 
 import { toErrorResponse } from "@/lib/auth/account";
+import { createAdminPgDb } from "@/lib/postgres/db";
 import { requirePlatformAdmin } from "@/lib/platform/auth";
 import { parseUpdateTenant } from "@/lib/platform/validate";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "@/lib/rate-limit";
@@ -36,7 +37,19 @@ export async function PATCH(
 
     const parsed = parseUpdateTenant(await request.json().catch(() => null));
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-    const { status, reason, plan, limits, features, reseed } = parsed.value;
+    const { status, reason, name, legalName, plan, limits, features, reseed } = parsed.value;
+
+    if (name !== undefined || legalName !== undefined) {
+      const admin = createAdminPgDb();
+      const accountPatch: Record<string, unknown> = {};
+      if (name !== undefined) accountPatch.name = name;
+      if (legalName !== undefined) accountPatch.legal_name = legalName ?? null;
+      const { error } = await admin.from("accounts").update(accountPatch).eq("id", id);
+      if (error) {
+        console.error("[PATCH /api/platform/accounts/[id]] name update failed:", error);
+        return NextResponse.json({ error: "Failed to update workspace name" }, { status: 500 });
+      }
+    }
 
     if (plan !== undefined || limits !== undefined || features !== undefined) {
       const { error } = await ctx.supabase.rpc("platform_update_account", {

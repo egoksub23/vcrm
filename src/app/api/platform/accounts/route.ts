@@ -21,7 +21,9 @@
 import { NextResponse } from "next/server";
 
 import { toErrorResponse } from "@/lib/auth/account";
+import { sendPlatformAdminInviteEmail } from "@/lib/email/platform-admin-invite-email";
 import { sendTenantWelcomeEmail } from "@/lib/email/tenant-welcome-email";
+import { generateInviteToken, inviteExpiresAt, inviteUrl } from "@/lib/auth/invitations";
 import { createAdminPgDb } from "@/lib/postgres/db";
 import { getPool } from "@/lib/postgres/client";
 import { storeRecoveryToken } from "@/lib/auth/tokens";
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
 
     const parsed = parseCreateTenant(await request.json().catch(() => null));
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-    const { companyName, ownerEmail, ownerName, plan, seats, features } = parsed.value;
+    const { companyName, legalName, ownerEmail, ownerName, adminEmails, plan, seats, features } = parsed.value;
 
     const admin = createAdminPgDb();
     const sql = getPool();
@@ -129,9 +131,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not create the workspace" }, { status: 500 });
     }
 
+    const accountUpdate: Record<string, unknown> = { name: companyName };
+    if (legalName) accountUpdate.legal_name = legalName;
     const { error: renameError } = await admin
       .from("accounts")
-      .update({ name: companyName })
+      .update(accountUpdate)
       .eq("id", accountId);
     if (renameError) console.error("[POST /api/platform/accounts] rename failed:", renameError);
 
@@ -165,8 +169,37 @@ export async function POST(request: Request) {
 
     const emailed = await sendTenantWelcomeEmail({ to: ownerEmail, companyName, ownerName, url });
 
+    // Create invitations for additional admin emails and send invite emails.
+    const baseUrl = getBaseUrl(request);
+    const invitesSent: string[] = [];
+    for (const adminEmail of adminEmails) {
+      try {
+        const { token, hash } = generateInviteToken();
+        const expiresAt = inviteExpiresAt(30);
+        await sql`
+          INSERT INTO account_invitations (account_id, email, role, token_hash, created_by_user_id, expires_at)
+          VALUES (${accountId}, ${adminEmail}, 'admin', ${hash}, ${ctx.userId}, ${expiresAt.toISOString()})
+        `;
+        const inviteLink = inviteUrl(token, baseUrl);
+        const sent = await sendPlatformAdminInviteEmail({
+          to: adminEmail,
+          companyName,
+          url: inviteLink,
+          expiresInDays: 30,
+        });
+        if (sent) invitesSent.push(adminEmail);
+      } catch (err) {
+        console.error("[POST /api/platform/accounts] admin invite failed for", adminEmail, err);
+      }
+    }
+
     return NextResponse.json(
-      { accountId, emailed, ...(emailed ? {} : { setPasswordUrl: url }) },
+      {
+        accountId,
+        emailed,
+        invitesSent,
+        ...(emailed ? {} : { setPasswordUrl: url }),
+      },
       { status: 201 },
     );
   } catch (err) {
