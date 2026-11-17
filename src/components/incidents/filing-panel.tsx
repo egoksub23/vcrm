@@ -32,6 +32,7 @@ export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onC
   const [warnings, setWarnings] = useState<string[]>([]);
   const [narrative, setNarrative] = useState("");
   const [narrativeBusy, setNarrativeBusy] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await api<{ reports: Report[] }>(`/api/incidents/${incidentId}/filed-reports`);
@@ -50,6 +51,32 @@ export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onC
     if (!res.ok) return void toast.error(res.error);
     setNarrative(res.data.narrative);
     toast.success(t("narrativeDrafted"));
+  }
+
+  // Fetched and saved here, not by a plain link, so a failure shows its message instead of being saved as a strange file, and the file keeps its name.
+  async function download(r: Report) {
+    setDownloading(r.id);
+    try {
+      const res = await fetch(`/api/incidents/${incidentId}/filed-reports/${r.id}`, { credentials: "same-origin" });
+      if (!res.ok || !(res.headers.get("content-type") ?? "").includes("pdf")) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        toast.error(body?.error ?? t("downloadFailed"));
+        return;
+      }
+      const name = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "")?.[1] ?? r.filename ?? "incident-report.pdf";
+      const url = URL.createObjectURL(new Blob([await res.blob()], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch {
+      toast.error(t("downloadFailed"));
+    } finally {
+      setDownloading(null);
+    }
   }
 
   async function generate() {
@@ -99,8 +126,8 @@ export function FilingPanel({ incidentId, onChanged }: { incidentId: string; onC
                   {r.generated_by_name ? `, ${r.generated_by_name}` : ""} · {Math.max(1, Math.round(r.size_bytes / 1024))} KB
                 </span>
               </span>
-              <Button variant="outline" size="sm" render={<a href={`/api/incidents/${incidentId}/filed-reports/${r.id}`} download />}>
-                <Download />
+              <Button variant="outline" size="sm" onClick={() => void download(r)} disabled={downloading === r.id}>
+                {downloading === r.id ? <Loader2 className="animate-spin" /> : <Download />}
                 {t("download")}
               </Button>
             </li>

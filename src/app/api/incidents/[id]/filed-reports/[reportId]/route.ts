@@ -13,10 +13,11 @@ export async function GET(_request: Request, { params }: Params) {
     const { id, reportId } = await params;
     const file = await readFiledReport(ctx.supabase, ctx.accountId, id, reportId);
     if (!file) return NextResponse.json({ error: "Report not found." }, { status: 404 });
+    const safe = file.filename.replace(/[^A-Za-z0-9._-]/g, "_");
     return new NextResponse(Buffer.from(file.bytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${file.filename.replace(/[^A-Za-z0-9._-]/g, "_")}"`,
+        "Content-Disposition": `attachment; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(safe)}`,
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
       },

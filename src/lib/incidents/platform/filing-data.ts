@@ -7,6 +7,8 @@ import { createAdminPgDb, type PgDb } from "@/lib/postgres/db";
 import { appStorage } from "@/lib/storage/provider";
 import { loadEvidenceDoc } from "./evidence-doc";
 import { buildFilingPdf, type FilingImage } from "./filing-report";
+import { filedReportFileName } from "./filed-report-name";
+import { loadNamesForStandards } from "./records-data";
 
 export const FILING_BUCKET = "chat-media";
 const MAX_IMAGES = 24;
@@ -103,7 +105,7 @@ export async function generateFilingReport(args: {
 
   const pdf = await buildFilingPdf({ doc, schoolName: args.accountName, generatedBy, version, timeZone: args.timeZone, images, imagesNotShown: notShown, narrative: args.narrative });
 
-  const filename = `${doc.reference}-incident-report-v${version}.pdf`;
+  const filename = filedReportFileName(doc.reference, doc.incident.category_name, new Date(), args.timeZone);
   const storagePath = `account-${accountId}/incidents/reports/${incidentId}-v${version}-${randomUUID()}.pdf`;
   const up = await appStorage().from(FILING_BUCKET).upload(storagePath, pdf.bytes, { contentType: "application/pdf", upsert: false });
   if (up.error) return { ok: false, status: 500, error: "Could not save the report. Try again." };
@@ -134,10 +136,26 @@ export async function generateFilingReport(args: {
 
 /** The stored PDF for one filed report, or null when it is not this school's / not visible to this person. */
 export async function readFiledReport(db: PgDb, accountId: string, incidentId: string, reportId: string): Promise<{ filename: string; bytes: Uint8Array } | null> {
-  const { data } = await db.from("incident_filed_reports").select("filename, storage_path").eq("id", reportId).eq("incident_id", incidentId).eq("account_id", accountId).maybeSingle();
-  const row = data as { filename: string; storage_path: string } | null;
+  const { data } = await db.from("incident_filed_reports").select("filename, storage_path, reference, generated_at").eq("id", reportId).eq("incident_id", incidentId).eq("account_id", accountId).maybeSingle();
+  const row = data as { filename: string; storage_path: string; reference: string; generated_at: string | Date } | null;
   if (!row) return null;
   const { data: blob } = await appStorage().from(FILING_BUCKET).download(row.storage_path);
   if (!blob) return null;
-  return { filename: row.filename, bytes: new Uint8Array(await blob.arrayBuffer()) };
+  return { filename: await downloadName(db, accountId, incidentId, row), bytes: new Uint8Array(await blob.arrayBuffer()) };
+}
+
+/** Incident number, type and when the PDF was made (school time), whichever version it is; the name stored when it was made if anything cannot be read. */
+async function downloadName(db: PgDb, accountId: string, incidentId: string, row: { filename: string; reference: string; generated_at: string | Date }): Promise<string> {
+  try {
+    const { data: inc } = await db.from("incidents").select("incident_type, standard_id").eq("id", incidentId).eq("account_id", accountId).maybeSingle();
+    const i = inc as { incident_type: string; standard_id: string | null } | null;
+    if (!i) return row.filename;
+    const names = await loadNamesForStandards(db, accountId, [i.standard_id]);
+    const typeName = names.categories.find((c) => c.code === i.incident_type)?.name ?? i.incident_type;
+    const { data: acct } = await db.from("accounts").select("timezone").eq("id", accountId).maybeSingle();
+    const timeZone = (acct as { timezone?: string | null } | null)?.timezone || "UTC";
+    return filedReportFileName(row.reference, typeName, new Date(row.generated_at), timeZone);
+  } catch {
+    return row.filename;
+  }
 }

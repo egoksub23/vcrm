@@ -15284,6 +15284,7 @@
       "generating": "Making the report…",
       "made": "Report ready: version {version}.",
       "keepNote": "Each time you generate, a new version is kept. Earlier versions stay.",
+      "downloadFailed": "The report could not be downloaded. Try again, and tell your administrator if it keeps failing.",
       "charsWarn": "{count, plural, one {# character} other {# characters}} (for example Chinese or Korean names) could not be shown in the PDF and appear as ?. Ask your administrator to set up the extra font, or check those details on screen.",
       "picturesWarn": "{count, plural, one {# picture} other {# pictures}} could not be shown in the PDF (the format cannot be used, or the file is large) and are listed by name instead.",
       "narrativeLabel": "Filing narrative",
