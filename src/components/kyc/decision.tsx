@@ -78,8 +78,9 @@ export function DecisionPanel({
 
   const clean = note.replace(/\s+/g, " ").trim();
   const decidable = v.idUsable && friendId !== "";
-  // a rejected check can be amended and approved; an approved one cannot be changed from here
+  // a rejected check can be amended and approved; an approved one can be reversed to rejected by admins
   const amendable = canDecide && decidable && v.review !== null && reviewKind(v.review.raw) === "rejected";
+  const reversible = isAdmin && canDecide && decidable && v.review !== null && reviewKind(v.review.raw) === "approved";
 
   const ask = (decision: KycDecision, amend = false) => {
     // a rejection and an amendment both need a reason
@@ -164,6 +165,43 @@ export function DecisionPanel({
               </Button>
             </div>
           ) : null}
+          {reversible ? (
+            <div className="mt-3 space-y-2 border-t border-border pt-3" data-section="reverse">
+              <h4 className="font-medium text-foreground">{t("amendRejectTitle")}</h4>
+              <p className="text-xs text-muted-foreground">{t("amendRejectIntro")}</p>
+              <label htmlFor="kyc-reverse-note" className="block text-sm font-medium text-foreground">
+                {t("amendRejectNoteLabel")}
+              </label>
+              <Textarea
+                id="kyc-reverse-note"
+                ref={noteRef}
+                value={note}
+                onChange={(e) => {
+                  setNote(e.target.value);
+                  if (noteInvalid) setNoteInvalid(false);
+                }}
+                placeholder={t("amendRejectNotePlaceholder")}
+                rows={3}
+                maxLength={DECISION_NOTE_MAX}
+                disabled={busy}
+                aria-invalid={noteInvalid || undefined}
+                aria-describedby="kyc-reverse-note-help"
+              />
+              <p id="kyc-reverse-note-help" role={noteInvalid ? "alert" : undefined} className={noteInvalid ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+                {noteInvalid ? t("amendRejectNoteRequired") : t("noteHint", { count: note.length, max: DECISION_NOTE_MAX })}
+              </p>
+              {errorCode ? (
+                <div className="space-y-2">
+                  <ErrorPanel code={errorCode} isAdmin={isAdmin} compact />
+                  {(UNCERTAIN_CODES as readonly string[]).includes(errorCode) ? <p className="text-xs text-muted-foreground">{t("uncertain")}</p> : null}
+                </div>
+              ) : null}
+              <Button type="button" variant="destructive" onClick={() => ask("reject", true)} disabled={busy} data-action="reverse">
+                <XCircle aria-hidden />
+                {t("amendRejectButton")}
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : !decidable ? (
         <p className="mt-2 text-sm text-muted-foreground">{t("cannot")}</p>
@@ -220,8 +258,24 @@ export function DecisionPanel({
       >
         <DialogContent className="bg-popover text-popover-foreground sm:max-w-sm" showCloseButton={!busy}>
           <DialogHeader>
-            <DialogTitle>{asking?.amend ? t("confirmAmendTitle") : asking?.decision === "reject" ? t("confirmRejectTitle") : t("confirmApproveTitle")}</DialogTitle>
-            <DialogDescription>{asking?.amend ? t("confirmAmendBody") : asking?.decision === "reject" ? t("confirmRejectBody") : t("confirmApproveBody")}</DialogDescription>
+            <DialogTitle>
+              {asking?.amend && asking.decision === "reject"
+                ? t("confirmAmendRejectTitle")
+                : asking?.amend
+                  ? t("confirmAmendTitle")
+                  : asking?.decision === "reject"
+                    ? t("confirmRejectTitle")
+                    : t("confirmApproveTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {asking?.amend && asking.decision === "reject"
+                ? t("confirmAmendRejectBody")
+                : asking?.amend
+                  ? t("confirmAmendBody")
+                  : asking?.decision === "reject"
+                    ? t("confirmRejectBody")
+                    : t("confirmApproveBody")}
+            </DialogDescription>
           </DialogHeader>
           {clean ? (
             <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
@@ -235,7 +289,15 @@ export function DecisionPanel({
             </Button>
             <Button type="button" variant={asking?.decision === "reject" ? "destructive" : "default"} onClick={() => void confirm()} disabled={busy}>
               {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
-              {busy ? t("sending") : asking?.amend ? t("confirmAmend") : asking?.decision === "reject" ? t("confirmReject") : t("confirmApprove")}
+              {busy
+                ? t("sending")
+                : asking?.amend && asking.decision === "reject"
+                  ? t("confirmAmendReject")
+                  : asking?.amend
+                    ? t("confirmAmend")
+                    : asking?.decision === "reject"
+                      ? t("confirmReject")
+                      : t("confirmApprove")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -247,9 +309,11 @@ export function DecisionPanel({
 /** What happened, in words, including the two things the back end can report as half done. */
 export function DoneNotice({ result }: { result: KycDecisionResult }) {
   const t = useTranslations("Kyc.decision");
-  const message = result.amended
-    ? t("doneAmended")
-    : result.decision === "approve"
+  const message = result.amended && result.decision === "reject"
+    ? t("doneAmendedRejected")
+    : result.amended
+      ? t("doneAmended")
+      : result.decision === "approve"
       ? t("doneApproved")
       : result.emailSent === true
         ? t("doneRejectedEmailed")

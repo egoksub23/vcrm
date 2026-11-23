@@ -13623,7 +13623,17 @@
       "confirmAmendTitle": "Change this rejection to Approved?",
       "confirmAmendBody": "The child's eKYC status becomes Verified. The parent was already e-mailed about the rejection and Halo does not send them another message. Halo cannot undo this.",
       "confirmAmend": "Yes, amend and approve",
-      "doneAmended": "Amended. The check is now Approved and the child's eKYC status is Verified."
+      "doneAmended": "Amended. The check is now Approved and the child's eKYC status is Verified.",
+      "amendRejectTitle": "Reverse this approval",
+      "amendRejectIntro": "This check was approved. Admins can reverse it to Rejected if the approval was made in error. A note is required.",
+      "amendRejectNoteLabel": "Why is it being reversed? (required)",
+      "amendRejectNotePlaceholder": "e.g. Wrong ID was uploaded — the approval should not have been given",
+      "amendRejectNoteRequired": "Say why the approval is being reversed.",
+      "amendRejectButton": "Reverse to rejected",
+      "confirmAmendRejectTitle": "Change this approval to Rejected?",
+      "confirmAmendRejectBody": "The child's eKYC status becomes Rejected. The verification service will email the parent. Halo cannot undo this.",
+      "confirmAmendReject": "Yes, reverse to rejected",
+      "doneAmendedRejected": "Reversed. The check is now Rejected."
     },
     "readOnlyShort": "Read only",
     "resizePanel": "Resize panel",

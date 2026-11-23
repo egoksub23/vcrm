@@ -11998,7 +11998,17 @@
       "confirmAmendTitle": "Tukar penolakan ini kepada Diluluskan?",
       "confirmAmendBody": "Status eKYC kanak-kanak menjadi Disahkan. Ibu bapa sudah dimaklumkan melalui e-mel tentang penolakan dan Halo tidak menghantar mesej lain kepada mereka. Halo tidak boleh membatalkannya.",
       "confirmAmend": "Ya, pinda dan luluskan",
-      "doneAmended": "Dipinda. Semakan kini Diluluskan dan status eKYC kanak-kanak ialah Disahkan."
+      "doneAmended": "Dipinda. Semakan kini Diluluskan dan status eKYC kanak-kanak ialah Disahkan.",
+      "amendRejectTitle": "Balikkan kelulusan ini",
+      "amendRejectIntro": "Semakan ini telah diluluskan. Admin boleh membalikkannya kepada Ditolak jika kelulusan dibuat secara silap. Catatan diperlukan.",
+      "amendRejectNoteLabel": "Mengapa ia dibalikkan? (diperlukan)",
+      "amendRejectNotePlaceholder": "cth. ID yang salah dimuat naik — kelulusan tidak sepatutnya diberikan",
+      "amendRejectNoteRequired": "Nyatakan sebab kelulusan dibalikkan.",
+      "amendRejectButton": "Balikkan kepada ditolak",
+      "confirmAmendRejectTitle": "Tukar kelulusan ini kepada Ditolak?",
+      "confirmAmendRejectBody": "Status eKYC kanak-kanak menjadi Ditolak. Perkhidmatan pengesahan akan menghantar e-mel kepada ibu bapa. Halo tidak boleh membatalkan ini.",
+      "confirmAmendReject": "Ya, balikkan kepada ditolak",
+      "doneAmendedRejected": "Dibalikkan. Semakan kini Ditolak."
     },
     "readOnlyShort": "Baca sahaja",
     "resizePanel": "Ubah saiz panel",

@@ -217,8 +217,8 @@ export async function decideValidation(admin: PgDb, caller: KycCaller, rt: KycRu
     return fail("forbidden");
   }
   if (input.note.length > DECISION_NOTE_MAX || (input.decision === "reject" && input.note === "")) return fail("invalid_request");
-  // An amendment is rejected -> approved and says why; anything else is not an amendment.
-  if (input.amend && (input.decision !== "approve" || input.note === "")) return fail("invalid_request");
+  // An amendment (either direction) always requires a note.
+  if (input.amend && input.note === "") return fail("invalid_request");
   const cfg = readKycConfig(rt.env);
   if (!cfg.ok) {
     await record("error", "config_error");
@@ -232,8 +232,10 @@ export async function decideValidation(admin: PgDb, caller: KycCaller, rt: KycRu
     const records = extractItems(await fetchValidations(cfg.config, rt.transport, input.friendId, 100));
     const found = records?.map((r) => buildValidation(r)).find((v) => v.id === input.validationId);
     if (input.amend) {
-      // The check must be seen, and must carry a REJECTION: that is the only thing that is amended. (Unlike a first decision, a check that cannot be
-      // found is not let through: there would be no way to know what is being changed.)
+      // The check must be seen and carry an existing decision. The amendment must be the opposite direction:
+      //   rejected → approve  (the existing "amend" flow, migration 192)
+      //   approved → reject   (admin override: reverse an erroneous approval)
+      // Anything else (e.g. approve an already-approved check) is refused.
       if (!found) {
         await record("not_found");
         return fail("not_found");
@@ -242,7 +244,11 @@ export async function decideValidation(admin: PgDb, caller: KycCaller, rt: KycRu
         await record("error");
         return fail("invalid_request");
       }
-      if (reviewKind(found.review.raw) !== "rejected") {
+      const currentKind = reviewKind(found.review.raw);
+      const wrongDirection =
+        (input.decision === "approve" && currentKind !== "rejected") ||
+        (input.decision === "reject" && currentKind !== "approved");
+      if (wrongDirection) {
         await record("error");
         return fail("already_decided");
       }

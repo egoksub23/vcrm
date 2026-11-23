@@ -52,7 +52,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (decision === "reject" && clean === "") return failure("invalid_request");
     // `amend: true` changes a check that was REJECTED to approved: only that, and it needs the reason. Anything but a real boolean is refused.
     if (amend !== undefined && typeof amend !== "boolean") return failure("invalid_request");
-    if (amend === true && (decision !== "approve" || clean === "")) return failure("invalid_request");
+    // amend: a note is required; both directions (rejected→approved, approved→rejected) are validated in the service
+    if (amend === true && clean === "") return failure("invalid_request");
 
     const result = await decideValidation(admin, caller, runtime, { validationId: id, friendId, decision: decision as KycDecision, note: clean, amend: amend === true });
     return result.ok ? json(result.body) : failure(result.code);
