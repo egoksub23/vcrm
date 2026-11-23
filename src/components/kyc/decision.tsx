@@ -80,7 +80,9 @@ export function DecisionPanel({
   const decidable = v.idUsable && friendId !== "";
   // a rejected check can be amended and approved; an approved one can be reversed to rejected by admins
   const amendable = canDecide && decidable && v.review !== null && reviewKind(v.review.raw) === "rejected";
-  const reversible = isAdmin && canDecide && decidable && v.review !== null && reviewKind(v.review.raw) === "approved";
+  // reversible does not require decidable: an approved check is visible and acted on regardless of whether
+  // the friend-id was used as a search term; the service re-fetches and validates before acting.
+  const reversible = isAdmin && canDecide && v.idUsable && v.review !== null && reviewKind(v.review.raw) === "approved";
 
   const ask = (decision: KycDecision, amend = false) => {
     // a rejection and an amendment both need a reason
