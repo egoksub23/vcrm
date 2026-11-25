@@ -52,7 +52,7 @@ export async function POST() {
         })
         reindexed += 1
       } catch (err) {
-        const message = err instanceof AiError ? err.message : String(err)
+        const message = err instanceof AiError ? err.message : err instanceof Error ? err.message : JSON.stringify(err)
         console.error(`[knowledge/reindex] article ${doc.id} failed:`, message)
         return NextResponse.json({
           success: false,

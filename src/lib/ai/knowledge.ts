@@ -126,13 +126,16 @@ export async function ingestDocument(
     }
   }
 
-  const rows = chunks.map((content, i) => ({
-    document_id: doc.id,
-    account_id: accountId,
-    chunk_index: i,
-    content,
-    embedding: embeddings ? toVectorLiteral(embeddings[i]) : null,
-  }))
+  const rows = chunks.map((content, i) => {
+    const row: Record<string, unknown> = {
+      document_id: doc.id,
+      account_id: accountId,
+      chunk_index: i,
+      content,
+    }
+    if (embeddings) row.embedding = toVectorLiteral(embeddings[i])
+    return row
+  })
 
   const { error: insErr } = await db.from('ai_knowledge_chunks').insert(rows)
   if (insErr) throw insErr
