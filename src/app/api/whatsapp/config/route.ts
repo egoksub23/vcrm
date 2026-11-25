@@ -344,9 +344,13 @@ export async function POST(request: Request) {
         // occurs on WAME accounts whose structure differs from classic WABAs.
         // The number is already verified above, so skip the cross-check rather
         // than blocking the save when Meta won't answer the question.
-        const code = (err as { code?: number })?.code
-        if (code === 100) {
-          console.warn('[whatsapp/config] WABA phone_numbers lookup skipped (code 100 — WAME account):', waba_id)
+        // Note: on some WAME accounts Meta embeds "(#100)" in the message string
+        // rather than setting error.code to 100 numerically, so we check both.
+        const code = (err as { code?: number | null })?.code
+        const msg = String((err as { message?: unknown })?.message ?? '')
+        const isWameUnsupported = code === 100 || msg.includes('phone_numbers')
+        if (isWameUnsupported) {
+          console.warn('[whatsapp/config] WABA phone_numbers lookup skipped (WAME account):', waba_id, { code, msg: msg.slice(0, 120) })
           wabaLookupSkipped = true
         } else {
           return metaFailure(err, 'waba_phone_numbers', metaCtx)
