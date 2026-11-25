@@ -270,7 +270,7 @@ function InboxPageInner() {
   useEffect(() => {
     fetch('/api/whatsapp/config')
       .then((r) => r.json())
-      .then((d) => setWhatsappConnected(d?.status === 'connected'))
+      .then((d) => setWhatsappConnected(d?.connected === true))
       .catch(() => {/* leave null — no banner */});
   }, []);
 
