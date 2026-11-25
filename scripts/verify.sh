@@ -74,7 +74,8 @@ fi
 
 echo ""
 echo "── Public assets ───────────────────────────"
-check "favicon" "$BASE/favicon.ico"
+check "manifest.json" "$BASE/manifest.json"
+check "sw.js (service worker)" "$BASE/sw.js"
 
 echo ""
 echo "── API layer ───────────────────────────────"
