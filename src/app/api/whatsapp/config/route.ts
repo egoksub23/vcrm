@@ -211,11 +211,40 @@ export async function POST(request: Request) {
     const { accountId, userId, supabase } = ctx
 
     const body = await request.json()
-    const { phone_number_id, waba_id, access_token, verify_token, pin } = body
+    const { phone_number_id, waba_id, access_token: bodyAccessToken, verify_token, pin } = body
 
-    if (!access_token || !phone_number_id) {
+    if (!phone_number_id) {
       return NextResponse.json(
-        { error: 'access_token and phone_number_id are required' },
+        { error: 'phone_number_id is required' },
+        { status: 400 }
+      )
+    }
+
+    // Fetch existing config early so we can fall back to the stored token when
+    // the caller omits access_token (i.e. they only changed phone_number_id or
+    // waba_id without re-entering the token).
+    const { data: existing } = await supabase
+      .from('whatsapp_config')
+      .select('id, registered_at, phone_number_id, access_token, verify_token')
+      .eq('account_id', accountId)
+      .maybeSingle()
+
+    let access_token: string
+    if (bodyAccessToken) {
+      access_token = bodyAccessToken
+    } else if (existing) {
+      try {
+        access_token = decrypt(existing.access_token)
+      } catch (err) {
+        console.error('[whatsapp/config POST] Token decryption failed:', err)
+        return NextResponse.json(
+          { error: 'The stored access token cannot be decrypted. Please re-enter it to update your configuration.' },
+          { status: 400 }
+        )
+      }
+    } else {
+      return NextResponse.json(
+        { error: 'access_token is required for a new configuration' },
         { status: 400 }
       )
     }
@@ -331,12 +360,19 @@ export async function POST(request: Request) {
       }
     }
 
-    // Encrypt sensitive tokens before storing
+    // Encrypt sensitive tokens before storing.
+    // For access_token: re-encrypt the resolved token (whether from body or DB).
+    // For verify_token: encrypt if provided; if omitted, keep the stored value.
     let encryptedAccessToken: string
     let encryptedVerifyToken: string | null
     try {
       encryptedAccessToken = encrypt(access_token)
-      encryptedVerifyToken = verify_token ? encrypt(verify_token) : null
+      if (verify_token !== undefined) {
+        encryptedVerifyToken = verify_token ? encrypt(verify_token) : null
+      } else {
+        // Not sent by the caller — preserve whatever is already stored
+        encryptedVerifyToken = existing?.verify_token ?? null
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown encryption error'
       console.error('Encryption failed:', message)
@@ -348,15 +384,6 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
-
-    // Look up any pre-existing row for this account so we know whether
-    // this number is already registered with Meta — if so we can skip
-    // /register when the user didn't provide a PIN this time around.
-    const { data: existing } = await supabase
-      .from('whatsapp_config')
-      .select('id, registered_at, phone_number_id')
-      .eq('account_id', accountId)
-      .maybeSingle()
 
     const sameNumber =
       existing?.phone_number_id === phone_number_id &&

@@ -294,23 +294,22 @@ export function WhatsAppConfig() {
       const payload: Record<string, unknown> = {
         phone_number_id: phoneNumberId.trim(),
         waba_id: wabaId.trim() || null,
-        verify_token: verifyToken.trim() || null,
         // Optional — only sent when the user filled it in. The server
         // requires it on first save or when changing numbers; for a
         // simple token rotation, leaving it blank skips re-register.
         pin: pin.trim() || null,
       };
 
+      // Only send a new access_token if the user actually typed one.
+      // When omitted the backend falls back to the stored encrypted token.
       if (tokenEdited && accessToken !== MASKED_TOKEN && accessToken.trim()) {
         payload.access_token = accessToken.trim();
-      } else if (config) {
-        // Existing config — reuse stored encrypted token by decrypting on the
-        // server. But our POST handler requires an access_token to verify
-        // with Meta. If the user didn't change the token, we need to signal
-        // that. Simplest: require token re-entry if they're updating.
-        toast.error(t('reenterAccessToken'));
-        setSaving(false);
-        return;
+      }
+
+      // Only send verify_token when the user typed one — omitting it
+      // tells the backend to preserve whatever is already stored.
+      if (verifyToken.trim()) {
+        payload.verify_token = verifyToken.trim();
       }
 
       const res = await fetch('/api/whatsapp/config', {
