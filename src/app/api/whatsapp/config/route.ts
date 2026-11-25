@@ -333,15 +333,26 @@ export async function POST(request: Request) {
     // that never fires. Failing here names the mismatch instead.
     if (waba_id) {
       let wabaNumbers
+      let wabaLookupSkipped = false
       try {
         wabaNumbers = await listWabaPhoneNumbers({
           wabaId: waba_id,
           accessToken: access_token,
         })
       } catch (err) {
-        return metaFailure(err, 'waba_phone_numbers', metaCtx)
+        // Error code 100 / "Tried accessing nonexisting field (phone_numbers)"
+        // occurs on WAME accounts whose structure differs from classic WABAs.
+        // The number is already verified above, so skip the cross-check rather
+        // than blocking the save when Meta won't answer the question.
+        const code = (err as { code?: number })?.code
+        if (code === 100) {
+          console.warn('[whatsapp/config] WABA phone_numbers lookup skipped (code 100 — WAME account):', waba_id)
+          wabaLookupSkipped = true
+        } else {
+          return metaFailure(err, 'waba_phone_numbers', metaCtx)
+        }
       }
-      if (!phoneNumberBelongsToWaba(wabaNumbers, phone_number_id)) {
+      if (!wabaLookupSkipped && !phoneNumberBelongsToWaba(wabaNumbers!, phone_number_id)) {
         return NextResponse.json(
           {
             error: describeWabaPhoneMismatch(wabaNumbers, phone_number_id, waba_id),
