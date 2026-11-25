@@ -126,6 +126,12 @@ export function buildSystemPromptParts(args: SystemPromptArgs): { stable: string
         `\n\n${knowledge
           .map((k, i) => `[${i + 1}] ${k}`)
           .join('\n\n---\n\n')}`
+  } else if (mode === 'auto_reply') {
+    // No knowledge base articles matched this question. Reinforce the handoff
+    // rule explicitly so the model does not fall back on conversational history
+    // (e.g. a prior bot turn saying "our team will handle it") and manufacture
+    // a vague response instead of routing to a human.
+    variable = `No knowledge base articles were retrieved for this question. Unless you can answer with complete confidence from the conversation alone, reply with exactly ${HANDOFF_SENTINEL} so a human agent can help.`
   }
 
   return { stable, variable }
