@@ -22,15 +22,19 @@ export function InboxTabBar({
   tab,
   onTabClick,
   unread,
+  hiddenTabs = [],
 }: {
   tab: InboxTab;
   onTabClick: (tab: InboxTab) => void;
   unread: Record<InboxTab, number>;
+  /** Tabs to hide entirely — used when a channel is switched off in Settings. */
+  hiddenTabs?: InboxTab[];
 }) {
   const t = useTranslations("Inbox.conversationList");
+  const visibleTabs = hiddenTabs.length ? TABS.filter(({ key }) => !hiddenTabs.includes(key)) : TABS;
   return (
     <div role="tablist" className="flex shrink-0 border-b border-border">
-      {TABS.map(({ key, label }) => (
+      {visibleTabs.map(({ key, label }) => (
         <button
           key={key}
           type="button"

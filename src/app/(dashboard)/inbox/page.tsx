@@ -287,6 +287,12 @@ function InboxPageInner() {
     if (mailInbox.loaded && !emailInboxOff) pingEmailSubscriptionHeartbeat();
   }, [mailInbox.loaded, emailInboxOff]);
 
+  // If the email channel is turned off mid-session while the agent is on the
+  // Emails tab, snap them back to Chats so they're not stranded on a hidden tab.
+  useEffect(() => {
+    if (mailInbox.hideEmailTab && inboxTab === "emails") setInboxTab("chats");
+  }, [mailInbox.hideEmailTab, inboxTab]);
+
   // Handle realtime message events
   const handleMessageEvent = useCallback(
     (event: { eventType: string; new: Message; old: Partial<Message> }) => {

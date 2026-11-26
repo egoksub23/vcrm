@@ -9,11 +9,15 @@ export async function GET() {
       ctx.supabase.from("email_config").select("inbox_enabled").eq("account_id", ctx.accountId).maybeSingle(),
       ctx.supabase.from("gmail_config").select("inbox_enabled").eq("account_id", ctx.accountId).maybeSingle(),
     ]);
-    const off = mailInboxOffChannels({
-      email_config: email.error ? null : (email.data as { inbox_enabled?: boolean | null } | null),
-      gmail_config: gmail.error ? null : (gmail.data as { inbox_enabled?: boolean | null } | null),
-    });
-    return NextResponse.json({ offChannels: off });
+    const emailRow = email.error ? null : (email.data as { inbox_enabled?: boolean | null } | null);
+    const gmailRow = gmail.error ? null : (gmail.data as { inbox_enabled?: boolean | null } | null);
+    const off = mailInboxOffChannels({ email_config: emailRow, gmail_config: gmailRow });
+    // Hide the Emails tab when no email channel is active (connected + inbox_enabled).
+    // A null row means the mailbox is not connected — also not active.
+    const hasActiveEmail =
+      (emailRow !== null && emailRow.inbox_enabled !== false) ||
+      (gmailRow !== null && gmailRow.inbox_enabled !== false);
+    return NextResponse.json({ offChannels: off, hideEmailTab: !hasActiveEmail });
   } catch (err) {
     return toErrorResponse(err);
   }

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, MessageCircleMore, RefreshCw, Search } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useMailInbox } from "@/hooks/use-mail-inbox";
 import { useAccountSse } from "@/hooks/use-account-sse";
 import { useCapability } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,8 @@ export function CommentsInbox({
   const { accountId, user } = useAuth();
   const userId = user?.id ?? null;
   const canWrite = useCapability("comments.moderate");
+  const { hideEmailTab } = useMailInbox();
+  const hiddenTabs: InboxTab[] = hideEmailTab ? ["emails"] : [];
 
   const [view, setView] = useState<PostView>("open");
   const [provider, setProvider] = useState<CommentProvider | "">("");
@@ -243,7 +246,7 @@ export function CommentsInbox({
           hasDetail ? "hidden lg:flex" : "flex",
         )}
       >
-        <InboxTabBar tab="comments" onTabClick={onTabChange} unread={unread} />
+        <InboxTabBar tab="comments" onTabClick={onTabChange} unread={unread} hiddenTabs={hiddenTabs} />
 
         <div className="space-y-2 border-b border-border p-3">
           <div className="flex items-center gap-2">

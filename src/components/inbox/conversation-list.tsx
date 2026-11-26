@@ -30,6 +30,7 @@ import { CHANNEL_ICONS } from "./channel-icons";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { InboxTabBar } from "./inbox-tab-bar";
+import { useMailInbox } from "@/hooks/use-mail-inbox";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -128,6 +129,8 @@ export function ConversationList({
 }: ConversationListProps) {
   const channelScope = TAB_CHANNELS[tab];
   const t = useTranslations("Inbox.conversationList");
+  const { hideEmailTab } = useMailInbox();
+  const hiddenTabs: InboxTab[] = hideEmailTab ? ["emails"] : [];
   const { user, slaResponseMinutes, statusColors } = useAuth();
   // One shared ticking clock for every row's aging-response chip,
   // rather than each ConversationItem running its own interval.
@@ -611,6 +614,7 @@ export function ConversationList({
         tab={tab}
         onTabClick={handleTabClick}
         unread={{ ...unreadByTab, comments: commentsOpen }}
+        hiddenTabs={hiddenTabs}
       />
 
       {/* Search + Filter */}

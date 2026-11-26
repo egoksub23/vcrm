@@ -14,14 +14,21 @@ import type { ChannelType } from "@/types";
 export interface MailInboxState {
   /** The email channels (`email`, `gmail`) the Inbox does not offer. */
   offChannels: ChannelType[];
+  /** Hide the Emails tab: no email channel is connected and inbox-enabled. */
+  hideEmailTab: boolean;
   /** The first read has answered. */
   loaded: boolean;
 }
 
+interface MailInboxData {
+  off: ChannelType[];
+  hideEmailTab: boolean;
+}
+
 const TTL_MS = 60_000;
 const NONE: ChannelType[] = [];
-let cache: { at: number; off: ChannelType[] } | null = null;
-let inflight: Promise<ChannelType[]> | null = null;
+let cache: { at: number; data: MailInboxData } | null = null;
+let inflight: Promise<MailInboxData> | null = null;
 const listeners = new Set<() => void>();
 
 export function invalidateMailInbox(): void {
@@ -30,15 +37,16 @@ export function invalidateMailInbox(): void {
   for (const l of listeners) l();
 }
 
-async function fetchOffChannels(): Promise<ChannelType[]> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.off;
+async function fetchMailInboxData(): Promise<MailInboxData> {
+  if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
   if (inflight) return inflight;
   const load = (async () => {
     const res = await fetch("/api/account/mail-inbox").catch(() => null);
     const json = res?.ok ? (await res.json().catch(() => null)) : null;
     const off = (Array.isArray(json?.offChannels) ? json.offChannels : []) as ChannelType[];
-    cache = { at: Date.now(), off };
-    return off;
+    const data: MailInboxData = { off, hideEmailTab: json?.hideEmailTab === true };
+    cache = { at: Date.now(), data };
+    return data;
   })();
   inflight = load;
   try {
@@ -49,17 +57,26 @@ async function fetchOffChannels(): Promise<ChannelType[]> {
 }
 
 export function useMailInbox(): MailInboxState {
-  const [state, setState] = useState<MailInboxState>({ offChannels: cache?.off ?? NONE, loaded: cache !== null });
+  const [state, setState] = useState<MailInboxState>({
+    offChannels: cache?.data.off ?? NONE,
+    hideEmailTab: cache?.data.hideEmailTab ?? false,
+    loaded: cache !== null,
+  });
 
   useEffect(() => {
     let live = true;
     const run = () => {
-      fetchOffChannels()
-        .then((off) => {
-          if (live) setState((prev) => (prev.loaded && prev.offChannels.join() === off.join() ? prev : { offChannels: off, loaded: true }));
+      fetchMailInboxData()
+        .then((data) => {
+          if (live)
+            setState((prev) =>
+              prev.loaded && prev.offChannels.join() === data.off.join() && prev.hideEmailTab === data.hideEmailTab
+                ? prev
+                : { offChannels: data.off, hideEmailTab: data.hideEmailTab, loaded: true },
+            );
         })
         .catch(() => {
-          if (live) setState((prev) => (prev.loaded ? prev : { offChannels: NONE, loaded: true }));
+          if (live) setState((prev) => (prev.loaded ? prev : { offChannels: NONE, hideEmailTab: false, loaded: true }));
         });
     };
     run();
